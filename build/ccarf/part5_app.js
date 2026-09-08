@@ -55,8 +55,9 @@ function streak(){
 }
 
 /* ---------- router ---------- */
-const VIEWS = {dash:renderDash, practice:renderPractice, weak:renderWeak, cards:renderCards, search:renderSearch, ref:renderRef};
+const VIEWS = {dash:renderDash, practice:renderPractice, exam:renderExam, weak:renderWeak, cards:renderCards, search:renderSearch, ref:renderRef};
 function go(v){
+  if(v!=="exam") examStopClock();
   $$("nav button").forEach(b=>b.classList.toggle("on", b.dataset.v===v));
   $$(".view").forEach(s=>s.classList.toggle("on", s.id==="v-"+v));
   VIEWS[v]();
@@ -108,6 +109,7 @@ function renderDash(){
       <button class="btn ghost" data-jump="starred">Bookmarked (${starred})</button>
       <button class="btn ghost" data-jump="weak">Drill my weakest tasks</button>
       <button class="btn ghost" data-jump="cards">Concept flashcards</button>
+      <button class="btn ghost" data-jump="exam">Sit a timed mock exam</button>
     </div>
   </div>
 
@@ -126,6 +128,7 @@ function renderDash(){
     const j=b.dataset.jump;
     if(j==="cards") return go("cards");
     if(j==="weak")  return go("weak");
+    if(j==="exam")  return go("exam");
     S.filters = {d:"", t:"", s:"", mode:j, shuffle:true}; save();
     go("practice");
   });

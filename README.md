@@ -91,11 +91,25 @@ options**, a detailed explanation (406 characters average), and a "Concept to lo
 in" takeaway. The answer key is balanced A=376 / B=375 / C=375 / D=375 by a
 seeded build-time shuffle, so there is no positional tell to learn.
 
-**Modes:** Practice (filter by domain, task, scenario, or set) · Weak Areas
-(accuracy per task statement, with one-click drilling) · Flashcards (Leitner
-spaced repetition, 1/3/7/21-day intervals) · Search · Blueprint reference.
+**Modes:** Practice (filter by domain, task, scenario, or set) · **Exam Simulator**
+(timed 60-question mock) · Weak Areas (accuracy per task statement, with one-click
+drilling) · Flashcards (Leitner spaced repetition, 1/3/7/21-day intervals) ·
+Search · Blueprint reference.
 
-Keyboard: `A`–`D` answer · `→` next · `S` bookmark.
+Keyboard: `A`–`D` answer · `→` next · `S` bookmark (`F` to flag during an exam).
+
+### Exam Simulator
+
+A full mock under real conditions — **60 questions, 120 minutes, no feedback until
+you submit**. Each sitting seats the paper to the blueprint (D1:16 D2:11 D3:12
+D4:12 D5:9) and draws **4 scenarios from the pool of 8**, as the real exam does.
+
+Flag questions for review, jump around with the question navigator, and let the
+clock run on wall time — reloading restores your paper rather than resetting it.
+Submitting gives you a scaled 100–1000 score against the 720 pass mark, a
+per-domain breakdown, and full explanations for all 60. Questions you have already
+been served are de-prioritised, so repeat sittings stay useful. Results feed Weak
+Areas, and one click bookmarks everything you missed for practice.
 
 Full details: **[docs/CCAR-F.md](docs/CCAR-F.md)**
 
@@ -146,7 +160,7 @@ than a complete course.
 │   └── CCAR-F.md      # Architect: methodology & verification
 ├── spec/              # Authoring specs (blueprint, question spec)
 └── build/
-    ├── ccarf/         # Architect: question sources, shuffle.js, assemble.sh
+    ├── ccarf/         # Architect: question sources, exam module, assemble.sh
     ├── questions/     # Associate: 108 question batches (JSON)
     ├── flashcards/    # Associate: flashcard batches (JSON)
     ├── review/        # Associate: audit + adjudication artefacts

@@ -86,6 +86,7 @@ There is no positional tell to learn, and rebuilds are deterministic.
 | Mode | What it does |
 |---|---|
 | **Practice** | Filter by domain, task statement, scenario, difficulty, or set. Instant feedback with full rationale. |
+| **Exam Simulator** | Timed 60-question mock under real conditions. See below. |
 | **Weak Areas** | Accuracy per task statement, worst first. One click drills that task. |
 | **Flashcards** | 130 concept cards on Leitner spaced repetition (1/3/7/21-day intervals). |
 | **Search** | Full-text across every stem, option, explanation and card. |
@@ -94,7 +95,44 @@ There is no positional tell to learn, and rebuilds are deterministic.
 Bookmarks, per-question history, streaks and theme persist in browser local
 storage. Nothing leaves your machine.
 
-**Keyboard:** `A`–`D` answer · `→` next · `S` bookmark.
+**Keyboard:** `A`–`D` answer · `→` next · `S` bookmark · `F` flag (exam only).
+
+### Exam Simulator
+
+Reproduces the real sitting: **60 questions, 120 minutes, no feedback until you
+submit**, scored 100–1000 against the 720 pass mark.
+
+The paper is seated to the blueprint by largest remainder, so it always totals
+exactly 60:
+
+| Domain | Weight | Seats |
+|---|---:|---:|
+| D1 Agent Architecture & Orchestration | 27% | 16 |
+| D2 Tool Design & MCP Integration | 18% | 11 |
+| D3 Claude Code Configuration & Workflows | 20% | 12 |
+| D4 Prompt Engineering & Structured Output | 20% | 12 |
+| D5 Context Management & Reliability | 15% | 9 |
+
+Each sitting also draws **4 scenarios from the pool of 8**, matching the real
+exam, and prefers questions you have not been served before so repeat attempts
+stay useful.
+
+During the exam you can flag questions, move freely via the question navigator,
+and clear an answer. The clock runs on wall time and the paper is persisted, so
+reloading the page restores your sitting rather than resetting it; running out of
+time auto-submits.
+
+Afterwards you get the scaled score against the pass line, a per-domain
+breakdown, the scenarios that were drawn, and full explanations for all 60
+questions. Results feed Weak Areas, past attempts are kept in a history, and one
+click bookmarks everything you missed for targeted practice.
+
+At 60 questions, **42 correct (70%) is the pass mark** — 42/60 scores 730, 41/60
+scores 715.
+
+`assemble.sh` fails the build if the domain weights do not total 100%, if the
+seats do not resolve to exactly 60, or if any domain has fewer questions in the
+bank than the exam needs to seat.
 
 ## Verification
 
@@ -155,6 +193,7 @@ Requires Node.js. Sources live in `build/ccarf/`:
 | `qb_head.js`, `qb_b01…b36.js` | 1,501 questions in 36 batches |
 | `cards_head.js`, `cards_b01…b02.js` | 130 flashcards |
 | `part5_app.js` | Application engine |
+| `part6_exam.js` | Exam simulator (paper generation, timer, scoring) |
 | `part9_tail.html` | Closing markup |
 | `shuffle.js` | Seeded answer-key rebalance + doc-note injection |
 | `assemble.sh` | Validate, shuffle, concatenate |
