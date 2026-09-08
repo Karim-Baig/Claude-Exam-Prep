@@ -1,0 +1,117 @@
+# Already covered in D1 — DO NOT duplicate these
+
+- [Claude API Mechanics] A developer's call to the Claude API returns `401 authentication_error`. Their request includes: [code] What is the most likely cause?
+- [Claude API Mechanics] Which headers must be present on a Claude Messages API request?
+- [Claude API Mechanics] What is the endpoint and HTTP method for a standard (non-batch) Claude completion?
+- [Claude API Mechanics] Which three fields are required in the body of a Messages API request?
+- [Claude API Mechanics] A developer tries to set Claude's persona by adding this as the **first** element of the `messages` array: [code] The request fails validation. Why?
+- [Claude API Mechanics] Tool results are returned to Claude using which structure?
+- [Claude API Mechanics] Which set contains **only** valid `stop_reason` values on a Messages API response?
+- [Claude API Mechanics] A summarisation service returns responses that consistently end mid-sentence. `stop_reason` is `max_tokens`. What is the correct fix?
+- [Claude API Mechanics] An agent loop calls Claude with tools. It ends the conversation whenever `content` contains any text block. Users report the agent "answers then aband
+- [Claude API Mechanics] Which `stop_reason` indicates the model is pausing and expects you to execute something and reply?
+- [Claude API Mechanics] In the response `usage` object, which fields report token consumption?
+- [Claude API Mechanics] A team needs to know the token cost of a large prompt **before** spending money generating a response. What should they use?
+- [Claude API Mechanics] A request bundles a 9,000-token system prompt, 185,000 tokens of chat history, and a 14,000-token user message against a 200K-context model. What happ
+- [Claude API Mechanics] Which content block types can appear in an assistant response?
+- [Error Handling & Retries] What does HTTP **529** from the Claude API mean?
+- [Error Handling & Retries] A nightly job fires thousands of concurrent requests and takes a wave of 429s. Every worker retries after exactly 2 seconds. Throughput stays terrible
+- [Error Handling & Retries] Which status codes generally warrant an automatic retry, versus a code fix?
+- [Error Handling & Retries] What shape does a Claude API error response body take?
+- [Error Handling & Retries] Requests that worked in staging now return `400 invalid_request_error` in production against the same model. What should be checked first?
+- [Error Handling & Retries] An engineer must attach a support ticket for an intermittent API failure. Which value best identifies the specific failed call?
+- [Streaming] How do you request a streamed response?
+- [Streaming] Which sequence of SSE event types does a streaming Messages response follow?
+- [Streaming] A streaming client needs the final `stop_reason` and total output tokens. Which event carries them?
+- [Streaming] When streaming a response that includes tool use, which delta type carries the incrementally-built tool arguments?
+- [Streaming] Which requirement most strongly justifies streaming over a single buffered response?
+- [Streaming] A service streams responses and must also return strictly-validated JSON to a downstream consumer. What is the sound approach?
+- [Streaming] What is the purpose of the `ping` event in a Claude SSE stream?
+- [Batch API] What is the headline cost characteristic of the Message Batches API?
+- [Batch API] Which workload is the **worst** fit for the Batch API?
+- [Batch API] What identifier must accompany each request inside a batch, and why?
+- [Batch API] A batch of 50,000 requests finishes with status `ended`. How should results be processed?
+- [Vision & Multimodal] Which image formats does Claude's vision capability accept?
+- [Vision & Multimodal] An application must send a locally-stored PNG for analysis. What is the correct content block?
+- [Vision & Multimodal] A team wants Claude to produce a marketing illustration from a text brief. What should they be told?
+- [Vision & Multimodal] A document-processing pipeline sends 4,000×5,000-pixel page scans and hits both high token costs and slow responses. What is the most effective mitiga
+- [Vision & Multimodal] A request must compare two product photos in a single turn. How are they supplied?
+- [Software Engineering Foundations] A production service must guarantee the underlying model does not change beneath it. What does Anthropic's current model-ID scheme mean for that goal?
+- [Software Engineering Foundations] Where should a Claude API key live in a deployed application?
+- [Software Engineering Foundations] A team must upgrade to a newer Claude model without regressing behaviour. What is the soundest process?
+- [Software Engineering Foundations] Why does Anthropic recommend the official SDKs over hand-rolled HTTP calls?
+- [Configuration Management] What effect does `temperature: 0` have?
+- [Configuration Management] On a model that still accepts sampling parameters, which configuration best fits a creative-copy generator producing varied taglines?
+- [Configuration Management] What is Anthropic's guidance on using `temperature` and `top_p` together?
+- [Configuration Management] A code generator must stop as soon as the model emits `</code>`. Which parameter achieves this?
+- [Understanding Requirements] A stakeholder asks for "an AI that answers questions about our 40,000 internal policy documents." Which requirement most shapes the architecture?
+- [Understanding Requirements] A regulated client requires that every generated answer be traceable to a source document. What must the design include?
+- [Systems Life Cycle] What is the most reliable way to catch prompt regressions before they reach users?
+- [Systems Life Cycle] Which observability signals matter most for a production Claude integration?
+- [Deployment Platforms] Besides Anthropic's own API, on which managed cloud platforms are Claude models offered?
+- [Deployment Platforms] An enterprise on AWS with strict data-residency rules wants Claude inside its existing compliance boundary. What changes when moving from the first-pa
+- [Claude Application Design] A chat product must maintain conversation continuity across page reloads. Where does conversation state live?
+- [Claude Application Design] A document-analysis feature must handle uploads from 2 to 900 pages. What architecture handles the range most robustly?
+- [Claude Application Design] A feature must return results to a user within 2 seconds, but the analysis genuinely needs 15 seconds of model work. What is the appropriate design?
+- [Claude API Mechanics] A client sends a follow-up request containing an assistant turn with two `tool_use` blocks, but supplies only one `tool_result`. What happens?
+- [Streaming] A streaming client sometimes displays duplicated or interleaved text when a response contains both a thinking block and a text block. What is the like
+- [Streaming] A long streaming generation fails intermittently behind a corporate proxy with a connection reset. What is the most likely cause and mitigation?
+- [Error Handling & Retries] Under sustained load a service receives 429s. Rate-limit headers show request capacity remaining but input-token capacity exhausted. What is the corre
+- [Error Handling & Retries] Which response headers help a client manage rate limiting proactively?
+- [Error Handling & Retries] A retry wrapper retries every failure up to five times, including 400s. What is the consequence?
+- [Batch API] A team must re-classify 250,000 archived documents with no deadline pressure. Which combination minimises cost?
+- [Vision & Multimodal] An expenses tool extracts totals from receipt photos. Accuracy on crumpled or dim photos is poor. Which change most improves it?
+- [Vision & Multimodal] An agentic workflow re-sends the same 12 reference images on every turn of a long conversation. What optimisation applies?
+- [Software Engineering Foundations] A team must write automated tests for code that calls Claude. What is the soundest strategy?
+- [Software Engineering Foundations] Prompts are currently hard-coded as string literals across a codebase. Why is this a maintenance problem?
+- [Configuration Management] A single service supports three tenants with different tone and policy requirements. What is the cleanest configuration approach?
+- [Understanding Requirements] A stakeholder asks for "an AI that automatically approves expense claims." Which requirement question most changes the design?
+- [Understanding Requirements] A requirement states the assistant "must never give medical advice." What is the most reliable way to satisfy it?
+- [Systems Life Cycle] A prompt change ships and user complaints rise, but error rates and latency are unchanged. What does this reveal about the monitoring setup?
+- [Systems Life Cycle] What is the safest way to roll out a significant prompt change to a high-traffic feature?
+- [Claude Application Design] A support assistant must answer from a knowledge base that updates several times daily. Which design keeps answers current?
+- [Claude API Mechanics] A developer wants Claude's reply to begin immediately with a JSON object, with no preamble such as "Here is the JSON:". Which technique achieves this 
+- [Claude API Mechanics] Why should a client treat the `content` array as a list rather than assuming `content[0].text` holds the answer?
+- [Deployment Platforms] A team is porting a working first-party Claude integration to a partner cloud platform. Which class of change should they plan for?
+- [Error Handling & Retries] An idempotent-looking request is retried after a network timeout, and the user is charged twice by a downstream tool. What was missing?
+- [Claude Application Design] A product needs both a fast conversational reply and a slower, thorough written report from the same user request. What is the appropriate design?
+- [Claude API Mechanics] A developer wants Claude to stop generating as soon as it writes `---END---`. Which parameter, and what will `stop_reason` be?
+- [Error Handling & Retries] A high-throughput service must stay within rate limits rather than discovering them by hitting 429s. What is the best approach?
+- [Streaming] A streaming UI must show a typing indicator only while the model is genuinely producing text. Which events should drive it?
+- [Vision & Multimodal] A pipeline must extract line items from invoice PDFs. What is the key architectural consideration?
+- [Software Engineering Foundations] Which practice most improves the debuggability of a Claude integration in production?
+- [Configuration Management] A team wants to A/B test two system prompts in production. What must the implementation support?
+- [Batch API] A batch job's results file shows some entries with status `expired`. What does that mean and what should happen?
+- [Claude Application Design] A feature must work when the Claude API is unavailable. What design element is required?
+- [Understanding Requirements] A requirement says the assistant must "respond instantly." What is the right engineering response?
+- [Systems Life Cycle] After a model version upgrade, output is subtly different in tone though accuracy is unchanged. Users complain. What does this reveal about the upgrad
+- [Claude API Mechanics] A request includes `max_tokens: 100000` on a model whose output ceiling is lower. What happens?
+- [Deployment Platforms] An organisation needs Claude usage to appear in existing cloud spend commitments and stay inside its VPC and IAM boundary. What does this point to?
+- [Error Handling & Retries] A service retries on 429 with exponential backoff but ignores the `retry-after` header. What is the consequence?
+- [Claude Application Design] A conversational product must let users edit an earlier message and regenerate from that point. What does this require of state management?
+- [Streaming] A streaming client needs to detect that the model wants to call a tool, as early as possible. What should it watch for?
+- [Software Engineering Foundations] Why should the Claude API client be wrapped behind an internal interface rather than called directly throughout a codebase?
+- [Understanding Requirements] A client asks for an assistant that "learns from user corrections over time." What clarification most affects the architecture?
+- [Configuration Management] Which values should be environment-specific configuration rather than hard-coded constants?
+- [Systems Life Cycle] What belongs in a rollback plan for an LLM feature that a conventional deployment rollback does not cover?
+- [Claude API Mechanics] Why must an application handle `stop_reason` values it does not recognise?
+- [Claude API Mechanics] Which statement about `max_tokens` is correct?
+- [Error Handling & Retries] What does a `402` response from the Claude API indicate?
+- [Streaming] Which field on `content_block_delta` tells you which content block the fragment belongs to?
+- [Batch API] What are the documented size limits for a single batch submission?
+- [Vision & Multimodal] Which image `source` types does the Messages API accept?
+- [Claude API Mechanics] A client resends a conversation after editing a message near the beginning. Cache hit rate collapses. Why?
+- [Software Engineering Foundations] Which official Anthropic SDKs are available?
+- [Configuration Management] A service must switch model versions without redeployment during an incident. What does this require?
+- [Understanding Requirements] A requirement reads: "the assistant should never make things up." How should this be translated into engineering terms?
+- [Systems Life Cycle] Which artefacts should be version-controlled alongside application code for an LLM feature?
+- [Deployment Platforms] Which is true of image inputs on partner cloud platforms such as Amazon Bedrock and Google Cloud?
+- [Claude Application Design] A product must support conversation branching, where a user explores two alternative replies from the same point. What does the state model need?
+- [Error Handling & Retries] Which errors should increment an alert-worthy metric rather than being silently retried?
+- [Streaming] A client must show token usage after a streamed response completes. Where does it come from?
+- [Claude API Mechanics] An integration works with one tool but fails intermittently when several tools may be called. What is the most likely defect?
+- [Software Engineering Foundations] Why should unit tests mock the Claude API rather than calling it?
+- [Understanding Requirements] A requirement says results must be "auditable." What does that imply for the integration?
+- [Systems Life Cycle] A model the service pins to is scheduled for retirement. What is the appropriate response?
+- [Configuration Management] What is the `metadata` field on a Messages request used for?
+- [Vision & Multimodal] A workflow analyses multi-page PDFs. What should be checked before designing page-to-image conversion?

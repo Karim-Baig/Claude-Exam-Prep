@@ -1,0 +1,57 @@
+# Already covered in D2 — DO NOT duplicate these
+
+- [LLM Fundamentals] What is a token in the context of Claude?
+- [LLM Fundamentals] An engineer estimates prompt size by dividing character count by 4. Their non-English and JSON-heavy payloads keep overflowing the context window. Why
+- [LLM Fundamentals] What does a model's context window bound?
+- [Model Selection & Trade-offs] A support product must classify 2 million inbound tickets per month into 12 categories. Accuracy needs are moderate; cost and throughput dominate. Whi
+- [Model Selection & Trade-offs] How do Claude's model tiers differ in intent?
+- [Model Selection & Trade-offs] A pipeline runs a single expensive model for every step: parsing intent, retrieving, then writing a nuanced customer reply. Costs are unsustainable. W
+- [Model Selection & Trade-offs] A user-facing autocomplete feature must respond in under 300 ms. Which factor should dominate model choice?
+- [Model Selection & Trade-offs] What is extended thinking, and what is its primary trade-off?
+- [Model Selection & Trade-offs] On a model that still supports manual extended thinking, a team sets `budget_tokens: 8000` with `max_tokens: 4000`. What is wrong?
+- [Cost & Token Management] Which generally costs more per token, and what follows for cost control?
+- [Cost & Token Management] A chatbot resends a 12,000-token style guide and tool catalogue as the system prompt on every one of 500,000 monthly calls. What is the single most ef
+- [Prompt Caching] How is a prompt cache breakpoint declared?
+- [Prompt Caching] A request contains tool definitions, a long static system prompt, and a short volatile user message. Where should the cache breakpoint go?
+- [Prompt Caching] What is the default lifetime of an ephemeral prompt cache entry?
+- [Prompt Caching] Roughly how do cache write and cache read costs compare to normal input token cost?
+- [Prompt Caching] A team enables caching but `usage` shows `cache_creation_input_tokens` on nearly every call and almost no `cache_read_input_tokens`. What is the most 
+- [Prompt Caching] Which parts of a request can be cached?
+- [Prompt Caching] A long-running assistant caches its system prompt and, as turns accumulate, also caches conversation history. What is the correct pattern?
+- [Prompt Caching] Which `usage` fields prove caching is working?
+- [Cost & Token Management] Which combination stacks correctly to reduce cost on a large offline classification job?
+- [Technical Fundamentals] An engineer wraps the Claude API behind an internal REST service. Which responsibility belongs in that wrapper rather than in each calling application
+- [Technical Fundamentals] What does `top_k` control?
+- [Cost & Token Management] Finance asks for per-team cost attribution on a shared Claude integration. What is the minimum needed?
+- [LLM Fundamentals] Why can an LLM state something false with complete confidence?
+- [Model Selection & Trade-offs] A team must decide empirically between two model tiers for a production task. What is the correct method?
+- [Cost & Token Management] A team enables prompt caching and total spend rises. `usage` shows high `cache_creation_input_tokens` and low `cache_read_input_tokens`. What is the e
+- [Prompt Caching] A multi-tenant assistant has a 15,000-token shared system prompt plus a short per-tenant preamble. How should the breakpoint be placed for best econom
+- [Prompt Caching] A team wants to keep a cache entry warm for a workload that fires roughly every 20 minutes. What applies?
+- [Cost & Token Management] An agent's cost per task has tripled over six months with no prompt changes. What is the most likely cause?
+- [Model Selection & Trade-offs] An eval shows the cheapest tier reaching 91% accuracy and the strongest 96% on a task where an error costs roughly £40 to remediate, at 200,000 reques
+- [Technical Fundamentals] A service must expose Claude-backed functionality over a WebSocket to a browser client. What is the appropriate structure?
+- [LLM Fundamentals] Why does the same prompt sometimes produce different outputs even with sampling parameters at their defaults?
+- [Cost & Token Management] Which change reduces output token cost most directly for a report generator?
+- [Model Selection & Trade-offs] When does deeper model reasoning cost more than it delivers?
+- [Technical Fundamentals] An internal gateway wraps the Claude API for many teams. Which capability most improves organisational cost control?
+- [LLM Fundamentals] A summariser reproduces a factual error present in its source document. Is this a hallucination?
+- [Cost & Token Management] A RAG system retrieves 20 passages per query "to be safe." Cost is high and answer quality is mediocre. What is the likely diagnosis?
+- [Model Selection & Trade-offs] A cascade routes requests to a cheap tier first and escalates on low confidence. What is required for this to work?
+- [Prompt Caching] Which request ordering maximises cache effectiveness?
+- [LLM Fundamentals] Why can a model perform worse on a task when given a very long context, even well within the window limit?
+- [Cost & Token Management] Which `usage` field tells you tokens were served from cache at the discounted rate?
+- [LLM Fundamentals] Why is `/v1/messages/count_tokens` preferable to a character-count heuristic?
+- [Prompt Caching] What is the maximum number of cache breakpoints in a single request?
+- [Model Selection & Trade-offs] A routing classifier must label 5 million requests monthly with a 300 ms budget. Which tier and why?
+- [Cost & Token Management] An analysis shows input tokens are 90% of spend, dominated by a repeated 20,000-token reference document. What is the highest-leverage change?
+- [Prompt Caching] A cached prefix includes the line `Current time: 2026-03-05T14:22:07Z`. What is the effect?
+- [Technical Fundamentals] What does it mean that the Messages API is stateless?
+- [Model Selection & Trade-offs] An eval shows two tiers performing identically on the task. What should decide the choice?
+- [Cost & Token Management] Which combination of savings can be applied to the same request?
+- [LLM Fundamentals] Why can a model produce a fabricated citation that passes JSON schema validation?
+- [Prompt Caching] A conversation grows across turns. How should breakpoints be managed to keep caching effective?
+- [Model Selection & Trade-offs] What does an effort setting control on models that support it?
+- [Cost & Token Management] A team reports "the model got more expensive" after adding a large tool catalogue, with no prompt changes. What explains it?
+- [Technical Fundamentals] A gateway service adds prompt caching centrally for all teams. What must it be careful about?
+- [Model Selection & Trade-offs] When is a larger context window genuinely the deciding factor in model choice?

@@ -1,0 +1,22 @@
+# Already covered in D8 — DO NOT duplicate these
+
+- [Debugging & Error Handling] An application returns wrong answers. How do you determine whether the fault is an integration bug or a model-quality problem?
+- [Debugging & Error Handling] A structured-output pipeline intermittently fails to parse. Which diagnostic sequence is most efficient?
+- [Debugging & Error Handling] What is the value of an automated eval suite for an LLM feature?
+- [Debugging & Error Handling] An agent occasionally produces a good final answer via a wasteful path — twelve tool calls where three would do. What does this indicate about testing
+- [Debugging & Error Handling] Which production signal most reliably indicates that outputs are being silently truncated?
+- [Debugging & Error Handling] A prompt change improves a metric on ten hand-picked examples. What is the risk of shipping on that basis?
+- [Debugging & Error Handling] Which distinction matters most when triaging a Claude API failure?
+- [Debugging & Error Handling] A RAG system returns confident but unsupported answers. Where should investigation begin?
+- [Debugging & Error Handling] Which set of production metrics gives the most complete picture of a Claude integration's health?
+- [Debugging & Error Handling] A tool inside an agent returns correct data, yet the agent ignores it and answers from prior knowledge. What is the most likely cause?
+- [Debugging & Error Handling] Which single response field is the most useful first check when output looks wrong?
+- [Debugging & Error Handling] What should an eval suite assert about generated output, given that generation is not deterministic?
+- [Debugging & Error Handling] A team wants to know whether a new prompt is better before shipping. What is the minimum viable setup?
+- [Debugging & Error Handling] An intermittent failure occurred in production three days ago and cannot be reproduced. What logging would have made it diagnosable?
+- [Debugging & Error Handling] What does a rising rate of `stop_reason: "refusal"` in production most likely indicate?
+- [Debugging & Error Handling] A structured-output pipeline has a 2% parse-failure rate. Which fix addresses the cause rather than the symptom?
+- [Debugging & Error Handling] An agent evaluation shows a 95% task success rate but users are dissatisfied. What is the likely gap?
+- [Debugging & Error Handling] Why should evals run in CI rather than only before major releases?
+- [Debugging & Error Handling] A RAG answer is wrong. What is the first thing to check?
+- [Debugging & Error Handling] A team wants to detect quality degradation in production without waiting for user complaints. What is the most practical approach?

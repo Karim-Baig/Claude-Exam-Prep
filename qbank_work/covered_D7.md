@@ -1,0 +1,22 @@
+# Already covered in D7 — DO NOT duplicate these
+
+- [Claude Code Operation] What is the purpose of a `CLAUDE.md` file?
+- [Claude Code Operation] How does Claude Code's memory hierarchy resolve instructions?
+- [Claude Code Operation] What does `.claude/settings.json` configure?
+- [Claude Code Operation] A team wants the test suite to run automatically after every file edit, without exception. Where does that belong?
+- [Claude Code Operation] What are subagents in Claude Code used for?
+- [Claude Code Operation] What is a skill in Claude Code?
+- [Claude Code Operation] A developer wants a reusable `/review-pr` command for their team. Where is it defined?
+- [Claude Code Operation] A long Claude Code session is approaching the context limit mid-task. What is the appropriate action?
+- [Claude Code Operation] What is the practical difference between `CLAUDE.md` content and conversation instructions?
+- [Claude Code Operation] A `CLAUDE.md` has grown to 4,000 lines of exhaustive documentation. What is the likely consequence?
+- [Claude Code Operation] Where does a project-level `CLAUDE.md` live?
+- [Claude Code Operation] Which file is intended for personal, uncommitted project notes?
+- [Claude Code Operation] What is the purpose of `.claude/rules/`?
+- [Claude Code Operation] A developer wants Claude Code to never auto-approve edits to `.env` files. Where is that configured?
+- [Claude Code Operation] What distinguishes a subagent from the main Claude Code session?
+- [Claude Code Operation] A codebase search would return thousands of lines. Why delegate it to a subagent rather than running it in the main session?
+- [Claude Code Operation] How does a skill differ from a hook?
+- [Claude Code Operation] A team's `CLAUDE.md` says "run tests before committing," yet commits sometimes land without tests. What is the durable fix?
+- [Claude Code Operation] What does the `/compact` command do?
+- [Claude Code Operation] Two developers get noticeably different Claude Code behaviour in the same repository. What is the most likely explanation?

@@ -1,0 +1,62 @@
+# Already covered in D3 — DO NOT duplicate these
+
+- [Agent Architecture] What primarily distinguishes a *workflow* from an *autonomous agent*?
+- [Agent Architecture] A requirement reads: "extract invoice number, date and total from uploaded PDFs, then write them to the ledger." Which pattern is appropriate?
+- [Agent Construction with Claude] What is the core cycle of an agent loop built on the Messages API?
+- [Agent Construction with Claude] An agent occasionally spins indefinitely, calling the same search tool with near-identical arguments. Which combination of guards is most appropriate?
+- [Agent Construction with Claude] An agent runs three tools in one turn. How must the results be returned?
+- [Agent Construction with Claude] A long-running agent's conversation grows until requests approach the context limit. Which strategy preserves capability best?
+- [Agent Patterns & Frameworks] In an orchestrator/sub-agent (supervisor) architecture, what is the orchestrator's role?
+- [Agent Patterns & Frameworks] Why does delegating research to sub-agents help even when the total token spend rises?
+- [Agent Patterns & Frameworks] Which task is the clearest fit for parallel sub-agents rather than a single sequential agent?
+- [Agent Patterns & Frameworks] What is the Claude Agent SDK for?
+- [Agent Patterns & Frameworks] What does an orchestration framework such as LangGraph primarily add over a hand-written loop?
+- [Agent Architecture] An agent can issue refunds. Which control is most important before production?
+- [Agent Architecture] What is the human-in-the-loop pattern in agent design?
+- [Agent Architecture] An agent must remember a user's stated preferences across sessions that are days apart. Where should that live?
+- [Agent Construction with Claude] A tool inside an agent loop throws an exception. What should be returned to the model?
+- [Agent Construction with Claude] Why must the full accumulated message history be resent on every agent-loop iteration?
+- [Agent Patterns & Frameworks] Which pattern best describes "prompt chaining"?
+- [Agent Patterns & Frameworks] What characterises the evaluator-optimiser (generate-and-critique) pattern?
+- [Agent Architecture] A supervisor agent delegates to sub-agents but the final synthesis keeps contradicting itself. What is the most likely architectural cause?
+- [Agent Construction with Claude] How should an agent's system prompt treat its available tools?
+- [Agent Architecture] Which set of signals should be logged for a production agent to be debuggable?
+- [Agent Patterns & Frameworks] When is the routing pattern the right choice?
+- [Agent Architecture] An agent with filesystem and shell tools is being deployed. Which containment measure matters most?
+- [Agent Construction with Claude] Which condition should terminate a well-built agent loop?
+- [Agent Patterns & Frameworks] A team must choose between a workflow and an agent for "triage inbound bug reports, reproduce where possible, and file a structured ticket." What is t
+- [Agent Construction with Claude] An agent must complete a task that takes roughly 40 tool calls. Partway through, the process crashes. What design would have made this recoverable?
+- [Agent Architecture] An agent is given a goal it cannot achieve with its available tools. What is the desirable behaviour, and how is it obtained?
+- [Agent Patterns & Frameworks] A workflow needs a document classified, then routed to one of four specialised handlers. Which pattern names this?
+- [Agent Patterns & Frameworks] Which situation calls for orchestrator-workers rather than simple routing?
+- [Agent Construction with Claude] An agent calls a search tool that returns no results. It then calls the same tool with an almost identical query, repeatedly. What is the most effecti
+- [Agent Architecture] Which agent capability most warrants a human approval gate?
+- [Agent Patterns & Frameworks] A code-generation agent writes code, runs the tests, and fixes failures iteratively. Which pattern is this?
+- [Agent Architecture] A supervisor agent spawns sub-agents that each spawn their own sub-agents, several levels deep. What risk does this introduce?
+- [Agent Construction with Claude] An agent's tool returns a 50,000-token document. What should the agent architecture do with it?
+- [Agent Patterns & Frameworks] A team is deciding between the Claude Agent SDK and a hand-written loop over the Messages API. What is the honest trade-off?
+- [Agent Architecture] Why is it useful to give a research sub-agent read-only tools while the orchestrator holds write access?
+- [Agent Construction with Claude] An agent must operate over a task lasting several days with pauses between sessions. What does the memory architecture require?
+- [Agent Patterns & Frameworks] When is parallelisation by sectioning appropriate?
+- [Agent Architecture] A production agent occasionally takes a sensible-looking but wrong action. Which control most reduces the harm without crippling autonomy?
+- [Agent Construction with Claude] How should an agent loop handle a tool that times out?
+- [Agent Patterns & Frameworks] What most reliably indicates a task should be a workflow rather than an agent?
+- [Agent Architecture] A sub-agent returns a long prose narrative of its findings. The orchestrator struggles to reconcile several such returns. What improves this?
+- [Agent Construction with Claude] Which metric best reveals that an agent's tool descriptions need improvement?
+- [Agent Architecture] What should be logged when an agent loop terminates?
+- [Agent Patterns & Frameworks] An agent must produce a legal summary that will be relied upon professionally. Which arrangement is appropriate?
+- [Agent Architecture] What is the defining characteristic of the augmented-LLM building block underlying most agents?
+- [Agent Construction with Claude] An agent must not exceed a £5 budget per task. How is that enforced?
+- [Agent Patterns & Frameworks] A workflow generates a draft, then a second call checks it against a rubric and returns revisions. Which pattern is it, and what bounds it?
+- [Agent Architecture] An agent is deployed with tools that can read a database and post to a public status page. What separation is advisable?
+- [Agent Construction with Claude] Why should an agent's tool results include what was searched, not just what was found?
+- [Agent Patterns & Frameworks] In orchestrator-workers, what distinguishes it from simple parallelisation?
+- [Agent Architecture] An agent's telemetry shows most tasks finishing in 4 iterations but a long tail reaching the 25-iteration cap. What should be investigated first?
+- [Agent Construction with Claude] An agent must summarise its own work for a human reviewer at the end. What should the final step be?
+- [Agent Patterns & Frameworks] A team's agent works well in testing but behaves erratically on real user requests. What is the most likely gap?
+- [Agent Architecture] What is the main cost of the orchestrator-workers pattern relative to a single agent?
+- [Agent Construction with Claude] How should an agent handle a tool that returns a permission-denied error?
+- [Agent Patterns & Frameworks] Which factor most strongly argues for a workflow over an agent in a regulated environment?
+- [Agent Architecture] An agent must hand off to a human when it cannot proceed. What makes the hand-off effective?
+- [Agent Construction with Claude] An agent's context is filling with verbose tool results. Which combination of fixes is most effective?
+- [Agent Patterns & Frameworks] A task requires the same check applied to 50 independent records, then an aggregate report. Which structure fits?

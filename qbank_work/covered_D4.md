@@ -1,0 +1,47 @@
+# Already covered in D4 — DO NOT duplicate these
+
+- [Prompt Engineering] What belongs in the `system` parameter rather than a user message?
+- [Prompt Engineering] A classifier prompt gives instructions but no examples, and output labels are inconsistently formatted. What is the most direct fix?
+- [Prompt Engineering] What is chain-of-thought prompting, and when does it help?
+- [Prompt Engineering] Why are XML-style tags particularly useful in Claude prompts?
+- [Prompt Engineering] A prompt says: "Don't be verbose. Don't use jargon. Don't include disclaimers." Output quality is uneven. What is the better formulation?
+- [Prompt Engineering] What is assistant prefill (output priming)?
+- [Prompt Engineering] A summarisation prompt must handle documents from 200 to 40,000 words with proportionate output. What is the most robust design?
+- [Prompt Engineering] Where should few-shot examples generally sit relative to the actual task input?
+- [Context Engineering] What is context engineering, as distinct from prompt engineering?
+- [Context Engineering] An agent's answers drift away from its original constraints after roughly 30 turns, even though the window has not overflowed. What is the most likely
+- [Context Engineering] Which approach best handles a 40,000-document knowledge base for question answering?
+- [Context Engineering] When retrieved passages are injected into a prompt, what most improves answer reliability?
+- [Context Engineering] What does context compaction mean in a long-running agent?
+- [Output Handling] A downstream system requires strictly-valid JSON. The prompt asks for JSON but responses sometimes include markdown fences or a preamble. What is the 
+- [Output Handling] A parser must extract just the final answer from a chain-of-thought response. What prompt design makes that reliable?
+- [Output Handling] Why should model output be validated before it reaches a downstream system?
+- [Output Handling] A response is truncated with `stop_reason: "max_tokens"` mid-JSON. How should a robust client behave?
+- [Prompt Engineering] What is the effect of assigning the model a role, such as "You are a senior tax accountant"?
+- [Prompt Engineering] A prompt works well on typical inputs but fails on ambiguous ones, where the model guesses instead of asking. What should be added?
+- [Context Engineering] Within a long context, where is critical instruction placement most effective?
+- [Prompt Engineering] A team wants to improve a prompt systematically rather than by intuition. What is the correct process?
+- [Context Engineering] Which content is the best candidate to sit inside a cached prefix?
+- [Prompt Engineering] What distinguishes zero-shot from few-shot prompting?
+- [Output Handling] A pipeline must gracefully handle the case where Claude declines a request. What should it do?
+- [Prompt Engineering] Which prompt structure is most robust for a task combining reference material, rules and a user question?
+- [Output Handling] A pipeline needs guaranteed schema-valid JSON from Claude. Which mechanism provides a decoding-level guarantee rather than a strong steer?
+- [Prompt Engineering] A prompt performs well in English but poorly in German and Japanese. What is the most likely cause and remedy?
+- [Context Engineering] A knowledge-base chunking strategy splits documents every 500 characters regardless of structure. Retrieval quality is poor. What is the likely cause?
+- [Prompt Engineering] A classification prompt returns labels that are correct but inconsistently cased and occasionally wrapped in explanation. What is the most efficient f
+- [Context Engineering] Which content should sit **outside** a prompt-cache breakpoint?
+- [Prompt Engineering] A prompt asks the model to "analyse the document and extract key points, then assess risk, then recommend an action." Output quality on the later step
+- [Output Handling] A downstream service receives a well-formed JSON object citing document id `DOC-8842`, which does not exist in the retrieved set. What check would hav
+- [Prompt Engineering] A system prompt has accumulated 40 rules over a year, and the model now inconsistently follows several of them. What is the most likely cause?
+- [Context Engineering] An agent summarises its own progress every ten turns and drops the raw history. What risk must the summary design manage?
+- [Prompt Engineering] Which few-shot example set will most improve an extraction task?
+- [Output Handling] An extraction service must distinguish "field genuinely absent from the document" from "model failed to find it." How is this achieved?
+- [Context Engineering] A long-running agent's system prompt states "never modify files outside /workspace." After 60 turns it attempts an edit elsewhere. What does this demo
+- [Prompt Engineering] A prompt instructs the model to "think step by step" and the reasoning appears in the user-facing output. What is the cleanest remedy?
+- [Output Handling] A summarisation service must guarantee its output never exceeds 200 words for a downstream display component. What is the reliable approach?
+- [Prompt Engineering] A team maintains eight prompt variants for different customer segments, and a bug fix must be applied to all of them. What does this reveal?
+- [Context Engineering] Retrieved passages are injected without source identifiers. What capability is lost?
+- [Prompt Engineering] Which instruction is most likely to be followed reliably?
+- [Context Engineering] A support agent needs both static policy documentation and live account data. How should these be handled differently in the prompt?
+- [Output Handling] A pipeline logs only the parsed output, not the raw response. What debugging capability is lost?
+- [Prompt Engineering] A prompt yields excellent results for the engineer who wrote it and mediocre results in production. What is the most likely explanation?

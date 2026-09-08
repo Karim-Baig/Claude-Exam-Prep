@@ -1,0 +1,52 @@
+# Already covered in D5 — DO NOT duplicate these
+
+- [Tool Implementation] Which three fields define a tool in the `tools` array?
+- [Tool Implementation] What must the top-level `type` of a tool's `input_schema` be?
+- [Tool Implementation] An agent has 14 tools and frequently picks the wrong one. Two are `search_docs` ("search documents") and `lookup_records` ("look up records"). What is
+- [Tool Implementation] What are the valid values of `tool_choice`?
+- [Tool Implementation] A service must return an object matching a strict JSON Schema on every call, with no prose. What is the most reliable mechanism?
+- [Tool Implementation] What does a `tool_use` content block contain?
+- [Tool Implementation] What is the correct shape for returning a tool's output?
+- [Tool Implementation] A database tool times out. What should the `tool_result` look like?
+- [Tool Implementation] How do you prevent the model from requesting several tools in a single turn?
+- [Tool Implementation] A tool returns 40,000 tokens of raw JSON on each call, and the agent's context fills after three calls. What is the right change?
+- [Tool Implementation] Do tool definitions consume input tokens?
+- [Tool Implementation] What naming constraint applies to tool names?
+- [Agentic Customisation] A tool must accept only one of four fixed statuses. How is that best expressed?
+- [Agentic Customisation] What is the essential difference between client-side and server-side tools?
+- [MCP Server Development] What is the Model Context Protocol (MCP)?
+- [MCP Server Development] What are the three primitives an MCP **server** exposes?
+- [MCP Server Development] Which transports does MCP define for client–server communication?
+- [MCP Server Development] An MCP tool call fails because a required upstream service is down. What should the server return?
+- [MCP Server Development] A team wants one integration layer for their CRM reusable by Claude Code, a custom agent, and a desktop client. What should they build?
+- [MCP Server Development] What message format does MCP use on the wire?
+- [Agentic Customisation] When should a capability be a **tool** versus an MCP **resource**?
+- [Agentic Customisation] An agent is given 40 tools "so it can handle anything." What is the likely consequence?
+- [Tool Implementation] A `delete_records` tool exists. Which safeguards belong in the tool layer rather than the prompt?
+- [Tool Implementation] How should a tool be designed so that a retried call cannot cause duplicate side effects?
+- [Agentic Customisation] A tool's arguments come from the model, which has read untrusted user-supplied text. What must the tool do?
+- [Tool Implementation] A tool's `input_schema` declares `date` as a string with no further constraint. The model supplies dates in three different formats. What is the fix?
+- [Tool Implementation] An agent has `get_order`, `get_order_details`, `fetch_order`, and `order_lookup`. Selection is unreliable. What is the recommended remedy?
+- [Tool Implementation] A tool returns an image (a generated chart) that the model must interpret. Is this supported?
+- [Agentic Customisation] An agent needs access to 400 internal API operations. What is the appropriate design?
+- [Tool Implementation] Two independent lookups are needed to answer a question. The model returns two `tool_use` blocks in one turn. How should execution proceed?
+- [MCP Server Development] An MCP server exposes a `run_report` tool that takes 4 minutes. What design consideration matters most?
+- [MCP Server Development] A team wants Claude to read files from a local directory via MCP. Which transport and primitive fit?
+- [Agentic Customisation] A tool that sends Slack messages is invoked with a channel name the model inferred rather than one the user specified. What safeguard is appropriate?
+- [Tool Implementation] How should a tool signal that a query succeeded but matched nothing?
+- [MCP Server Development] What advantage does an MCP **prompt** primitive provide over embedding the same text in a client?
+- [Tool Implementation] A tool description reads: "Gets data." What specific improvements matter most?
+- [Agentic Customisation] When is `tool_choice: {"type": "none"}` useful?
+- [MCP Server Development] An MCP server is deployed centrally for many users. What must its design account for that a local stdio server need not?
+- [Tool Implementation] Why should a tool's `input_schema` mark only genuinely mandatory fields in `required`?
+- [Agentic Customisation] An agent's tool executes shell commands. Which control belongs in the tool implementation rather than the prompt?
+- [MCP Server Development] What does the MCP `resources/list` method provide?
+- [Tool Implementation] An agent repeatedly calls a tool with slightly different arguments, never converging. Beyond loop guards, what root cause should be investigated?
+- [Agentic Customisation] What is the practical difference between an MCP server and a plain client-side tool in your application code?
+- [Tool Implementation] A `create_invoice` tool is called twice in quick succession with identical arguments after a network retry. What prevents a duplicate invoice?
+- [MCP Server Development] Which failure mode does a structured MCP error envelope prevent?
+- [Tool Implementation] A tool returns 200 database rows. How should the result be shaped for an agent?
+- [Agentic Customisation] Which decision most improves an agent's reliability when several tools could plausibly satisfy a request?
+- [Tool Implementation] Why must a tool re-check authorisation server-side even though the agent's system prompt restricts what it may access?
+- [MCP Server Development] A team is choosing between building an MCP server and adding tools directly to their agent. Which factor should decide it?
+- [Tool Implementation] How does `strict: true` on a tool definition change its behaviour?
