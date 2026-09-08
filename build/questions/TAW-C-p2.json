@@ -1,0 +1,506 @@
+[
+  {
+    "id": "TAW-C-021",
+    "domain": "Technical Awareness",
+    "topic": "Admin console vs system prompt governance",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A Chief People Officer at a 2,000-employee retail chain wants to ensure that Claude.ai cannot be used by employees to generate content outside approved business use cases. She asks whether this should be enforced through the admin console or handled by individual managers adding instructions to their own chats.\n\nWhat is the MOST appropriate answer?",
+    "options": [
+      { "key": "A", "text": "Org-level usage policies and content restrictions should be configured through the admin console so they apply uniformly, without depending on individual users to self-enforce" },
+      { "key": "B", "text": "Managers should add a standard instruction block to their team's shared Projects so each team's context enforces the policy independently" },
+      { "key": "C", "text": "Both approaches are equivalent; the admin console and per-chat instructions provide the same enforcement strength" },
+      { "key": "D", "text": "Claude.ai does not support content restrictions; the company should use the Anthropic API instead, where system prompts enforce policy at the infrastructure level" }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The admin console is the correct tool for org-wide governance. Configurations applied there propagate to all users automatically and cannot be overridden by individual employees. Relying on managers to add instructions to chats creates enforcement gaps — instructions can be omitted, edited, or forgotten, and there is no audit trail confirming they were applied. Governance that depends on human compliance is weaker than governance embedded in the tool's configuration.",
+      "distractors": {
+        "B": "Project-level instructions are useful for task customisation but are not a governance mechanism. They apply only within that Project, can be modified by anyone with edit access, and are invisible to an administrator reviewing org-wide policy compliance.",
+        "C": "Admin console configuration and per-chat instructions have very different enforcement strengths. Admin controls are mandatory and centrally auditable; per-chat instructions are voluntary and ephemeral. Treating them as equivalent misrepresents the governance architecture.",
+        "D": "Claude.ai does support organisational controls through the admin console, including usage policies and access restrictions. This option incorrectly dismisses the product's governance capabilities and proposes an engineering solution to a configuration problem."
+      },
+      "concept": "**Admin console vs. per-chat instructions:**\n\n- **Admin console controls:** Apply org-wide, are mandatory for all users, are auditable centrally, and cannot be bypassed by end users.\n- **Project instructions:** Apply within a single Project, are modifiable by collaborators, and are suitable for workflow customisation — not policy enforcement.\n- **Per-chat instructions:** Apply to a single conversation, are entirely user-controlled, and offer no governance value.\n\nThe rule of thumb: anything that must hold uniformly across all users belongs in the admin console. Anything that varies by team or workflow belongs in a Project. Individual preference belongs in a chat.",
+      "examTip": "This item tests **enforcement layer awareness**. The trap is option B, which sounds responsible (managers configuring their teams) but creates a patchwork of voluntary controls rather than a uniform policy. For anything the word 'must' applies to, admin console is the answer."
+    }
+  },
+  {
+    "id": "TAW-C-022",
+    "domain": "Technical Awareness",
+    "topic": "API vs Claude Code for product integration",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A product team at a 120-person insurtech startup wants to embed Claude into their claims portal so that adjusters can trigger AI-assisted claim summaries from within the portal's UI. The CTO asks the consultant which building block the engineering team should use.\n\nWhat is the BEST recommendation?",
+    "options": [
+      { "key": "A", "text": "Claude.ai Teams plan, with adjusters accessing Claude through their browser alongside the claims portal" },
+      { "key": "B", "text": "The Anthropic API, integrated into the portal's backend so Claude calls are triggered programmatically when adjusters request a summary" },
+      { "key": "C", "text": "Claude Code, deployed within the engineering team's terminals so developers can generate summaries during portal development" },
+      { "key": "D", "text": "A cloud marketplace deployment so the insurtech can bill Claude usage through their existing cloud spend commitments" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Embedding Claude into a product's UI — where a user action triggers an AI response within the application — requires API integration. The backend calls the API programmatically, passes the relevant claim data as context, and returns the response to the UI. This is the fundamental use case for the Anthropic API: applications making machine-to-machine calls without a human interacting with Claude.ai directly.",
+      "distractors": {
+        "A": "Claude.ai is a consumer and team product for human users. It cannot be embedded into another application's UI or called programmatically. Adjusters would have to switch context to a separate browser tab, which is not embedded functionality.",
+        "C": "Claude Code is a developer productivity tool for working in code repositories. It assists engineers during development but is not an infrastructure component that serves end users at runtime within a production portal.",
+        "D": "Cloud marketplace deployment addresses where inference runs and how it is billed, but does not change the integration mechanism. The API is still required to embed Claude in the portal; marketplace routing is an overlay on that, not a substitute for it."
+      },
+      "concept": "**When to use each surface for integration work:**\n\n| Requirement | Correct surface |\n|---|---|\n| Human uses Claude via browser | Claude.ai |\n| Application calls Claude programmatically | Anthropic API |\n| Developer uses Claude to write code | Claude Code |\n\nThe API is the correct choice whenever the call is triggered by application logic rather than a human typing into a chat box. Key signals in the scenario: \"embed into the portal,\" \"triggered from within the UI,\" \"when adjusters request\" — these all describe a programmatic trigger, not a human navigating to Claude.ai.",
+      "examTip": "The discriminator here is **who or what triggers the AI call.** If a human uses Claude directly — API is not needed. If application code calls Claude on behalf of a user — API is the only option. Claude Code is a developer tool, not a runtime server component; this is a common confusion to watch for on the exam."
+    }
+  },
+  {
+    "id": "TAW-C-023",
+    "domain": "Technical Awareness",
+    "topic": "Key storage: vault vs env var vs config file",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A DevOps engineer at a pharma company is preparing a production Claude API integration. The security team has approved three storage options for the API key: an environment variable on the server, a configuration file in the application repository, or the company's enterprise secrets vault. The team asks which option is MOST appropriate for production.\n\nWhat is the correct answer?",
+    "options": [
+      { "key": "A", "text": "Environment variable on the server, because it is simpler to set up than a vault and avoids the overhead of a secrets management dependency" },
+      { "key": "B", "text": "Configuration file in the application repository, committed with restricted file permissions so only the deployment service account can read it" },
+      { "key": "C", "text": "The enterprise secrets vault, because it provides centralised rotation, access audit logs, and revocation capability without the key ever residing in the application codebase or server filesystem in plaintext" },
+      { "key": "D", "text": "All three options are equivalent for production use; the choice should be based on developer team preference" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "A secrets vault is the most appropriate production option because it separates the key from both the codebase and the server's persistent filesystem. Vault access is logged — you know which service retrieved the key and when — and rotation or revocation can happen without touching a configuration file or server environment. For a regulated industry like pharma, this audit capability is often required. Environment variables are acceptable but lack audit trails; config files in repositories are the highest risk option regardless of file permissions.",
+      "distractors": {
+        "A": "Environment variables are a valid second-tier option for less regulated contexts, but they lack audit logging of access events and are less auditable in regulated environments. Simplicity is not the right selection criterion for production secret storage in pharma.",
+        "B": "Committing a configuration file containing a secret to a repository — even with restricted permissions — is a high-risk practice. Repository histories persist indefinitely, permission controls can be misconfigured, and any developer with repository access may eventually encounter the file. This is the least appropriate option.",
+        "D": "The options are not equivalent. A config file in a repository is significantly riskier than an environment variable, which is less auditable than a vault. Treating them as equivalent signals a lack of understanding of the security controls each provides."
+      },
+      "concept": "**Secret storage risk hierarchy (best to worst):**\n\n1. **Secrets vault** — centralised, auditable, supports rotation and revocation; never in codebase or filesystem\n2. **Environment variable** — acceptable for less-regulated contexts; not persisted in repo; limited audit capability\n3. **Config file (not committed)** — acceptable if strictly .gitignored and filesystem-protected\n4. **Config file committed to repository** — high risk; history is permanent and hard to purge\n5. **Hardcoded in source code** — never acceptable\n\nFor production systems in regulated industries, vault is the expected answer because audit trails are a compliance requirement, not just a best practice.",
+      "examTip": "When a stem includes a regulated industry (pharma, healthcare, financial services) and asks for the MOST appropriate security control, **vault + audit logging** typically beats simpler alternatives. The exam tests whether you recognise that regulatory contexts elevate auditability from a preference to a requirement."
+    }
+  },
+  {
+    "id": "TAW-C-024",
+    "domain": "Technical Awareness",
+    "topic": "Surface selection for audit trail requirements",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A compliance officer at a 5,000-employee bank requires that every AI-generated communication recommendation made to relationship managers be logged with the exact prompt, the model response, and a timestamp — retained for seven years to satisfy financial conduct regulations. The digital team is choosing between Claude.ai Teams and the Anthropic API.\n\nWhich option BEST meets the audit trail requirement, and why?",
+    "options": [
+      { "key": "A", "text": "Claude.ai Teams, because enterprise plans include an admin activity log that captures all user prompts and model responses" },
+      { "key": "B", "text": "Claude.ai Teams, because the compliance officer can export conversation histories manually each month for archival" },
+      { "key": "C", "text": "The Anthropic API, because the bank's own infrastructure can log every request and response before storing them in the bank's retention system" },
+      { "key": "D", "text": "Either option is acceptable because Anthropic stores all prompts and responses on its servers and can produce them on regulatory request" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "When precise, complete, long-duration audit logging is a regulatory requirement, the API gives the bank control over what is logged, how it is formatted, and where it is stored. The bank's middleware can capture the exact payload sent and received, attach metadata (relationship manager ID, client ID, timestamp), and write it to the bank's own compliant retention store. This satisfies a seven-year retention requirement under the bank's own governance. Claude.ai's admin logs are designed for access monitoring, not full prompt-and-response retention.",
+      "distractors": {
+        "A": "Claude.ai's admin console provides usage monitoring and access logs but is not designed to retain complete prompt-and-response content for seven years. Relying on a SaaS product's internal logs to satisfy regulatory retention obligations transfers control away from the regulated entity.",
+        "B": "Manual monthly exports are not a reliable, auditable retention mechanism. They depend on human execution, create gaps if a month is missed, and do not produce a tamper-evident audit trail that a regulator would accept as complete.",
+        "D": "Anthropic's data retention and disclosure policies are designed for the provider's operational and legal purposes, not to satisfy third-party regulatory obligations. A bank cannot direct a vendor to produce records on a regulator's timeline with a data format the regulator specifies."
+      },
+      "concept": "**The API gives the integrator control over the audit record.** When compliance requires the organisation to own its AI interaction logs:\n\n- Every API call passes through the organisation's backend, which can intercept, enrich, and persist the full request-response pair.\n- The organisation chooses the retention store, format, retention period, and access controls.\n- This is impossible with Claude.ai, where the model interaction happens on Anthropic's platform.\n\nThe principle: for any regulatory requirement that specifies *who* holds the data and *for how long*, the organisation must own the persistence layer — which means API integration, not a SaaS surface.",
+      "examTip": "This is a **control-plane vs. data-plane** distinction item. Claude.ai gives you a control plane (admin console, usage data) but Anthropic owns the data plane (where prompts and responses live). The API gives you both. When a regulatory requirement specifies retention of the AI interaction itself, you need the data plane — which means the API. Hard to articulate, easy to recognise: if the compliance officer needs to produce a specific record on demand, the organisation must hold that record."
+    }
+  },
+  {
+    "id": "TAW-C-025",
+    "domain": "Technical Awareness",
+    "topic": "SSO deprovisioning vs manual removal",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A 3,000-employee energy company uses Claude.ai with SSO integration. An employee in the regulatory affairs team leaves the company. The IT team wants to know the MOST reliable way to ensure the departing employee's Claude.ai access is removed.\n\nWhat is the correct answer?",
+    "options": [
+      { "key": "A", "text": "Deprovisioning the employee's corporate identity in the company's identity provider automatically removes their Claude.ai access via SSO" },
+      { "key": "B", "text": "Manually delete the user's Claude.ai account from the admin console within 24 hours of the employee's last day" },
+      { "key": "C", "text": "Notify the employee's manager to revoke the user's Projects access so they can no longer use Claude.ai for work purposes" },
+      { "key": "D", "text": "Rotate the shared company API key so the employee's locally configured environment no longer authenticates" }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "SSO ties Claude.ai authentication to the corporate identity provider. When HR or IT deactivates the employee's directory account — a step already required for every system the employee used — Claude.ai login is automatically blocked. No additional manual step is needed. This is precisely the off-boarding reliability benefit that SSO delivers: one deprovisioning action covers all integrated tools simultaneously.",
+      "distractors": {
+        "B": "Manual admin console deletion is a valid fallback when SSO is not configured, but it introduces a second, separate step that can be forgotten or delayed. With SSO, deprovisioning the identity provider account is sufficient and faster.",
+        "C": "Revoking Project access removes the user from shared workspaces but does not prevent them from logging into Claude.ai and creating new conversations or Projects. Access to individual Projects is not the same as access to the platform.",
+        "D": "This scenario involves Claude.ai with SSO, not an API key integration. Rotating an API key would be relevant for an application integration, not for individual employee access to Claude.ai. This option applies to the wrong architecture."
+      },
+      "concept": "**SSO's off-boarding advantage** is that it reduces access revocation to a single, already-required action. Without SSO, every SaaS tool a departing employee used requires a separate manual deprovisioning step — and those steps are easy to miss during a busy off-boarding process.\n\nWith SSO:\n- Disable the directory account → access revoked everywhere SSO is configured\n- No tool-specific action required\n- The change takes effect immediately, not after an admin notice period\n\nThis is one of the primary business arguments for requiring SSO before rolling out any enterprise SaaS tool to more than a handful of users.",
+      "examTip": "Off-boarding items almost always test one principle: **SSO makes deprovisioning automatic and simultaneous.** Manual steps (option B) are the correct fallback when SSO is not in place, but they are strictly inferior when SSO is available. Read the stem carefully — if SSO is already configured, manual admin console action is not the MOST reliable method."
+    }
+  },
+  {
+    "id": "TAW-C-026",
+    "domain": "Technical Awareness",
+    "topic": "Requirements spec vs prompt spec",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A consultant is preparing a handoff package for an engineering team who will build a Claude-powered contract review feature. The team lead asks for two deliverables: a requirements specification and a prompt specification. The consultant asks for clarification on what belongs in each.\n\nWhich description correctly distinguishes the two documents?",
+    "options": [
+      { "key": "A", "text": "The requirements specification and the prompt specification contain the same information; one is a technical version of the other for engineers and business stakeholders respectively" },
+      { "key": "B", "text": "The requirements specification defines what the system must do and how success will be measured; the prompt specification provides the actual instruction text, persona, constraints, and output format that the model will receive" },
+      { "key": "C", "text": "The requirements specification defines the model tier and API parameters; the prompt specification documents the business rules the model should follow" },
+      { "key": "D", "text": "The requirements specification is owned by the product team and defines user stories; the prompt specification is owned by engineering and details how the API call is structured" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "A requirements specification captures the what and the success criteria: what the feature must do, what inputs it will receive, what outputs are acceptable, and how output quality will be measured. The prompt specification captures the how — the actual text the model will receive, including the system prompt, persona, constraints, and output format instructions. The requirements spec drives the prompt spec, not the other way around.",
+      "distractors": {
+        "A": "The two documents serve different purposes and have different audiences. Treating them as translations of each other collapses the distinction between problem definition (requirements) and solution implementation (prompt design), which leads to conflating business goals with instruction text.",
+        "C": "API parameters (model tier, temperature) are implementation choices that belong in a technical design document or the prompt specification, not the requirements specification. The requirements spec should be agnostic to implementation choices.",
+        "D": "While requirements are often written in user-story format, ownership is not the defining distinction. Both documents may be co-authored. The defining distinction is what each document specifies: desired outcomes vs. model instruction text."
+      },
+      "concept": "**Requirements vs. prompt specification** — two distinct artifacts:\n\n**Requirements specification:**\n- What problem does this solve for the user?\n- What are the inputs and expected outputs?\n- What are the acceptance criteria? (e.g., \"correctly identifies the governing law clause in 9 of 10 test contracts\")\n- What are the failure modes and fallback behaviours?\n\n**Prompt specification:**\n- System prompt text (persona, task, constraints, format)\n- Example inputs and expected outputs (few-shot examples if used)\n- API parameter choices (model tier, temperature)\n- Variable placeholders and how they are populated\n\nA consultant who conflates them either writes requirements that are too prescriptive (dictating prompt text to engineers) or writes a prompt spec before requirements are agreed, producing instructions without a clear success criterion.",
+      "examTip": "This item tests **artifact clarity in a handoff context.** Watch for options that collapse two distinct documents into one (option A) or that reassign content to the wrong document (option C). The requirements spec is about outcomes; the prompt spec is about instructions. If you can state the difference in those two words, you have the concept."
+    }
+  },
+  {
+    "id": "TAW-C-027",
+    "domain": "Technical Awareness",
+    "topic": "Temperature as an API-level control",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "During a project scoping session, a software architect at a logistics company asks the consultant to explain what the temperature parameter in the API does and when a business owner should care about it.\n\nWhich answer is MOST accurate and useful to the business owner?",
+    "options": [
+      { "key": "A", "text": "Temperature controls how quickly the API responds; lower values produce faster responses, which matters for real-time applications" },
+      { "key": "B", "text": "Temperature controls the model tier; higher temperature means the system escalates to Opus automatically for complex queries" },
+      { "key": "C", "text": "Temperature controls how much variation Claude introduces in its outputs; lower values produce more predictable, consistent responses while higher values produce more varied, creative ones" },
+      { "key": "D", "text": "Temperature controls the maximum output length; higher temperature allows longer responses for complex documents" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Temperature is a parameter that adjusts how deterministic the model's output sampling is. At lower temperature settings, the model favours high-probability word choices, producing outputs that are consistent and predictable across repeated runs. At higher settings, the model introduces more variation, which benefits creative or generative tasks. For a business owner, the practical implication is: tasks requiring consistent, templated outputs (classification, extraction, structured reports) benefit from low temperature; tasks requiring creative variation (brainstorming, copywriting) may benefit from higher temperature.",
+      "distractors": {
+        "A": "Temperature has no effect on API response latency. Response time is influenced by model tier, output length, and infrastructure conditions — not by the sampling parameter. Confusing temperature with latency is a category error.",
+        "B": "Temperature is not related to model tier selection. Model tier (Haiku, Sonnet, Opus) is set explicitly in the API call; it does not change dynamically based on temperature. The two parameters are independent.",
+        "D": "Maximum output length is a separate API parameter (often called max_tokens). Temperature does not control how long the response can be. Confusing the two is a common misunderstanding worth correcting in stakeholder discussions."
+      },
+      "concept": "**Temperature** is one of the most commonly misunderstood API parameters in client conversations:\n\n- **What it does:** Controls output variability. Low temperature → the model selects the most probable next token consistently. High temperature → the model introduces more randomness.\n- **When to lower it:** Extraction tasks, classification, JSON output, structured reports — anywhere consistency across runs matters.\n- **When to raise it:** Brainstorming, creative writing, generating multiple diverse options.\n- **Business relevance:** If a business owner notices that the same document produces different summaries on different days with no change in input, temperature may be set too high for that use case.\n\nFor most enterprise automation use cases, lower temperature (more deterministic) is correct.",
+      "examTip": "Temperature items almost always offer a distractor that confuses it with a **different API parameter** — latency (response time), max_tokens (length), or model tier. The exam tests whether you have a clean mental model of what each API lever does. Temperature = variability/creativity, not speed, length, or intelligence."
+    }
+  },
+  {
+    "id": "TAW-C-028",
+    "domain": "Technical Awareness",
+    "topic": "Cost spike triage",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A senior consultant is reviewing a surprise 340% spike in monthly API spend for a retail client's Claude-powered product description tool. The tool's transaction volume increased by only 18% during the same period. The engineering team says no code changes were deployed in the last month. The consultant is asked to identify the most likely cause.\n\nWhat should the consultant investigate FIRST?",
+    "options": [
+      { "key": "A", "text": "Whether the retail client's peak shopping season drove higher-than-expected query volume through channels not captured in the transaction count" },
+      { "key": "B", "text": "Whether a recent update to the product data feed substantially increased the average input token count per request, such as much longer product descriptions or additional metadata fields" },
+      { "key": "C", "text": "Whether the API rate limit was hit during peak hours, causing retries that multiplied the number of API calls" },
+      { "key": "D", "text": "Whether an Anthropic pricing change took effect during the billing period" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "A 340% cost increase with only 18% volume growth means cost-per-call has increased dramatically — roughly 2.7x per request. Since no code changes were deployed, the most likely cause is a change in what is being sent: larger input documents. A product data feed expansion — longer descriptions, additional fields, images represented as tokens — would increase token count per call without changing transaction count. This is the variable that can change independently of code and volume.",
+      "distractors": {
+        "A": "Higher-than-counted volume could explain a proportional cost increase, but not a 340% spike with 18% volume growth. The math does not fit. A volume explanation requires the actual volume to have increased ~3x, not 18%.",
+        "C": "Rate limit hits cause failed requests or delays — they do not multiply spend. A retry on a failed call does consume tokens, but systematic retries at a scale that would explain a 3x cost increase would also manifest as errors in application logs, which the engineering team would have noticed.",
+        "D": "Provider pricing changes are possible but rare, and any real change would be announced. More importantly, the consultant controls the investigation variables — data feed changes are within the client's environment and are the first internal cause to rule out before attributing the cause to an external party."
+      },
+      "concept": "**Cost spike triage framework:**\n\nWhen spend increases disproportionately to volume, the cost-per-call has changed. Possible causes:\n1. **Input token increase:** Larger documents, additional data fields, added context — most common silent cause\n2. **Output token increase:** Longer expected responses, changed prompt requesting more detail\n3. **Model tier upgrade:** Accidental change to a higher-cost tier\n4. **Retry loops:** Engineering bug causing duplicate calls — shows in error logs\n5. **Volume undercount:** Missing channel or batch job not reflected in the reported figure\n\nThe first place to look is always the token content: what changed in the data going into each call? This can happen with no code changes if an upstream data source changes its output.",
+      "examTip": "This is a **cost-per-call vs. volume** discrimination item. When volume growth does not explain the cost growth, the unit cost has increased. The unit cost is driven by token count. Before looking at pricing or infrastructure causes, check what is in the payload. Option B is correct because it is the only explanation that accounts for cost increasing independently of code changes and transaction count."
+    }
+  },
+  {
+    "id": "TAW-C-029",
+    "domain": "Technical Awareness",
+    "topic": "What API key credentials authenticate",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A new member of a digital transformation team asks the consultant to explain, in plain terms, what an Anthropic API key actually does and why it matters who holds it.\n\nWhich answer is MOST accurate?",
+    "options": [
+      { "key": "A", "text": "An API key authenticates the calling application or service to Anthropic's platform, authorising it to make requests — whoever holds the key can use the account's quota and incur charges" },
+      { "key": "B", "text": "An API key is a personal login credential that identifies the individual developer who built the integration, similar to a username and password" },
+      { "key": "C", "text": "An API key encrypts the data sent to Claude so that Anthropic cannot read the contents of the requests made using that key" },
+      { "key": "D", "text": "An API key limits which Claude model tiers the integration can use; different keys unlock access to Haiku, Sonnet, or Opus respectively" }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "An API key is a bearer credential — any system or person holding it can authenticate calls to Anthropic's API under the issuing account. There is no secondary identity check. This means the key authorises usage (and therefore charges) regardless of who is making the call. Holding the key is equivalent to being authorised. This is why keys must be treated as high-value secrets and never shared beyond the systems that need them.",
+      "distractors": {
+        "B": "API keys are not personal credentials tied to an individual developer's identity. They are issued to an account and authorise any bearer. A key does not track who built the integration — it tracks which account's quota is being consumed.",
+        "C": "API keys do not handle encryption. Data in transit to Anthropic's API is protected by HTTPS (TLS), which operates independently of the key. The key's role is authentication, not encryption.",
+        "D": "API keys do not lock or unlock model tiers. The model used in a call is specified in each request. A single key can be used to call any model tier the account has access to."
+      },
+      "concept": "**Bearer credentials** are tokens where possession equals authorisation. Unlike a username-and-password pair (which requires both to authenticate), an API key is used alone. This has two implications:\n\n1. **Shared keys are shared access.** If two teams share a key, either team can make calls billed to the same account, and there is no audit trail distinguishing which team made which call.\n2. **Lost keys are lost control.** A key found in a public repository by an automated scanner can be exploited within minutes. The standard published time-from-exposure-to-misuse for leaked API keys across cloud providers is measured in hours.\n\nFor a business stakeholder, the right mental model is: an API key is closer to a prepaid debit card than to a user password.",
+      "examTip": "API key authentication items test a simple conceptual model that many business professionals have never needed before. The trap options typically confuse the key with **encryption** (it is not a cipher key), **personal identity** (it is not tied to an individual), or **access tiers** (it does not control model selection). Keep the definition clean: key = bearer credential = account-level authorisation."
+    }
+  },
+  {
+    "id": "TAW-C-030",
+    "domain": "Technical Awareness",
+    "topic": "Scoping questions vs design decisions",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A technology consultant is facilitating a scoping workshop for a Claude API integration at a 90-person professional services firm. The workshop agenda has two sections: discovery questions and design decisions. Which TWO items belong in the discovery section rather than the design section? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Which model tier (Haiku, Sonnet, or Opus) should be used as the default for client briefing generation?" },
+      { "key": "B", "text": "What structured or unstructured data will be passed to Claude as input, and who owns and maintains that data today?" },
+      { "key": "C", "text": "Should API keys be stored in the cloud provider's secrets manager or in server environment variables?" },
+      { "key": "D", "text": "What is the current volume of client briefing requests per month, and what are the quality criteria the partners use to judge a good briefing today?" },
+      { "key": "E", "text": "Should the output be returned as structured JSON for the application to render, or as formatted prose for direct display?" }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "Option B is a discovery question: it establishes what data exists, where it lives, and who controls it — foundational facts the design depends on. Option D is also discovery: volume constrains architecture, and current quality criteria define the acceptance bar for the system. Both questions reveal constraints that shape design choices without assuming an answer. Options A, C, and E all presuppose that design work has begun and are choices to be made, not facts to be discovered.",
+      "distractors": {
+        "A": "Model tier selection is a design decision informed by discovery findings (complexity, latency, cost). Asking it in the discovery phase assumes the team already knows enough to evaluate trade-offs — they do not yet.",
+        "C": "Secret storage mechanism is an implementation design decision. It belongs after the team understands the deployment environment and has a security requirement to satisfy — both of which emerge from discovery.",
+        "E": "Output format (JSON vs. prose) is an interface design decision driven by how the application consumes the output. It belongs in design after the team understands the downstream rendering requirements — which is itself a discovery finding."
+      },
+      "concept": "**Discovery vs. design in AI scoping workshops:**\n\nDiscovery surfaces facts and constraints:\n- What data exists and where does it live?\n- What is the current process and its quality bar?\n- What volume, latency, and reliability constraints apply?\n- Who are the stakeholders and what do they consider success?\n\nDesign makes choices informed by those facts:\n- Which model tier fits the complexity and cost constraints?\n- How should credentials be managed?\n- What output format does the downstream system need?\n\nA workshop that jumps to design before discovery produces decisions that may need to be reversed. The sequence is not negotiable.",
+      "examTip": "Discovery vs. design items test **workshop facilitation discipline**. The signal word for design is *should* — these are choices. The signal for discovery is *what is* or *how does* — these are facts. Scan each option: if it contains a choice between two options, it is design. If it asks for a fact about the current state, it is discovery."
+    }
+  },
+  {
+    "id": "TAW-C-031",
+    "domain": "Technical Awareness",
+    "topic": "Context window as engineering constraint",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "During a scoping session for a Claude-powered legal research tool, the engineering lead asks the consultant: \"Our legal team needs Claude to review 200-page contracts. Is there an engineering problem to solve here, or can we just upload the documents?\"\n\nWhat is the MOST accurate response?",
+    "options": [
+      { "key": "A", "text": "There is always an engineering problem — models cannot process documents longer than a few pages without a retrieval system" },
+      { "key": "B", "text": "Documents of that length can be handled by some model tiers but not others; the engineering team should test whether their chosen tier can accept the full document before designing a retrieval workaround" },
+      { "key": "C", "text": "Context windows on current model tiers are large enough to accommodate lengthy documents, but the team should consider whether processing the full document each time is cost-efficient given token-based pricing" },
+      { "key": "D", "text": "Documents of any length can be uploaded without issue; Claude processes long documents by automatically summarising sections before analyzing them" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Modern model tiers have context windows large enough to handle substantial documents in a single call. The engineering question is not usually 'can it fit?' but 'is it efficient to send the whole document every time?' For a contract reviewed once, full-document processing is appropriate. For a tool that re-queries the same contract many times, token costs accumulate and a retrieval approach may be more economical. Framing this as a cost-efficiency question rather than a hard technical barrier is the accurate response.",
+      "distractors": {
+        "A": "Current model tiers have substantially larger context windows than earlier generations. Stating that models cannot process long documents without retrieval was more accurate for earlier models and is not true as an absolute statement today. A consultant who gives this answer may drive unnecessary engineering complexity.",
+        "B": "This answer is directionally useful but slightly framed as if the tier constraint is the primary concern, when in practice the economic question (cost per full-document call) is often more relevant than the technical size limit for well-scoped documents.",
+        "D": "Claude does not automatically summarise sections internally before analysis. This describes a behaviour the model does not perform on its own. Accurate representation of model behaviour is a factual accuracy requirement."
+      },
+      "concept": "**Context window vs. retrieval trade-off** is a recurring architectural decision:\n\n- **Full-document-in-context:** Appropriate when the query is open-ended, the document is reviewed once, or the team needs the model to reason about the whole document simultaneously. Simpler to implement.\n- **Retrieval-augmented (RAG):** Appropriate when the same document is queried many times, when the document is larger than the context window allows, or when cost per call is prohibitive. More complex to implement.\n\nThe consultant's value is steering this decision toward the simplest approach that meets the requirement — not pre-assuming retrieval is needed. Start with full context, add retrieval if cost or size constraints require it.",
+      "examTip": "Context window questions often have an answer that overstates constraints (option A) and one that dismisses them entirely (option D). The correct answer acknowledges real capability while surfacing the **practical cost implication** — which is the more important engineering consideration for most modern document-length use cases."
+    }
+  },
+  {
+    "id": "TAW-C-032",
+    "domain": "Technical Awareness",
+    "topic": "Intermittent failure prompt vs engineering triage",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A business analyst at an energy company reports that a Claude-powered regulatory summary tool works correctly 85% of the time but 15% of the time produces a generic, unhelpful response. The system prompt, model tier, and API integration code have not changed in six weeks. The analyst asks the consultant whether this is a prompt problem or something else.\n\nWhat is the MOST likely explanation to investigate first?",
+    "options": [
+      { "key": "A", "text": "Variability in the quality or completeness of the input data being passed to Claude — 15% of regulatory documents may be malformed, empty, or in a different format than the rest" },
+      { "key": "B", "text": "Claude's inherent non-determinism — the model randomly produces poor output on a small percentage of identical calls" },
+      { "key": "C", "text": "A system prompt instruction that is too long and causes the model to skip later instructions for some document types" },
+      { "key": "D", "text": "The model tier being insufficient to handle the complexity of some regulatory documents and defaulting to a safe, generic response" }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "A consistent 15% failure rate on an unchanged system strongly suggests the 15% of failing cases have something in common — most likely a characteristic of the input documents themselves. Malformed PDFs, empty fields, scanned images the model cannot parse, or documents in a different language or format would all cause a consistent minority of failures without any code or prompt change. This is the first hypothesis to test: pull a sample of the failing inputs and compare them to successful ones.",
+      "distractors": {
+        "B": "Genuine non-determinism produces varied outputs, not a consistent failure rate of exactly 15%. If the same prompts consistently produce poor outputs while others consistently produce good ones, the cause is systematic — tied to something in the input, not random sampling.",
+        "C": "An overly long system prompt would cause consistent failures across all calls, not a stable 15% subset. Prompt length effects are not selective by document type unless the document itself triggers a path through the instructions that other documents do not.",
+        "D": "Model tier capacity issues manifest as degraded reasoning quality across complex inputs, not as a binary good/generic split at a consistent rate. If 15% of documents are genuinely more complex, that is possible but should be verifiable by examining whether those documents share characteristics."
+      },
+      "concept": "**Stable partial-failure rates** (consistently X% bad, Y% good) are among the most diagnostic signals in AI triage:\n\n- Random model non-determinism does not produce a stable rate — it produces random variation.\n- A stable rate suggests a population of inputs with a systematic difference.\n- The right investigation: sample from the failing subset and the passing subset and compare the raw inputs.\n\nCommon input-data causes of stable partial failure:\n- Scanned or image-based documents (model cannot read them as text)\n- Empty or null fields for a required data element\n- Documents in an unexpected language or encoding\n- A specific template or format that the prompt was not designed for\n\nAlways start with the data before examining the prompt or model.",
+      "examTip": "The discriminator here is **stable rate vs. random variation.** Option B (inherent non-determinism) is a real phenomenon, but it produces random variation, not a consistent 15% failure pattern. Any time a stem describes a stable percentage of failures, interpret it as a systematic data issue until disproved. This is the most reliable triage heuristic for partial-failure scenarios."
+    }
+  },
+  {
+    "id": "TAW-C-033",
+    "domain": "Technical Awareness",
+    "topic": "System prompt function at API level",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A business programme lead is being briefed on a Claude API integration for an internal HR tool. The developer mentions that the system prompt is a key configuration element. The programme lead asks what the system prompt actually does.\n\nWhich answer is MOST accurate?",
+    "options": [
+      { "key": "A", "text": "The system prompt stores the API key so Claude knows which account is authorised to make requests" },
+      { "key": "B", "text": "The system prompt contains persistent instructions, context, or persona that apply to every conversation the application initiates — it shapes how Claude behaves before any user message is sent" },
+      { "key": "C", "text": "The system prompt caches frequently used data so Claude does not need to re-read it on every call, reducing latency" },
+      { "key": "D", "text": "The system prompt sets the model tier for the conversation, determining whether Haiku, Sonnet, or Opus handles the request" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The system prompt is a privileged instruction block that the application sends to Claude before any user content. It establishes the model's persona, task framing, constraints, output format requirements, and any background context that should apply throughout the session. In a product integration, the system prompt is typically the primary mechanism through which the application controls Claude's behaviour — every user interaction inherits whatever the system prompt defines.",
+      "distractors": {
+        "A": "API keys are passed as HTTP headers in the API call, entirely separately from the system prompt. The model never sees the key — it is authentication infrastructure at the transport layer, not a prompt element.",
+        "C": "The system prompt does not itself cache data for performance. Prompt caching is a separate API feature where repeated identical prompt prefixes can be cached to reduce cost and latency — but this is a technical optimisation, not the system prompt's primary function.",
+        "D": "Model tier is specified as a parameter in the API request (e.g., which model to call) — it is not set within the system prompt text. The system prompt contains instruction content, not request metadata."
+      },
+      "concept": "**System prompt vs. user message:**\n\n- **System prompt:** Written by the application developer; defines the AI's role, constraints, and context; applies to every turn in the conversation; not typically visible to end users.\n- **User message:** The input from the human (or the application acting on the human's behalf); varies per conversation turn.\n\nFor a business owner, the system prompt is the control surface. Want Claude to always respond in formal English? System prompt. Want it to stay on HR policy topics? System prompt. Want it to output structured JSON? System prompt.\n\nIn most enterprise integrations, the system prompt is where the majority of prompt engineering effort is invested.",
+      "examTip": "System prompt function is a foundational concept tested in multiple domains. The common confusions: **key storage** (option A — keys are HTTP headers, not prompt content) and **model tier selection** (option D — tier is a request parameter, not a prompt instruction). Know the clean definition: system prompt = persistent instruction that shapes model behaviour for all turns."
+    }
+  },
+  {
+    "id": "TAW-C-034",
+    "domain": "Technical Awareness",
+    "topic": "Centralised vs decentralised key governance",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A large professional services firm is debating whether each of its 12 practice areas should manage their own Claude API keys or whether a central IT function should issue and govern a shared set of keys. A senior associate asks the consultant to identify the PRIMARY governance advantage of centralised key management.\n\nWhat is the most accurate answer?",
+    "options": [
+      { "key": "A", "text": "Central management reduces API latency because all requests route through a single, optimised endpoint" },
+      { "key": "B", "text": "Central management ensures all practice areas use the most powerful model tier, improving output quality across the firm" },
+      { "key": "C", "text": "Central management enables the firm to attribute API spend by practice area, rotate or revoke credentials quickly across all groups, and enforce consistent security standards without relying on each team to independently implement them" },
+      { "key": "D", "text": "Central management prevents practice areas from accidentally exceeding their individual usage quotas by pooling all requests under one key" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Centralised key governance provides three distinct advantages simultaneously: spend attribution (each practice area's usage can be tracked even under shared infrastructure), incident response speed (rotating or revoking a key happens in one place, not twelve), and security consistency (no practice area can implement a weaker key handling practice than the firm's standard). These are governance benefits, not performance or quality benefits.",
+      "distractors": {
+        "A": "API latency is determined by model tier, output length, and infrastructure geography — not by which team manages the key. Centralised key management has no effect on request routing or response time.",
+        "B": "Key management governance does not affect which model tier is selected for a given request. Model tier selection is a design decision made in the API call itself; it is independent of how credentials are issued and managed.",
+        "D": "Using a single pooled key does not prevent over-spending — it obscures which group is driving spend. Spend controls are set through budget caps and alerts at the account level. Pooling keys without usage attribution can actually make overspend harder to detect and address."
+      },
+      "concept": "**Centralised key governance advantages:**\n\n1. **Spend attribution:** Centralised logging tags each call with the requesting service or team, enabling chargeback and optimisation.\n2. **Incident response:** One team with revocation authority can respond immediately to a compromise rather than requiring coordination across 12 teams.\n3. **Standard enforcement:** Security requirements (vault storage, rotation schedule, no-repo policies) are implemented once and verified once, not independently by each team.\n4. **Audit readiness:** A single audit scope covers all API usage rather than requiring auditors to assess each team's practices separately.\n\nDecentralised key management may feel like it gives teams autonomy, but it typically produces inconsistent security postures and fragmented spend data.",
+      "examTip": "Centralised vs. decentralised governance items test whether you focus on the correct benefit category. The primary argument for centralisation is **security consistency and incident response speed** — not performance, not model quality, and not quota management. When options mix valid governance benefits with unrelated claims (latency, model selection), eliminate the unrelated claims first."
+    }
+  },
+  {
+    "id": "TAW-C-035",
+    "domain": "Technical Awareness",
+    "topic": "Model tier effect on cost at scale",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A supply chain consulting team is building a Claude-powered pipeline to classify 200,000 logistics documents per month. The project sponsor asks whether the choice of model tier meaningfully affects cost at that volume.\n\nWhat is the MOST accurate answer?",
+    "options": [
+      { "key": "A", "text": "Model tier does not affect cost significantly; billing is primarily based on message volume, and all tiers have similar per-message rates" },
+      { "key": "B", "text": "Model tier affects latency but not cost; higher tiers respond more slowly, which matters for real-time applications but does not change the monthly bill" },
+      { "key": "C", "text": "Model tier affects cost only when extended thinking mode is enabled; standard calls are priced equivalently across tiers" },
+      { "key": "D", "text": "Model tier has a substantial effect on cost per token; at 200,000 documents per month, a difference in per-token rate across tiers can result in a meaningful difference in monthly spend" }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Different model tiers carry significantly different per-token rates. At 200,000 documents per month, even a moderate difference in cost-per-token becomes a large absolute number. A team that needs only Haiku-level capability but defaults to Sonnet or Opus is paying a tier premium at every call, multiplied across a large volume. The correct discipline is to use the cheapest tier that delivers acceptable quality — and test before assuming a higher tier is necessary.",
+      "distractors": {
+        "A": "Per-token rates differ materially between Haiku, Sonnet, and Opus. Billing is token-based, not message-based, so both volume and tier affect the final bill. Treating tiers as cost-equivalent is factually incorrect.",
+        "B": "Latency does differ across tiers, but cost differences are independent and also real. Higher tiers cost more per token — this is not a latency-only distinction. A caller is not simply paying for faster responses; they are paying for greater model capability.",
+        "C": "Extended thinking is a feature that changes the cost of a specific call type, but all model tiers have different standard per-token rates regardless of whether extended thinking is used. The tier difference applies to all calls."
+      },
+      "concept": "**Model tier cost discipline at scale:**\n\n- Haiku: Lowest cost, highest throughput, appropriate for simple classification, extraction, and routing tasks.\n- Sonnet: Balanced cost and capability, appropriate for most professional work.\n- Opus: Highest cost, deepest reasoning, appropriate for genuinely complex analysis.\n\nFor a volume classification task:\n1. Start by defining the minimum quality bar (accuracy on a test set).\n2. Test whether Haiku meets that bar.\n3. Only escalate to Sonnet or Opus if Haiku fails on quality.\n4. Never choose a higher tier as a default assumption of quality.\n\nAt 200,000 documents, the cost difference between tiers can represent the difference between a viable and an unviable business case.",
+      "examTip": "Model tier cost items often offer the trap that **only quality differs between tiers** (option B style). The truth is that cost, latency, and quality all differ across tiers — and for high-volume work, cost is often the dominant selection criterion. When volume is large in the stem, immediately apply the 'cheapest tier that meets quality' principle."
+    }
+  },
+  {
+    "id": "TAW-C-036",
+    "domain": "Technical Awareness",
+    "topic": "Combined cost governance controls",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A technology director at a 6,000-employee retail bank is preparing governance controls before rolling out a Claude API integration to 300 business analysts. She asks the consultant which TWO controls will MOST effectively manage cost at scale while still allowing analysts to use the tool productively. (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Implementing account-level hard budget caps that automatically suspend API access if monthly spend exceeds the approved ceiling" },
+      { "key": "B", "text": "Requiring analysts to draft their prompts in a shared document for peer review before submitting to the API" },
+      { "key": "C", "text": "Routing all analyst requests through a lightweight middleware layer that logs token counts per user and flags anomalous usage patterns for review" },
+      { "key": "D", "text": "Setting a firm-wide policy that analysts must not submit prompts longer than two sentences" },
+      { "key": "E", "text": "Assigning a dedicated account manager from Anthropic to monitor the bank's usage and send weekly reports" }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "Option A is a hard technical control: a budget cap ensures spending cannot exceed the approved limit regardless of how analysts use the tool. It protects the organisation from runaway spend without requiring ongoing manual oversight. Option C provides visibility and accountability: per-user logging enables the director to identify which analysts or use cases drive disproportionate spend, allowing targeted optimisation rather than blanket restrictions. Together, these two controls set a ceiling and provide the data needed to manage below it.",
+      "distractors": {
+        "B": "Requiring peer review of every prompt before submission would make the tool unusable for routine work. At 300 analysts, prompt review creates a bottleneck that defeats the productivity purpose of the tool. Governance through friction at this scale is not a viable model.",
+        "D": "A two-sentence prompt limit would severely constrain the usefulness of the tool for any task requiring context — which is most knowledge-work tasks. Input brevity does reduce input token cost, but it also reduces output quality, producing a hidden cost in rework. Arbitrary length limits are not a sound governance mechanism.",
+        "E": "External vendor account managers do not provide real-time cost control. Weekly reports would identify overspend after it occurred, with no mechanism to prevent it. Governance must be internal and automated to be effective."
+      },
+      "concept": "**Cost governance tiers:**\n\n1. **Hard controls (prevent overspend):** Budget caps, hard limits, automatic suspension — these act regardless of user behaviour.\n2. **Visibility controls (enable management):** Usage logs, per-user attribution, anomaly detection — these enable optimisation.\n3. **Behavioural controls (influence usage):** Training, guidelines, peer review — these are weak at scale and should supplement, not replace, technical controls.\n\nThe correct combination for an enterprise rollout always includes at least one hard control and one visibility control. Neither alone is sufficient: a cap without visibility does not help you understand usage; visibility without a cap lets overspend occur before you can act.",
+      "examTip": "This item tests whether you know that **effective cost governance requires a hard control AND a visibility control** — not one or the other. Options B and D are behavioural controls masquerading as governance. Option E is visibility without control. The correct pair (A + C) is the only combination that prevents overspend and enables optimisation simultaneously."
+    }
+  },
+  {
+    "id": "TAW-C-037",
+    "domain": "Technical Awareness",
+    "topic": "API key ownership and accountability",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A junior developer on a consulting engagement asks whether it is acceptable to register a Claude API key under his personal Anthropic account and use it for client deliverables, with the plan to transfer it to the client at the end of the project.\n\nWhat should the consultant advise?",
+    "options": [
+      { "key": "A", "text": "This is acceptable as long as the developer sets up billing alerts on his personal account to track client usage" },
+      { "key": "B", "text": "The client engagement should use a key issued under the client's or the consulting firm's account so that ownership, billing, and audit responsibility sit with the correct entity from the start" },
+      { "key": "C", "text": "Personal accounts are acceptable during development; the developer should register a corporate key only before the system goes into production" },
+      { "key": "D", "text": "API keys are portable and can be transferred between accounts freely, so a personal key is fine to use throughout the engagement" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "API keys issued to a personal account belong to that person, not the client or the firm. Usage charges, audit logs, and any data-handling obligations associated with those calls sit on the developer's personal account. If the developer leaves the engagement, the key must be revoked and replaced. If the account is compromised, the client has no visibility and no direct control. The correct practice is to issue keys under the client's or firm's account from day one so that ownership, billing, and governance are correctly attributed.",
+      "distractors": {
+        "A": "Billing alerts on a personal account do not resolve the governance problem. The client has no access to the alerts, no visibility into usage, and no control over the account. Alerts are a personal monitoring tool, not a governance transfer mechanism.",
+        "C": "Development and production are not meaningfully different in terms of key ownership principles. Development calls consume the account's quota, may process real or representative data, and generate audit-relevant logs. Using the correct account from the beginning avoids a migration step and prevents any ambiguity about who owns the interim work.",
+        "D": "API keys are not portable between accounts. A key is generated by and tied to one account; it cannot be moved to another. To transfer ownership, the old key must be revoked and a new one issued on the target account."
+      },
+      "concept": "**Key ownership = accountability ownership.** The entity whose account the key belongs to is:\n- Billed for all usage\n- Responsible for audit logs\n- Liable for any data-handling obligations associated with calls made on that key\n- The only party that can revoke or rotate the key\n\nFor client engagements, the key should belong to the entity responsible for the production system — typically the client for permanent systems, or the consulting firm's client-project account for development work, with handoff clearly documented.\n\nUsing personal keys for professional work creates a hidden accountability gap that only becomes visible when something goes wrong.",
+      "examTip": "Key ownership items test whether you connect **who holds the key** to **who holds the accountability.** The common error is treating this as a technical preference rather than a governance obligation. On the exam, 'personal key for client work' is almost always wrong — the question is what the correct arrangement is and why."
+    }
+  },
+  {
+    "id": "TAW-C-038",
+    "domain": "Technical Awareness",
+    "topic": "Deployment readiness checklist",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A technology consultant is reviewing a Claude API integration before it moves to production at a 400-person asset manager. The integration processes investor communications. Which TWO readiness checks are MOST critical to complete before moving to production? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Confirm that the engineering team has chosen their preferred programming language and documented the tech stack" },
+      { "key": "B", "text": "Verify that API keys are stored in a secrets manager and are not present in the application's source code repository" },
+      { "key": "C", "text": "Confirm that the development team has attended an internal Claude training session" },
+      { "key": "D", "text": "Confirm that API spend limits and monitoring alerts are configured at the account level before live traffic is introduced" },
+      { "key": "E", "text": "Verify that the UI design matches the company's brand guidelines for the investor portal" }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "Option B is a security readiness check: a production system that processes investor communications must not have its credentials exposed in source code — the risk of a repository scan or accidental commit exposing a key is unacceptable for a regulated financial services context. Option D is a cost and operational readiness check: without spend limits and alerts in place before live traffic, the first month of production could produce a surprise invoice with no mechanism to intervene.",
+      "distractors": {
+        "A": "Technology stack documentation is useful for maintainability but is not a production-readiness gate. A system can operate correctly with undocumented tech stack choices; it cannot operate safely with unsecured credentials.",
+        "C": "Training is a change-management activity, not a production-readiness check for the technical system. The integration will function (or not) regardless of whether the team attended a session. Training affects user behaviour after launch, not system security before it.",
+        "E": "Brand guidelines compliance is a product quality concern, not a deployment readiness issue for the integration's core functionality. A misaligned UI does not create security or cost risk — it creates a cosmetic revision after launch."
+      },
+      "concept": "**Production readiness for an AI API integration** — the non-negotiables before go-live:\n\n1. **Credential security:** No keys in code, config committed to repositories, or shared documents.\n2. **Cost controls:** Spend limits and alerts active before any live traffic.\n3. **Logging:** Request and response logging sufficient to support incident investigation.\n4. **Human review points:** For high-stakes outputs (investor communications), confirm review gates are in place before outputs reach recipients.\n\nThese are security and operational controls that, once a system is live, are harder to retrofit than to configure before launch. Everything else (documentation, training, brand compliance) can be addressed post-launch with lower risk.",
+      "examTip": "Production readiness items test whether you can separate **launch-blocking** from **launch-adjacent** concerns. Security (keys) and operations (cost controls) are launch-blocking. Training, documentation, and UI polish are launch-adjacent. For a financial services context, the threshold for what qualifies as launch-blocking is higher — regulated data processing elevates security checks."
+    }
+  },
+  {
+    "id": "TAW-C-039",
+    "domain": "Technical Awareness",
+    "topic": "Handoff requirements for developer implementation",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A consultant is handing off an AI requirements package for a Claude-powered meeting summary tool to an engineering team at a 60-person management consultancy. The engineering lead says the package is incomplete. Which TWO elements are MOST likely missing from the requirements package that would make it implementable? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Representative examples showing a sample meeting transcript input alongside the desired summary output format and content" },
+      { "key": "B", "text": "A commitment from the business sponsor on the project's total implementation budget" },
+      { "key": "C", "text": "Clear acceptance criteria defining what a correct summary includes and how the team will evaluate output quality" },
+      { "key": "D", "text": "A named list of all stakeholders who must approve the final deliverable before launch" },
+      { "key": "E", "text": "A recommendation for whether the tool should use a dark or light UI theme for the summary display" }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "Option A (representative examples) gives engineers a concrete target: they can see what the input looks like, how long it is, what format the output should take, and what the key content elements are. Without examples, the developer is guessing at the right output shape. Option C (acceptance criteria) tells the team when they are done: a measurable quality bar they can test against. Without it, there is no way to verify the integration is working correctly or to close the development loop.",
+      "distractors": {
+        "B": "Budget is a project management concern, not a technical implementation input. An engineering team can begin implementation without knowing the total budget — they need to know what to build, not what it costs.",
+        "D": "Stakeholder approval lists are governance documentation. They do not help an engineer understand what the system must produce. The engineering team builds to specifications; governance approvals happen separately.",
+        "E": "UI theme is a design preference with no bearing on the AI integration itself. Meeting summary content and format are the relevant requirements; visual design is a downstream UX decision."
+      },
+      "concept": "**Minimum implementable AI requirements package:**\n\n1. **Input description:** What format and typical length is the input data?\n2. **Representative examples:** At least two input-output pairs showing what success looks like.\n3. **Acceptance criteria:** How will the team and business stakeholders agree that the output is correct?\n4. **Failure modes:** What are the known edge cases and what should the system do with them?\n5. **Integration context:** What system will call this feature and what will it do with the output?\n\nItems 2 and 3 are the most commonly missing elements in requirements packages produced by business stakeholders, because they require the stakeholder to articulate what 'good' looks like — which is harder than describing a vague goal.",
+      "examTip": "This item tests **requirements completeness from the engineer's perspective.** Engineers need to know what to build (examples) and when they are done (acceptance criteria). Budget and governance approvals are real concerns but are project management inputs, not implementation inputs. When the stem says the package is 'incomplete,' look for the options that answer 'what does it need to produce?' and 'how do we know it works?'"
+    }
+  },
+  {
+    "id": "TAW-C-040",
+    "domain": "Technical Awareness",
+    "topic": "Scoping sequence before architecture",
+    "difficulty": "hard",
+    "type": "nextstep",
+    "stem": "A consultant has completed discovery for a Claude-powered internal knowledge search tool at a 1,200-person telecoms company. The discovery phase surfaced that peak query volume is 4,000 requests per hour and that data residency must stay within the EU. The engineering team is eager to begin architecture design. What should the consultant do NEXT before architecture design begins?",
+    "options": [
+      { "key": "A", "text": "Select the model tier and confirm the temperature setting, so the engineering team has the API parameters they need before designing the system architecture" },
+      { "key": "B", "text": "Draft the system prompt and test it with sample queries to verify it meets business requirements before committing to a deployment architecture" },
+      { "key": "C", "text": "Issue the API key and confirm the development environment so engineers can begin building while the remaining requirements are finalised in parallel" },
+      { "key": "D", "text": "Define the quality acceptance criteria and confirm with the data owner which specific data sources will be indexed, before any architecture or deployment decisions are made" }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Volume and data residency are known, but two foundational scoping questions remain unanswered: what does 'good search' mean (acceptance criteria), and what data will actually be indexed. Architecture decisions — retrieval approach, indexing design, data pipeline — all depend on knowing which data sources are in scope and what quality bar the system must hit. Designing before these are confirmed risks building an architecture around assumptions that change during implementation.",
+      "distractors": {
+        "A": "Model tier and temperature selection are important but are downstream of knowing the quality requirements and data sources. You cannot responsibly select a tier without knowing the task complexity, which depends on the data and acceptance bar.",
+        "B": "System prompt testing is valuable, but it requires knowing what the tool is supposed to do well — which is the acceptance criteria. Testing a prompt before defining quality criteria produces feedback with no evaluative standard.",
+        "C": "Issuing API keys and setting up a development environment while scoping is still incomplete creates premature implementation pressure. The engineering team may build toward assumptions that are revised once the remaining scoping questions are answered, wasting effort."
+      },
+      "concept": "**Scoping sequencing discipline:** Even when some discovery findings are in hand, do not move to design until all foundational constraints are identified:\n\n1. Volume profile ✓\n2. Data residency requirement ✓\n3. Data sources and scope — not yet confirmed\n4. Quality acceptance criteria — not yet defined\n5. Stakeholder alignment on what success looks like — not yet done\n\nThe failure mode the consultant is preventing: an architecture that handles 4,000 requests per hour with EU residency but indexes the wrong data or has no measurable quality bar. That system passes technical tests and fails the business test — an expensive way to learn the requirement was not fully scoped.",
+      "examTip": "Nextstep scoping items test whether you complete requirements before moving to implementation. The trap is options A, B, and C — all of which are real tasks that come soon — but they all assume you know what the system must do well, which requires acceptance criteria. The rule: you cannot test what you have not defined, and you cannot design what you have not scoped. Complete the scope before starting the design."
+    }
+  }
+]

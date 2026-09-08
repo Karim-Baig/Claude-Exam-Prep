@@ -1,0 +1,272 @@
+[
+  {
+    "id": "FC-PTE-031",
+    "domain": "Prompting and Task Execution",
+    "topic": "Output Format Specification",
+    "difficulty": "easy",
+    "front": "Name three output formats you can specify in a prompt format block.",
+    "back": "Any three of: **JSON object**, Markdown table, numbered list, bulleted list, prose paragraph, code block, CSV, HTML, heading hierarchy, or a custom template. The format block names the structure; the task block names what to put inside it.\n\nFormat specificity matters because Claude picks its own default if none is given. When downstream code or a human workflow depends on a specific structure, the format block is not optional — it is a correctness requirement.",
+    "hook": "Name the exact structure in the format block — downstream processes depend on it being consistent."
+  },
+  {
+    "id": "FC-PTE-032",
+    "domain": "Prompting and Task Execution",
+    "topic": "Positive Framing",
+    "difficulty": "easy",
+    "front": "Restate the negative constraint 'do not write in a casual tone' as a positive instruction.",
+    "back": "**Positive restatement:** 'Write in a formal, professional register appropriate for a board-level audience.' This specifies the target rather than the exclusion.\n\nPositive framing is more reliable because it gives Claude a concrete destination. The negative version leaves Claude to infer what the alternative to casual is — professional, academic, and bureaucratic are all non-casual, but they are different registers. A positive instruction eliminates that ambiguity.",
+    "hook": "Specify the target tone, not the tone to avoid — positive instructions are unambiguous."
+  },
+  {
+    "id": "FC-PTE-033",
+    "domain": "Prompting and Task Execution",
+    "topic": "Length Control",
+    "difficulty": "easy",
+    "front": "What is the most reliable way to control response length in a prompt?",
+    "back": "State a **numeric target or hard limit** in the constraints block: 'Respond in exactly three bullet points,' 'Under 150 words,' or 'No more than one paragraph.' Qualitative instructions like 'be concise' or 'keep it brief' are interpreted differently by Claude on every run.\n\nLength control interacts with depth control: a short output is not always a shallow one. You can request a dense, short answer by pairing a word limit with an instruction to prioritise the most important points.",
+    "hook": "Use numbers, not adjectives, to control length — 'brief' is ambiguous, '100 words' is not."
+  },
+  {
+    "id": "FC-PTE-034",
+    "domain": "Prompting and Task Execution",
+    "topic": "Iterative Refinement",
+    "difficulty": "easy",
+    "front": "What is iterative refinement in prompting and when should you use it?",
+    "back": "**Iterative refinement** is the practice of treating the first output as a draft and using follow-up prompts to improve specific aspects — sharpening tone, adding a missing section, correcting a fact. It is a multi-turn loop: prompt → output → targeted feedback → revised output.\n\nUse it when a single prompt is unlikely to produce a final result — long documents, complex structures, nuanced tone. Avoid it as a substitute for a clear initial prompt; iterating your way out of a fundamentally vague prompt is inefficient.",
+    "hook": "Iterate to refine, not to compensate — start with a clear prompt, then use refinement for polish."
+  },
+  {
+    "id": "FC-PTE-035",
+    "domain": "Prompting and Task Execution",
+    "topic": "Reusable Templates",
+    "difficulty": "easy",
+    "front": "What is the purpose of a reusable prompt template with variables?",
+    "back": "A **reusable prompt template** is a prompt skeleton with placeholder variables that a user fills in at runtime, e.g. `{{client_name}}`, `{{document}}`, `{{tone}}`. The fixed structure encodes the known-good prompt logic; the variables hold the parts that change per use.\n\nTemplates bring consistency to team workflows — everyone runs the same prompt logic even if they fill different values. They also reduce the cognitive overhead of re-prompting from scratch and make it easier to audit what prompt produced a given output.",
+    "hook": "Templates fix the logic, expose the variables — consistency across users comes from the fixed part."
+  },
+  {
+    "id": "FC-PTE-036",
+    "domain": "Prompting and Task Execution",
+    "topic": "Kitchen-Sink Anti-Pattern",
+    "difficulty": "easy",
+    "front": "What is the 'kitchen-sink' prompt anti-pattern?",
+    "back": "A **kitchen-sink prompt** asks Claude to do too many distinct jobs in one message: research a topic, summarise findings, draft a memo, create a table of key points, and suggest next steps — all in one prompt. The result is that each sub-task receives less attention than if targeted individually.\n\nThe fix is decomposition: identify each distinct job, write a separate focused prompt for each, and connect them with prompt chaining. One prompt, one job is the rule. A kitchen-sink prompt is the most common cause of shallow, incomplete output.",
+    "hook": "Kitchen-sink prompts dilute attention across too many jobs — one prompt, one job."
+  },
+  {
+    "id": "FC-PTE-037",
+    "domain": "Prompting and Task Execution",
+    "topic": "Multi-Turn Conversation Management",
+    "difficulty": "medium",
+    "front": "How should you manage a multi-turn conversation to prevent context drift?",
+    "back": "**Context drift** occurs when a long conversation accumulates implicit assumptions, side comments, and off-topic exchanges that gradually shift Claude's behaviour away from the original goal. Prevention strategies: restate the core objective at intervals, use a system prompt or project instruction to anchor persistent constraints, and start a fresh conversation when the current thread's accumulated context works against the task.\n\nKnowing when to start fresh is itself a skill. If you are spending turns correcting Claude's direction rather than advancing the task, the conversation has drifted and a fresh start with a better-constructed prompt is faster.",
+    "hook": "Restate objectives periodically or start fresh — long threads accumulate drift that compounds."
+  },
+  {
+    "id": "FC-PTE-038",
+    "domain": "Prompting and Task Execution",
+    "topic": "Conflicting Instructions Anti-Pattern",
+    "difficulty": "medium",
+    "front": "What happens when a prompt contains conflicting instructions, and how do you prevent it?",
+    "back": "When instructions conflict — 'be comprehensive' and 'keep it under 100 words' — Claude must resolve the conflict using its own judgement, which may not match yours. The result is unpredictable and inconsistent across runs.\n\nPrevention: read your prompt as Claude would before sending it. Look for pairs of instructions that trade off against each other and choose one. If both constraints are genuinely required, restructure: 'Prioritise brevity over completeness; 100 words maximum, covering only the three most critical points.' Specify the priority when a conflict cannot be eliminated.",
+    "hook": "Conflicting instructions produce unpredictable output — name the priority when a trade-off is unavoidable."
+  },
+  {
+    "id": "FC-PTE-039",
+    "domain": "Prompting and Task Execution",
+    "topic": "Politeness Padding Anti-Pattern",
+    "difficulty": "medium",
+    "front": "Why is politeness padding in a prompt an anti-pattern?",
+    "back": "**Politeness padding** — 'Could you please possibly help me with…', 'Thank you so much in advance' — adds tokens without adding information. It does not improve output quality and wastes context space that could carry task-relevant content.\n\nMore subtly, padding can obscure the actual instruction. When the task is embedded in three sentences of pleasantries, its signal strength is diluted. Prompts should be direct: state the role, task, context, constraints, and format without social filler. Directness is not rudeness — it is efficient communication with a language model.",
+    "hook": "Politeness adds tokens, not quality — direct prompts communicate more clearly than padded ones."
+  },
+  {
+    "id": "FC-PTE-040",
+    "domain": "Prompting and Task Execution",
+    "topic": "Prefill Technique",
+    "difficulty": "medium",
+    "front": "Give a practical use case where prefilling the response is the right tool.",
+    "back": "**Prefill use case:** You need Claude to return a JSON object with a specific opening structure. By prefilling `{\"status\":`, you guarantee the response begins at exactly that token, eliminating any preamble like 'Here is the JSON:' or 'Sure, here's the structured output:' that would break a downstream JSON parser.\n\nPrefill is most valuable when output is machine-consumed and preamble tokens would cause parse failures. It is less useful for human-read prose where the opening sentence can be specified as a format instruction instead.",
+    "hook": "Prefill eliminates preamble — use it when machine parsers need output to start at token one."
+  },
+  {
+    "id": "FC-PTE-041",
+    "domain": "Prompting and Task Execution",
+    "topic": "How Many Examples",
+    "difficulty": "medium",
+    "front": "How many few-shot examples are typically sufficient, and what determines the right number?",
+    "back": "**One to five** well-chosen examples covers most tasks. The right number is determined by the complexity of the pattern, not by a fixed rule. Simple format tasks (one example of a two-field JSON) need one example. Complex classification with multiple edge cases may need five or more.\n\nAdding more examples beyond the point of diminishing returns wastes context space and can introduce inconsistencies if later examples differ subtly from earlier ones. Test with the minimum that produces consistent results and add examples only when failures indicate the pattern is not yet clear.",
+    "hook": "Use the minimum examples that produce consistent results — more is not always better."
+  },
+  {
+    "id": "FC-PTE-042",
+    "domain": "Prompting and Task Execution",
+    "topic": "Prompt vs. Model Tier",
+    "difficulty": "medium",
+    "front": "Before escalating to a more powerful model tier, what prompt improvement should you attempt first?",
+    "back": "Add or improve the **context block** and sharpen the **task specification**. Generic, shallow, or off-target output is almost always a prompt-quality problem, not a model-capability problem. A well-constructed prompt on a lower tier frequently outperforms a vague prompt on a higher tier.\n\nThe diagnostic test: if you cannot describe the task in specific terms, you have not yet scoped it well enough to write a good prompt for any model. Escalate the model only after a well-constructed prompt still fails to meet quality requirements.",
+    "hook": "Fix the prompt before escalating the model — tier upgrades rarely compensate for vague prompts."
+  },
+  {
+    "id": "FC-PTE-043",
+    "domain": "Prompting and Task Execution",
+    "topic": "Step-by-Step Reasoning",
+    "difficulty": "medium",
+    "front": "What phrase in a prompt activates step-by-step reasoning, and what does it protect against?",
+    "back": "The phrase **'think step by step'** (or 'work through this step by step,' 'show your reasoning') activates chain-of-thought behaviour. It protects against reasoning shortcuts — jumping to a conclusion that feels plausible without checking intermediate steps.\n\nStep-by-step reasoning is especially valuable for arithmetic, multi-condition logic, and tasks where the correct answer requires holding several constraints simultaneously. It does not protect against hallucinated premises — if the starting facts are wrong, the reasoning will be internally consistent but externally false.",
+    "hook": "Step by step protects against reasoning shortcuts — but correct reasoning on wrong premises still fails."
+  },
+  {
+    "id": "FC-PTE-044",
+    "domain": "Prompting and Task Execution",
+    "topic": "Depth Control",
+    "difficulty": "medium",
+    "front": "How do you control the depth of analysis in a response, separate from its length?",
+    "back": "Depth is controlled by **task specificity and explicit instruction**, not word count. A 50-word summary can be deep (dense with insight) or shallow (vague generalities). To increase depth: specify the type of analysis ('identify the three most significant risks and explain the mechanism of each'), name the evidence level required ('cite a specific clause for each claim'), and set a depth constraint ('do not state anything you cannot support from the document').\n\nLength and depth are orthogonal. Conflating them — asking for 'more detail' when you want greater analytical rigour — produces longer shallow output.",
+    "hook": "Depth comes from analytical specificity, not word count — 'more detail' gives length, not rigour."
+  },
+  {
+    "id": "FC-PTE-045",
+    "domain": "Prompting and Task Execution",
+    "topic": "Prompt Chaining Failure Mode",
+    "difficulty": "medium",
+    "front": "What is the most common failure mode in a prompt chain and how do you diagnose it?",
+    "back": "The most common failure is **output-input mismatch**: stage N produces an output in a format or at a level of abstraction that stage N+1 was not designed to consume. For example, stage 1 returns a free-prose summary but stage 2 expects a structured list of key points.\n\nDiagnosis: run each stage in isolation with representative sample outputs from the prior stage. If stage 2 fails on the actual output of stage 1 (but works on ideal input), the interface between stages is broken. Fix by adding a format constraint to stage 1 or a normalisation step between stages.",
+    "hook": "Chain failures live at stage interfaces — test each stage on the actual output of the prior one."
+  },
+  {
+    "id": "FC-PTE-046",
+    "domain": "Prompting and Task Execution",
+    "topic": "Persona Limits",
+    "difficulty": "medium",
+    "front": "What can role/persona prompting NOT do, regardless of how detailed the role description is?",
+    "back": "**Role prompting cannot supply factual knowledge** Claude does not have, override safety behaviours, or extend the context window. Assigning the role of 'world's leading oncologist' does not give Claude access to current clinical trial data or proprietary research not in its training.\n\nRole affects tone, framing, vocabulary level, and default perspective. It does not fill gaps in context, override content policies, or change reasoning accuracy on tasks outside the model's trained capabilities. Over-reliance on role prompting as a quality lever is a sign that the context block needs attention.",
+    "hook": "Role shapes voice and framing — it cannot supply knowledge, override policy, or extend capability."
+  },
+  {
+    "id": "FC-PTE-047",
+    "domain": "Prompting and Task Execution",
+    "topic": "Variable Isolation in Iteration",
+    "difficulty": "hard",
+    "front": "Why must you change only one prompt element at a time when iterating to fix a quality problem?",
+    "back": "Changing multiple elements simultaneously makes it impossible to attribute an improvement or regression to a specific change. If you add context, sharpen the task, and change the format in one edit and quality improves, you do not know which change drove the improvement — and you cannot reliably reproduce it on other prompts.\n\n**Single-variable isolation** is the discipline of treating prompt improvement as a controlled experiment: hold all elements constant, change one, observe the result. This produces transferable knowledge about what works, not just a lucky prompt that worked once.",
+    "hook": "Change one prompt element at a time — multi-variable edits produce lucky prompts, not repeatable knowledge."
+  },
+  {
+    "id": "FC-PTE-048",
+    "domain": "Prompting and Task Execution",
+    "topic": "Combining Few-Shot and Chain-of-Thought",
+    "difficulty": "hard",
+    "front": "When you combine few-shot examples with chain-of-thought, what must each example contain?",
+    "back": "When combining the two techniques, each few-shot example must include the **intermediate reasoning steps**, not just the final answer. An example that shows only input → output teaches Claude to skip the reasoning; an example that shows input → step-by-step workings → conclusion teaches the reasoning process itself.\n\nThe cost is that examples become significantly longer, consuming more of the context window. This trade-off is worth it when the reasoning process is as important to validate as the final answer — for instance, compliance analysis where the logic must be auditable.",
+    "hook": "Combined few-shot + CoT examples must show the reasoning, not just the answer."
+  },
+  {
+    "id": "FC-PTE-049",
+    "domain": "Prompting and Task Execution",
+    "topic": "Instruction Precedence",
+    "difficulty": "hard",
+    "front": "When a system-level instruction conflicts with a user-turn instruction, which takes precedence and can you override it?",
+    "back": "**System-level instructions** (project custom instructions or a system prompt) take precedence over individual user-turn instructions by design. They represent the persistent, authoritative configuration of the assistant for that context.\n\nYou can override a system-level instruction from the user turn, but only if the system prompt does not explicitly prohibit it. In practice, the system prompt's framing tends to dominate unless the user-turn instruction is explicit and direct. For critical per-request changes, state them prominently at the start of the user turn, not buried in the request.",
+    "hook": "System-level instructions dominate user-turn ones — override them explicitly at the start of the turn."
+  },
+  {
+    "id": "FC-PTE-050",
+    "domain": "Prompting and Task Execution",
+    "topic": "When Decomposition Is Unnecessary",
+    "difficulty": "hard",
+    "front": "Under what conditions is task decomposition NOT the right move, even for a complex task?",
+    "back": "Decomposition is not the right move when the task is **semantically integrated** — the quality of each part depends on simultaneously considering the others. Writing a single coherent narrative, synthesising a balanced argument, or producing a creative piece whose tone must be consistent throughout cannot be cleanly split without losing the coherence that makes the output good.\n\nDecompose only when the stages are genuinely independent — when stage 1's output is a complete, self-contained input to stage 2 with no shared quality criteria. If the stages must be aware of each other, decomposition introduces seams that degrade the whole.",
+    "hook": "Don't decompose tasks that are semantically integrated — chained stages cannot share coherence."
+  },
+  {
+    "id": "FC-PTE-051",
+    "domain": "Prompting and Task Execution",
+    "topic": "Format as Correctness",
+    "difficulty": "hard",
+    "front": "When is output format a correctness requirement rather than a preference?",
+    "back": "Format becomes a **correctness requirement** when downstream systems or processes depend on a specific structure and any deviation causes a failure. A JSON response consumed by a parser that expects a specific schema is not a preference — malformed output is a bug. A CSV extracted by an ETL pipeline with fixed column positions has zero format flexibility.\n\nThe distinction matters for how firmly to specify and validate format. Preference: iterate if the first output is not quite right. Correctness requirement: validate the output against the expected schema before it enters the pipeline, and reject and retry on mismatch.",
+    "hook": "Format is a correctness requirement whenever a downstream process breaks on deviation — validate it programmatically."
+  },
+  {
+    "id": "FC-PTE-052",
+    "domain": "Prompting and Task Execution",
+    "topic": "Prompt Template Maintenance",
+    "difficulty": "hard",
+    "front": "What makes a reusable prompt template break over time, and how do you prevent it?",
+    "back": "Templates break when the **fixed logic encoded in the template no longer matches the actual task**. Root causes: the underlying task changes (new regulatory requirements, new output format), variable placeholders are filled with content that was not in scope when the template was designed, or team members extend the variables without updating the logic.\n\nPrevention: treat templates as versioned artefacts with an owner, a change log, and a review trigger tied to task changes. Document the assumptions the template encodes so future editors know what is fixed and what is variable. A template with unexamined inherited constraints is a prompt debt.",
+    "hook": "Templates encode assumptions — document them, version them, and review them when the task changes."
+  },
+  {
+    "id": "FC-PTE-053",
+    "domain": "Prompting and Task Execution",
+    "topic": "Asking Claude to Critique Its Own Output",
+    "difficulty": "medium",
+    "front": "How do you use Claude to critique its own output, and what are the limits of this approach?",
+    "back": "Ask Claude to review its own output against explicit criteria: 'Review the above summary. Does it cover the three criteria I specified? Does it stay under 150 words? Does it avoid jargon?' This is a second-pass self-check that catches mechanical failures — missed criteria, format errors, length violations.\n\nThe limit: **Claude cannot reliably detect its own factual errors** through self-review. It will check format and stated criteria correctly, but if it fabricated a statistic or misread a document, a self-review prompt is unlikely to surface it because the error is in the parametric memory Claude draws on for the review too.",
+    "hook": "Self-review catches format and criteria failures — it cannot catch factual errors the model doesn't know are wrong."
+  },
+  {
+    "id": "FC-PTE-054",
+    "domain": "Prompting and Task Execution",
+    "topic": "Specificity Spectrum",
+    "difficulty": "medium",
+    "front": "Arrange these task instructions from least to most specific: 'help with the report', 'write an executive summary', 'write a 150-word executive summary of the Q3 financials for the CFO, highlighting variance from forecast'.",
+    "back": "From least to most specific: 'help with the report' → 'write an executive summary' → 'write a 150-word executive summary of the Q3 financials for the CFO, highlighting variance from forecast.'\n\nEach step adds a constraint that reduces Claude's interpretive space: the third version specifies length (150 words), document scope (Q3 financials), audience (CFO), and analytical focus (variance from forecast). **Each added dimension of specificity is a dimension of variance eliminated.** The first instruction requires Claude to infer every one of those dimensions.",
+    "hook": "Every dimension of specificity is a dimension of variance eliminated — vague prompts outsource the spec to Claude."
+  },
+  {
+    "id": "FC-PTE-055",
+    "domain": "Prompting and Task Execution",
+    "topic": "Multi-Turn vs. Single-Prompt",
+    "difficulty": "medium",
+    "front": "When is a single well-structured prompt better than a multi-turn iterative approach?",
+    "back": "A **single prompt** is better when: the task is bounded and well-understood, the output will be machine-consumed and requires consistency, the context needed is fully available upfront, and you need reproducible results across runs.\n\nMulti-turn is better when: the task requires feedback loops, the output is human-judged and subjective, you are exploring an unfamiliar domain, or you discover mid-task that the scope must change. The cost of multi-turn is accumulated conversation drift and token cost. The cost of a single prompt is the upfront effort to specify it completely.",
+    "hook": "Single prompt for reproducibility and machine consumption; multi-turn for exploration and human judgement tasks."
+  },
+  {
+    "id": "FC-PTE-056",
+    "domain": "Prompting and Task Execution",
+    "topic": "Prompt Anti-Patterns Summary",
+    "difficulty": "medium",
+    "front": "Name four prompt anti-patterns and the failure each causes.",
+    "back": "1. **Kitchen-sink prompt** — diluted, shallow output across all sub-tasks.\n2. **Buried ask** — Claude sets its direction before seeing the real task, producing misaligned output.\n3. **Conflicting instructions** — unpredictable output as Claude resolves the conflict its own way.\n4. **Politeness padding** — relevant instructions lose signal strength; tokens wasted on filler.\n\nAll four trace to the same root: the prompt encodes the author's thought process rather than Claude's optimal reading order. Good prompts are structured for Claude's processing, not for human writing conventions.",
+    "hook": "Anti-patterns arise when prompts are structured for human writing conventions, not Claude's reading order."
+  },
+  {
+    "id": "FC-PTE-057",
+    "domain": "Prompting and Task Execution",
+    "topic": "Delimiters for Injected Content",
+    "difficulty": "hard",
+    "front": "Why are delimiters especially important when user-supplied content is injected into a prompt template?",
+    "back": "User-supplied content can contain text that resembles instructions, closing tags, or other prompt-structural tokens. Without delimiters, this content may be interpreted as part of the instructions rather than as data — a form of **prompt injection**.\n\nDelimiters create a structural boundary that signals to Claude: 'everything inside these tags is content to process, not instructions to follow.' This is the primary defence against accidental (and malicious) instruction injection in template-based workflows. The strength of the defence depends on how clearly the instructions frame the delimiter semantics.",
+    "hook": "Delimiters separate instructions from user data — without them, injected content can masquerade as instructions."
+  },
+  {
+    "id": "FC-PTE-058",
+    "domain": "Prompting and Task Execution",
+    "topic": "Continuation After Truncation",
+    "difficulty": "medium",
+    "front": "How do you continue a response that Claude truncated before completing?",
+    "back": "Send a follow-up message: 'Continue from where you left off' or 'Continue after [last sentence].' Claude will resume from its last position in the context window.\n\nTo prevent truncation: add an explicit output length instruction ('Do not stop until all five sections are complete') or break the task into smaller pieces using decomposition so each piece fits naturally within one response. Truncation is most common with very long structured outputs — tables, numbered lists, code — where Claude may interpret length as completion.",
+    "hook": "Prevent truncation with explicit completion instructions; recover from it with a direct continuation prompt."
+  },
+  {
+    "id": "FC-PTE-059",
+    "domain": "Prompting and Task Execution",
+    "topic": "Role Persona Limits — Compliance",
+    "difficulty": "hard",
+    "front": "Can assigning Claude a persona that 'has no restrictions' override its safety behaviours?",
+    "back": "No. **Persona assignment does not override safety behaviours or content policies.** A role prompt that defines a character as unconstrained, unrestricted, or 'trained differently' does not change the underlying model behaviour — Claude does not adopt an alternative identity that bypasses its values.\n\nThis is a well-known jailbreak pattern. Claude is designed to recognise it and decline. The role block shapes communication style and framing within the model's normal operating parameters; it does not grant access to behaviour outside those parameters. Governance policies rely on this property.",
+    "hook": "Unrestricted persona prompts do not bypass safety behaviours — role shapes style, not policy boundaries."
+  },
+  {
+    "id": "FC-PTE-060",
+    "domain": "Prompting and Task Execution",
+    "topic": "Prompt as Specification",
+    "difficulty": "hard",
+    "front": "Why should a well-written prompt be treated as a specification that any reasonable reader would interpret the same way?",
+    "back": "A prompt that depends on assumed shared context — the author's unwritten assumptions about what 'good' means, what the audience is, what format is obvious — will produce inconsistent results when run by different people or at different times. Inconsistency is a specification failure.\n\nTreating a prompt as a specification means: any colleague reading only the prompt text, with no prior context, should be able to predict the output shape and criteria. If two readers would interpret it differently, the prompt is underspecified. This standard also makes prompts auditable — when output fails, the specification can be reviewed and improved.",
+    "hook": "A good prompt is unambiguous to any reader — if two people interpret it differently, it is underspecified."
+  }
+]

@@ -1,0 +1,506 @@
+[
+  {
+    "id": "TAW-B-061",
+    "domain": "Technical Awareness",
+    "topic": "RAG and prompt caching combined",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A knowledge management lead at a global insurer has deployed a RAG system over 20,000 policy documents. Each query retrieves 3–5 relevant excerpts from the corpus. Every query also includes the same 4,000-token system prompt of response guidelines and format rules. Daily request volume is 2,000 queries. The team is reviewing the cost structure.\n\nWhat cost-saving opportunity exists within this architecture?",
+    "options": [
+      { "key": "A", "text": "Cache the stable 4,000-token system prompt while RAG continues to retrieve fresh policy excerpts per query — the two mechanisms are complementary and independently beneficial." },
+      { "key": "B", "text": "Replace RAG with prompt caching: cache the full policy corpus in the system prompt permanently and eliminate the retrieval infrastructure." },
+      { "key": "C", "text": "Cache the retrieved excerpts from each query so the same passages are reused on subsequent queries, reducing retrieval calls." },
+      { "key": "D", "text": "Migrate to batch processing instead of RAG to reduce per-query retrieval infrastructure cost." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "RAG and prompt caching solve different problems and can be used simultaneously. RAG dynamically retrieves the relevant policy excerpts for each query — this content changes per query and cannot be cached. The system prompt, however, is identical across all 2,000 daily queries. Caching the 4,000-token system prompt reduces the repeated input token cost on every request, while RAG continues to provide accurate, query-specific retrieved content. Neither mechanism substitutes for the other.",
+      "distractors": {
+        "B": "Caching a 20,000-document corpus in the system prompt is not feasible — the combined volume would far exceed any context window, and caching does not solve the problem that not all documents are relevant to every query. RAG exists precisely because the corpus is too large to load entirely.",
+        "C": "Prompt caching stores a designated fixed prefix, not dynamically chosen retrieved content. Retrieved excerpts vary per query and cannot be cached in this way. Caching is for static, repeated prefixes.",
+        "D": "Batch processing is a latency-for-cost trade for non-urgent workloads. It does not reduce retrieval infrastructure cost and would prevent real-time responses. The described workflow serves live queries, not batch-schedulable work."
+      },
+      "concept": "**RAG + prompt caching** is a common and effective combination in enterprise knowledge assistants:\n- **RAG** handles the dynamic part: which documents are relevant to this specific query.\n- **Prompt caching** handles the static part: the repeated system prompt that governs how all responses are formatted and constrained.\n\nThese mechanisms operate on different parts of the input and are independently optimised. High-volume RAG systems almost always have a long, stable system prompt — caching it is a straightforward cost reduction that requires no architectural change to the retrieval pipeline.",
+      "examTip": "When a scenario describes a **RAG system with a long, stable system prompt and high query volume**, the cross-cutting answer is to combine RAG (for dynamic retrieval) with prompt caching (for the static system prompt). The two mechanisms are complementary. Options that conflate them — replacing RAG with caching or caching retrieved results — misunderstand what each mechanism does."
+    }
+  },
+  {
+    "id": "TAW-B-062",
+    "domain": "Technical Awareness",
+    "topic": "Agents and end-to-end evals",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An IT manager at a healthcare company is planning the testing phase for a new claims triage agent before launch. She knows agents differ from single-shot prompts in ways that affect testing strategy.\n\nWhat makes end-to-end agent testing PARTICULARLY important that does not apply equally to single-shot prompt testing?",
+    "options": [
+      { "key": "A", "text": "Agents require special API permissions that can only be validated by running full end-to-end tests against a live environment." },
+      { "key": "B", "text": "Single-step testing misses multi-step failure modes — an agent that performs correctly at each individual step can still fail when steps are sequenced because errors propagate from step to step." },
+      { "key": "C", "text": "Agents are non-deterministic in ways that single-shot prompts are not; only end-to-end testing can establish predictable results." },
+      { "key": "D", "text": "Healthcare regulations require end-to-end testing of multi-step AI systems as a condition of clinical deployment." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Testing each agent step in isolation verifies that step's logic but does not reveal failures that emerge from step sequencing. A correct classification in step 1 may be misinterpreted by step 2; a valid tool response in step 3 may be misrouted to step 4. End-to-end testing with representative inputs — including edge cases — is the only way to surface failures that live at the boundaries between steps rather than within any single step.",
+      "distractors": {
+        "A": "API permissions are a configuration concern, not a testing methodology concern. Permissions are validated once during setup, not repeatedly through end-to-end test runs. This option conflates infrastructure validation with quality testing.",
+        "C": "Agents and single-shot prompts have comparable non-determinism from the underlying model. The distinction that makes end-to-end testing important for agents is the compounding of steps, not a categorically different non-determinism.",
+        "D": "While healthcare AI deployments do face regulatory scrutiny, no universal regulation mandates end-to-end testing specifically for multi-step AI systems. This option invents a regulatory requirement to justify the correct practice."
+      },
+      "concept": "**Agent evals must cover end-to-end sequences**, not just per-step accuracy. The reason: in a multi-step agent, the input to step N is the output of step N-1. Any error or imprecision at step N-1 becomes part of the context that step N reasons from.\n\nEval design for agents:\n- Define representative end-to-end test cases spanning the full input-to-final-output workflow.\n- Include edge cases and ambiguous inputs most likely to cause early-step errors.\n- Verify both final output quality AND intermediate step correctness where step logs are available.\n- Re-run the full end-to-end suite after any change to any step's prompt or tool definition.",
+      "examTip": "This is an **easy item** with a clear answer. The distinguishing feature of agent testing versus single-shot testing is the **multi-step failure mode**: an error at step N propagates to step N+1. Options A (API permissions), C (non-determinism), and D (regulatory mandate) describe real phenomena but are not the specific reason multi-step end-to-end testing is needed. The answer is always about **error propagation between steps**."
+    }
+  },
+  {
+    "id": "TAW-B-063",
+    "domain": "Technical Awareness",
+    "topic": "MCP and batch processing combined",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An operations architect at a large bank wants to run a nightly job that pulls transaction data from five internal systems via MCP connectors, generates exception reports with Claude, and writes summaries to a shared workspace. She asks whether MCP and batch processing can be used together.\n\nWhich statement MOST accurately describes the relationship between MCP and batch processing in this design?",
+    "options": [
+      { "key": "A", "text": "MCP and batch processing are mutually exclusive; MCP operates in real time and cannot be used within asynchronous batch execution." },
+      { "key": "B", "text": "Batch processing must be configured first and MCP connectors can only be activated after the batch job completes its scheduling setup." },
+      { "key": "C", "text": "MCP provides the data access layer — connecting Claude to the five systems — while batch processing provides the scheduling and execution model; they address different concerns and can be combined." },
+      { "key": "D", "text": "MCP servers must be explicitly set to batch mode; the default MCP configuration only supports synchronous interactive calls." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "MCP and batch processing operate at different layers of the system and solve different problems. MCP defines how Claude accesses external tools and data sources — in this case, the five bank systems. Batch processing defines how a set of Claude prompts are submitted, scheduled, and executed asynchronously. An MCP-connected tool can be invoked within a batch job just as it would be in a synchronous call. The two capabilities complement each other without conflict.",
+      "distractors": {
+        "A": "MCP is not restricted to real-time interactive calls. The protocol defines an interface for tool access; whether that access happens in a real-time or asynchronous batch context is an orchestration decision, not an MCP constraint.",
+        "B": "There is no ordering dependency between MCP configuration and batch processing setup. Both can be configured independently and combined in a workflow. This option invents a sequencing requirement that does not exist.",
+        "D": "MCP servers do not have separate 'batch mode' and 'synchronous mode' configurations. The same MCP server interface works in either execution context. This option invents a configuration requirement that does not exist."
+      },
+      "concept": "**Layered architecture thinking** is essential for understanding how TAW-B capabilities combine. Each capability in the TAW-B scope operates at a different layer:\n- **MCP**: data access and tool connectivity layer.\n- **Batch processing**: job scheduling and execution layer.\n- **Prompt caching**: input efficiency layer.\n- **RAG**: knowledge retrieval layer.\n- **Evals**: quality measurement layer.\n\nThese layers are independent and composable. A nightly batch job can use MCP for data access, RAG for knowledge retrieval, and prompt caching for cost efficiency — simultaneously, in the same workflow.",
+      "examTip": "This is an **easy item** testing whether you understand that TAW-B capabilities are complementary, not competing. When a scenario combines multiple capabilities (MCP + batch, RAG + caching), the default assumption should be that they can work together unless there is a specific reason they cannot. Options claiming exclusivity (A) or prerequisite ordering (B) are fabricated constraints."
+    }
+  },
+  {
+    "id": "TAW-B-064",
+    "domain": "Technical Awareness",
+    "topic": "Tool use and human oversight for high-stakes actions",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A risk manager at an asset management firm is reviewing the design of a Claude agent that uses tool calls to execute trades on behalf of portfolio managers in a live trading system. The agent can place, modify, and cancel orders. It is triggered by a portfolio manager's natural language instruction.\n\nWhat oversight design is MOST appropriate before any live trade execution occurs?",
+    "options": [
+      { "key": "A", "text": "Route all trade executions through a lower-tier model, which produces less confident output and prompts portfolio managers to verify before approving." },
+      { "key": "B", "text": "Log every trade execution to an audit trail after it occurs; portfolio managers review the log at end-of-day." },
+      { "key": "C", "text": "Execute all trades in a sandbox environment first, then automatically promote to live if the sandbox execution succeeds." },
+      { "key": "D", "text": "Require explicit human confirmation of the specific order parameters — instrument, quantity, direction, price limit — before the tool executes any live trade." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Live trade execution is an irreversible, high-consequence action. The appropriate oversight design is an explicit human approval step before execution — not after. The portfolio manager must confirm the specific order parameters that Claude interpreted from their instruction, because natural language instructions are inherently ambiguous and the cost of a misinterpreted trade is severe. This is the core human-in-the-loop principle applied to tool use: human authority must precede irreversible action.",
+      "distractors": {
+        "A": "Model tier affects reasoning quality but does not create a human approval checkpoint. A lower-tier model producing less confident output shifts the burden of uncertainty to the portfolio manager's intuition, not to an explicit approval step. Hesitant language is not a governance mechanism.",
+        "B": "Post-execution audit logs provide visibility and accountability but do not prevent incorrect trades. A wrongly executed trade in a live portfolio can cause significant financial harm before it is reviewed at end-of-day. Retroactive audit is not a substitute for pre-execution approval.",
+        "C": "A sandbox execution confirms that the system can mechanically place the trade; it does not confirm that the trade parameters are what the portfolio manager intended. Auto-promotion from sandbox to live removes the human judgment step entirely."
+      },
+      "concept": "**Human-in-the-loop design for high-stakes tool use** follows a clear principle: the human must approve the action before it executes, not after. For financial, clinical, and legal applications, the approval checkpoint must:\n1. Surface the exact parameters Claude derived from the natural language instruction.\n2. Require the human to confirm (or correct) those parameters explicitly.\n3. Block execution unless confirmation is received.\n\nThis design is not about whether Claude is capable — it is about governance: who is legally and operationally accountable for the action? That authority must remain with the human.",
+      "examTip": "For high-stakes tool use items, any option that places oversight **after** execution (B: audit log) or that replaces human judgment with a model-level indicator (A: less confident output, C: sandbox promotion) is wrong. The answer is always a **mandatory pre-execution human approval checkpoint** that surfaces the specific parameters for confirmation. This applies to any irreversible action: trades, medical orders, regulatory filings, email sends to external parties."
+    }
+  },
+  {
+    "id": "TAW-B-065",
+    "domain": "Technical Awareness",
+    "topic": "Fine-tuning eval design for generalisation",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A head of ML at a professional services firm has fine-tuned a model for contract clause extraction using 10,000 training examples from a homogeneous corpus of standard vendor agreements. She is designing an eval suite to assess production readiness before deployment.\n\nWhat is the MOST important property her eval suite must have to avoid a misleading quality assessment?",
+    "options": [
+      { "key": "A", "text": "The eval suite must use the same 10,000 training examples to measure in-distribution performance as the primary indicator of deployment readiness." },
+      { "key": "B", "text": "The eval suite must compare the fine-tuned model against the base model on identical inputs to quantify the improvement from fine-tuning." },
+      { "key": "C", "text": "The eval suite must measure response latency to confirm the fine-tuned model does not introduce unacceptable processing delays." },
+      { "key": "D", "text": "The eval suite must include contract types and clause structures not well represented in the training corpus to test whether quality generalises beyond the training distribution." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Evaluating a fine-tuned model against inputs similar to its training data tests in-distribution performance — which will be good almost by definition, since the model was trained on those patterns. Production readiness requires knowing whether the model also performs well on inputs outside the training distribution: different contract types, unfamiliar clause structures, novel phrasing. If the eval set mirrors the training corpus, the readiness assessment is overoptimistic and deployment failures will emerge when real-world inputs differ from what the model was trained on.",
+      "distractors": {
+        "A": "Evaluating on training data measures what the model has already been trained to do — this provides no signal about generalisation. A fine-tuned model will perform well on its training inputs almost by construction; this is not a meaningful readiness indicator.",
+        "B": "Comparing to the base model is a useful development metric for confirming fine-tuning produced a meaningful improvement. However, the primary production readiness question is not 'is this better than the base?' but 'does it meet quality requirements across the real production input distribution?'",
+        "C": "Latency is a valid performance characteristic but is not the most important eval design property for assessing extraction quality. Whether the model produces accurate extractions is more consequential than whether it responds in slightly more or less time."
+      },
+      "concept": "**Eval design for fine-tuned models** must specifically address the distribution shift risk. A fine-tuned model performs well on inputs similar to its training data — this is expected. The eval's job is to find where it breaks down:\n- **Include out-of-distribution inputs**: contract types not in training, unusual clause ordering, less common legal phrasing.\n- **Include edge cases**: empty sections, conflicting clauses, non-standard formatting.\n- **Never use training examples in the eval set**: this conflates training performance with generalisation performance.\n\nA rigorous production eval set should be drawn from a different source than the training data, with deliberate coverage of the input diversity expected in real deployments.",
+      "examTip": "This is a hard item testing the **eval-design-for-fine-tuning** principle. The trap is option A (use training data) — which sounds thorough but measures nothing about generalisation. Option B (compare to base) is a development metric, not a production readiness metric. The correct answer requires recognising that the eval must specifically test **out-of-distribution inputs** that the fine-tuning process was not designed to handle, since those are where production surprises occur."
+    }
+  },
+  {
+    "id": "TAW-B-066",
+    "domain": "Technical Awareness",
+    "topic": "RAG and caching combined scenarios",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A technology strategy lead at a global bank is identifying workflows where combining RAG with prompt caching would provide the greatest combined cost efficiency. Which TWO workflow characteristics MOST strongly favour deploying both mechanisms together? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "The workflow serves 5,000 queries per day against a 30,000-document corpus using dynamic retrieval, while every query includes the same 5,000-token system prompt specifying response format, risk guidelines, and terminology standards." },
+      { "key": "B", "text": "Each query has a completely unique system prompt tailored to the individual analyst's preferences, meaning no prompt content is static enough to cache." },
+      { "key": "C", "text": "The workflow runs once weekly with a single query; the low frequency means the cache expires before a second query benefits from it." },
+      { "key": "D", "text": "The corpus is updated daily, requiring the retrieval index to be fully rebuilt overnight, which invalidates any content cached from the previous day." },
+      { "key": "E", "text": "The workflow combines a long, stable enterprise risk framework document that is always included in context alongside dynamically retrieved regulatory precedents from a separate indexed corpus — two content sources with different stability profiles." }
+    ],
+    "correct": ["A", "E"],
+    "explanation": {
+      "correct": "A is correct: 5,000 daily queries with the same large system prompt is the archetypal prompt caching scenario. RAG handles the dynamic retrieval of relevant corpus documents; caching handles the repeated static system prompt. Both apply independently and the savings compound. E is correct: when a workflow has two content sources — one stable (the risk framework, suitable for caching) and one dynamic (regulatory precedents retrieved by RAG) — combining both mechanisms is natural. Cache the stable document; use RAG for the variable content.",
+      "distractors": {
+        "B": "When every query has a unique system prompt, there is no repeated prefix to cache. Caching provides no benefit in this scenario because no content is stable enough across requests to warrant caching.",
+        "C": "A single weekly query means the cache is established once and used once before expiring. The per-request saving on a single query does not justify the cache establishment cost; caching is valuable at volume.",
+        "D": "Daily corpus updates with full index rebuilding are a RAG design consideration, not a caching consideration. If the system prompt (not the indexed documents) is stable, prompt caching still applies regardless of how often the corpus is refreshed."
+      },
+      "concept": "**RAG + prompt caching work best when they address genuinely different parts of the input:**\n- **Cache** = the stable, repeated prefix (system prompt, persistent guidelines, fixed reference document).\n- **RAG** = the dynamic, query-specific content (relevant corpus passages that vary per question).\n\nThe two conditions for the combination to be valuable:\n1. The static portion is long enough and repeated often enough that caching produces meaningful savings.\n2. The corpus is large enough or dynamic enough that RAG is needed to select relevant content.\n\nWhen either condition fails — unique prompts per query, very low volume, or a tiny corpus — one or both mechanisms loses its value proposition.",
+      "examTip": "For RAG + caching combination items, look for scenarios with **two distinct content layers**: a stable repeated layer (cache it) and a dynamic query-specific layer (retrieve it). Options claiming incompatibility (C: weekly frequency kills caching, B: unique prompts) are describing scenarios where caching is inappropriate, not scenarios where both mechanisms combine well. The correct answers always have both a stable repeated component and a dynamic retrieval need."
+    }
+  },
+  {
+    "id": "TAW-B-067",
+    "domain": "Technical Awareness",
+    "topic": "Evals and model tier selection",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A technology director at an insurance company has run a structured eval comparing a mid-tier and a higher-tier model for an automated claims summary workflow. Across 100 diverse test cases, both tiers score equivalently on accuracy, format compliance, and completeness.\n\nWhat does this eval result MOST directly indicate for the production deployment decision?",
+    "options": [
+      { "key": "A", "text": "The mid-tier model is the appropriate choice for production — the eval provides evidence that it meets quality requirements at lower cost and latency." },
+      { "key": "B", "text": "The result is inconclusive; a larger test set is needed before a tier selection can be justified based on quality parity." },
+      { "key": "C", "text": "Both tiers should be deployed in parallel in production, with the higher tier handling complex claims and the lower tier handling standard ones." },
+      { "key": "D", "text": "The higher-tier model should be selected regardless of eval results because it provides a quality buffer for edge cases not covered by the test set." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The purpose of evals is to produce evidence-based production decisions. When a structured eval across 100 diverse cases shows equivalent performance on all relevant quality dimensions, this is precisely the evidence needed to choose the lower-cost, lower-latency tier. Selecting the higher tier 'just in case' when evals show parity defeats the purpose of structured quality measurement and adds cost without evidence of benefit.",
+      "distractors": {
+        "B": "A 100-case eval across diverse inputs is a meaningful basis for a deployment decision. While larger test sets are always better, declaring the result inconclusive without specific evidence of why the 100 cases are unrepresentative is an unsupported objection.",
+        "C": "Deploying both tiers in parallel adds operational complexity without a demonstrated need. The eval showed parity across 100 cases — there is no evidence that complex claims require the higher tier. If evidence emerged from production, a tiered routing strategy could be evaluated then.",
+        "D": "This option dismisses structured measurement in favour of a 'just in case' precaution. If evals are valid, their findings should drive decisions. Overriding clear evidence of parity with an unfounded concern about uncovered edge cases undercuts the value of running evals at all."
+      },
+      "concept": "**Evals as decision support** means using structured quality measurement to make tier, model, and configuration choices. The decision rule:\n- If evals show the lower-tier model meets quality requirements → use the lower-tier model.\n- If evals show the higher-tier model meaningfully outperforms → the premium is justified.\n- If evals show parity, the lower-cost option wins.\n\nThis is how evals deliver ROI: by preventing unnecessary spend on higher-tier models when lower-tier models demonstrably suffice. The alternative — selecting higher tiers by default without evidence — is a common and expensive mistake.",
+      "examTip": "When an eval result shows **quality parity between tiers**, the evidence-based answer is always the **lower-cost option**. Options claiming inconclusiveness (B) or mandatory higher-tier selection 'just in case' (D) ignore the purpose of evals. The examiner tests whether you trust structured measurement over intuition or precaution when the evidence is clear."
+    }
+  },
+  {
+    "id": "TAW-B-068",
+    "domain": "Technical Awareness",
+    "topic": "Function calling trigger conditions in prompts",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A platform architect at a fintech company finds that Claude's customer service agent is invoking an account freeze tool in situations that do not warrant it — for example, when a customer mentions their card 'seems to be acting up' or 'might have an issue.' The tool definition and system prompt both specify the tool is for 'suspected fraud cases' without further elaboration.\n\nThe PRIMARY fix is:",
+    "options": [
+      { "key": "A", "text": "Replace the natural language tool trigger with a structured intake form that customers must complete before Claude can invoke the freeze tool." },
+      { "key": "B", "text": "Revise the system prompt to define specific, concrete conditions under which the freeze tool should and should not be invoked — replacing the vague 'suspected fraud' trigger with explicit criteria Claude can evaluate." },
+      { "key": "C", "text": "Switch to a higher-tier model, which applies more conservative judgment and is less likely to invoke sensitive tools on ambiguous signals." },
+      { "key": "D", "text": "Remove the account freeze tool from Claude's available tools and route all freeze requests to a human agent who can determine appropriateness." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The root cause is an underspecified trigger condition. 'Suspected fraud cases' is too vague for Claude to evaluate consistently — it covers a wide range of customer expressions, including benign ones like 'acting up.' The fix is to make the trigger conditions precise: define what evidence or customer statements constitute a suspicion of fraud (e.g., 'customer reports an unrecognised transaction,' 'customer reports card used at a location they did not visit') and what does not qualify. With explicit criteria, Claude can make bounded, consistent decisions about when to invoke the tool.",
+      "distractors": {
+        "A": "A structured intake form changes the user experience and does not address Claude's decision-making logic. If Claude is still responsible for interpreting the form's output and deciding whether to invoke the tool, the underspecified trigger condition problem persists.",
+        "C": "Higher-tier models apply better reasoning but still rely on the prompt's trigger specification. Without precise criteria, even the most capable model will interpret vague language like 'suspected fraud' inconsistently. Model tier selection does not substitute for precise prompt engineering.",
+        "D": "Removing the tool and routing all freezes to human agents addresses the safety concern but eliminates the automation value entirely. The correct response is to fix the specification so Claude can make accurate decisions, not to remove the capability."
+      },
+      "concept": "**Tool invocation conditions must be specified precisely.** When a system prompt uses vague trigger language, Claude applies its general language understanding to determine when the condition is met — and that interpretation may be more expansive than intended. Best practices for tool trigger specification:\n- Define the positive case explicitly: 'Invoke the freeze tool when the customer reports a specific unrecognised transaction or states they did not make a charge on their account.'\n- Define the negative case: 'Do not invoke the freeze tool for general complaints about card performance, technical glitches, or vague dissatisfaction.'\n- Provide borderline examples: 'If the customer says X, this is a legitimate fraud signal; if they say Y, this is not.'\n\nPrecise trigger conditions are the prompt-design complement to tool schema precision.",
+      "examTip": "When an agent is **over-invoking a sensitive tool on ambiguous inputs**, the root cause is always an underspecified trigger condition in the system prompt. The fix is refining the trigger specification — not model upgrade (C), not removing the tool (D), not changing the UX (A). This is the tool-use equivalent of the schema ambiguity principle: **if Claude cannot derive precise conditions from the prompt, it will apply its own interpretation**."
+    }
+  },
+  {
+    "id": "TAW-B-069",
+    "domain": "Technical Awareness",
+    "topic": "Long context and caching for document review",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A contracts manager at a pharmaceutical company reviews 3–5 supplier contracts per day against the same 80-page company compliance policy framework. Each review is a separate session. The policy framework is updated quarterly.\n\nThe MOST cost-efficient architecture combines which two capabilities?",
+    "options": [
+      { "key": "A", "text": "Batch processing for the contracts and extended thinking for the policy comparison — handling volume and reasoning depth simultaneously." },
+      { "key": "B", "text": "RAG over the policy framework and tool use to retrieve each contract from the document management system." },
+      { "key": "C", "text": "Prompt caching for the stable policy framework and fresh input of each supplier contract per session — caching the repeated large document and dynamically providing the variable one." },
+      { "key": "D", "text": "Fine-tuning on the compliance policy framework to reduce the system prompt length, combined with long context for each contract." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The 80-page policy framework is the same across all daily reviews — it is a stable, large document that is an ideal caching candidate. Each supplier contract is unique per session and must be provided fresh. Caching the policy framework eliminates the cost of repeatedly processing 80 pages as input tokens on every review, while the contract is loaded dynamically as the variable component. This is the pattern that prompt caching is designed for: cache what is repeated, provide fresh what varies.",
+      "distractors": {
+        "A": "Batch processing is for non-urgent, asynchronous work. Contract reviews that require responses within a session are real-time tasks. Extended thinking adds reasoning depth but is not a cost-reduction mechanism and is unrelated to the repeated-document cost problem.",
+        "B": "RAG over an 80-page document that is always fully relevant and already available is over-engineering. RAG is designed for corpora too large to include in context. An 80-page document fits comfortably in a context window; caching it is simpler and more cost-effective than building retrieval infrastructure.",
+        "D": "Fine-tuning to embed policy knowledge would require retraining whenever the framework updates (quarterly), creating operational overhead for a problem that prompt caching solves at zero maintenance cost. Fine-tuning also cannot fully replace a precise compliance policy — the exact wording matters."
+      },
+      "concept": "**The repeated-document caching pattern** applies when:\n1. A large document is included in every (or most) requests.\n2. The document is stable across a meaningful number of requests.\n3. The variable content changes per request and is provided fresh.\n\nThis pattern is common in document review workflows: the reference document (policy, rubric, standard) is stable; the item being reviewed (contract, report, application) is different every time. Cache the reference; load the item fresh. The cost saving scales with both document size and review frequency.",
+      "examTip": "This is an **easy item** because the stable-vs-dynamic distinction is clear. The 80-page policy is the same every day (cache it). The supplier contract is different every session (provide it fresh). Option B (RAG over an 80-page document) is over-engineering for a document that always fits in context. Option D (fine-tuning) is the wrong tool for a quarterly-updated policy. The straightforward answer is always **cache the stable large document, provide the variable one fresh**."
+    }
+  },
+  {
+    "id": "TAW-B-070",
+    "domain": "Technical Awareness",
+    "topic": "Agents vs fine-tuning for consistent output",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A digital transformation director at a logistics company is deciding between agent architecture and fine-tuning for a load planning workflow that must produce structured, consistent outputs. Which TWO considerations MOST strongly favour agent architecture over fine-tuning? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Load planning rules update quarterly as tariff structures and carrier contracts change, making a fine-tuned model that internalises those rules expensive to maintain." },
+      { "key": "B", "text": "Agent architectures always produce more consistent outputs than fine-tuned models because agents can self-verify their responses before returning them." },
+      { "key": "C", "text": "The workflow requires real-time lookups of live freight rate data from an external API — a dependency that tool use within an agent handles and fine-tuning cannot address." },
+      { "key": "D", "text": "Fine-tuning is unavailable for the model tier required for this workflow's reasoning complexity." },
+      { "key": "E", "text": "The company has fewer than 500 training examples, which is below the threshold for fine-tuning to produce reliable results." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "A is correct: quarterly rule updates mean retraining the fine-tuned model four times per year to stay current — a significant operational overhead. An agent using a current-prompt system can be updated with a prompt edit. C is correct: live freight rate data changes continuously and cannot be embedded in model weights at training time. Tool use within an agent can fetch current rates at inference time; fine-tuning cannot. This is a fundamental capability gap, not just a maintenance concern.",
+      "distractors": {
+        "B": "Agents do not inherently self-verify their outputs. Multi-step agents can propagate errors and produce confidently wrong outputs. Consistent output requires careful prompt design and testing regardless of whether an agent or fine-tuned model is used.",
+        "D": "Fine-tuning availability is not restricted by reasoning complexity tier in the way described. This option invents a capability restriction to make fine-tuning appear unavailable rather than inadvisable.",
+        "E": "There is no fixed threshold of 500 training examples below which fine-tuning reliably fails. Dataset size requirements depend on task complexity, training example quality, and the degree of adaptation needed. This option presents a fabricated minimum."
+      },
+      "concept": "**Agent vs. fine-tuning** for consistent output is a maintenance and capability question:\n\n**Agent architecture advantages:**\n- Business rules in the system prompt can be updated without retraining.\n- External data (live rates, live inventory) can be fetched at inference time via tool use.\n- Easier to audit: rule changes are visible in the prompt.\n\n**Fine-tuning advantages:**\n- Deeply specialised language or format patterns that are hard to describe in words.\n- Consistent output style at inference time without depending on prompt engineering.\n- Can reduce system prompt length if knowledge is embedded in weights.\n\nFor workflows with frequently changing rules or live data dependencies, agent architecture is almost always more practical.",
+      "examTip": "The two real discriminators for agent-over-fine-tuning are **update frequency** (A: quarterly changes → prompt edit beats retraining) and **live data dependency** (C: fine-tuning cannot fetch live data). Options B (agents self-verify), D (tier restriction), and E (minimum dataset size) are fabricated. The answer requires recognising the genuine capability and maintenance gaps that make fine-tuning impractical for this specific workflow."
+    }
+  },
+  {
+    "id": "TAW-B-071",
+    "domain": "Technical Awareness",
+    "topic": "Batch processing and cost governance",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A CTO at a 10,000-person financial services firm is implementing an AI cost governance framework. She wants visibility into which departments and workflows are consuming the most Claude capacity and at what cost. Batch processing is used for non-urgent document processing across 12 departments.\n\nThe MOST direct contribution batch processing makes to cost governance is:",
+    "options": [
+      { "key": "A", "text": "Batch processing automatically attributes API costs to individual departments based on submission metadata, eliminating the need for manual cost tracking." },
+      { "key": "B", "text": "Batch processing reduces per-request cost to a flat rate regardless of prompt complexity, making cost forecasting deterministic." },
+      { "key": "C", "text": "Batch processing enables all 12 departments to share a single API rate limit, preventing any one department from consuming disproportionate capacity." },
+      { "key": "D", "text": "Batch submissions create auditable records of what was submitted, when, and how many prompts — providing the usage data needed for per-department cost attribution and capacity planning." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Batch processing creates a structured submission record for each job: the prompts submitted, the time of submission, the results, and the failure status. This auditable record is the foundation for cost attribution — tagged submissions allow the operations team to attribute usage to the department or workflow that submitted them. At enterprise scale, this visibility is essential for identifying cost drivers and allocating budgets accurately.",
+      "distractors": {
+        "A": "Cost attribution from batch metadata requires the operational team to design tagging and attribution logic. It is not automatic. The batch API does not automatically assign costs to departments without the team building the attribution pipeline.",
+        "B": "Batch processing reduces per-request cost relative to synchronous processing but does not flatten cost to a rate regardless of prompt complexity. Longer, more complex prompts still cost more. 'Flat rate' overstates the cost predictability.",
+        "C": "Batch processing does not pool rate limits across departments. Each API key has its own rate limits; departments sharing a key or using separate keys is an organisational design decision independent of batch vs. synchronous processing."
+      },
+      "concept": "**Cost governance at enterprise scale** requires three things: **measurement** (what was used), **attribution** (who used it), and **forecasting** (what will be used). Batch processing contributes to all three:\n- Structured submission records enable measurement.\n- Job metadata (department tags, workflow names) enables attribution.\n- Historical batch patterns enable forecasting.\n\nFor a 12-department operation, batch processing creates a natural audit trail that synchronous API calls scattered across sessions make harder to consolidate. This is a governance benefit independent of the cost-saving benefit.",
+      "examTip": "The cost governance benefit of batch processing is **auditability and attribution**, not automatic cost allocation (A) or complexity-independent pricing (B). The CTO's problem is visibility into which departments consume what — the batch record provides the raw data for that analysis. When a scenario frames batch processing in a governance context, the answer is about the **structured, attributable record it creates**, not about automatic systems or flat-rate pricing."
+    }
+  },
+  {
+    "id": "TAW-B-072",
+    "domain": "Technical Awareness",
+    "topic": "MCP and least-privilege security",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An enterprise architect at a retail company is deploying MCP servers to connect Claude to six internal systems: the HR database, financial reporting system, customer loyalty platform, inventory system, supplier portal, and internal knowledge base. A developer proposes granting each MCP server full administrative access to its connected system for simplicity.\n\nThe MOST important governance principle the architect should apply instead is:",
+    "options": [
+      { "key": "A", "text": "Each MCP server should require multi-factor authentication before Claude can call it, preventing unauthorised model access." },
+      { "key": "B", "text": "Each MCP server should expose only the specific operations Claude actually needs — read-only access where no writing is required, and narrowly scoped writes where writing is necessary — following least-privilege principles." },
+      { "key": "C", "text": "All MCP servers should be deployed behind a centralised gateway that logs all requests and routes them through a unified security review queue." },
+      { "key": "D", "text": "Each MCP server should generate a unique session token per Claude invocation to prevent API key reuse and session fixation attacks." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Granting full administrative access to each connected system through Claude means that any error, misuse, or prompt injection attack through Claude has access to the full administrative capabilities of all six systems. Least privilege constrains the blast radius: if Claude is used incorrectly, it can only do what the MCP server is designed to allow — typically reading specific data or writing to specific tables — not deleting records, modifying permissions, or performing administrative operations.",
+      "distractors": {
+        "A": "MFA for MCP server access is a valid security control but is not the most important governance principle for this decision. The scenario describes administrative access being granted broadly — the primary concern is scope of access, not authentication mechanism.",
+        "C": "A centralised gateway with logging is a good operational practice but does not limit what Claude can do with each connected system. Logging an administrative operation after it occurs is less protective than preventing administrative access in the first place.",
+        "D": "Session tokens and API key management are important security practices, but they address authentication and key hygiene, not the scope of operations that can be performed once authenticated. An attacker with a unique session token still has full administrative access if least privilege was not applied."
+      },
+      "concept": "**Least privilege for MCP servers** is the security principle that each MCP server should expose only the operations Claude needs for its defined workflow — nothing more. This creates a bounded operating space:\n- A Claude workflow that reads HR department headcounts should use an MCP server with read-only access to that specific query, not full HR database admin access.\n- A Claude workflow that updates order status should use an MCP server that can only write to the order status field, not modify order history or delete records.\n\nWhen designing MCP server permissions, the question is always: 'What is the minimum access Claude needs to do its job?' Not: 'What is easiest to grant?'",
+      "examTip": "This is an **easy item** testing a foundational security principle applied to MCP. The answer is always **least privilege** — grant Claude only what it needs, nothing more. Options about authentication (A, D) and logging (C) are real security practices but do not address the scope-of-access problem. Full administrative access granted for 'simplicity' is the most common MCP security mistake at enterprise scale."
+    }
+  },
+  {
+    "id": "TAW-B-073",
+    "domain": "Technical Awareness",
+    "topic": "Evals designed to catch retrieval failures",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An information systems lead at a healthcare network has deployed a RAG-based clinical guidelines assistant. She is designing an eval suite specifically to detect retrieval failures — cases where the relevant guideline exists in the corpus but was not surfaced for a query that should have found it.\n\nWhat design feature is MOST essential for this eval suite?",
+    "options": [
+      { "key": "A", "text": "The test cases must include questions whose correct answers are clearly present in the corpus, paired with verification that the retrieved passages actually include the relevant content — not just that Claude's final response is correct." },
+      { "key": "B", "text": "The test set must include questions for which no guideline exists in the corpus, verifying that Claude declines to answer out-of-corpus queries." },
+      { "key": "C", "text": "The eval must measure retrieval latency to ensure guidelines are surfaced within the time constraints of clinical decision support." },
+      { "key": "D", "text": "The test set must include documents from outside the clinical domain to verify the retrieval system does not return irrelevant content for off-topic queries." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "To detect retrieval failures, the eval must verify retrieval quality directly — not just final response quality. Claude can produce a correct-sounding answer from parametric memory even when the retrieval step failed, masking the retrieval failure in the final output evaluation. By pairing each test question with a check that the retrieved passages include the relevant guideline, the eval catches cases where the answer is right but the source is wrong — or where the guideline was missed and the answer is silently incorrect.",
+      "distractors": {
+        "B": "Testing for out-of-corpus queries measures a different failure mode: Claude answering when it should not. The scenario specifies the eval is for cases where relevant guidelines exist but are not retrieved — a different problem requiring a different test design.",
+        "C": "Retrieval latency is an operational performance metric, not a quality measurement for retrieval accuracy. Meeting a latency SLA does not confirm that the correct passages were retrieved; it only confirms they were retrieved quickly.",
+        "D": "Off-topic query testing addresses retrieval precision (does the system return irrelevant content?) — a different quality dimension from retrieval recall (does the system return the relevant content?). The scenario specifically targets recall failures."
+      },
+      "concept": "**Retrieval-specific evals** must measure the retrieval step independently from the generation step. Without this, a correct final answer can mask a retrieval failure (Claude answered from parametric memory) and an incorrect final answer might not be attributable to retrieval at all.\n\nEval design for retrieval quality:\n1. Select test questions with known ground-truth guideline sources.\n2. Log which passages were retrieved for each query.\n3. Verify that the ground-truth source appears in the retrieved set.\n4. Flag any case where the ground-truth source was present in the corpus but not retrieved — this is a retrieval recall failure regardless of whether Claude's response was acceptable.\n\nThis approach separates retrieval quality from generation quality, enabling targeted improvement of the retrieval component.",
+      "examTip": "Evals that measure only **final response quality** cannot distinguish retrieval failures from generation failures. The key design requirement for retrieval-specific evals is **source verification**: did the relevant passage actually appear in the retrieved set? Not just: was the final answer correct? Option A is the only choice that addresses retrieval quality directly rather than as an inference from final output quality."
+    }
+  },
+  {
+    "id": "TAW-B-074",
+    "domain": "Technical Awareness",
+    "topic": "Agent scope and oversight design",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A senior consultant is facilitating a scoping meeting for a client who wants to deploy an autonomous email agent that composes and sends responses to customer inquiries without human review. Before any technical design begins, what is the FIRST conversation the consultant should lead?\n\n",
+    "options": [
+      { "key": "A", "text": "Estimate the API cost for the volume of customer inquiries to determine whether the project is budget-feasible before committing to the design." },
+      { "key": "B", "text": "Identify the model tier required for customer-quality email language and define response latency expectations." },
+      { "key": "C", "text": "Define which inquiry categories the agent may respond to autonomously, what constitutes a response requiring human review, and what the agent should do when uncertain — establishing scope and oversight boundaries before technical design." },
+      { "key": "D", "text": "Review the client's data privacy agreements to confirm that customer inquiry content can be processed through the API before proceeding." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "An autonomous email agent with no human review has direct customer-facing consequences for every response it sends. Before any technical design, the team must define: what categories of inquiry may be handled autonomously? (e.g., shipping status, order confirmation — not refunds, complaints, or legal matters); what triggers escalation to a human?; and what does the agent do when it is uncertain rather than guessing? These boundaries determine the entire architecture — model selection, tool access, fallback flows. Technical design without them is premature.",
+      "distractors": {
+        "A": "Budget feasibility is a valid project consideration but is not the first conversation for an autonomous agent with direct customer impact. Scope and oversight must be defined first because they determine what the system is — and whether it should exist at all in its proposed form.",
+        "B": "Model tier and latency specifications are technical requirements that follow from the scope definition. Before deciding what model to use, the team must know what the model is permitted to do. Technical requirements cannot be correctly specified without the business and governance scope.",
+        "D": "Data privacy review is necessary but is a compliance checkpoint, not the scoping conversation. Privacy considerations are evaluated against a defined scope; they cannot precede the scope definition."
+      },
+      "concept": "**Agent scoping conversations must establish oversight boundaries before technical design.** For any autonomous agent, the business questions that must be answered first:\n1. What is the agent authorised to do? (Scope of autonomous action)\n2. What triggers human review? (Escalation criteria)\n3. What does the agent do when uncertain? (Fallback behaviour)\n4. Who is accountable for the agent's actions? (Responsibility model)\n\nThese decisions are not technical — they are governance decisions that shape every technical design choice. A consultant who jumps to model selection or cost estimation before answering these questions is designing the wrong system at the right speed.",
+      "examTip": "This item tests **consultation sequencing**: what conversation must happen first? For any autonomous agent, the answer is always **scope and oversight definition before technical design**. Cost (A), tier selection (B), and compliance (D) are real project steps — they just come later. The first conversation is always: 'What is this agent allowed to do, and what requires a human?'"
+    }
+  },
+  {
+    "id": "TAW-B-075",
+    "domain": "Technical Awareness",
+    "topic": "Prompt caching and team coordination",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An AI program lead at a consulting firm manages 20 analysts sharing a deployment with a cached system prompt containing research guidelines, style rules, and a proprietary taxonomy. One analyst updates the system prompt to add new taxonomy terms for her current engagement and updates her own workflow — but does not notify or coordinate with the other 19 analysts.\n\nThe PRIMARY operational risk is:",
+    "options": [
+      { "key": "A", "text": "The cache immediately invalidates for all users the moment the prompt is modified, forcing all 20 analysts to pay full re-establishment cost on their next request." },
+      { "key": "B", "text": "Analysts who were not notified continue submitting the previous version of the system prompt and may receive responses based on the prior cached version, creating output inconsistency across the team until all members update." },
+      { "key": "C", "text": "The new taxonomy terms will not be recognised until the cache completes a 24-hour cooldown period after the update." },
+      { "key": "D", "text": "The uncoordinated update violates Anthropic's shared-cache usage policy, which requires all users to submit the same prompt version simultaneously." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The cache is keyed to the exact content of the submitted prefix. Analysts who submit the old prompt receive responses based on the old cached version; the analyst who submitted the new prompt works with the new version. With 20 analysts submitting independently, the team will operate with inconsistent system prompt versions — some using the old taxonomy, some the new — producing outputs that differ from each other not because the inputs are different but because the team is unknowingly running two different versions of the same assistant.",
+      "distractors": {
+        "A": "Cache invalidation is per-user based on what each user submits, not across all users simultaneously when any one user changes their prompt. The cache does not propagate updates; each user's cache is independently keyed to their submitted content.",
+        "C": "There is no 24-hour cooldown period for cache updates. A new prompt prefix is cached on the first request that submits it. The new version takes effect immediately for users who submit the new prompt.",
+        "D": "There is no Anthropic policy requiring simultaneous version submission for shared cached prompts. Team coordination is an operational governance decision, not a platform requirement."
+      },
+      "concept": "**Prompt version governance in team deployments** is a real operational challenge. When a team shares a cached system prompt:\n- The cache does not enforce version consistency across users — each submission is independently keyed.\n- An uncoordinated update creates a split: users on the old version and users on the new version, producing different outputs from the same apparent system.\n- The risk is compounded if the taxonomy or guidelines change significantly: outputs from different analysts become non-comparable without knowing which version each analyst was using.\n\nMitigation: version-control the system prompt (as you would version-control any shared code), communicate changes before deploying, and coordinate the migration across the team.",
+      "examTip": "This is a **hard item** because option A sounds plausible — you might expect cache updates to propagate. In fact, the cache is user-specific: each user's cache is keyed to what they submit. The operational risk is **silent version divergence** across a team, where analysts produce outputs based on different prompt versions without realising it. This is a team governance problem, not a technical problem — and it has no automatic detection mechanism."
+    }
+  },
+  {
+    "id": "TAW-B-076",
+    "domain": "Technical Awareness",
+    "topic": "Fine-tuning investment justification",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A VP of Technology at a global manufacturer is evaluating a fine-tuning proposal for a technical documentation assistant. The assistant currently uses a detailed system prompt with 8 representative examples and produces acceptable but inconsistent outputs on specialised equipment descriptions. Which TWO conditions would MOST strongly justify investing in fine-tuning? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "The team has 500+ high-quality training examples that accurately represent the full range of technical documentation the assistant must produce, and this set is stable enough to maintain." },
+      { "key": "B", "text": "The system prompt has reached its maximum token limit and cannot accommodate additional examples or guidelines." },
+      { "key": "C", "text": "Inconsistency on specialised descriptions persists after genuine attempts to improve the system prompt and few-shot examples, confirming that prompting has reached its reliable limit for this use case." },
+      { "key": "D", "text": "The company's legal counsel requires all AI-generated technical documentation to be produced by a model trained on proprietary company data." },
+      { "key": "E", "text": "The fine-tuning project can be completed within two weeks by a single engineer with no dedicated ML resources." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "A is correct: high-quality, stable training data is the foundational requirement for fine-tuning to produce reliable results. 500+ representative examples that cover the intended output space give the fine-tuning process enough signal to learn the specialised patterns. C is correct: fine-tuning should be a last resort after prompting has been genuinely exhausted. If the inconsistency persists despite serious prompt engineering effort, this is the evidence that context engineering has reached its reliable limit for this task.",
+      "distractors": {
+        "B": "System prompt length limits are rarely the binding constraint for professional AI use cases and can often be addressed by streamlining the prompt rather than fine-tuning. This option suggests fine-tuning as a workaround for a prompt engineering constraint rather than as the appropriate tool for the job.",
+        "D": "Legal requirements about training data provenance are legitimate business constraints, but they are not a quality justification for fine-tuning — they are a compliance requirement that may or may not align with the quality improvement goal.",
+        "E": "Two-week, single-engineer fine-tuning projects for enterprise technical documentation are unrealistic. Fine-tuning requires dataset curation, training run management, evaluation, and iteration. Understating the effort does not make fine-tuning more justified; it creates a setup for project failure."
+      },
+      "concept": "**Fine-tuning ROI** depends on two conditions being true simultaneously:\n1. **The training data exists and is high quality**: without good training examples that cover the intended distribution, fine-tuning cannot reliably improve on prompting.\n2. **Prompting has genuinely failed**: fine-tuning before exhausting prompt engineering is premature investment. The standard evaluation order is prompt engineering → few-shot → fine-tuning.\n\nBoth conditions must be met. A team with 500 excellent training examples but a good system prompt that already works should not fine-tune. A team with prompting that has genuinely failed but only 50 poor-quality examples will produce a fine-tuned model that is worse than its prompting baseline.",
+      "examTip": "Fine-tuning justification items follow the same structure every time: the correct conditions are **data quality and availability** (A) and **prompting exhaustion** (C). Options claiming prompt length limits (B), legal requirements (D), or project timeline simplicity (E) are either off-target or present fabricated shortcuts. The decision rule is always: high-quality data + genuine prompting failure → fine-tuning may be justified."
+    }
+  },
+  {
+    "id": "TAW-B-077",
+    "domain": "Technical Awareness",
+    "topic": "Evals integrated into deployment pipeline",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An AI engineering lead at a software company is setting up a deployment pipeline for a Claude-powered proposal writing assistant. She wants to integrate evals as an automated quality gate.\n\nThe PRIMARY benefit of integrating evals into the deployment pipeline is:",
+    "options": [
+      { "key": "A", "text": "Quality regressions are caught before reaching production — the pipeline halts and alerts the team if a prompt update drops quality below the defined threshold, before users see the change." },
+      { "key": "B", "text": "Integrated evals eliminate the need for human review of individual outputs because automated checks provide equivalent quality assurance." },
+      { "key": "C", "text": "Pipeline-integrated evals automatically generate new test cases each time a prompt is updated, keeping the test set current without manual effort." },
+      { "key": "D", "text": "Integrated evals reduce API costs by caching high-scoring outputs and reusing them for similar future user requests." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Integrating evals into the deployment pipeline transforms them from a periodic measurement activity into an automated quality gate. When a prompt update is proposed, the pipeline runs the eval suite automatically. If the update causes a quality regression below the defined threshold, the pipeline blocks deployment and alerts the team. This catches regressions before users encounter them, dramatically reducing the cost of quality failures.",
+      "distractors": {
+        "B": "Automated evals complement human review; they do not replace it. Evals measure against defined criteria on a test set; human review catches production failures and emerging patterns that the test set does not cover. Neither substitutes for the other.",
+        "C": "Evals do not automatically generate new test cases. Test set design is a human responsibility; keeping the test set current requires deliberate curation as use cases evolve. Automatic test case generation would be a separate feature.",
+        "D": "Evals measure quality; they do not cache or reuse outputs for production requests. Prompt caching is the cost mechanism for reusing context; evals are a quality measurement activity. These serve entirely different purposes."
+      },
+      "concept": "**Evals in the deployment pipeline** implement continuous quality assurance for AI systems the same way unit tests implement continuous quality assurance for software:\n- Every proposed change triggers the eval suite.\n- A passing result is a prerequisite for deployment.\n- A failing result is a blocker that must be investigated before the change proceeds.\n\nThis approach catches the most common failure mode in iterative prompt development: a change that improves one aspect of quality degrades another. Without pipeline-integrated evals, these regressions reach production and are discovered by users.",
+      "examTip": "This is an **easy item** with a clear answer. The benefit of pipeline-integrated evals is **catching regressions before production** — the AI equivalent of CI/CD tests in software development. Options B (replaces human review), C (auto-generates test cases), and D (reduces API cost) all describe capabilities evals do not have. The single, clear benefit is regression detection before deployment."
+    }
+  },
+  {
+    "id": "TAW-B-078",
+    "domain": "Technical Awareness",
+    "topic": "Batch and MCP orchestration risk",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An enterprise integration architect at a 90,000-person manufacturer has designed a nightly batch job that pulls production data from three MCP-connected factory systems, generates exception reports with Claude, and writes summaries to a shared dashboard. The three systems have different data freshness — one may lag by up to 2 hours behind real time. She is performing a pre-launch risk assessment.\n\nThe PRIMARY risk she should design against is:",
+    "options": [
+      { "key": "A", "text": "MCP connections cannot be reused across batch iterations — each prompt in the batch requires a fresh connection, multiplying overhead significantly." },
+      { "key": "B", "text": "Nightly batch jobs that use MCP tool calls are subject to stricter API rate limits than batch jobs without tool use." },
+      { "key": "C", "text": "Data freshness inconsistency across the three MCP sources means some reports may combine current data from one system with lagged data from another, producing misleading cross-system comparisons." },
+      { "key": "D", "text": "MCP servers reject batch-mode requests because they detect the calls are not originating from an interactive user session." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "When a cross-system exception report combines data pulled at different points in time — system A current, system B 2 hours stale — the comparison may surface exceptions that are artefacts of the timing mismatch rather than genuine production anomalies. For a manufacturing context, this could trigger incorrect maintenance actions or miss real issues. The architect must either synchronise data timestamps before generating reports, or explicitly disclose data freshness differences in the report so reviewers can interpret comparisons correctly.",
+      "distractors": {
+        "A": "MCP connections can be managed efficiently within batch orchestration. Connection reuse and session management are engineering implementation details, not a fundamental architectural constraint that would multiply overhead per prompt.",
+        "B": "There are no separate, stricter rate limits applied to batch jobs that incorporate MCP tool calls. Rate limits apply at the API level and are not differentiated by whether tool use is present within batch prompts.",
+        "D": "MCP servers do not perform session-origin detection. They accept valid tool calls regardless of whether they originate from an interactive or a batch context. This option invents a server-side authentication constraint that does not exist."
+      },
+      "concept": "**Multi-system batch data freshness** is a common operational risk in enterprise reporting pipelines — not unique to AI, but amplified when Claude is generating exception analysis from the combined data.\n\nDesign mitigations:\n- **Timestamp alignment**: only generate reports when all three systems have data from within the same time window.\n- **Freshness disclosure**: include data-as-of timestamps in each report section so reviewers know which data is current.\n- **Freshness validation**: add a pre-check step that verifies all systems meet a freshness threshold before the batch job proceeds.\n\nFor manufacturing operations where exception reports drive maintenance scheduling, a misleading cross-system comparison can have direct operational consequences.",
+      "examTip": "This is a hard item because options A, B, and D describe specific technical constraints (connection reuse, rate limits, session detection) that sound plausible in an enterprise context but are fabricated. The real risk is a **domain-level** concern: mixing data from different time points in a cross-system comparison. When you see multiple data sources with different update frequencies, data freshness inconsistency is the risk to design against — not invented protocol or rate-limit constraints."
+    }
+  },
+  {
+    "id": "TAW-B-079",
+    "domain": "Technical Awareness",
+    "topic": "Tool use and RAG combined architecture",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A solutions architect at a professional services firm is advising a client on when to combine tool use and RAG in the same implementation rather than using one approach alone. Which TWO use case characteristics MOST strongly justify combining both? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "The workflow requires Claude to retrieve relevant background knowledge from a large indexed document corpus AND fetch live operational data from a system of record at query time — two distinct data needs with different access patterns." },
+      { "key": "B", "text": "Query volume is so high that using either approach alone would exceed the API rate limit; combining them distributes the load." },
+      { "key": "C", "text": "The reasoning required exceeds what single-shot prompting can deliver; combining tool use and RAG provides the additional reasoning depth needed." },
+      { "key": "D", "text": "The indexed document corpus is updated frequently, requiring tool use to trigger re-indexing and RAG to retrieve the newly indexed content." },
+      { "key": "E", "text": "The business question requires synthesising static reference knowledge — best answered by RAG — alongside real-time status data — best fetched by a tool call — two types of information with fundamentally different access patterns." }
+    ],
+    "correct": ["A", "E"],
+    "explanation": {
+      "correct": "A and E both describe the same underlying condition from different angles: the workflow has two types of information need — a large corpus of background knowledge (suited to retrieval) and live operational data that changes in real time (suited to tool use). Neither mechanism alone addresses both needs. RAG cannot fetch live data; tool use is not designed to search a 50,000-document corpus. When a single query needs both historical reference knowledge and current operational state, combining them is the correct architecture.",
+      "distractors": {
+        "B": "Rate limits are an operational constraint on total request volume, not a justification for combining two data access mechanisms. RAG and tool use do not distribute load across rate limits in the way described. Rate limit management is a separate engineering concern.",
+        "C": "Reasoning depth is a function of model capability and prompt design, not of data access mechanism. Combining tool use and RAG addresses the data access requirements of a workflow; it does not provide additional reasoning depth beyond what the model's context and capability allow.",
+        "D": "Re-indexing a corpus is an infrastructure pipeline operation, not a function of tool use within a Claude workflow. Claude tool use fetches data; it does not trigger indexing jobs in a retrieval infrastructure. This option confuses the retrieval system's maintenance pipeline with the Claude agent's tool-use capability."
+      },
+      "concept": "**RAG + tool use together** is appropriate when a single workflow needs two fundamentally different types of data:\n\n| Type | Characteristic | Best accessed by |\n|---|---|---|\n| Static reference knowledge | Large corpus, changes infrequently | RAG |\n| Live operational data | Single record or small result, changes continuously | Tool use |\n\nExample: a customer service agent that needs to know company policy (large, stable corpus → RAG) and the specific customer's account status (live record → tool call). Neither approach handles the other's data type well.",
+      "examTip": "The justification for combining RAG and tool use is always **two distinct data needs with different access patterns**: one suited to corpus search (RAG) and one suited to live system query (tool use). Options about rate limits (B), reasoning depth (C), or re-indexing triggers (D) are off-target — they describe real system concerns but not the justification for combining these two mechanisms. The correct answers always point to the **dual data requirement**."
+    }
+  },
+  {
+    "id": "TAW-B-080",
+    "domain": "Technical Awareness",
+    "topic": "Scaling from pilot to department deployment",
+    "difficulty": "medium",
+    "type": "nextstep",
+    "stem": "A change management lead at a 5,000-person retail company has run a successful six-week pilot of a Claude-powered product description assistant with five experienced content writers. Quality results were strong and the pilot users are enthusiastic. The head of marketing wants to scale immediately to all 200 content writers. The lead is assessing the recommended next step.\n\nWhat should the lead recommend NEXT?",
+    "options": [
+      { "key": "A", "text": "Scale to all 200 writers simultaneously with a company-wide training session to capture momentum while enthusiasm from the pilot is high." },
+      { "key": "B", "text": "Submit an IT security review request covering the full 200-user deployment before proceeding with any further rollout." },
+      { "key": "C", "text": "Replicate the pilot configuration exactly for all 200 writers immediately, since strong pilot results validate the full approach without further staged testing." },
+      { "key": "D", "text": "Expand to a second cohort of 20–30 writers representing the full range of experience levels and use cases, gather structured feedback, and refine the configuration and training materials before full department rollout." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "A five-person pilot of experienced users is a strong signal but not a complete validation. Experienced users may have adapted their workflows to the tool's idiosyncrasies; newer or less experienced writers may struggle differently. A second cohort of 20–30 writers drawn from the full range of experience levels and content types surfaces issues that the tight pilot group did not encounter — prompt edge cases, training gaps, support needs — at a scale where those issues are still manageable before they affect the whole department.",
+      "distractors": {
+        "A": "Scaling to all 200 writers simultaneously risks a poor experience for users who are less prepared than the pilot cohort, which can undermine adoption and damage the programme's credibility. Pilot enthusiasm creates momentum, but scaling should be staged to preserve quality.",
+        "B": "IT security review is a necessary step in the overall deployment process but should be integrated alongside the staged rollout, not treated as a prerequisite that halts all progress. Security review on the pilot configuration should have been completed during or before the pilot; the question is about the deployment sequence.",
+        "C": "Pilot results with five experienced users do not fully validate the configuration for 200 writers with varying experience and use cases. Replicating exactly for 200 writers assumes the pilot group represents the full population — which five self-selected experienced users do not."
+      },
+      "concept": "**Staged AI rollout** follows the same principle as any enterprise change management:\n1. **Pilot** (5–10 users): validate the core concept and configuration.\n2. **Expanded pilot** (20–50 users): validate with a representative sample of the target population, surface training gaps and edge cases.\n3. **Phased rollout** (50% → 100%): scale with confidence and the ability to pause if issues emerge.\n\nEach stage has a specific purpose: the first pilot confirms the idea works; the expanded pilot confirms it works for the real population; phased rollout scales with governance. Skipping from pilot to full rollout is the most common change management mistake in enterprise AI programmes.",
+      "examTip": "**Nextstep items about scaling** test whether you know the correct sequence: pilot → expanded pilot → phased rollout. Option A (simultaneous full rollout) and C (immediate replication to 200) both skip the expanded validation step. Option B (IT security review only) treats a compliance checkpoint as the next deployment step rather than a parallel activity. The correct answer continues the staged rollout by validating with a more representative sample before committing to the full population."
+    }
+  }
+]

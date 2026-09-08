@@ -1,0 +1,505 @@
+[
+  {
+    "id": "PTE-C-001",
+    "domain": "Prompting and Task Execution",
+    "topic": "JSON output format specification",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A software ops analyst at a 400-person logistics firm asks Claude to extract delivery status records from a batch of 80 emails and output the results. Claude returns a prose summary paragraph instead of structured data. The analyst needs system-importable output.\n\nWhat is the MOST direct fix for the next run?",
+    "options": [
+      { "key": "A", "text": "Add an explicit format instruction: \"Output a JSON array, one object per email, with fields: sender, delivery_status, and eta.\"" },
+      { "key": "B", "text": "Switch from Sonnet to Opus, which defaults to structured output for data extraction tasks." },
+      { "key": "C", "text": "Ask Claude to re-read its prose response and convert it to JSON in a follow-up turn." },
+      { "key": "D", "text": "Break the task into two prompts — one for extraction and one for formatting." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Claude defaults to prose when no output format is specified. Adding an explicit format instruction — naming the structure, the container type, and the required fields — eliminates ambiguity in one step. The fix belongs in the original prompt, not a recovery step after the fact. This is the minimum change that solves the stated problem without restructuring the workflow.",
+      "distractors": {
+        "B": "Model tier does not control default output format. Opus produces deeper reasoning, not automatic JSON. Switching tiers for a formatting problem adds cost without addressing the root cause: an unspecified output structure.",
+        "C": "Asking Claude to reformat in a follow-up turn works but doubles the cost and introduces a second potential failure point. The correct fix is a single clear instruction upfront, not a two-step recovery pattern.",
+        "D": "Splitting into two prompts is over-engineering. A format instruction in the original prompt is sufficient. Two-prompt patterns are warranted when the tasks require different context, not when one instruction resolves the issue."
+      },
+      "concept": "**Output format specification** is the practice of stating the desired structure, container type, and fields explicitly in the prompt rather than relying on Claude to infer them.\n\nKey principles:\n- Claude defaults to prose unless instructed otherwise.\n- Name the container (JSON array, markdown table, numbered list) and the schema (field names, column headers).\n- Place the format instruction at the end of the prompt or in a dedicated \"Output format\" section — it is easy to bury.\n- For machine-readable output, include a one-row example if the schema is complex.\n\nRule of thumb: if your downstream system will consume the output, the format instruction should be as precise as any API contract.",
+      "examTip": "Format problems are almost always caused by an absent or vague format instruction — not by a model tier limitation. When a scenario describes Claude returning prose instead of structured data, the fix is always in the prompt, not a model switch or a follow-up turn. Look for the option that adds a direct, specific format instruction."
+    }
+  },
+  {
+    "id": "PTE-C-002",
+    "domain": "Prompting and Task Execution",
+    "topic": "Positive framing vs negative constraints",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A content strategist at a media company sends Claude a draft article with the prompt: \"Do not use passive voice, do not include jargon, do not exceed 600 words, and don't repeat yourself.\" The revision still contains passive constructions and runs to 680 words.\n\nWhat is the MOST likely cause of this outcome?",
+    "options": [
+      { "key": "A", "text": "Claude cannot process more than two negative constraints simultaneously in a single prompt." },
+      { "key": "B", "text": "Stacking multiple negative constraints distributes attention across prohibitions, making each one less reliably enforced than an equivalent positive instruction would be." },
+      { "key": "C", "text": "Passive voice detection is a grammar feature that applies only when Claude is in a code-editing context." },
+      { "key": "D", "text": "600 words fell below Claude's default compression threshold, so the length limit was ignored." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Negative constraints tell Claude what to avoid but do not specify what to build toward. When four prohibitions are stacked, the model's attention is divided among things to suppress rather than directed at a clear positive goal. Each individual constraint becomes less reliable. Converting prohibitions to positive instructions — \"Use active voice,\" \"Write at a 9th-grade reading level,\" \"Target exactly 600 words\" — gives Claude concrete targets to hit rather than things to sidestep.",
+      "distractors": {
+        "A": "There is no documented limit on the number of negative constraints Claude can process. The issue is reliability per constraint when attention is spread, not a hard processing cap.",
+        "C": "Passive voice is a natural language pattern, not a code-syntax feature. Claude handles active/passive distinctions across all text types; the context being code-editing is irrelevant.",
+        "D": "Claude does not have a \"compression threshold\" that overrides explicit word counts. When a word count limit is violated, the cause is almost always an insufficiently specific instruction, not an internal system parameter."
+      },
+      "concept": "**Positive framing** means stating what output should look like rather than listing what it must not contain.\n\nWhy it works better:\n- Positive instructions give the model a concrete target to optimise toward.\n- Negative constraints require the model to generate content and then suppress a pattern — an indirect path.\n- Four stacked prohibitions compete for attention; a single positive instruction concentrates it.\n\nConversion pattern:\n- \"Don't use jargon\" → \"Use vocabulary accessible to a non-specialist reader\"\n- \"Don't be too long\" → \"Write exactly 600 words\"\n- \"Don't repeat yourself\" → \"Each point appears only once; cut any sentence that restates a prior one\"\n\nRule of thumb: if your prompt contains more than one \"don't\", rewrite those clauses as positive targets.",
+      "examTip": "Items on negative constraints will show a scenario where multiple \"do not\" rules partially fail. The trap is option A — a false claim that Claude has a constraint-count limit. The real mechanism is attention dilution across prohibitions. The fix is always reframing negatives as positives, not reducing the number of constraints."
+    }
+  },
+  {
+    "id": "PTE-C-003",
+    "domain": "Prompting and Task Execution",
+    "topic": "Length and depth control",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A grant writer at a non-profit prepares a 2-page project brief for a foundation application. She prompts Claude: \"Write a detailed overview of our water access programme.\" Claude returns a 1,200-word response with extensive historical background. She needs approximately 400 words.\n\nWhich prompt change would MOST reliably produce the intended output?",
+    "options": [
+      { "key": "A", "text": "\"Keep this concise.\"" },
+      { "key": "B", "text": "\"Write a short response.\"" },
+      { "key": "C", "text": "\"Write approximately 400 words. Cover: programme goals, target population, and measurable outcomes. Exclude historical background.\"" },
+      { "key": "D", "text": "\"Summarise in bullet points only.\"" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "\"Approximately 400 words\" sets a quantitative length target. Naming the three sections to cover gives Claude a scope boundary. Explicitly excluding historical background directly removes the content that caused the overrun. Together these three elements — word count, content scope, and one explicit exclusion — form a complete length-and-depth instruction. Vague qualifiers like \"concise\" or \"short\" produce unpredictable results because they are relative.",
+      "distractors": {
+        "A": "\"Concise\" is a relative qualifier with no shared definition. To Claude, \"detailed\" and \"concise\" can coexist — a concise detailed overview is still long. Without a word count, length remains undefined.",
+        "B": "\"Short\" is equally relative and context-dependent. Like \"concise,\" it signals a preference but not a target. Claude may produce 600 words and consider that short relative to 1,200.",
+        "D": "Bullet points change the format but not the word count. A bulleted response can still be 1,200 words. Changing structure without specifying a length target does not solve the stated problem."
+      },
+      "concept": "**Length and depth control** requires specifying both the quantity of output and the scope of content.\n\nThe two levers:\n1. **Word/item count** — \"approximately 400 words\", \"exactly 10 bullet points\", \"no more than 3 paragraphs\". Approximate counts work well; exact counts can cause awkward padding.\n2. **Scope boundary** — what topics to include and, critically, what to exclude. Without explicit scope, Claude fills the word count with whatever context is most readily available — often background the writer considers obvious.\n\nVague qualifiers that do not control length: *concise, brief, short, detailed, thorough, comprehensive*. These express a preference, not a specification.\n\nRule of thumb: if the output length matters, put a number in the prompt.",
+      "examTip": "Length control items will always have one specific option (a number plus scope) competing against vague qualifiers (\"concise,\" \"brief,\" \"short\"). The specific option wins every time. Watch for options that change format — bullet points, numbered lists — without specifying a count; format change is not the same as length control."
+    }
+  },
+  {
+    "id": "PTE-C-004",
+    "domain": "Prompting and Task Execution",
+    "topic": "Kitchen-sink anti-pattern",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A RevOps lead drafts a single prompt asking Claude to: analyse six months of pipeline data, identify stalled deals, draft personalised follow-up emails for each rep, summarise recommended next steps, and create a slide outline for the upcoming QBR. Claude returns a response that touches each task but is shallow on all of them.\n\nWhich anti-pattern MOST explains this outcome?",
+    "options": [
+      { "key": "A", "text": "The prompt used informal language, causing Claude to deprioritise the analytical tasks." },
+      { "key": "B", "text": "The pipeline data was too large for Claude to process accurately in a single context window." },
+      { "key": "C", "text": "Claude applies a per-task token budget when multiple tasks are bundled, capping depth on each." },
+      { "key": "D", "text": "The prompt bundled five distinct tasks with different output types and success criteria into one request, preventing deep execution on any single task." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Five tasks — data analysis, deal identification, email drafting, recommendation summary, and a slide outline — each has its own output type, depth requirement, and success criterion. Bundling them forces Claude to allocate attention across all five simultaneously, producing surface-level coverage of each. The fix is task decomposition: one prompt per task, sequenced so outputs from earlier steps feed later ones.",
+      "distractors": {
+        "A": "Prompt formality does not cause Claude to deprioritise analytical tasks. Claude responds to instruction quality, not conversational register. This is a plausible-sounding but false mechanism.",
+        "B": "Context window pressure can cause truncation or omission, but the scenario describes shallow output across all tasks, not missing data or cut-off content. The symptom points to breadth over depth, not a context-window overflow.",
+        "C": "There is no documented per-task token budget that Claude applies when multiple tasks are requested. This option sounds like a technical limitation but describes an invented system behaviour."
+      },
+      "concept": "The **kitchen-sink anti-pattern** occurs when a single prompt asks Claude to perform multiple distinct tasks with different output types, different depth requirements, or different success criteria.\n\nSymptom: output that mentions every task but satisfies none of them at the required depth.\n\nFix: **task decomposition** — one prompt, one job. Break the bundle into sequential prompts where:\n- Each prompt has a single clear objective.\n- The output of prompt N can be passed as input to prompt N+1.\n- Success criteria are evaluable at each step.\n\nRule of thumb: if your prompt contains more than one major verb (\"analyse AND draft AND summarise AND create\"), it is a kitchen-sink prompt. Split it.",
+      "examTip": "Kitchen-sink items are identified by a stem where multiple tasks with different outputs are bundled. The shallow-across-all-tasks symptom is the diagnostic. Options B and C offer plausible-sounding technical reasons (context window, token budget) — these are distractors. The root cause is always the over-bundled prompt, and the fix is always decomposition."
+    }
+  },
+  {
+    "id": "PTE-C-005",
+    "domain": "Prompting and Task Execution",
+    "topic": "Output format — tables vs prose",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A procurement specialist needs to compare seven vendors across four criteria: price, delivery lead time, warranty terms, and compliance rating. She will use the comparison in a stakeholder presentation built in a documentation tool that renders markdown.\n\nWhich output format should she specify in her prompt?",
+    "options": [
+      { "key": "A", "text": "A markdown table with vendors as rows and criteria as columns, so it renders directly in the documentation tool." },
+      { "key": "B", "text": "A numbered list of vendors, with each vendor's four criteria described in a separate paragraph." },
+      { "key": "C", "text": "A JSON object with vendor names as keys, preserving the data for potential future import." },
+      { "key": "D", "text": "A side-by-side bullet structure with each criterion repeated under each vendor entry." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "A markdown table is the optimal format for a multi-vendor, multi-criterion comparison intended for a presentation. It renders visually in markdown-supporting tools, puts criteria on a single row for easy scanning, and structures the data for direct stakeholder consumption. The format matches both the use case (comparison) and the destination (a markdown-rendering tool).",
+      "distractors": {
+        "B": "Paragraphs per vendor require the reader to scan through prose to compare a single criterion across vendors — a slow and error-prone reading pattern for a decision matrix. Tables are the correct structure for cross-vendor, cross-criterion comparison.",
+        "C": "JSON is a machine-readable format suited for system import, not stakeholder presentations. While it preserves data structure, it is not directly presentable without rendering, and the stated need is a stakeholder presentation.",
+        "D": "Repeating criteria under each vendor creates a long vertical list that makes cross-vendor comparison difficult. This structure is harder to scan than a table and is less suited to a presentation slide."
+      },
+      "concept": "**Format-to-purpose matching** means selecting the output structure that best serves the intended downstream use.\n\nMatching rules:\n- **Comparison across multiple items and attributes** → markdown table\n- **Sequential steps or ranked items** → numbered list\n- **Machine consumption or system import** → JSON or CSV\n- **Narrative argument or explanation** → prose paragraphs\n- **High-level summary with supporting detail** → headers + bullets\n\nFormat specification in the prompt: name the container (\"a markdown table\"), the axis labels (\"vendors as rows, criteria as columns\"), and the rendering context (\"this will be pasted into Confluence\") when it helps Claude match the output to the destination.",
+      "examTip": "Format-selection items test whether you match the structure to the use case. Comparison tasks → tables. The trap is JSON (sounds structured and professional) or prose (sounds thorough). Neither serves a multi-item, multi-attribute comparison in a presentation context. Table is always the right answer for comparison grids."
+    }
+  },
+  {
+    "id": "PTE-C-006",
+    "domain": "Prompting and Task Execution",
+    "topic": "Iterative refinement loops",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A clinical operations coordinator uses Claude to draft patient discharge instruction letters. After the first draft the tone is too clinical. After a second-turn revision the reading level improves, but critical medication instructions are now missing. The coordinator is preparing a third iteration.\n\nWhat is the BEST approach for the third iteration?",
+    "options": [
+      { "key": "A", "text": "Start a fresh conversation so that prior instructions do not contaminate the new attempt." },
+      { "key": "B", "text": "In the same conversation, give one instruction that preserves what worked and restores what was lost: \"Keep the plain-language tone from the last revision and reinstate all medication instructions from the original list.\"" },
+      { "key": "C", "text": "Switch to Opus for deeper reasoning about clinical content." },
+      { "key": "D", "text": "Separate tone and content into two different prompts and merge the outputs manually." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Effective iterative refinement explicitly locks in gains while addressing the new gap. Naming what worked (plain-language tone) prevents Claude from reverting it, and naming what was lost (medication instructions) directly targets the regression. Both requirements fit in a single instruction in the ongoing conversation, which still holds the original context. Starting fresh discards useful context; switching models misdiagnoses the problem.",
+      "distractors": {
+        "A": "Starting fresh discards the context of what worked in turn two. Iterative refinement works best when earlier successful elements are explicitly carried forward, not when the slate is wiped clean each time.",
+        "C": "The failure is a scope regression — medication instructions were dropped — not a reasoning deficiency. Opus adds analytical depth, not content completeness. Switching tiers for a content-coverage problem misidentifies the cause.",
+        "D": "Manually merging two separate outputs introduces its own consistency risks and adds effort. A single well-constructed instruction in the current conversation is more direct and less error-prone."
+      },
+      "concept": "**Iterative refinement loops** improve output incrementally across multiple turns in the same conversation.\n\nKey principle: each refinement instruction must do two things:\n1. **Preserve wins** — explicitly name what from the prior turn to keep.\n2. **Address gaps** — name the specific deficiency to fix.\n\nWithout preservation statements, Claude may revert to earlier behaviour when optimising for the new instruction. The loop degrades if each turn solves one problem while reintroducing another.\n\nWhen to start fresh vs. continue:\n- **Continue** when the foundation is sound and you are refining specifics.\n- **Start fresh** when the fundamental approach is wrong and prior context is now misleading.\n\nRule of thumb: if the last turn produced something worth keeping, name it explicitly in the next turn.",
+      "examTip": "Iterative refinement items will show a pattern of fix-one-break-another. The correct answer always includes an explicit preservation statement alongside the new instruction. Traps: starting fresh (loses context) and model upgrades (wrong diagnosis). Look for the option that locks in the gain and targets the regression in one instruction."
+    }
+  },
+  {
+    "id": "PTE-C-007",
+    "domain": "Prompting and Task Execution",
+    "topic": "Prefilling and steering continuation",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A legal operations manager uses the Claude API to generate contract risk summaries. Every response opens with \"This contract presents several standard risks...\" — a preamble she wants replaced by a direct numbered list starting with the highest-severity risk. She cannot modify the contract text or the system prompt.\n\nWhich technique addresses this MOST precisely?",
+    "options": [
+      { "key": "A", "text": "Increase the temperature parameter so Claude generates more varied opening structures." },
+      { "key": "B", "text": "Add a negative instruction to the user message: \"Do not begin with a preamble sentence.\"" },
+      { "key": "C", "text": "Prefill the assistant turn with \"1.\" so Claude continues directly into the first numbered item." },
+      { "key": "D", "text": "Append \"Begin your response with the highest-severity risk\" to the existing user message." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Prefilling sets the opening token of the assistant turn, forcing Claude to continue from that exact starting point rather than generating a preamble. Injecting \"1.\" commits the response to beginning at the first numbered list item — Claude cannot produce an introductory sentence before content it has already started. This technique is unique to the API (the messages array allows an assistant-role prefill) and is the most precise available mechanism for eliminating unwanted openers.",
+      "distractors": {
+        "A": "Temperature controls output randomness, not structure. Raising temperature makes responses more varied but equally likely to produce a preamble; it does not direct Claude away from introductory sentences.",
+        "B": "A negative instruction in the user message can reduce preamble frequency but is less reliable than prefilling. Claude may still generate a short introductory clause. Prefilling is mechanically stronger because it removes the opportunity for a preamble entirely.",
+        "D": "Appending a direction to begin with the highest-severity risk is a user-message instruction that competes with the existing prompt. It may improve the response but still allows Claude to open with an introductory sentence before the first risk item, which prefilling eliminates."
+      },
+      "concept": "**Prefilling** is an API-level technique where you supply the beginning of the assistant's response in the messages array, and Claude continues from that exact point.\n\nHow it works: the API accepts a final message with `role: \"assistant\"` containing partial text. Claude treats that text as already written and generates only the continuation.\n\nUse cases:\n- Force a specific opening token or structure (\"1.\", \"{\\n\", \"**Risk 1:**\")\n- Eliminate introductory preambles entirely\n- Lock a response into a schema from the first character\n\nLimitations:\n- API-only; not available in the Claude.ai chat UI\n- The prefill content must itself be valid within the expected output — prefilling mid-sentence without a natural continuation can produce awkward output\n\nRule of thumb: when you need zero tolerance for a specific unwanted opening pattern and have API access, prefill is the strongest available control.",
+      "examTip": "Prefilling is a hard-item topic because many candidates know it exists but confuse it with negative instructions. The discriminator is *mechanical guarantee vs. probabilistic guidance*. A negative instruction reduces preamble frequency; prefilling eliminates the structural opportunity for one. When the stem specifies API access and zero tolerance for an unwanted opening, prefilling wins."
+    }
+  },
+  {
+    "id": "PTE-C-008",
+    "domain": "Prompting and Task Execution",
+    "topic": "Multi-turn conversation management",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An actuarial analyst is conducting a complex reserving model review with Claude in a single long conversation. After 25 exchanges, Claude's suggestions begin contradicting guidance it gave in turns 3 and 7. The analyst is unsure why this inconsistency is appearing.\n\nWhat is the MOST likely explanation?",
+    "options": [
+      { "key": "A", "text": "Claude actively discards earlier turns once a token threshold is passed, replacing them with an auto-generated summary." },
+      { "key": "B", "text": "Frequent turns degrade Claude's analytical capability on complex numerical topics." },
+      { "key": "C", "text": "The analyst's recent prompts introduced new constraints that directly overrode the earlier guidance." },
+      { "key": "D", "text": "In a very long conversation, attention to early turns diminishes as the context window fills, making it harder for Claude to stay consistent with guidance stated far back in the thread." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "As a conversation grows, early content occupies a smaller proportion of the total context and receives proportionally less attention during generation. Critical constraints or decisions stated in turns 3 and 7 are effectively more distant from the active generation front than recent turns. Claude does not discard content, but its influence over current output weakens with distance. The practical fix is to restate key constraints periodically or use a summary prompt to consolidate the conversation.",
+      "distractors": {
+        "A": "Claude does not auto-summarise or discard earlier turns mid-conversation. The full history remains in context until the context window is exhausted. This option describes a feature that does not exist.",
+        "B": "Turn frequency does not degrade analytical capability. Claude's reasoning quality on a topic is a function of the prompt quality and context relevance, not the number of prior turns in the session.",
+        "C": "This is a plausible mechanism but the stem does not indicate the analyst introduced new constraints. The scenario describes contradiction with earlier guidance after 25 turns in a complex thread — the more probable cause is attention dilution over distance, not an inadvertent override."
+      },
+      "concept": "**Multi-turn conversation management** involves keeping a long thread coherent as context accumulates.\n\nKey dynamics:\n- Claude holds the full conversation in context, but attention over that context is not uniform — recent content has more weight than distant content.\n- Critical decisions, constraints, or definitions stated early in a long thread can be effectively overridden by the weight of later content.\n- The context window has a hard limit; when it fills, the oldest content is typically dropped first.\n\nManagement strategies:\n- **Periodic restatement**: recap key constraints every 10–15 turns in long analytical sessions.\n- **Summary injection**: ask Claude to summarise the agreed framework so far; paste that summary into the next turn.\n- **Fresh start with a brief**: when a thread becomes unwieldy, start a new conversation with a consolidated brief rather than continuing a drifting thread.",
+      "examTip": "This item tests attention dilution vs. active discard. Option A (active discard) is the most attractive wrong answer because it sounds technical and plausible. The correct mechanism is passive — distance reduces influence, not deletion. Look for items where long-thread inconsistency is the symptom; the explanation is always attention dynamics, not a discard feature."
+    }
+  },
+  {
+    "id": "PTE-C-009",
+    "domain": "Prompting and Task Execution",
+    "topic": "Conflicting instructions — project vs chat",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A bid manager at a professional services firm sets a Claude Project instruction: \"Always respond in formal British English; never use American spellings.\" In a subsequent chat within the same project, she writes: \"Write this section in a casual, friendly tone — we're targeting a US technology audience.\" Claude responds formally throughout, using British spellings.\n\nWhich statement BEST explains this behaviour?",
+    "options": [
+      { "key": "A", "text": "Project-level instructions take precedence over per-chat prompts when they directly conflict, so the project's formality and spelling rules override the chat-level request." },
+      { "key": "B", "text": "Claude cannot apply different tones to different outputs within a single project and requires a separate project per audience." },
+      { "key": "C", "text": "The chat prompt was ambiguous — \"casual, friendly\" did not explicitly override the formality rule, so Claude defaulted to the project setting." },
+      { "key": "D", "text": "This is a bug; per-chat prompts should always override project instructions when they directly contradict them." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Project-level custom instructions function as a persistent system-level constraint that applies across all chats within the project. When a per-chat prompt conflicts with a project instruction, the project instruction takes precedence by design — this is what makes Projects useful for enforcing team-wide standards. To override a project instruction for a specific chat, the user must either update the project instruction or move to a different project.",
+      "distractors": {
+        "B": "Claude can produce different tones across different chats; the project instruction is the constraint, not a hard architectural limit. A project configured without a formality rule would allow tone variation across its chats.",
+        "C": "The chat prompt directly named the desired tone and audience. Ambiguity is not the cause. The cause is the precedence hierarchy: project instructions override per-chat prompts, not the other way around, regardless of how explicitly the per-chat prompt is worded.",
+        "D": "This reverses the actual precedence rule and incorrectly labels correct behaviour as a bug. Project instructions are designed to persist and override — that is the feature, not a defect."
+      },
+      "concept": "**Instruction precedence** in Claude Projects follows a hierarchy:\n1. **Project-level custom instructions** — set once, apply to all chats in the project.\n2. **Per-chat prompts** — apply within a single conversation but do not override project instructions when they conflict.\n\nImplication: a Project is the right tool when a standard must hold across all team interactions. A per-chat prompt cannot reliably override it.\n\nWhen to use each:\n- Use project instructions for non-negotiable standards: tone, language, format, persona, confidentiality rules.\n- Use per-chat prompts for task-specific variation within those standards.\n\nRule of thumb: if a project instruction says \"always X,\" a chat prompt saying \"don't X\" will lose. To change behaviour for a specific audience, update or create a separate project.",
+      "examTip": "Instruction conflict items test the precedence hierarchy. Option D (\"it's a bug\") is the hardest distractor — it inverts the correct rule while framing incorrect behaviour as expected. Option C (ambiguity) is also attractive but wrong: the chat prompt was explicit. The discriminator is knowing that project instructions sit above per-chat prompts in the hierarchy by design."
+    }
+  },
+  {
+    "id": "PTE-C-010",
+    "domain": "Prompting and Task Execution",
+    "topic": "Positive framing — rewriting prohibitions",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A training coordinator at a retail chain asks Claude to simplify a complex HR policy document for frontline staff. Her prompt reads: \"Don't make it too formal, don't use legal language, and don't keep it long.\" The response is still overly formal and dense.\n\nWhich reframing is MOST likely to improve the result?",
+    "options": [
+      { "key": "A", "text": "Add \"Please\" and \"Thank you\" to soften the tone of the request." },
+      { "key": "B", "text": "Replace the negative constraints with positive instructions: \"Write at a 7th-grade reading level using short sentences and plain vocabulary, in bullet points. Target: a store associate with no HR background.\"" },
+      { "key": "C", "text": "Specify the output format as a numbered list, which forces plain language." },
+      { "key": "D", "text": "Split the task into two prompts: one to simplify, then a second to shorten." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Three negative constraints — no formality, no legal language, no length — are each relative and indirect. Option B replaces all three with positive specifications: a reading level (7th grade), a format (bullet points), a vocabulary standard (plain), and an audience model (store associate, no HR background). This gives Claude concrete targets to optimise toward rather than patterns to suppress.",
+      "distractors": {
+        "A": "Politeness particles (\"please,\" \"thank you\") do not affect content quality or reading level. They are social register markers that have no bearing on whether the output will be accessible to frontline staff.",
+        "C": "A numbered list changes structure but not vocabulary or formality. A numbered list written in legal language remains inaccessible. Format change alone does not solve the stated problem.",
+        "D": "Two prompts add steps without addressing the root cause: the absence of a positive target for the audience, reading level, and vocabulary standard. The first prompt would still produce overly formal output."
+      },
+      "concept": "Converting negative constraints to positive instructions is one of the highest-yield prompt improvements available.\n\nThe formula:\n- Identify each \"don't\" in the prompt.\n- Ask: what does the ideal output look like in that dimension?\n- Write the positive version: a measurable target, a named audience, or a concrete example.\n\nAudience specification is particularly powerful for readability: naming \"a store associate with no HR background\" gives Claude a mental model of the reader, which governs word choice, sentence length, and example selection more effectively than any list of prohibitions.",
+      "examTip": "Easy positive-framing items have one clearly specific option and three vague or tangential options. Politeness padding (option A) is a common distractor in this topic — it sounds helpful but has no functional effect. Format changes (option C) are another trap: structure does not determine vocabulary. The correct answer specifies audience, reading level, and a positive vocabulary standard."
+    }
+  },
+  {
+    "id": "PTE-C-011",
+    "domain": "Prompting and Task Execution",
+    "topic": "Reusable prompt templates and variables",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A marketing operations manager at a B2B SaaS company generates personalised outreach emails for 80 prospects weekly. Each email requires the prospect's name, company, and a mapped industry pain point. She currently copies a base prompt and manually edits it per prospect — about 4 minutes each.\n\nWhat would MOST effectively reduce this effort while maintaining quality?",
+    "options": [
+      { "key": "A", "text": "Switch from Claude.ai chat to the API so email generation runs automatically without any prompt input." },
+      { "key": "B", "text": "Ask Claude to write a script that auto-populates prospect details from a spreadsheet." },
+      { "key": "C", "text": "Create a reusable prompt template with placeholders — {{prospect_name}}, {{company}}, {{industry_pain_point}} — and a batch workflow that substitutes real values for each row." },
+      { "key": "D", "text": "Upload all past successful emails to a Project knowledge base so Claude learns the pattern." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "A template with named placeholders eliminates manual editing by making variable content explicit and substitutable. The fixed prompt logic (tone, structure, call to action) stays constant while the variable fields (name, company, pain point) change per row. Combined with a batch substitution workflow — even a simple copy-paste from a spreadsheet column — this reduces the task from 4 minutes of editing to seconds of substitution per prospect.",
+      "distractors": {
+        "A": "The API enables automation but does not itself generate content without prompt input. Without a template and substitution logic, switching surfaces alone does not reduce per-prospect editing effort.",
+        "B": "Asking Claude to write a script is a viable engineering approach but is over-engineering for a weekly manual workflow. A template with variables solves the problem immediately without requiring code. The question asks for the most effective reduction, not the most automated one.",
+        "D": "Uploading past emails provides style examples but does not eliminate the need to supply per-prospect data in each prompt. The manual editing work — inserting name, company, pain point — remains unchanged."
+      },
+      "concept": "**Reusable prompt templates** separate the fixed prompt logic from the variable data it operates on.\n\nStructure:\n```\nYou are a sales development representative at [company_name].\nWrite a personalised outreach email for {{prospect_name}} at {{company}}.\nFocus on this pain point: {{industry_pain_point}}.\nTone: consultative. Length: 150 words. CTA: request a 20-minute discovery call.\n```\n\nBenefits:\n- Consistent quality across all instances\n- Variable substitution replaces manual editing\n- Templates can be shared across the team\n- Iterative improvement happens once on the template, not 80 times per batch\n\nTemplate variables should be named descriptively ({{industry_pain_point}} not {{var1}}) so anyone on the team can substitute correctly without reading documentation.",
+      "examTip": "Template items test whether you reach for the simplest, most direct solution. The API (option A) and scripting (option B) are over-engineering traps — they imply technical complexity when a template with placeholders solves the same problem immediately. Option D is a knowledge management solution to a data-substitution problem; these are different mechanisms."
+    }
+  },
+  {
+    "id": "PTE-C-012",
+    "domain": "Prompting and Task Execution",
+    "topic": "Buried ask",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A policy analyst at a government agency writes a 200-word prompt with three paragraphs of bill background, a paragraph on stakeholder concerns, then ends with: \"Oh, and could you draft a two-paragraph plain-English summary suitable for a press release?\" Claude produces a thorough policy analysis but does not generate the press release summary.\n\nWhat is the PRIMARY cause?",
+    "options": [
+      { "key": "A", "text": "Claude truncated the prompt before reaching the final sentence due to an input length limit." },
+      { "key": "B", "text": "Press release language conflicts with Claude's default mode for policy analysis prompts." },
+      { "key": "C", "text": "The background context established a detailed-analysis frame; the final instruction was treated as supplementary commentary rather than the primary task." },
+      { "key": "D", "text": "The core task was buried at the end of extensive preamble, causing Claude to optimise for what the majority of the prompt framed rather than the final sentence." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The prompt spends four paragraphs establishing an analytical frame and then places the real deliverable — a press release summary — in an afterthought clause at the end. Claude reads the entire prompt, but the dominant framing (four paragraphs of analysis context) shapes the output more strongly than a single buried sentence. The task statement should open the prompt, before any background, and the context should follow as support material.",
+      "distractors": {
+        "A", "C": "Options A and C describe different mechanisms. A — input truncation — does not apply here; 200 words is well within any practical context limit. C is partially correct in mechanism but option D is the more precise and complete explanation: it names both the structural cause (buried position) and the effect (optimising for the dominant frame).",
+        "B": "There is no mode conflict between policy analysis and press release output. Claude can produce press release language regardless of the context provided. This option invents a constraint that does not exist."
+      },
+      "concept": "The **buried ask** anti-pattern places the primary deliverable late in a long prompt, after extensive context that frames the task differently.\n\nWhy it fails: Claude uses the full prompt to infer task intent. When four paragraphs establish an analytical context and one sentence at the end requests a different output type, the analytical frame dominates.\n\nFix: **task-first structure**.\n1. State the deliverable in the first sentence: \"Draft a two-paragraph plain-English summary for a press release.\"\n2. Follow with context: \"Background: [bill summary, stakeholder concerns]\"\n3. Close with constraints: \"Tone: accessible to a general public audience. Length: approximately 150 words.\"\n\nRule of thumb: the question or task statement should appear before the evidence, not after it.",
+      "examTip": "Buried-ask items present a long prompt where the task is last. Option C is tempting because it is partially correct mechanically, but option D is more precise: it names both the structural problem (buried position) and the causal mechanism (dominant framing). The discriminator between C and D is that D explicitly names the position of the ask relative to the preamble."
+    }
+  },
+  {
+    "id": "PTE-C-013",
+    "domain": "Prompting and Task Execution",
+    "topic": "Item count specification",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A learning and development manager asks Claude to \"generate a quiz about cybersecurity basics.\" Claude returns 15 questions of varying difficulty. The manager needed exactly 10 questions at consistent medium difficulty for a 20-minute module.\n\nWhich prompt change would MOST precisely produce the intended output?",
+    "options": [
+      { "key": "A", "text": "\"Generate exactly 10 multiple-choice questions about cybersecurity basics. Each question should be medium difficulty — requires applying a concept, not just recalling a definition. Include four options per question and mark the correct answer.\"" },
+      { "key": "B", "text": "\"Generate a shorter cybersecurity quiz with fewer questions.\"" },
+      { "key": "C", "text": "\"Generate a cybersecurity quiz suitable for a 20-minute training module.\"" },
+      { "key": "D", "text": "\"Generate 10 cybersecurity questions.\"" }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Option A specifies three distinct parameters: exact item count (10), difficulty standard with a testable definition (applying a concept, not recall), and format requirements (four options, marked answer). Each parameter targets a specific gap in the original prompt. The difficulty definition is especially important — \"medium\" is relative without a criterion; the application-vs-recall distinction makes it evaluable.",
+      "distractors": {
+        "B": "\"Fewer questions\" and \"shorter\" are comparative without specifying the target count. Claude may return 12, 8, or some other number. Comparative qualifiers do not control count.",
+        "C": "Duration (20 minutes) is an indirect proxy for item count. Claude must infer the count from the time estimate, which depends on assumed reading speed and question length — producing unpredictable results.",
+        "D": "Option D specifies count but omits difficulty standard, option count, and answer marking. It is better than the original prompt but underspecified relative to option A. A well-specified quiz prompt covers count, difficulty, format, and answer key."
+      },
+      "concept": "**Item count specification** applies to any prompt requesting a list, quiz, set, or collection of outputs. Vague quantity words (\"some,\" \"several,\" \"a few\") produce unpredictable counts.\n\nFive parameters for a quiz prompt:\n1. **Exact count** — \"exactly 10\"\n2. **Difficulty criterion** — a testable definition, not just a label\n3. **Format** — question style (multiple choice, true/false), option count\n4. **Answer marking** — whether to include the answer key\n5. **Topic scope** — broad (\"cybersecurity\") vs. specific (\"phishing and social engineering\")\n\nThe same principles apply to non-quiz lists: \"generate five recommendations\" should include count, specificity level, and format requirements.",
+      "examTip": "Count-specification items have one option with a number plus a criterion and several options with vague qualifiers (\"fewer,\" \"shorter,\" \"suitable for\"). Indirect proxies like duration (option C) are a specific trap — time estimates do not reliably translate to item counts. Look for the option that specifies both count and quality criterion."
+    }
+  },
+  {
+    "id": "PTE-C-014",
+    "domain": "Prompting and Task Execution",
+    "topic": "Politeness padding",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An operations analyst sends Claude: \"Could you possibly, if it's not too much trouble, perhaps help me by kindly reviewing this process document and letting me know what you think might potentially be improved in terms of clarity?\" Claude returns a vague response noting the document \"appears generally clear with some potential areas that might benefit from attention.\"\n\nWhat is the MOST direct fix?",
+    "options": [
+      { "key": "A", "text": "Add a role instruction: \"You are an expert process documentation reviewer.\"" },
+      { "key": "B", "text": "Replace the hedged prompt with a direct instruction: \"Review this process document. Identify specific unclear steps, ambiguous terms, and missing decision points. List each issue with a suggested fix.\"" },
+      { "key": "C", "text": "Append \"Please be blunt in your feedback\" to the existing prompt." },
+      { "key": "D", "text": "Upload the document to a Project knowledge base before requesting the review." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The original prompt is dense with hedging particles that signal low-confidence requests: \"possibly,\" \"if it's not too much trouble,\" \"perhaps,\" \"might potentially.\" This framing is reflected back in the hedged output. Option B replaces the hedged request with three direct instructions: review, identify specific issue types, and list each with a fix. Specificity drives specificity — a direct prompt produces direct output.",
+      "distractors": {
+        "A": "A role instruction may improve depth on technical aspects but does not address the specificity gap. The problem is that the prompt did not specify what to look for (unclear steps, ambiguous terms, missing decision points) or what format the feedback should take.",
+        "C": "\"Please be blunt\" is itself a soft instruction appended to a hedged prompt. It addresses tone but not specificity. Without naming the issue types to look for, Claude still lacks a target for its review.",
+        "D": "Adding the document to a Project knowledge base changes persistence but not the quality of the review instruction. The same vague prompt against a knowledge-base document produces a vague response."
+      },
+      "concept": "**Politeness padding** is the accumulation of hedging language — \"possibly,\" \"perhaps,\" \"if it's not too much trouble,\" \"might potentially\" — that softens a request without adding information.\n\nIts effect on output:\n- Claude mirrors the register of the input. Uncertain, hedged prompts produce uncertain, hedged responses.\n- Hedging particles consume tokens without specifying task requirements.\n- The more vague qualifiers a request contains, the less concrete the output.\n\nFix: rewrite as direct instructions.\n- Remove all hedging particles.\n- Use imperative verbs: \"Review,\" \"Identify,\" \"List,\" \"Draft,\" \"Summarise.\"\n- Specify what types of issues to look for and what format the findings should take.\n\nClaude is not a human colleague who might feel criticised by directness. Instructions should be as direct as an API call.",
+      "examTip": "Politeness padding is easy to spot — the stem will contain obvious hedging language. The correct fix is always a direct, imperative-verb instruction with specific deliverables. Option C (\"be blunt\") is a common distractor: it addresses tone without addressing specificity, which is the real problem."
+    }
+  },
+  {
+    "id": "PTE-C-015",
+    "domain": "Prompting and Task Execution",
+    "topic": "Depth vs length control",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A management consultant needs a competitive analysis of three firms across five strategic dimensions for a client presentation. He prompts: \"Give me a brief analysis.\" Claude returns five single sentences — one per dimension, averaged across all three firms with no firm-level differentiation.\n\nWhat is the BEST correction?",
+    "options": [
+      { "key": "A", "text": "Replace \"brief\" with \"comprehensive\" to signal that greater depth is expected." },
+      { "key": "B", "text": "Ask Claude to redo the analysis \"with more detail on each firm.\"" },
+      { "key": "C", "text": "Replace \"Give me a brief analysis\" with explicit scope: \"For each of the three firms, analyse these five dimensions: [list]. Write 2–3 sentences of firm-specific observations per dimension. Total: approximately 450 words.\"" },
+      { "key": "D", "text": "Split the task into three separate prompts, one per firm, and manually consolidate the results." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The original prompt failed on two dimensions: length (\"brief\" collapsed five dimensions into five sentences) and structure (no firm-level separation). Option C fixes both: it specifies the analytical unit (per firm, per dimension), the depth per cell (2–3 sentences of firm-specific observations), and the total word target. The explicit structure — firm × dimension — prevents Claude from aggregating across firms, which was the primary failure mode.",
+      "distractors": {
+        "A": "\"Comprehensive\" is as relative as \"brief.\" It signals more output but does not specify the analytical unit, the depth per cell, or the total scope. Claude may produce more text without separating firm-level observations from aggregate commentary.",
+        "B": "\"More detail on each firm\" is an improvement over \"brief\" but remains vague. It does not specify how much detail, what dimensions to cover per firm, or the expected output length. Without explicit scope, depth is still unpredictable.",
+        "D": "Three separate prompts produce firm-level analyses but lose the comparative framing that makes a competitive analysis useful. Manual consolidation introduces additional work and consistency risk. The structured single prompt in option C is more direct."
+      },
+      "concept": "**Depth control** is distinct from length control. Length specifies total word count; depth specifies the analytical granularity — the unit of analysis and the expected observations per unit.\n\nFor a firm × dimension matrix:\n- **Length instruction**: \"approximately 450 words\"\n- **Depth instruction**: \"2–3 sentences of firm-specific observations per dimension\"\n- **Structure instruction**: \"analyse each firm separately; do not aggregate across firms\"\n\nAll three are needed. A word count without a structure instruction collapses the matrix. A structure instruction without a word count allows either extreme.\n\nRule of thumb: for multi-entity, multi-dimension analyses, specify the cell (\"per firm per dimension\"), the depth per cell, and the total scope.",
+      "examTip": "This item tests length vs. depth as separate controls. Option A (\"comprehensive\") is the most attractive trap — it sounds like the right fix but is as vague as \"brief.\" Option B is better than A but still vague. Option C is correct because it specifies both the analytical unit (firm × dimension) and the per-cell depth. The discriminator is whether the instruction controls structure as well as quantity."
+    }
+  },
+  {
+    "id": "PTE-C-016",
+    "domain": "Prompting and Task Execution",
+    "topic": "Output format for multiple audiences",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A data analyst at a 90,000-employee insurance firm asks Claude to process 50 claim records and produce a summary report. The report must serve two purposes: import into a BI tool and sharing with senior executives. Which TWO format specifications should be included in the prompt to serve both audiences? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "\"Write the full summary in narrative paragraph form.\"" },
+      { "key": "B", "text": "\"Output each claim record as a structured JSON or CSV row for system import.\"" },
+      { "key": "C", "text": "\"Use the Opus model for better output formatting quality.\"" },
+      { "key": "D", "text": "\"Include an executive summary section with 3–5 bullet points highlighting key trends.\"" },
+      { "key": "E", "text": "\"Limit the entire response to 200 words for executive readability.\"" }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "B addresses the BI import requirement: structured machine-readable records (JSON or CSV) are the correct format for a system that will consume the data. D addresses the executive audience: a short bulleted summary with key trends is the appropriate format for a senior stakeholder who wants insight, not raw records. Together these two specifications produce a single response that serves both downstream uses without compromise.",
+      "distractors": {
+        "A": "Narrative paragraphs are neither machine-importable nor optimal for executive scanning. They are the wrong format for both stated use cases.",
+        "C": "Model tier does not control output format. Formatting quality is a function of the format specification in the prompt, not the model chosen. This option misattributes a prompt problem to a tier limitation.",
+        "E": "A 200-word cap on the entire response would prevent the structured record section from including all 50 claims. Applying a single length cap to a multi-section output with different format requirements conflicts with the BI import need."
+      },
+      "concept": "When a single output must serve multiple audiences with different format requirements, structure the prompt to produce **distinct sections for each audience**:\n- A machine-readable section (JSON/CSV) for the system consumer\n- A human-readable section (bullets, table) for the executive consumer\n\nThis is a common professional use case: data output that must be both importable and presentable. The prompt should name each section explicitly: \"Section 1: structured claim records in CSV format. Section 2: executive summary, 3–5 bullet points, key trends only.\"\n\nA single format (prose, or JSON-only) satisfies one audience at the expense of the other.",
+      "examTip": "Multi-audience format items test whether you identify the right format for each consumer. The trap options typically include a model tier change (C) and an overly broad length cap (E) that would conflict with structured data requirements. Identify the two distinct format needs (machine-readable + human-readable) and match each to its correct format specification."
+    }
+  },
+  {
+    "id": "PTE-C-017",
+    "domain": "Prompting and Task Execution",
+    "topic": "Iterative loop — when to reset",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A UX writer at a 12-person healthtech startup is refining onboarding tooltip messages with Claude in a single conversation. Which TWO situations should trigger starting a NEW iterative refinement loop rather than continuing in the current conversation? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "The conversation has drifted so far from the original brief that Claude is now optimising against a different success criterion than the one the writer started with." },
+      { "key": "B", "text": "Claude returned a response that was 15 words longer than the specified limit." },
+      { "key": "C", "text": "The writer decides to change the target user persona from 'power user' to 'first-time user,' fundamentally reframing the task." },
+      { "key": "D", "text": "One of the twelve tooltips contains a passive construction that Claude missed." },
+      { "key": "E", "text": "Claude asked a clarifying question about which screen the tooltip appears on." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "A: When the conversation has drifted to a different success criterion, the accumulated context is actively misleading future outputs. Continuing in the same thread compounds the drift; a fresh start with a corrected brief resets the frame cleanly. C: Changing the target persona from power user to first-time user is a fundamental reframe — vocabulary, assumed knowledge, and tone all change. Prior turns optimised against the wrong user model; continuing in that conversation biases future outputs toward the old frame.",
+      "distractors": {
+        "B": "A 15-word overage is a minor calibration issue, not a frame-level drift. A single refinement instruction in the current turn — \"trim each tooltip to under X words\" — fixes it without starting over.",
+        "D": "One passive construction in one of twelve tooltips is a small targeted correction. A follow-up instruction to revise that specific tooltip is far more efficient than restarting the conversation.",
+        "E": "A clarifying question from Claude is a productive interaction signal, not a reason to start over. Answering it within the current conversation provides the needed context and continues the refinement."
+      },
+      "concept": "**When to reset a refinement loop** is a judgement call based on whether accumulated context is helping or hurting.\n\nReset when:\n- The conversation's dominant frame is now wrong (criteria drift, persona change, scope shift)\n- Prior turns have established constraints that conflict with the new direction\n- You find yourself fighting the conversation's history rather than building on it\n\nContinue when:\n- The correction is targeted and small (fix one item, adjust length, change one word)\n- Prior wins are worth preserving\n- The accumulated context still accurately represents the task\n\nA good reset starts with a consolidated brief: \"Forget the prior conversation. Here is the current task: [clean spec].\"",
+      "examTip": "Reset-vs-continue items turn on the scale and type of the change. Small corrections (15 words over, one passive voice) → continue. Fundamental reframes (wrong success criterion, wrong user persona) → reset. Options D and B are precision fixes; A and C are frame-level changes. The exam tests whether you distinguish targeted correction from foundational misalignment."
+    }
+  },
+  {
+    "id": "PTE-C-018",
+    "domain": "Prompting and Task Execution",
+    "topic": "Iterative refinement sequence",
+    "difficulty": "medium",
+    "type": "nextstep",
+    "stem": "A financial analyst at a mid-market investment firm is producing a sector comparison memo with Claude. Her first run returned the correct five-section structure but only one-sentence summaries per sector — far shallower than the 3–4 sentence analytical paragraphs she needs. She has confirmed the structure is correct and wants to fix only the depth.\n\nWhat should she do NEXT?",
+    "options": [
+      { "key": "A", "text": "Switch to Opus for stronger reasoning on financial content." },
+      { "key": "B", "text": "Start a new conversation with the original prompt to see if depth varies across runs." },
+      { "key": "C", "text": "Add all sector context documents to a Project knowledge base before re-running." },
+      { "key": "D", "text": "Add a targeted depth instruction to the existing prompt: specify the required paragraph length and provide a brief example of the expected analytical depth for the first sector." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The structure is confirmed correct; only depth is wrong. The most direct next step is a minimal targeted fix: add a depth instruction naming the expected paragraph length (3–4 sentences) and include a short example of the analytical depth needed for one sector. Showing an example eliminates ambiguity about what \"analytical\" means. This addresses the single identified gap without changing anything else in a working prompt.",
+      "distractors": {
+        "A": "Shallow depth on a financial memo is a prompt-specification problem, not a reasoning-depth limitation. Opus adds analytical power for genuinely hard reasoning tasks; it does not automatically produce longer paragraphs when the prompt does not specify paragraph length.",
+        "B": "Running the same prompt again tests variance, not depth. If the prompt does not specify 3–4 sentence paragraphs, repeated runs will continue to produce shallow output regardless of run-to-run variation.",
+        "C": "Adding context documents addresses knowledge gaps, not depth of analysis. The problem is not that Claude lacks sector information — it is that the prompt does not specify the expected paragraph length or analytical standard."
+      },
+      "concept": "**The iterative refinement sequence** follows a principle of minimal targeted changes:\n1. Identify the single gap in the current output.\n2. Make the smallest change that directly addresses that gap.\n3. Hold everything else constant.\n\nFor depth failures, the fix is a depth specification: paragraph length, number of observations per point, and an example of the expected analytical standard. An example is particularly powerful because it anchors the depth requirement in concrete terms rather than abstract qualifiers like \"detailed\" or \"analytical.\"\n\nDiagnose before changing: confirm that the structural elements are correct before touching them. Every unnecessary change introduces a new variable.",
+      "examTip": "Nextstep items test diagnostic discipline: isolate the problem before reaching for a solution. The problem is depth (one sentence when four are needed). Options A (model switch) and C (knowledge base) address different problems entirely. Option B tests variance rather than fixing the identified gap. The correct move is always the most targeted fix for the confirmed problem."
+    }
+  },
+  {
+    "id": "PTE-C-019",
+    "domain": "Prompting and Task Execution",
+    "topic": "Conflicting and kitchen-sink anti-patterns",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A senior consultant is reviewing a colleague's prompt before adding it to the team template library. The prompt instructs Claude to: \"summarise AND provide full detail, be concise AND comprehensive, and write for experts AND explain all terminology.\" Which TWO anti-patterns does this prompt demonstrate? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Politeness padding that reduces instruction directness." },
+      { "key": "B", "text": "Conflicting instructions that give Claude two mutually exclusive success criteria simultaneously." },
+      { "key": "C", "text": "A buried ask hidden beneath excessive background context." },
+      { "key": "D", "text": "Kitchen-sink framing that stacks incompatible output requirements into a single prompt." },
+      { "key": "E", "text": "Over-specification that unnecessarily constrains Claude's output." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "B: Each paired instruction is self-contradictory — \"summarise\" and \"provide full detail\" cannot both be maximised; \"concise\" and \"comprehensive\" are in direct tension; \"write for experts\" and \"explain all terminology\" target opposite assumed knowledge levels. These are conflicting success criteria. D: Three pairs of incompatible requirements are stacked into a single prompt, creating a kitchen-sink structure where Claude must arbitrate between contradictory objectives. The output will satisfy none of them fully.",
+      "distractors": {
+        "A": "The prompt contains no hedging language or politeness particles. It is actually over-directive — the problem is contradiction, not softness.",
+        "C": "There is no background context or preamble. The task is stated at the opening; nothing is buried. This is a direct but contradictory prompt, not a buried-ask structure.",
+        "E": "Over-specification constrains output to a narrow band. This prompt's problem is the opposite: the instructions point in contradictory directions, not in an overly narrow one."
+      },
+      "concept": "**Conflicting instructions** give Claude two success criteria that cannot both be maximised simultaneously. When conflicting instructions are present, Claude must arbitrate — and will produce an unpredictable compromise.\n\nCommon conflict types:\n- Length: \"be brief\" vs. \"be comprehensive\"\n- Audience: \"write for experts\" vs. \"explain all terminology\"\n- Depth: \"summarise\" vs. \"provide full detail\"\n- Tone: \"formal\" vs. \"conversational\"\n\n**Kitchen-sink framing** stacks multiple requirements, some of which conflict. The overlap between these two anti-patterns: a kitchen-sink prompt can contain multiple conflicting pairs.\n\nFix: make a decision. Choose one member of each conflicting pair. \"Write for a non-specialist audience\" replaces the irreconcilable pair. \"Produce a 400-word summary\" replaces \"concise AND comprehensive.\"",
+      "examTip": "This is a hard item because options B and D partially overlap — conflicting instructions and kitchen-sink framing often co-occur. The discriminator: B points to the mutual exclusivity within each pair; D points to the overall stacking pattern. Both are present and both are correct. Options A, C, and E each describe a real anti-pattern that is simply absent from the prompt in the stem."
+    }
+  },
+  {
+    "id": "PTE-C-020",
+    "domain": "Prompting and Task Execution",
+    "topic": "Reusable template benefits",
+    "difficulty": "easy",
+    "type": "multi",
+    "stem": "A legal operations team at a global enterprise is building a prompt template library for contract review tasks. Which TWO benefits does a well-structured prompt template provide compared to ad hoc prompts written by individual team members? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Consistent output structure across all team members running the same task, regardless of individual prompting style." },
+      { "key": "B", "text": "Elimination of the need for human review because the template enforces quality." },
+      { "key": "C", "text": "A repeatable starting point that captures the firm's specific risk categories, terminology, and output format requirements." },
+      { "key": "D", "text": "Automatic integration with the firm's contract management system." },
+      { "key": "E", "text": "Guaranteed identical output on every run due to template precision." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "A: Templates standardise the prompt logic, so output structure is consistent regardless of which team member runs the review. Individual prompting variation is replaced by a shared starting point. C: A well-authored template embeds institutional knowledge — the firm's specific risk taxonomy, standard clause terminology, and preferred output format — that would otherwise be reinvented each time. This is the primary value of templating: knowledge capture and reuse.",
+      "distractors": {
+        "B": "Templates improve prompt consistency but do not replace human review. Output quality is a function of the model, the prompt, and the input material — a template controls only the prompt. High-stakes contract review still requires qualified human judgment.",
+        "D": "Prompt templates are prompt text; they do not connect to systems. System integration requires API configuration, connectors, or custom tooling — separate from template authorship.",
+        "E": "Claude is a probabilistic model; identical prompts do not guarantee identical outputs. Temperature, context variation, and model sampling all introduce run-to-run variance. Templates reduce variance from prompting differences but do not eliminate it."
+      },
+      "concept": "**Reusable prompt templates** provide two types of value:\n1. **Consistency** — the same logic, structure, and format requirements apply every time the task is run, regardless of who runs it.\n2. **Knowledge capture** — institutional expertise (risk categories, terminology, output formats, edge-case handling) is encoded once in the template and reused across all runs.\n\nWhat templates do not provide:\n- Guaranteed identical output (model is probabilistic)\n- System integration (requires tooling)\n- Quality assurance without human review (prompt quality ≠ output quality)\n\nTemplate libraries are most valuable in teams where the same analytical tasks recur regularly and quality consistency matters more than individual customisation.",
+      "examTip": "Template-benefit items typically include two attractive wrong answers: one claiming elimination of human review (always false for high-stakes tasks) and one claiming guaranteed output identity (always false for probabilistic models). The correct benefits are consistency and knowledge capture — both about what the template standardises, not what it automates or guarantees."
+    }
+  }
+]

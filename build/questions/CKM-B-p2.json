@@ -1,0 +1,505 @@
+[
+  {
+    "id": "CKM-B-021",
+    "domain": "Configuration and Knowledge Management",
+    "topic": "Connector vs. static upload — high-frequency data",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A financial analyst at a 200-person investment fund manually downloads a daily bond pricing file each morning and uploads it to a Claude Project used by portfolio managers. The pricing data changes every trading day.\n\nWhat is the MOST effective way to reduce data staleness?",
+    "options": [
+      { "key": "A", "text": "Replace the manual upload workflow with a connector to the pricing data source." },
+      { "key": "B", "text": "Increase the upload frequency from daily to twice per day." },
+      { "key": "C", "text": "Add a Project instruction noting that bond prices as of the upload date may have changed." },
+      { "key": "D", "text": "Upload the file only when a portfolio manager flags a discrepancy." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "A connector keeps Project knowledge synchronised with the pricing source automatically. Daily-changing financial data is exactly the use case connectors are designed for: eliminating the manual upload cycle and the staleness window it creates. This addresses both the freshness problem and the operational overhead of the current process.",
+      "distractors": {
+        "B": "More frequent manual uploads reduce the staleness window but do not eliminate it, and they double the manual effort. The root problem is that a static upload is architecturally wrong for daily-changing data.",
+        "C": "A disclaimer shifts the burden to portfolio managers without improving data quality. It also signals a known problem without solving it, which undermines user confidence in the Project.",
+        "D": "Waiting for users to identify discrepancies means acting on stale data until someone notices. This is a reactive pattern that is worse than the current daily upload approach."
+      },
+      "concept": "**Static upload vs. connector** is a choice about data architecture, not just convenience. A static upload is a snapshot — it reflects the data at the moment of upload and cannot update itself. A connector creates a live link so that Project knowledge stays current automatically.\n\nUse a connector when:\n- The data changes on a schedule that manual uploads cannot practically match\n- Staleness in the data directly affects the decisions users make\n- The source system supports an integration\n\nUse a static upload when:\n- The data changes infrequently (annually, quarterly)\n- A controlled snapshot is preferable to a live feed",
+      "examTip": "When the stem describes **daily-changing data loaded manually**, a connector is the right answer. The exam will offer 'increase upload frequency' as a distractor — this is a workaround that reduces but cannot eliminate the staleness window. Connectors eliminate it structurally."
+    }
+  },
+  {
+    "id": "CKM-B-022",
+    "domain": "Configuration and Knowledge Management",
+    "topic": "Per-chat upload — single-use sensitive document",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A paralegal at a 30-partner law firm needs Claude to review a client's draft settlement agreement for internal inconsistencies. The agreement is specific to this client and will not be referenced in any other matter.\n\nWhich approach is MOST appropriate?",
+    "options": [
+      { "key": "A", "text": "Add the settlement agreement to the firm's standard contracts Claude Project for future reference." },
+      { "key": "B", "text": "Upload the agreement directly in the conversation where the review will take place." },
+      { "key": "C", "text": "Create a new Claude Project for this client and add the agreement to its knowledge base." },
+      { "key": "D", "text": "Ask Claude to draft a model settlement agreement based on standard industry terms." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Per-chat upload is the right choice for a client-specific, single-use document. It gives Claude the context needed for this review without making the document persist in a shared knowledge base. Once the conversation ends, the document is gone — no lifecycle management is required.",
+      "distractors": {
+        "A": "Adding a client-specific draft to a shared contracts Project creates two problems: the draft may represent non-standard terms, and it persists in a knowledge base seen by staff working on other clients' matters, creating confidentiality risk.",
+        "C": "Creating a Project for a single document in a one-off engagement is disproportionate. It creates a Project that will need to be archived or deleted once the matter closes, adding lifecycle overhead with no benefit.",
+        "D": "Drafting from standard terms does not address the task. The paralegal needs to review the specific agreement provided by the client, not generate a generic substitute."
+      },
+      "concept": "**When per-chat upload is correct**:\n- The document is specific to a single client, matter, or conversation\n- The document should not be accessible in future conversations by other team members\n- The document is a draft or interim version that will change\n- The task is a one-off analysis rather than a recurring workflow\n\nThe risk of adding client-specific documents to a shared Project knowledge base is **confidentiality cross-contamination**: another team member's future conversation could inadvertently draw on a different client's information.",
+      "examTip": "Single-use and client-specific are the two strongest signals for per-chat upload. Adding client documents to a shared Project is always wrong from a confidentiality standpoint, even if the Project is within the same firm."
+    }
+  },
+  {
+    "id": "CKM-B-023",
+    "domain": "Configuration and Knowledge Management",
+    "topic": "Duplicate document detection and removal",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A brand manager at a global FMCG company notices two files in a Claude Project: 'Brand_Guidelines.pdf' (uploaded eight months ago) and 'Brand-Guidelines.pdf' (uploaded last week). Claude's brand advice is inconsistent across sessions — sometimes formal, sometimes casual in tone.\n\nWhat is the CORRECT first action?",
+    "options": [
+      { "key": "A", "text": "Keep both files and add a Project instruction to use whichever file has the more recent upload date." },
+      { "key": "B", "text": "Combine the content of both files into a single merged brand guidelines document." },
+      { "key": "C", "text": "Determine which version is current and remove the other from Project knowledge." },
+      { "key": "D", "text": "Rename both files to include their upload dates so Claude can distinguish them." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Two near-identically named files with different content create an unresolvable reference ambiguity. Claude cannot determine which is authoritative and will draw from both inconsistently. The fix is to identify the current version (almost certainly the recently uploaded one), confirm it is complete, and remove the eight-month-old version.",
+      "distractors": {
+        "A": "Claude cannot inspect upload dates to determine which file to prefer. Even if it could, leaving two conflicting documents in place means the instruction must be applied consistently every session — an unreliable dependency.",
+        "B": "Merging the content of two guidelines versions risks combining outdated brand rules with current ones, producing a hybrid that satisfies neither version. The outdated content must be removed, not blended.",
+        "D": "Renaming both files helps humans identify the versions but does not prevent Claude from drawing on both. As long as both files are present in Project knowledge, Claude treats them as equally authoritative."
+      },
+      "concept": "**Near-identical filenames with different content** are one of the clearest curation signals in a Project knowledge base. They arise when:\n- A new version is uploaded without removing the old one\n- Files are uploaded by different team members without checking what already exists\n- The same document is uploaded under slightly different naming conventions\n\nThe resolution is always the same: identify which is current, confirm its completeness, and remove the other. Never rely on naming conventions or instructions to direct Claude's preference between two simultaneously present versions.",
+      "examTip": "The exam will always offer 'rename to distinguish' as a distractor for duplicate/version conflicts. Renaming helps humans but does not help Claude — as long as both documents exist in Project knowledge, both are live reference sources. **The only fix is removal.**"
+    }
+  },
+  {
+    "id": "CKM-B-024",
+    "domain": "Configuration and Knowledge Management",
+    "topic": "Document structure — headings for flat text",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A contracts manager at a telecoms provider uploaded a 90-page contract playbook as a flat text file with no section headings. When asked about specific clause types (e.g., indemnity, force majeure, payment terms), Claude produces generic advice that does not reference the playbook's specific approved positions.\n\nWhat change would MOST directly improve specificity?",
+    "options": [
+      { "key": "A", "text": "Convert the text file to a PDF so that Claude processes it more accurately." },
+      { "key": "B", "text": "Ask Claude to generate a summary of the document contents at the start of each session." },
+      { "key": "C", "text": "Upload the document in smaller 10-page chunks to reduce processing load." },
+      { "key": "D", "text": "Add descriptive section headings for each clause type before re-uploading the document." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Section headings allow Claude to navigate to the relevant part of a document when responding to a clause-specific query. Without headings, Claude treats the 90 pages as undifferentiated text and averages across it, producing generic output. Adding a heading like 'Indemnity — Approved Position' creates a direct match signal between the query and the relevant section.",
+      "distractors": {
+        "A": "File format (text vs. PDF) does not affect retrieval quality. Claude processes both as text; the problem is structural, not format-related.",
+        "B": "A per-session summary still reflects an undifferentiated reading of the whole document. The summary would be generic for the same reason the current responses are generic — no structure signals which section answers which question.",
+        "C": "Uploading in arbitrary 10-page chunks creates topically incoherent fragments. A force majeure clause might span chunks 4 and 5 with no way for Claude to know which chunk to draw from for a force majeure question."
+      },
+      "concept": "**Headings are navigational signals**, not just formatting conveniences. When a document has clear, descriptive headings, Claude can:\n- Match a query about 'indemnity' to the indemnity section\n- Provide clause-specific guidance rather than playbook-wide averages\n- Cite the correct section rather than paraphrasing the entire document\n\nA flat document — even a well-written one — forces Claude to synthesise across all its content for every query, which is the definition of generic output. Restructuring with headings is the minimum effective intervention.",
+      "examTip": "When the symptom is **generic output despite the document containing specific content**, the cause is almost always a structural problem (no headings, no splitting) rather than a model capability problem. Format conversion and chunking by page count are common wrong answers — both fail to create topical signals."
+    }
+  },
+  {
+    "id": "CKM-B-025",
+    "domain": "Configuration and Knowledge Management",
+    "topic": "Project knowledge for recurring reference material",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A training coordinator at a logistics company produces onboarding materials for new warehouse staff each week. She uses Claude every week to draft schedules, competency assessments, and welcome emails. The company safety procedures and competency framework apply to every onboarding session without change.\n\nWhich approach is MOST appropriate for the safety and competency documents?",
+    "options": [
+      { "key": "A", "text": "Add the safety procedures and competency framework to a Claude Project's knowledge base." },
+      { "key": "B", "text": "Upload both documents fresh at the start of each weekly onboarding session." },
+      { "key": "C", "text": "Paste the key sections of both documents into each chat prompt as needed." },
+      { "key": "D", "text": "Create a new Claude Project for each cohort of warehouse staff." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Safety procedures and a competency framework that apply every week without change are exactly what Project knowledge is designed for. Adding them once means the coordinator never has to re-upload or re-paste them, and Claude draws on them consistently in every onboarding-related conversation.",
+      "distractors": {
+        "B": "Re-uploading stable documents each week is operationally wasteful. If the documents do not change between sessions, there is no benefit to re-uploading — and each upload creates an opportunity to accidentally load an outdated version.",
+        "C": "Pasting key sections into each prompt is a version of the same problem: it requires manual effort each session, may be truncated for long documents, and is error-prone. Project knowledge eliminates this entirely.",
+        "D": "Creating a new Project per cohort would duplicate the same safety and competency documents dozens of times per year. One shared Project with a common knowledge base is the right architecture for a recurring workflow."
+      },
+      "concept": "**When to use Project knowledge**: the trigger is recurrence and stability. If the same reference documents are needed in conversation after conversation within the same workflow, Project knowledge eliminates the per-session upload burden.\n\nContrast this with per-chat upload, which is appropriate for:\n- Documents unique to one conversation (a specific candidate's resume)\n- Documents that change between sessions\n- Sensitive documents that should not persist\n\nThe coordinator's safety and competency framework is the textbook case for Project knowledge: stable, recurring, shared across sessions.",
+      "examTip": "When the stem describes a **recurring workflow using the same stable documents**, Project knowledge is almost always the correct answer over per-chat upload. The discriminator is whether the document benefits the *next* conversation — if yes and it is stable, it belongs in the Project."
+    }
+  },
+  {
+    "id": "CKM-B-026",
+    "domain": "Configuration and Knowledge Management",
+    "topic": "Connector timing — hourly-changing data",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A data engineer at a 500-person e-commerce company is advising the merchandising team on how to surface inventory availability in a Claude Project. Stock levels change hourly as orders are placed and fulfilment happens. The team is deciding between a daily batch export (uploaded each morning) and a real-time connector.\n\nWhich factor is MOST decisive in choosing between them?",
+    "options": [
+      { "key": "A", "text": "Whether the inventory system's API supports the connector format required by the platform." },
+      { "key": "B", "text": "How significantly a product's availability status changing within the day would affect a merchandiser's decisions." },
+      { "key": "C", "text": "Whether the data team has bandwidth to set up and maintain a connector integration." },
+      { "key": "D", "text": "The volume of inventory records, since larger datasets are better suited to batch exports." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The primary decision criterion is the cost of staleness: if a merchandiser acts on morning inventory data at 3 pm and the stock situation has changed materially, the decision quality suffers. Technical feasibility (A, C) and volume (D) are real constraints to consider, but the business case for a connector rests entirely on whether intra-day staleness causes harm.",
+      "distractors": {
+        "A": "API compatibility determines whether a connector is technically feasible, but it is a constraint to evaluate after establishing that one is needed. Feasibility does not determine need.",
+        "C": "Engineering bandwidth is a capacity constraint, not a decision criterion. If the business case for a connector is strong, capacity should be allocated. If the business case is weak, no bandwidth is worth spending on it.",
+        "D": "Data volume affects connector performance considerations but not the decision between static and live. Large datasets can be served by both approaches; the deciding factor is freshness requirements."
+      },
+      "concept": "**The connector decision framework** is:\n1. What is the cost of staleness? (How much does outdated data hurt decisions?)\n2. How often does the data change? (Hourly? Daily? Annually?)\n3. Is a connector technically feasible for this source?\n\nIf the cost of staleness is high and the data changes frequently, the business case for a connector is strong regardless of setup effort. If the data changes annually, a manual upload is fine regardless of how easy a connector would be to configure.\n\nThis is a business judgement, not a technical one. Framing it as a technical question is the most common error.",
+      "examTip": "When an item asks what is MOST decisive about a connector vs. static-upload decision, the answer is almost always about **business impact of staleness**, not about technical feasibility or engineering cost. Feasibility and cost are secondary considerations — they become relevant only after need is established."
+    }
+  },
+  {
+    "id": "CKM-B-027",
+    "domain": "Configuration and Knowledge Management",
+    "topic": "Intentional version vs. accidental duplicate",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A product manager at a software company finds two files in a Claude Project: 'PRD_v2.docx' and 'Product_Requirements_Final.docx'. Their content overlaps significantly but is not identical. A developer complains that Claude's requirement summaries differ between sessions.\n\nWhat does this situation MOST likely represent?",
+    "options": [
+      { "key": "A", "text": "Two valid requirement documents representing different product areas that should be merged." },
+      { "key": "B", "text": "Two documents in deliberate parallel development that should remain separate." },
+      { "key": "C", "text": "Unintended duplicate copies of the same requirements document at different revision stages, creating version confusion." },
+      { "key": "D", "text": "A version conflict caused by two product teams using different naming conventions for the same artefact." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Overlapping but non-identical content under two different names is the classic signature of an accidental duplicate — the same document at different stages (e.g., an in-progress draft and a separately named 'final' that was created before the draft was fully resolved). The inconsistent summaries confirm Claude is drawing from both. The fix is to identify which is current, remove the other, and ensure one canonical version exists.",
+      "distractors": {
+        "A": "If the documents covered distinct product areas, their content would not overlap significantly. Substantial overlap with minor differences is a version problem, not a scope division problem.",
+        "B": "Deliberate parallel development produces documents with clearly different scopes or authoring contexts. Overlapping content under different names is not typical of intentional parallelism — it is typical of version drift.",
+        "D": "Different naming conventions between teams are a document management hygiene issue, but the root problem is still duplication. Calling it a 'naming convention conflict' names the cause of the duplication without identifying that duplication itself is the problem to solve."
+      },
+      "concept": "**Accidental duplicates** arise in shared Projects when:\n- A user uploads an updated version without removing the original\n- A document is saved under a new name at a particular revision stage, and both names persist\n- Multiple team members upload what they believe is the current version independently\n\nThe symptom is inconsistency: Claude's summaries, extractions, or recommendations vary across sessions because it draws from different source files.\n\nDetection: look for files with substantially overlapping content under different names, or files with similar names but different modification dates.",
+      "examTip": "The exam will frame accidental duplicates as possible 'intentional parallel documents.' The diagnostic is whether the content overlaps significantly — if it does, it is almost certainly a version problem, not an intentional division. **Overlapping content under different names = duplicate; distinct content = separate documents.**"
+    }
+  },
+  {
+    "id": "CKM-B-028",
+    "domain": "Configuration and Knowledge Management",
+    "topic": "Client-specific data in shared project",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An account manager at a professional services firm is considering adding a specific client's pricing proposal and master services agreement to a Claude Project shared with 12 other account managers who each serve different clients.\n\nWhat is the PRIMARY concern with this approach?",
+    "options": [
+      { "key": "A", "text": "The pricing proposal format may not be parsed accurately by Claude." },
+      { "key": "B", "text": "Other account managers may not have the seniority to access another client's commercial terms." },
+      { "key": "C", "text": "The document file size may degrade Project performance for other users." },
+      { "key": "D", "text": "Client-specific confidential documents in a shared Project create a confidentiality risk: other account managers' conversations could inadvertently draw on a different client's terms." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "A shared Project knowledge base is accessible to all Project members. Adding one client's pricing and contractual terms means all 12 account managers — working on entirely different clients — have Claude drawing on that client's confidential data. Even without deliberate access, Claude may reference these terms in another account manager's unrelated conversation, breaching client confidentiality.",
+      "distractors": {
+        "A": "Parse accuracy is an operational concern, not a confidentiality concern. Even if the document were parsed perfectly, adding it to a shared Project would still be inappropriate.",
+        "B": "Seniority-based access is not the issue — account managers of any level should not have access to another client's commercial terms in a shared AI context. The problem is horizontal cross-client exposure, not vertical hierarchy.",
+        "C": "File size has a marginal effect on Project performance and is not a primary concern relative to the confidentiality risk. The concern about performance is negligible compared to the compliance exposure."
+      },
+      "concept": "**Client confidentiality in shared Projects** is a critical governance principle. When multiple users share a Project, all Project knowledge is available across all their conversations. This means:\n- A client A document can influence Claude's output in a conversation about client B\n- Commercially sensitive terms (pricing, margins, special conditions) can leak horizontally\n- The account manager may not even realise the cross-contamination has occurred\n\nThe correct approach for client-specific documents: per-chat upload, client-specific Projects accessible only to the relevant account manager, or a Project per client with appropriate access controls.",
+      "examTip": "Shared Project + client-specific data = confidentiality risk. This is one of the exam's most reliable patterns. The wrong answers often focus on technical concerns (parsing, performance) rather than the governance concern. **Always ask: who else can access this Project, and should they be able to see this information?**"
+    }
+  },
+  {
+    "id": "CKM-B-029",
+    "domain": "Configuration and Knowledge Management",
+    "topic": "Tabular vs. narrative document format",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An underwriter at an insurance broker has two versions of the company's risk appetite guide: a narrative document with thresholds described in paragraphs, and a structured table with risk categories, threshold values, and policy limits in named columns. Both contain identical information.\n\nWhich format BETTER supports Claude extracting specific threshold values when answering underwriting questions?",
+    "options": [
+      { "key": "A", "text": "The structured table, because named columns and explicit threshold values give Claude direct extraction targets." },
+      { "key": "B", "text": "The narrative document, because prose provides richer context around each threshold's rationale." },
+      { "key": "C", "text": "Both formats equally, since the information content is identical." },
+      { "key": "D", "text": "The narrative document, because Claude processes natural language more accurately than structured data." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Structured tables with named columns allow Claude to locate specific values directly: when asked 'what is the maximum liability threshold for property damage?' it can find the 'Property Damage' row and the 'Max Liability' column. Narrative text requires parsing prose for values embedded in sentences, which introduces more ambiguity and is less reliable for precision extraction.",
+      "distractors": {
+        "B": "While context and rationale are valuable for reasoning questions, the use case here is threshold extraction. Richer narrative context adds bulk without improving precision for value lookups.",
+        "C": "Identical information content does not mean equal extractability. Structure determines how easily specific data points can be located and cited. The claim that both are equal ignores the role of formatting in retrieval.",
+        "D": "Claude processes structured data formats effectively and does not require natural language prose for accurate responses. This option inverts the truth: structured data improves, not hinders, precision extraction."
+      },
+      "concept": "**Format as a retrieval aid**: when knowledge documents contain specific values (thresholds, rates, limits, codes), structured formats outperform prose for extraction tasks:\n\n- **Tables**: excellent for lookups by category × attribute\n- **Bullet lists**: good for discrete items (checklist, criteria)\n- **Prose paragraphs**: good for reasoning context, not for value retrieval\n\nFor a hybrid need — precision values plus rationale — structure the document with tables for values and prose notes beneath each row. This gives Claude a table to extract from and context to reason from.",
+      "examTip": "When the task involves **extracting specific values** (thresholds, rates, limits), structured formats (tables, lists) are superior to narrative. The exam will offer 'identical information content' as a distractor — information content and *retrievability* are not the same thing."
+    }
+  },
+  {
+    "id": "CKM-B-030",
+    "domain": "Configuration and Knowledge Management",
+    "topic": "When NOT to split a document",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A research scientist at a pharmaceutical company considers splitting a 40-page clinical trial protocol into section-level files: eligibility criteria, dosing schedule, adverse event reporting, and endpoint definitions. The protocol requires cross-referencing across sections — for example, eligibility criteria reference dosing thresholds, and endpoint definitions reference adverse event criteria.\n\nWhat is the PRIMARY risk of splitting this document?",
+    "options": [
+      { "key": "A", "text": "Splitting reduces the total word count available to Claude, which may cause it to miss important details." },
+      { "key": "B", "text": "Splitting removes the cross-referencing context that allows Claude to reconcile inter-section dependencies when answering protocol questions." },
+      { "key": "C", "text": "Splitting is only appropriate for documents over 100 pages; a 40-page document is too short to benefit." },
+      { "key": "D", "text": "Claude cannot process multiple files from the same source document in a single conversation." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "A clinical trial protocol is an integrated document where sections define each other. If eligibility criteria reference a dosing threshold that only appears in the dosing schedule section, splitting the protocol means Claude cannot see both when answering a question about patient eligibility. The loss of cross-document context is the primary risk when documents have strong internal dependencies.",
+      "distractors": {
+        "A": "Splitting does not reduce the information available; each file still contains its full section. The concern is about losing relationships between sections, not about losing content within them.",
+        "C": "Document length is not the criterion for splitting. The criterion is whether queries are section-specific or cross-section. A 40-page document with heavy cross-referencing should not be split; a 200-page document with independent sections should be.",
+        "D": "Claude can process multiple files from the same Project knowledge base in a single conversation. The issue is not technical capability but whether doing so preserves the cross-sectional relationships the protocol requires."
+      },
+      "concept": "**When to keep a document whole** — splitting is beneficial when:\n- Queries consistently target one section at a time\n- Sections are independently meaningful (different supplier categories, different policy areas)\n\nSplitting is harmful when:\n- Sections define, constrain, or reference each other\n- A question typically requires synthesising across sections\n- Cross-referencing is a core feature of the document (legal statutes, clinical protocols, technical standards)\n\nThe decision rule: if queries are section-specific, split. If queries are cross-section, keep whole.",
+      "examTip": "This item tests the **contraindication for splitting**. The exam will describe a document where splitting seems natural (sections have clear names) but where the sections are interdependent. The primary risk is always **loss of cross-section context**, not length, technical limits, or any other factor."
+    }
+  },
+  {
+    "id": "CKM-B-031",
+    "domain": "Configuration and Knowledge Management",
+    "topic": "Naming multiple templates of the same type",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A finance manager at a retail chain has four budget templates in a Claude Project: monthly, quarterly, annual, and reforecast. All four are currently named generically (BudgetTemplate.xlsx, BudgetTemplate2.xlsx, BudgetTemplate3.xlsx, BudgetTemplate4.xlsx). Users frequently report loading the wrong template.\n\nWhat naming convention would MOST directly reduce confusion?",
+    "options": [
+      { "key": "A", "text": "Use sequential letters (BudgetTemplate_A through BudgetTemplate_D) and maintain a separate legend." },
+      { "key": "B", "text": "Keep the generic names and add a Project instruction explaining which number corresponds to which cycle." },
+      { "key": "C", "text": "Name each template to include the cycle type and its primary use case (e.g., BudgetTemplate_Monthly_Variance.xlsx)." },
+      { "key": "D", "text": "Name them by the user role that primarily uses them (e.g., BudgetTemplate_RegionalManager.xlsx)." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Including the cycle type and primary use case in the filename gives Claude a strong semantic match signal when a user asks to 'use the monthly budget template' or 'pull the reforecast model.' Users also benefit from self-describing names — no legend or instruction is needed to know which file to reference.",
+      "distractors": {
+        "A": "Replacing numbers with letters offers no improvement — letters are equally arbitrary. A legend that maps letters to cycles must be read and maintained separately, adding overhead.",
+        "B": "A Project instruction mapping numbers to cycles is an indirect workaround. It still requires Claude to look up the mapping rather than directly matching the filename to the query. Users also cannot self-serve without reading the instruction.",
+        "D": "Role-based naming addresses who uses the template, not what the template does. A regional manager may use monthly, quarterly, or reforecast templates. Role-based names do not help Claude or users identify which cycle a template covers."
+      },
+      "concept": "**Naming multiple similar documents** requires names that distinguish the key variable between them. For templates that differ by cycle (monthly, quarterly, annual, reforecast), the cycle must appear in the filename. For templates that differ by audience, the audience must appear.\n\nThe principle: a filename should make the answer to 'which of these files do I need for X?' obvious without reading the file. When four templates exist that differ on one dimension (cycle type), that dimension must be in the name.\n\nAvoid: sequential counters, letters, or abbreviations that require a separate legend to decode.",
+      "examTip": "When there are multiple documents of the same type, the naming convention must encode the **key differentiator**. If the templates differ by cycle, name them by cycle. If they differ by region, name them by region. Role-based names (D) are a common distractor — they encode the user, not the content, and users may span multiple roles."
+    }
+  },
+  {
+    "id": "CKM-B-032",
+    "domain": "Configuration and Knowledge Management",
+    "topic": "Connector vs. static upload — decision criterion",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A customer success manager at a SaaS company wants to add customer health scores from the CSM platform to a Claude Project. Health scores recalculate weekly. He is deciding between a weekly manual export and a real-time connector. The setup cost of the connector is moderate.\n\nWhat factor is MOST decisive in this decision?",
+    "options": [
+      { "key": "A", "text": "Whether the CS team has technical expertise to configure and maintain the connector." },
+      { "key": "B", "text": "The number of customers whose health scores would be surfaced in the Project." },
+      { "key": "C", "text": "Whether the CSM platform vendor provides official connector support." },
+      { "key": "D", "text": "How materially week-old health score data would affect the quality of the CS team's at-risk customer decisions." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The business case for any connector over a manual upload rests on the cost of staleness. If a health score recalculates weekly and the CS team reviews customers daily, week-old data may be acceptable. If at-risk customers can deteriorate significantly within seven days, the cost of acting on stale scores is high enough to justify a connector. Technical feasibility and vendor support (A, C) are constraints to evaluate only after the business need is established.",
+      "distractors": {
+        "A": "Technical expertise is a constraint, not the primary decision factor. If the business case is strong, expertise can be developed or sourced. Leading with expertise frames the decision backwards.",
+        "B": "Customer count affects data volume and performance considerations but not the fundamental question of whether a connector is justified. A connector can serve one customer or ten thousand.",
+        "C": "Official vendor support determines feasibility, not need. A connector should only be built if needed; whether it is officially supported affects how difficult it is to build, not whether to build it."
+      },
+      "concept": "**The staleness cost test** is the correct framing for any connector vs. static-upload decision:\n\n- If acting on data that is one refresh cycle old would cause a material error in a decision → connector is justified\n- If data accuracy within one refresh cycle is acceptable for the decisions being made → static upload is fine\n\nThis is a business judgement, not a technical one. The technical constraints (feasibility, vendor support, expertise) only become relevant once the business case is established.",
+      "examTip": "This item and item 026 both test the same principle from different angles: the connector decision is fundamentally a **business impact question**, not a technical question. Technical constraints matter but are secondary. When both are offered as options, choose the business-impact answer."
+    }
+  },
+  {
+    "id": "CKM-B-033",
+    "domain": "Configuration and Knowledge Management",
+    "topic": "Per-prompt context vs. connector — when per-prompt wins",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A solutions architect at a fintech startup is building a workflow where Claude answers questions about individual customer accounts. Each customer service agent has a different assigned customer. She is debating whether to use a Claude Project connector to surface account data, or to inject each customer's account summary directly into the per-conversation prompt.\n\nIn which scenario does per-prompt context injection BEAT a permanent connector?",
+    "options": [
+      { "key": "A", "text": "When the account data is customer-specific and should not be accessible across different agents' sessions in a shared Project." },
+      { "key": "B", "text": "When the account data volume exceeds what the connector can synchronise in real time." },
+      { "key": "C", "text": "When the connector setup process requires IT approval, creating a deployment delay." },
+      { "key": "D", "text": "When the account data schema changes frequently, causing connector mapping errors." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "A Project knowledge connector makes data available to all Project members across all their sessions. For customer account data — which is unique to each customer and should be scoped to each agent's own customer interactions — a shared connector would expose every customer's account to every agent. Injecting account data per-conversation keeps it scoped to the relevant session and agent.",
+      "distractors": {
+        "B": "Volume constraints are a technical limitation that might require architectural changes, but they do not define when per-prompt is architecturally *preferable*. This is a workaround reason, not a design principle.",
+        "C": "Deployment delay is a project management constraint. Choosing per-prompt injection to avoid IT approval delays is a workaround, not a principled architectural choice — and the delay would eventually resolve.",
+        "D": "Schema instability is a maintenance concern for connectors. It may make a connector harder to build, but it does not mean per-prompt injection is the right architectural choice; it means the connector needs better schema handling."
+      },
+      "concept": "**Per-prompt injection vs. Project connector** is a scoping decision:\n\n- **Project connector**: appropriate for data that every user in the Project legitimately accesses — shared reference data, account-agnostic knowledge\n- **Per-prompt injection**: appropriate for data that is session-specific, user-specific, or customer-specific — data that should not be visible beyond the current conversation\n\nThe key question: is this data appropriate for **all** members of the Project across **all** sessions? If not, inject per-conversation instead of adding to Project knowledge.",
+      "examTip": "This is the **inverse** of the connector use-case question. Connectors are shared and persistent; per-prompt injection is scoped and ephemeral. When data is customer-specific, agent-specific, or session-specific, per-prompt injection prevents accidental cross-session data exposure. The correct answer is always about data scope, not technical constraints."
+    }
+  },
+  {
+    "id": "CKM-B-034",
+    "domain": "Configuration and Knowledge Management",
+    "topic": "Project knowledge vs. system prompt conflict",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An IT operations manager at a 900-person healthcare system has placed the company's IT security policy in both the Project knowledge base and in the Project's custom instructions (system prompt). A junior analyst notices that Claude's security guidance differs between sessions — sometimes citing one standard, sometimes citing a slightly different formulation.\n\nWhat is the MOST likely cause?",
+    "options": [
+      { "key": "A", "text": "The custom instructions in the Project always override Project knowledge, so the policy in knowledge is being ignored." },
+      { "key": "B", "text": "Having the same content in both Project knowledge and the system prompt creates reference ambiguity that Claude resolves inconsistently across sessions." },
+      { "key": "C", "text": "Claude only uses one source for any given query, so the inconsistency must be caused by a different file." },
+      { "key": "D", "text": "The inconsistency is caused by the format difference between a policy document and a prompt instruction." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "When the same policy content exists in two places — Project knowledge and the system prompt — Claude has two reference sources for the same topic. If they are not byte-identical (which is common when one is a reformatted excerpt), Claude may draw on either and resolve small differences inconsistently across sessions. The fix is to have the policy in exactly one place.",
+      "distractors": {
+        "A": "The relationship between custom instructions and Project knowledge is not a simple override hierarchy. Both are available to Claude as context. The instruction layer can shape how Claude uses knowledge, but it does not suppress the knowledge from being referenced.",
+        "C": "Inconsistency arising from a different file entirely is possible but would produce output that contradicts both sources. The scenario describes output that is close-but-different — the signature of two slightly different copies of the same content.",
+        "D": "Format differences (document vs. prose instruction) may cause stylistic differences in output, but they do not cause Claude to cite substantively different standards unless the underlying content itself differs between the two copies."
+      },
+      "concept": "**Duplicate content across Project knowledge and system prompt** is a subtle form of the versioning conflict problem. It arises when:\n- A policy is added to the system prompt as a summary or excerpt\n- The same policy (in full or different wording) is also in Project knowledge\n- The two versions have small differences in threshold values, scope, or wording\n\nBest practice: **choose one location** for each reference document. If it belongs in Project knowledge, do not also put it in the system prompt. If a key principle must be in the system prompt, keep it short and do not also load the full document into knowledge.",
+      "examTip": "This item tests a **subtle duplication** — the same content in two different structural locations (knowledge vs. system prompt). The symptom is close-but-not-identical outputs, not complete contradictions. The fix is the same as for any document conflict: eliminate the duplication so there is one authoritative source."
+    }
+  },
+  {
+    "id": "CKM-B-035",
+    "domain": "Configuration and Knowledge Management",
+    "topic": "Split vs. structured headings — governing principle",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A policy analyst at a government ministry must decide whether to split a 150-page integrated policy document into separate files by policy area, or to keep it as one document with clear headings. Queries from staff frequently span multiple policy areas — for example, asking how a housing regulation interacts with a planning policy.\n\nWhat principle BEST governs this decision?",
+    "options": [
+      { "key": "A", "text": "Split documents are always preferable to single large documents because they improve retrieval speed." },
+      { "key": "B", "text": "The document should always remain whole to preserve legal integrity and prevent misquotation of clauses in isolation." },
+      { "key": "C", "text": "If queries regularly require synthesising across policy areas, keeping the document whole preserves cross-area context; if queries are consistently area-specific, splitting improves retrieval." },
+      { "key": "D", "text": "The decision should be based on the document's total page count, with documents over 100 pages always split." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The governing principle is query type, not document length or a categorical rule. This ministry's queries frequently require cross-area synthesis — if the document is split, Claude cannot see both the housing regulation and the planning policy simultaneously to reason about their interaction. Keeping the document whole with clear headings preserves the cross-referencing context while still providing navigational structure.",
+      "distractors": {
+        "A": "Retrieval speed is a minor technical concern. More importantly, splitting a document whose queries are inherently cross-section creates an information loss that cannot be recovered by faster retrieval.",
+        "B": "Legal integrity is a legitimate concern for how documents are cited, but it does not determine knowledge base structure. Headings within a single document do not prevent misquotation any more than separate files would — both can be misused.",
+        "D": "Page count is a mechanical proxy that has no direct relationship to whether a document should be split. A 200-page document with nine independent sections should be split; a 40-page document with strongly interdependent sections should not."
+      },
+      "concept": "**The split-vs-whole decision rule**:\n\n- **Split when**: queries are consistently section-specific; sections are independently meaningful; retrieval granularity matters more than cross-section synthesis\n- **Keep whole when**: queries frequently span sections; sections define or reference each other; synthesis across the document is the primary value Claude adds\n\nFor the ministry's use case, the cross-area queries are the deciding signal. Headings provide navigational structure within the whole document without sacrificing the cross-referencing capability.",
+      "examTip": "This is the advanced version of the split vs. structure question. The exam will describe a document where splitting seems sensible (large, multi-topic) but where query patterns defeat the assumption. The correct answer names **query type as the governing variable**, not page count or a categorical rule about documents."
+    }
+  },
+  {
+    "id": "CKM-B-036",
+    "domain": "Configuration and Knowledge Management",
+    "topic": "Compound knowledge base audit — sequencing remediation",
+    "difficulty": "hard",
+    "type": "nextstep",
+    "stem": "A compliance operations manager at a wealth management firm has completed an audit of a shared Claude Project and documented three issues: (1) three regulatory guidance notes from two years ago remain in Project knowledge; (2) the current KYC policy exists under two different filenames; (3) several client-specific due diligence files were added by an analyst and should not be in a shared Project. She has finished documenting all three issues.\n\nWhat should she do NEXT?",
+    "options": [
+      { "key": "A", "text": "Email the Project owner all three findings and wait for written approval before making any changes." },
+      { "key": "B", "text": "Remove only the client-specific files as the most urgent risk, then schedule the outdated guidance and duplicate KYC for a later review cycle." },
+      { "key": "C", "text": "Add Project custom instructions flagging which documents should not be consulted, then schedule deletions for the next maintenance window." },
+      { "key": "D", "text": "Remove all three categories of problematic content in one remediation session, then run verification queries across the affected areas to confirm the knowledge base is clean." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Having documented all issues, the correct next step is full remediation in a single session, followed by verification. Deferring any of the three issues leaves known problems active. Partial remediation (B) means the stale guidance and duplicate KYC continue producing errors. Instruction-based workarounds (C) leave the problematic content in place. All three categories are removable now — there is no reason to stage the work across multiple cycles.",
+      "distractors": {
+        "A": "The manager has the access to make these changes and the evidence to justify them. Waiting for written approval when no approval is required creates unnecessary delay during which all three problems continue causing incorrect outputs.",
+        "B": "Prioritising by urgency is valid triage logic, but once the audit is complete and the manager has access, addressing only one issue and deferring the others is not justified. All three are removal-type fixes that can be done simultaneously.",
+        "C": "Instruction-based workarounds leave the problematic content in Project knowledge. As demonstrated throughout this domain, instructions do not reliably prevent Claude from drawing on documents that are still present. Removal is the fix."
+      },
+      "concept": "**Post-audit remediation sequencing**: once an audit is complete and all issues are documented, the correct action is comprehensive remediation in a single session, not staged partial fixes.\n\nStaged remediation is only justified when:\n- Different issues require different approvals\n- Technical constraints prevent simultaneous action\n- Remediation of one issue depends on information not yet available\n\nNone of these conditions apply here. All three issues are the same type of action (removal), require the same permissions, and can be executed in one session. Post-removal verification confirms the knowledge base is clean before the Project resumes normal use.",
+      "examTip": "Nextstep items will offer partial-remediation options as distractors. **If all identified issues are of the same type and can be fixed simultaneously, fix all of them.** Staged remediation introduces unnecessary windows of continued exposure. The 'email and wait for approval' option is another common distractor — it is only correct when approval is actually required."
+    }
+  },
+  {
+    "id": "CKM-B-037",
+    "domain": "Configuration and Knowledge Management",
+    "topic": "Connector use cases — manufacturing operations",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An operations analyst at a 3,000-person manufacturing company is recommending data sources for a Claude Project. Which TWO scenarios MOST justify using a connector rather than a periodic static upload? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Machine downtime alerts that update every 15 minutes as production line status changes." },
+      { "key": "B", "text": "Daily production yield summaries that the quality team reviews each morning for variance analysis." },
+      { "key": "C", "text": "The plant's emergency evacuation procedures, reviewed and updated annually." },
+      { "key": "D", "text": "A six-month-old industry benchmarking report on equipment efficiency, published annually." },
+      { "key": "E", "text": "The supplier onboarding checklist, revised when relevant regulations change." }
+    ],
+    "correct": ["A", "B"],
+    "explanation": {
+      "correct": "Machine downtime alerts (A) update every 15 minutes — a static upload would be stale almost immediately and real decisions (maintenance dispatch, production rerouting) depend on current status. Daily production yield summaries (B) recalculate every 24 hours and the quality team acts on them the same morning; a connector ensures the data is current when the team begins their analysis.",
+      "distractors": {
+        "C": "Emergency procedures are updated annually. A manual upload once per year, replacing the previous version, is perfectly adequate. A connector would add setup complexity with no freshness benefit.",
+        "D": "An annual benchmarking report changes on a known yearly schedule. A manual upload when each edition is published is entirely appropriate. The data is not time-sensitive within its publication year.",
+        "E": "A regulation-triggered update is infrequent and tied to specific external events. A manual update at the time of each regulatory change is the right approach; a real-time connector is unnecessary overhead."
+      },
+      "concept": "**Connector frequency thresholds**: the general principle is that a connector becomes justified when the data changes faster than a manual upload cadence can keep pace with, AND when that staleness materially affects user decisions.\n\n- Every 15 minutes: clearly requires a connector\n- Daily: usually requires a connector if decisions are made daily\n- Weekly: borderline — depends on decision impact\n- Monthly or annually: static upload is almost always sufficient\n\nThe cost of setup must be weighed against the cost of staleness for each data source independently.",
+      "examTip": "Multi-select connector items will always include annual-update options as distractors. Annual data does not justify a connector — the manual refresh cadence is entirely manageable. Focus on **daily-or-faster-changing data that drives immediate decisions**."
+    }
+  },
+  {
+    "id": "CKM-B-038",
+    "domain": "Configuration and Knowledge Management",
+    "topic": "When to split a document — criteria",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A knowledge manager at a 200-person management consulting firm is deciding which documents in a Claude Project knowledge base should be split into smaller files. Which TWO situations MOST justify splitting a document? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "The document was uploaded more than six months ago." },
+      { "key": "B", "text": "The document is formatted as a PDF rather than a Word file." },
+      { "key": "C", "text": "The document covers five distinct service offerings and queries consistently ask about one offering at a time." },
+      { "key": "D", "text": "The document is 120 pages long and Claude's answers to section-specific questions are consistently too general." },
+      { "key": "E", "text": "The document is the only file currently in the Project knowledge base." }
+    ],
+    "correct": ["C", "D"],
+    "explanation": {
+      "correct": "Option C describes exactly the condition that splitting is designed to address: distinct sections with section-specific queries. When queries target one service offering at a time, a dedicated file gives Claude the full depth of that offering without the signal noise from the other four. Option D combines two signals — large size and observed generic output — that together confirm splitting would improve specificity.",
+      "distractors": {
+        "A": "Document age is not a splitting criterion. An old document that is still current and well-structured should not be split. Age is a freshness concern, not a retrievability concern.",
+        "B": "PDF format does not determine whether a document should be split. Claude processes PDFs effectively; format has no bearing on the semantic coherence of the content.",
+        "E": "Being the only file in a knowledge base is irrelevant to splitting decisions. One well-structured single-file knowledge base is often preferable to multiple poorly structured files."
+      },
+      "concept": "**Splitting criteria**:\n1. **Query pattern**: if queries are consistently section-specific (one service, one product, one region), splitting allows Claude to focus on the relevant section\n2. **Observed generic output**: if Claude is averaging across the document rather than retrieving specific content, the document is too undifferentiated for Claude to navigate it effectively\n\n**Non-criteria** for splitting: age, format, file count, arbitrary page thresholds\n\nAlways split along natural semantic boundaries, not along arbitrary size or date boundaries.",
+      "examTip": "The two correct signals for splitting are a **query pattern that targets one section at a time** (C) and **observed generic output from a large undifferentiated document** (D). Age (A) is a freshness signal; format (B) is a non-signal; file count (E) is irrelevant."
+    }
+  },
+  {
+    "id": "CKM-B-039",
+    "domain": "Configuration and Knowledge Management",
+    "topic": "Versioning best practices",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A content operations manager at a 600-person media company is establishing versioning standards for a Claude Project shared across 15 editors. Which TWO practices MOST directly prevent version-related errors in Project knowledge? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Store all previous document versions in a subfolder within Project knowledge so editors can reference revision history." },
+      { "key": "B", "text": "When uploading a new version, remove the prior version in the same session before finalising the upload." },
+      { "key": "C", "text": "Name all files with a sequential version counter suffix (v1, v2, v3) to maintain traceability within the Project." },
+      { "key": "D", "text": "Add a Project instruction telling Claude to prefer the document with the highest version number when multiple versions exist." },
+      { "key": "E", "text": "Maintain a document register outside the Project that records the current version of each file and its last review date." }
+    ],
+    "correct": ["B", "E"],
+    "explanation": {
+      "correct": "Removing the prior version when uploading a new one (B) prevents conflicting versions from ever coexisting in Project knowledge — the most direct prevention of version errors. A document register outside the Project (E) creates accountability for what is current without placing revision history inside the AI knowledge base itself, where it would create ambiguity.",
+      "distractors": {
+        "A": "Storing prior versions inside Project knowledge is directly counterproductive: it guarantees that superseded content is present and accessible to Claude alongside the current version, which is precisely the state that version errors arise from.",
+        "C": "Version counter suffixes help humans identify the sequence but provide no guidance to Claude about which version is authoritative. Claude cannot apply a 'use the highest version number' rule reliably from filename inspection alone.",
+        "D": "An instruction to prefer higher version numbers is an unreliable workaround. It depends on consistent naming, correct version counter application, and Claude applying the rule correctly across all sessions — all of which are fragile."
+      },
+      "concept": "**Two-layer version control for Project knowledge**:\n1. **In the Project**: always replace, never accumulate. One file per document, one version at a time.\n2. **Outside the Project**: maintain a document register with version history, review dates, and ownership. This is the audit trail layer.\n\nThe division of responsibility:\n- The AI Project is a current-state reference tool, not a version archive\n- A document management system or shared register is the right place for version history\n\nThis two-layer approach gives teams both freshness (in the Project) and traceability (in the register).",
+      "examTip": "Option A (previous versions in the Project) is the highest-risk distractor in this set — it sounds like good practice (keeping history accessible) but directly creates the problem it is supposed to manage. **History belongs outside the Project. The Project holds only the current version.**"
+    }
+  },
+  {
+    "id": "CKM-B-040",
+    "domain": "Configuration and Knowledge Management",
+    "topic": "Well-structured document properties",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A data architect at a global financial services firm is advising the knowledge management team on document structure standards for Claude Project knowledge. Which THREE properties MOST improve a document's retrievability within a Claude Project? (Choose THREE)",
+    "options": [
+      { "key": "A", "text": "Clear, specific section headings that name the entity, process, or policy each section covers." },
+      { "key": "B", "text": "A comprehensive table of contents at the start listing every section." },
+      { "key": "C", "text": "Compressing all documents into a single ZIP archive to reduce storage overhead." },
+      { "key": "D", "text": "Filenames that include the document type, subject area, and date of last review." },
+      { "key": "E", "text": "Content organised with consistent bullet points and tables rather than dense unstructured paragraphs." }
+    ],
+    "correct": ["A", "D", "E"],
+    "explanation": {
+      "correct": "Section headings (A) give Claude navigational signals within a document, allowing it to locate relevant passages rather than averaging across the whole. Descriptive filenames (D) give Claude a pre-reading match signal between a query and the relevant document. Structured formatting (E) — bullets and tables rather than dense prose — improves extraction of specific values and discrete items. Together these three address document-level, file-level, and content-level retrievability.",
+      "distractors": {
+        "B": "A table of contents helps human readers navigate but does not materially improve Claude's retrieval. Claude processes the document as a text stream; a ToC adds a list of headings but does not substitute for the headings themselves being present throughout the document.",
+        "C": "Compressing documents into a ZIP archive would typically prevent Claude from reading them at all — ZIP files are not readable as document content. This is an example of a technically plausible-sounding but clearly wrong option."
+      },
+      "concept": "**Three dimensions of document retrievability**:\n\n1. **File-level** (before reading): descriptive filename with type, subject, and recency → gives Claude a match signal before it opens the document\n2. **Section-level** (navigation within): clear descriptive headings → allows Claude to locate the relevant section for section-specific queries\n3. **Content-level** (extraction from text): tables and bullets vs. prose → allows Claude to extract specific values accurately\n\nAll three dimensions contribute independently. A well-named file with no internal structure is better than an unnamed one, but still produces generic output. A well-structured document with a generic filename may not be retrieved at all for the right query.",
+      "examTip": "A table of contents (B) is the most common wrong answer in document-structure items. It helps humans find sections but Claude already processes the full document — the ToC adds no navigational benefit. What Claude needs is **headings throughout the document**, not a summary list at the front."
+    }
+  }
+]

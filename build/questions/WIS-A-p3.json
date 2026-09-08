@@ -1,0 +1,503 @@
+[
+  {
+    "id": "WIS-A-041",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Failure mode: automating a task with ambiguous criteria",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A senior editor at a trade publication has been using Claude to flag articles in the editorial queue that exceed the house word limit. This worked well for three months. The workflow now fails to flag an article that is 200 words over the limit. The editor investigates and finds that Claude is counting words differently from the publication's editorial style guide, which excludes captions, pull quotes, and footnotes from the word count. What does this failure MOST clearly illustrate about the original workflow design?",
+    "options": [
+      { "key": "A", "text": "Claude cannot reliably count words in long documents and should not be used for counting tasks" },
+      { "key": "B", "text": "The criteria were not fully specified — the prompt defined a word limit but did not define what counts as a word or which text elements are included in the count" },
+      { "key": "C", "text": "The workflow needed a more capable model to handle the nuanced distinction between body text and ancillary elements" },
+      { "key": "D", "text": "Word limit enforcement should never be automated and always requires a human editor" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The failure reveals an incomplete specification: the prompt defined the limit number but not the definition of what counts toward that limit. Claude applied its default word-counting logic; the publication's style guide applied a different, narrower definition. Both are internally consistent; they simply differ. The root cause is that the criteria were ambiguous at the point of prompt design — a specification gap, not a capability gap.",
+      "distractors": {
+        "A": "Claude can count words in documents reliably when the counting criteria are clearly specified. The problem here is not a capability failure — it is a specification failure. Concluding that Claude cannot count words overgeneralises from a specific specification gap.",
+        "C": "A more capable model would apply the same default word-counting logic unless told otherwise. Model tier does not resolve a missing definition in the prompt. This option mistakes a specification problem for a capability problem.",
+        "D": "Word limit enforcement is a well-structured, repeatable task that is appropriate for automation — once the criteria are correctly specified. Concluding it should never be automated overgeneralises from a specific instance of incomplete specification."
+      },
+      "concept": "**Ambiguous criteria** are one of the most common failure modes in Claude-assisted workflows. The task appeared to work because the ambiguity did not surface in common cases — most articles fell clearly within or outside the limit under either definition. The edge case (where the two definitions diverge) exposed the gap.\n\nPrevention:\n- When designing a classification or flagging task, write out the full definition of each criterion\n- Include a test case that specifically probes edge cases near the boundary\n- Review the prompt specification against all relevant style guide rules, not just the headline rule\n\nThe lesson: **a successful run does not confirm correct specification.** Three months of correct flagging on easy cases masked an incomplete definition that only showed up at the boundary.",
+      "examTip": "Workflow failure items often describe a task that worked for a period and then failed. The cause is almost never \"Claude stopped working\" — it is an edge case that exposed a hidden assumption or incomplete specification. Look for the mismatch between what the prompt specified and what the real-world criteria require. The exam expects you to identify the specification gap, not to conclude that the task type is unsuitable."
+    }
+  },
+  {
+    "id": "WIS-A-042",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Failure mode: volume without validation",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A product operations manager at a software company deploys a Claude-assisted workflow to triage 1,200 monthly bug reports, classifying each as P1 (critical), P2 (significant), or P3 (minor). After two months, the engineering team reports that several P3-classified issues were actually P1 bugs that caused customer-facing outages. The manager reviews the workflow and finds no validation step was built in. What is the MOST accurate description of the root cause?",
+    "options": [
+      { "key": "A", "text": "The model used was not powerful enough to understand the technical severity of bug reports" },
+      { "key": "B", "text": "The workflow was deployed at production volume without first validating that Claude's severity classifications matched engineering judgment on a calibration set" },
+      { "key": "C", "text": "Bug reports are too unstructured and domain-specific for Claude to classify reliably" },
+      { "key": "D", "text": "The P1/P2/P3 priority framework was not granular enough to capture real severity variation" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Deploying at 1,200 items per month without first testing whether Claude's classifications aligned with engineering judgment on a sample of known-severity bugs is the root cause. A calibration step — running Claude on 50–100 historical bugs with known correct labels, then measuring agreement — would have revealed misclassification patterns before they affected production triage. Volume deployment without validation is a workflow design failure, not a model capability failure.",
+      "distractors": {
+        "A": "Model capability is not confirmed as the cause. A more capable model applied to the same unvalidated criteria might classify differently but not necessarily more accurately. Model tier selection comes after confirming that the classification criteria are correctly specified and tested.",
+        "C": "Bug reports are domain-specific but not inherently unclassifiable — with a well-specified severity rubric and representative examples, Claude can apply consistent classification logic. Concluding the task type is unsuitable overgeneralises from a missing validation step.",
+        "D": "The priority framework's granularity is a separate design question from whether Claude applies it correctly. Even if the framework were refined, the same absence of validation would leave the same risk of systematic misclassification."
+      },
+      "concept": "**Validation before production deployment** is required for any AI-assisted classification or decision workflow.\n\nA minimum validation protocol for a classification workflow:\n1. Collect 50–100 items with known correct labels (historical examples where outcome is verified)\n2. Run Claude's classification on this calibration set\n3. Measure agreement rate and identify systematic error patterns\n4. Refine the prompt or criteria based on findings\n5. Re-test until agreement rate meets an acceptable threshold\n6. Deploy with a sampling-based monitoring strategy to catch drift\n\nSkipping this step and deploying at full volume means: errors at scale before discovery, with the worst consequences (P1 bugs treated as P3) going undetected until downstream impact occurs.",
+      "examTip": "Failure mode items about volume workflows often describe a post-deployment discovery of systematic errors. The question is about root cause, and the root cause is almost always \"deployed without validation,\" not \"Claude is bad at this.\" Look for the absence of a calibration or testing step in the workflow description. \"No validation step was built in\" is the explicit tell in this stem."
+    }
+  },
+  {
+    "id": "WIS-A-043",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Failure mode: context window exhaustion in long workflows",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A research analyst at an investment bank uses Claude in a single long conversation to analyse a company's 10-K filing (120 pages), then its most recent investor presentation, then three analyst reports, then drafts a 15-page equity research note — all in one session. Midway through the note drafting, the analyst notices that Claude begins contradicting conclusions it drew from the 10-K earlier in the session. What is the MOST likely explanation?",
+    "options": [
+      { "key": "A", "text": "Claude changed its analysis because newer information in the analyst reports overrode the 10-K findings" },
+      { "key": "B", "text": "The length of the conversation caused the earliest content (10-K analysis) to fall outside Claude's working context, degrading its ability to maintain consistency with those earlier conclusions" },
+      { "key": "C", "text": "The investor presentation and analyst reports contained contradictory information that Claude integrated without signalling the conflict" },
+      { "key": "D", "text": "Claude's reasoning degrades when it is asked to switch between analysis and writing tasks in the same session" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "As a conversation grows very long, earlier content is increasingly distant from the model's active attention — in very long sessions, earlier context can effectively be out of scope. The 10-K analysis done at the start of the session is the most vulnerable content: by the time the equity note is being drafted, the model may no longer be fully integrating findings from the beginning of the conversation. This is a context-window management failure in the workflow design.",
+      "distractors": {
+        "A": "If newer information genuinely contradicted the 10-K, Claude should surface that tension explicitly rather than silently overriding earlier conclusions. Silent contradiction without flagging the conflict is not \"updating based on new information\" — it is consistency failure.",
+        "C": "Contradictions in source material are a real risk, but the symptom described is Claude contradicting its own earlier analysis — not two sources contradicting each other. The problem is consistency within Claude's outputs, not a signal of source document conflict.",
+        "D": "Switching between analytical and writing modes in one session is a normal, workable pattern. There is no documented degradation from task-type switching per se. The symptom described — contradicting earlier conclusions — points to context span, not task-type transition."
+      },
+      "concept": "**Context window management in long analytical sessions:**\n\nA 120-page 10-K + investor presentation + three analyst reports + 15-page draft output is a very large total context. As content accumulates, the earliest material becomes less reliably available to the model's attention.\n\nWorkflow design mitigations:\n- **Checkpoint summaries**: after the 10-K analysis, have Claude produce a structured summary of key findings and paste it at the top of the drafting session\n- **Session segmentation**: complete each major analysis phase in a separate session; carry forward a structured handoff document rather than the full conversation history\n- **Explicit anchoring**: when drafting the note, explicitly re-reference the key 10-K conclusions in the prompt context\n\nThe principle: in long analytical workflows, don't rely on conversation history to maintain key findings — extract and re-inject them at the point of use.",
+      "examTip": "Consistency failures in long Claude sessions almost always trace to context-span issues, not model reasoning degradation. The discriminator is the *timing* of the contradiction: if it appears late in a very long session, context exhaustion is the most likely explanation. The fix is workflow restructuring (session segmentation, checkpoint summaries), not model selection."
+    }
+  },
+  {
+    "id": "WIS-A-044",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Failure mode: poor-fit task deployed without redesign",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A clinical documentation specialist at a hospital system uses Claude to generate preliminary ICD-10 diagnosis codes from physician notes, with a physician reviewing each code assignment before finalisation. After six months, the quality assurance team reports that the physician review step is taking approximately 45 seconds per encounter — barely faster than coding manually — and the accept-without-change rate is only 52%. The hospital's CMO interprets this as a workflow failure. What does the 52% accept rate MOST likely indicate?",
+    "options": [
+      { "key": "A", "text": "The physician review step is too long and should be shortened so Claude's codes are accepted more quickly" },
+      { "key": "B", "text": "Claude's preliminary codes are accurate enough that the workflow is working as designed — 52% straight-through acceptance is reasonable for a complex clinical coding task" },
+      { "key": "C", "text": "The 52% accept rate signals that Claude's code suggestions are frequently wrong or incomplete, meaning physicians spend most review time correcting rather than confirming — a sign the task may not be a good fit in its current form" },
+      { "key": "D", "text": "The code assignments should be reviewed by a clinical coder rather than a physician to improve throughput" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "A 52% accept-without-change rate means physicians are modifying or replacing Claude's code suggestion nearly half the time. Combined with a 45-second review (similar to manual coding time), the workflow provides little net efficiency. When a Claude-assisted step requires as much corrective effort as doing the task manually, it is a signal that the task's complexity or ambiguity exceeds what Claude reliably produces, and the workflow design should be re-evaluated — potentially moving to a different role for Claude (e.g., extracting diagnoses for the coder to map, rather than generating codes directly).",
+      "distractors": {
+        "A": "Shortening the review step without addressing the underlying accuracy issue would likely increase coding errors. The goal is not faster rubber-stamping — it is accurate code assignment. The review time is a symptom; the accuracy rate is the cause.",
+        "B": "52% straight-through acceptance is not reasonable for a task positioned as an efficiency improvement. For the workflow to deliver value, accept rates should be significantly higher — typically 80%+ before the time savings justify the additional infrastructure. Framing 52% as \"working as designed\" normalises a poor-performing workflow.",
+        "D": "Routing to a clinical coder instead of the physician changes the reviewer role but does not address the root cause: Claude's code suggestions are frequently wrong or incomplete, requiring significant correction regardless of who reviews. The task design, not the reviewer type, is the primary issue."
+      },
+      "concept": "**Accept rate as a workflow health metric:**\n\nFor a draft-and-review AI workflow, the accept-without-change rate is a proxy for the task fit and prompt quality.\n\n- **80%+ accept rate**: Claude's output is high quality; review is light and fast; the workflow delivers efficiency\n- **60–80% accept rate**: meaningful correction volume; efficiency gain is real but modest; prompt improvement likely needed\n- **Below 60% accept rate**: reviewers spend most time correcting; net efficiency gain may be negative; task fit or prompt specification should be re-evaluated\n\nCombined with review time equal to manual coding time, a 52% accept rate indicates the workflow is providing little or no efficiency gain — a design re-evaluation is warranted before scaling.",
+      "examTip": "Failure mode items sometimes present a metric (accept rate, review time) and ask for the correct interpretation. The trap is option B — accepting 52% as \"reasonable\" for a complex task. Always anchor accept rates to efficiency: if the review is as slow as manual coding AND half the suggestions require correction, the workflow is not delivering value. The CMO's \"workflow failure\" interpretation is the correct one."
+    }
+  },
+  {
+    "id": "WIS-A-045",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Failure mode: over-automation removing necessary human judgment",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A lending operations manager at a regional bank automates the loan application pre-screening workflow: Claude reads each application, extracts income, assets, and debt-to-income ratio, compares against underwriting guidelines, and sends applicants a conditional approval or decline letter without human review. Within 30 days, the bank's compliance team flags two problems: (1) four applicants who should have qualified were declined based on a guideline Claude misinterpreted, and (2) the bank may have violated fair lending regulations by allowing an unreviewed AI to issue credit decisions. Which aspect of the design is the ROOT structural flaw?",
+    "options": [
+      { "key": "A", "text": "The model used for pre-screening was not calibrated for financial services terminology" },
+      { "key": "B", "text": "The workflow did not include a step to validate Claude's guideline interpretation against historical approvals before deployment" },
+      { "key": "C", "text": "Claude was assigned to issue credit decision letters — a regulated, consequential output — without any human review, removing the accountability required by fair lending law" },
+      { "key": "D", "text": "The income and asset extraction step should have been performed by the bank's core banking system rather than Claude" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The structural flaw is that Claude issues credit decision letters — regulated outputs with legal consequences for applicants — without human review. Fair lending regulations require that credit decisions be made by accountable individuals and that adverse action notices meet specific legal requirements. Allowing an AI to send letters that constitute credit decisions with no human sign-off violates the accountability chain that consumer financial regulation requires. The misinterpreted guideline is a quality problem that human review would have caught; the regulatory exposure is a design problem that no validation step fully resolves.",
+      "distractors": {
+        "A": "Model calibration for financial terminology is a quality concern, not a structural flaw. A better-calibrated model still issuing unreviewed credit letters has the same regulatory exposure. Model quality does not substitute for human accountability on regulated outputs.",
+        "B": "Pre-deployment validation against historical approvals is a good practice that would have caught the misinterpreted guideline — but it addresses the quality problem, not the structural accountability problem. Even a perfectly accurate Claude issuing unreviewed credit decisions would still violate the accountability requirement.",
+        "D": "Using the core banking system for data extraction is a legitimate technical alternative, but the root flaw is not where data comes from — it is the absence of human review before credit decision letters are sent. The data extraction step is not what caused the regulatory problem."
+      },
+      "concept": "**Regulated outputs and human accountability:**\n\nCredit decisions are governed by fair lending law (conceptually: notice requirements, non-discrimination, adverse action rights). The requirement is not just that the decision be accurate — it is that a responsible person can be held accountable for it.\n\nThe structural principle: **AI can assist in gathering, extracting, and summarising information for a credit decision; it cannot be the decision-maker on a regulated output.**\n\nCorrect design: Claude extracts and summarises; a licensed underwriter reviews and issues the decision letter. The underwriter's name — not an AI's output — must be on the adverse action notice.\n\nThis principle applies to any regulated decision: credit, employment, insurance, clinical. The accountability chain must include a human decision-maker.",
+      "examTip": "When a workflow involves a regulated output (credit decision, clinical order, employment action) and the scenario describes a straight-through AI process with no human review, the structural flaw is always the absent accountability gate. Pre-deployment validation (option B) and model quality (option A) are good practices but do not resolve the underlying accountability requirement. The exam distinguishes quality controls (helpful) from structural governance (required)."
+    }
+  },
+  {
+    "id": "WIS-A-046",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Failure mode: incompatible task handoff between AI steps",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A content team at a pharmaceutical company designs a two-step AI workflow for medical education materials. Step 1: Claude summarises a 60-page clinical study into a 500-word lay summary. Step 2: a second Claude session takes the lay summary as input and generates questions for a physician training quiz. The team finds that the quiz questions are often too basic and do not adequately test clinical nuance. What is the MOST likely root cause?",
+    "options": [
+      { "key": "A", "text": "The second Claude session should use a more capable model than the first" },
+      { "key": "B", "text": "A 500-word lay summary, optimised for patient comprehension, loses the clinical detail that the second step needs to generate clinically nuanced quiz questions" },
+      { "key": "C", "text": "Quiz generation should be done by a human subject-matter expert rather than Claude" },
+      { "key": "D", "text": "The two steps should be combined into a single prompt to allow Claude to reference the full 60-page study when generating questions" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The root cause is a handoff design mismatch: the output of step 1 was optimised for lay audience comprehension — it strips out clinical terminology, statistical nuance, and mechanistic detail. Step 2 then tries to generate clinically nuanced physician questions from a document that no longer contains clinical nuance. The intermediate product (lay summary) is the wrong input for the downstream task (clinical quiz generation). The workflow needs a different handoff artifact — a clinical summary, not a lay summary — or a direct connection to the study.",
+      "distractors": {
+        "A": "A more capable model in step 2 still operates on the lay summary as input. If the input lacks clinical detail, generating clinically nuanced output from it is difficult regardless of model capability. Model selection does not fix an information-gap in the handoff.",
+        "C": "Quiz generation can be appropriately AI-assisted when the input contains the right clinical information. Defaulting to human-only generation because one workflow design failed misattributes the cause. The problem is the handoff artifact, not the step type.",
+        "D": "Combining into a single prompt is one possible fix, but option D conflates the diagnosis with a solution. The question asks for root cause, not remedy. The root cause is the information-loss in the intermediate artifact, which option B identifies correctly."
+      },
+      "concept": "**Multi-step workflow handoffs require checking that the output of step N contains the information that step N+1 needs.**\n\nA common failure pattern: the first step summarises or compresses information to serve one audience (patients), and the second step tries to recover detail from that compressed artifact to serve a different audience (physicians). Information lost in compression cannot be recovered downstream.\n\nDesign checks for multi-step workflows:\n- Map what information each step requires as input\n- Confirm that the upstream step's output contains that information\n- When one artifact must serve multiple downstream purposes, verify it serves all of them adequately — or generate separate artifacts for different purposes\n\nFor this workflow: generate two outputs from the clinical study — a lay summary for patients and a clinical summary for quiz generation.",
+      "examTip": "Multi-step workflow failure items often describe a quality problem at step N that is actually caused by an information-loss at step N-1. Look at what the failing step receives as input and ask: \"Does this input actually contain what is needed?\" If the lay summary is the input and clinical nuance is the required output, the handoff is the problem. The solution usually involves either a richer intermediate artifact or a direct connection to the original source."
+    }
+  },
+  {
+    "id": "WIS-A-047",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Failure mode: criteria drift in iterative batch workflows",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A compliance team at an asset manager uses Claude to review 300 client communications per month for regulatory compliance flags. The team reviews Claude's flags and overrides about 15% of them. After six months, a regulator audit finds that the team had progressively raised the threshold for overriding Claude's non-flags — effectively becoming less likely to mark a communication as compliant if Claude had flagged it. The result is that true positives (genuinely non-compliant communications) that Claude missed were also missed by the team. What design failure does this scenario describe?",
+    "options": [
+      { "key": "A", "text": "Claude's compliance detection criteria were not updated when the regulatory framework changed" },
+      { "key": "B", "text": "The team did not have sufficient compliance expertise to override Claude's flags accurately" },
+      { "key": "C", "text": "The workflow created automation bias: over time, the review team's oversight became anchored to Claude's output rather than exercising independent compliance judgment, causing missed non-flags to go undetected" },
+      { "key": "D", "text": "A 15% override rate is too high, indicating Claude's flags were not reliable enough for production use" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "This is automation bias at scale: the review team, initially applying independent judgment, progressively deferred to Claude's framing. They became very good at reviewing Claude's positive flags — but stopped independently looking for compliance issues Claude had not flagged. The result is a surveillance gap: the team only sees what Claude surfaces, missing non-flags entirely. This is a known failure mode of human-AI review workflows where the human oversight layer atrophies over time.",
+      "distractors": {
+        "A": "Regulatory changes are a real maintenance risk for any compliance workflow, but the scenario describes a behavioural drift in the review team, not a change in the underlying regulatory criteria. The audit finding is about what the team missed, not about outdated rules.",
+        "B": "The team's expertise is not identified as the cause. The scenario describes a change in behaviour over time — initially they were applying independent judgment, then progressively less so. Expertise atrophy is different from insufficient expertise at the start.",
+        "D": "A 15% override rate on flagged items is actually a sign that human review is working — reviewers are catching Claude's errors. The problem is not the flag override rate; it is the absence of independent review of non-flagged items. The metric focus is on the wrong side of the distribution."
+      },
+      "concept": "**Automation bias at scale** — the progressive atrophy of independent review in AI-assisted workflows:\n\nPhase 1: deployment. Reviewers apply full independent judgment; they check both Claude's flags and the non-flagged items.\n\nPhase 2: adaptation. Reviewers become efficient at processing flags; they stop independently reviewing non-flagged items because \"Claude would have caught anything important.\"\n\nPhase 3: atrophy. The review function now only processes what Claude surfaces. Anything Claude misses is invisible to the entire review layer.\n\nDesign countermeasure: include a random sampling obligation in the workflow — reviewers must independently review a fixed percentage of non-flagged items each cycle to maintain independent surveillance and detect Claude's systematic blind spots.",
+      "examTip": "This hard item describes a second-order failure: the initial deployment was sound (15% override rate shows active review), but the behaviour of the review layer degraded over time. The failure is not in the AI output — it is in how the human oversight layer evolved. Automation bias items test whether you recognise that the human layer of a workflow can fail even when the AI layer is performing consistently."
+    }
+  },
+  {
+    "id": "WIS-A-048",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Edge case: tasks where errors are invisible at review",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A grant administrator at a research university uses Claude to extract numerical data from 150 grant applications and compile the data into a comparison spreadsheet for the review committee. The committee identifies a grant that has been incorrectly ranked because Claude transposed a zero in one applicant's budget request ($1.2M read as $120K). The administrator uses a human review step but the error still reached the committee. What does this scenario MOST clearly illustrate about workflow design for numerical extraction tasks?",
+    "options": [
+      { "key": "A", "text": "Claude should not be used for any tasks involving numerical data" },
+      { "key": "B", "text": "A human review step is sufficient governance for numerical extraction tasks if the reviewer is given enough time" },
+      { "key": "C", "text": "Numerical extraction errors are often invisible to reviewers who trust that an extracted figure is correct unless it strikes them as obviously implausible — the review step must be designed to catch transcription errors, not just logical errors" },
+      { "key": "D", "text": "The comparison spreadsheet should have been generated by the grant management system, not Claude" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "$120K is a plausible budget for a small grant; the reviewer has no reason to flag it as suspicious unless they happen to know the applicant requested more. Transcription errors that fall within plausible ranges are invisible to logic-based review. The review step must be designed to catch transcription errors specifically — for example, by having reviewers spot-check extracted figures against source documents on a sample basis, or by building an automated cross-check that compares extracted values to source PDFs.",
+      "distractors": {
+        "A": "Concluding Claude should not be used for any numerical data overgeneralises from a specific transcription error that could be caught by better workflow design. Numerical extraction is appropriate for Claude with appropriate verification steps.",
+        "B": "A human review step is not sufficient if the reviewer has no mechanism to detect transcription errors. Reviewing a plausible-looking spreadsheet without checking figures against the source does not catch transposition errors. Review step design matters as much as the existence of a review step.",
+        "D": "Using the grant management system for data export is an alternative data pipeline that might reduce errors — but it is a technical alternative, not an identification of the root design failure. The scenario illustrates a review step design problem, not primarily a data-source problem."
+      },
+      "concept": "**Invisible errors in numerical extraction:** transcription errors that produce plausible values are not caught by logic review.\n\nTwo types of numerical review errors:\n1. **Logically implausible**: a budget of $1.2B for a small research project — easily caught\n2. **Logically plausible but wrong**: $120K instead of $1.2M for a project that might plausibly be either — invisible without source comparison\n\nDesign responses:\n- **Spot-check sampling**: reviewers verify a random sample of extracted figures against source documents\n- **Automated cross-check**: if source PDFs are available, use text extraction to compare against Claude's output on a separate pass\n- **Range-based flagging**: flag extractions that differ from the applicant's stated amounts elsewhere in the form\n- **Two-reviewer confirmation** on high-value figures above a threshold\n\nThe principle: for high-stakes numerical extraction, design the review step to specifically test for transcription errors, not just logical plausibility.",
+      "examTip": "This hard item tests a nuanced point: a review step can exist and still fail to catch specific error types. The failure is in the review step *design*, not in the existence of review. Numerical transcription errors require source-comparison review, not plausibility review. If a review step only checks whether figures look reasonable, it will miss any error that produces a plausible-but-wrong number."
+    }
+  },
+  {
+    "id": "WIS-A-049",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Edge case: high-volume task with low-frequency high-stakes exceptions",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A customer service operations manager at an insurance company uses Claude to triage 5,000 inbound emails per month, routing them to the appropriate team. The vast majority route correctly. However, a small number of emails contain implicit expressions of financial distress (customers mentioning they cannot pay premiums due to job loss) that require routing to a specialist team with vulnerability protocols. Claude routes these to the standard billing queue instead. What does this failure most clearly indicate about the workflow design?",
+    "options": [
+      { "key": "A", "text": "Claude should be replaced by a human-only routing process for insurance email triage" },
+      { "key": "B", "text": "The volume of 5,000 emails per month makes AI-assisted triage economically necessary, so the misrouting of vulnerable customers is an acceptable trade-off" },
+      { "key": "C", "text": "The routing criteria were designed for high-frequency standard cases and did not include detection rules for low-frequency but high-consequence exception categories, creating a systematic gap for the most sensitive emails" },
+      { "key": "D", "text": "The routing failure is a training data problem — Claude has not been exposed to enough examples of financially distressed customers" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The workflow was designed around the high-frequency routing cases and did not include explicit criteria for rare but consequential exception categories. Implicit financial distress signals (mentioning job loss, inability to pay) are low-frequency but high-stakes — missing them exposes vulnerable customers to incorrect handling with potential regulatory and reputational consequences. The design gap is the absence of a dedicated detection pathway for these exception categories.",
+      "distractors": {
+        "A": "Replacing AI-assisted triage with human-only routing ignores the efficiency case and overgeneralises from a specific gap in the exception criteria. The fix is to add the missing detection rules, not to abandon the workflow.",
+        "B": "Misrouting vulnerable customers is never an acceptable trade-off in an insurance context. Vulnerability protocols exist for regulatory and ethical reasons; treating them as an acceptable loss rate is both wrong and likely non-compliant with consumer protection obligations.",
+        "D": "Framing this as a training data problem mischaracterises how Claude works. Claude is not fine-tuned on company-specific routing examples — the issue is that the prompt and routing criteria did not include detection rules for vulnerability signals. The fix is prompt and criteria design, not training data."
+      },
+      "concept": "**High-volume workflows with low-frequency, high-consequence exceptions** require explicit exception pathway design.\n\nA common design failure: criteria optimised for the 99th percentile common case, with no rules for the 1% exception cases that carry 90% of the risk.\n\nFor vulnerability routing specifically:\n- Common signals: explicit inability to pay, job loss, bereavement, domestic situation\n- Implicit signals: apologetic tone, requests for extended payment plans, mentions of health events\n- Design requirement: a dedicated detection criterion and routing rule for each signal category, with escalation to a specialist team\n\nPrinciple: **exception handling must be explicitly designed, not assumed.** High-stakes low-frequency cases will not be caught by criteria tuned for high-frequency standard cases.",
+      "examTip": "This hard item tests the \"exception pathway\" design principle. The most attractive wrong answer is D (training data) because it sounds technical and specific. But Claude's routing behaviour is determined by its prompt and criteria, not by fine-tuning. Whenever a Claude-assisted routing or classification workflow misses a specific category of cases, the root cause is almost always missing detection criteria for that category, not a model capability limitation."
+    }
+  },
+  {
+    "id": "WIS-A-050",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Edge case: batch workflow failure from upstream data change",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A financial analyst at a retail company runs a weekly batch workflow where Claude reads a Monday morning data extract and produces a commentary report on sales performance versus plan. This week's report contains incorrect variance calculations. The analyst investigates and finds the source system changed the column order in the extract file on Friday — plan figures are now in a different column. What does this failure illustrate about batch workflow resilience?",
+    "options": [
+      { "key": "A", "text": "Claude cannot reliably perform mathematical calculations and should not be used for financial reporting" },
+      { "key": "B", "text": "Batch workflows that depend on a fixed data format are fragile when upstream systems change their output structure — the workflow design should reference named columns or include a format validation step before processing" },
+      { "key": "C", "text": "The prompt should have been written to handle any column order, since data formats inevitably change over time" },
+      { "key": "D", "text": "The source system team should have notified the analyst before changing the column order" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The workflow assumed a fixed column order and broke when that order changed. This is a structural brittleness: when a workflow's inputs are defined by position (column 3 = plan) rather than by name (column header: \"Plan\"), any upstream format change silently produces wrong outputs. The design fix is to validate input format before processing, or to instruct Claude to locate columns by header name rather than position — building in resilience against upstream changes.",
+      "distractors": {
+        "A": "Claude's arithmetic was correct — it calculated the variance between the columns it was told to use. The error is not in the calculation but in which column was identified as the plan figure. Concluding Claude cannot do financial calculations overgeneralises from a data format failure.",
+        "C": "Writing a prompt to handle any column order is one mitigation, but it is more complex and error-prone than a format validation step. More importantly, option C is a solution description, not a correct characterisation of the failure. The question asks what the failure illustrates.",
+        "D": "Notification from the source system team is a process discipline recommendation, not a workflow design lesson. Even with notification, the workflow as designed would still have broken. The workflow itself must be resilient to upstream changes — notification is a courtesy, not a substitute for format validation."
+      },
+      "concept": "**Batch workflow resilience and input format validation:**\n\nBatch workflows that consume structured data files are vulnerable to upstream format changes. Common failure modes:\n- Column reordering (plan figures shift to a different position)\n- Column renaming (header text changes)\n- New columns inserted before existing columns\n- File delimiter changes\n\nResilience design patterns:\n1. **Header-based column lookup**: instruct Claude to identify columns by their header name, not by position\n2. **Format validation step**: before processing, confirm expected headers are present in the expected structure; fail loudly if not\n3. **Row count sanity check**: verify the extract has a plausible number of rows before running full analysis\n4. **Change notification protocol**: register the workflow as a downstream consumer of the source system so format changes trigger a review\n\nPrinciple: **assume upstream systems will change; design for detectability when they do.**",
+      "examTip": "Batch workflow resilience items typically describe a silent failure — the workflow runs and produces output, but the output is wrong because the input changed. The failure is invisible until someone reviews the output. The design lesson is always about detecting format changes before processing, not about Claude's analytical capability. Look for the word \"column,\" \"format,\" or \"structure\" as signals that this is a data-format resilience item."
+    }
+  },
+  {
+    "id": "WIS-A-051",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Edge case: task suitability changes with scale",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A communications manager at a 50-person non-profit successfully uses Claude to draft personalised thank-you letters to 30 major donors per quarter. Encouraged by this, she rolls out the same workflow to generate letters for all 4,000 annual donors. Three months later, the fundraising director reports a significant drop in re-donation rates. An analysis finds that the mass-generated letters contain no genuine personal detail — they feel formulaic. What does this illustrate about task suitability at different scales?",
+    "options": [
+      { "key": "A", "text": "Claude writes lower-quality letters at high volume than at low volume due to processing constraints" },
+      { "key": "B", "text": "The personalisation inputs (specific donor interactions, giving history, personal connection) that made the 30-letter workflow effective were not scalable to 4,000 donors — at scale, the letters lacked the information that made them personalised" },
+      { "key": "C", "text": "Thank-you letters should always be handwritten and should never be AI-assisted at any scale" },
+      { "key": "D", "text": "The fundraising director's analysis is anecdotal — a drop in re-donation rates cannot be attributed to letter quality alone" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The 30-letter workflow worked because the communications manager had specific, personal information about each major donor — a conversation they had, a programme they supported, a visit they made. This information was the input that made Claude's drafts genuinely personalised. Scaling to 4,000 donors without comparable personal data means Claude receives no personalisation inputs — it writes generic letters with donor names inserted. The task fit is only as strong as the quality of the inputs, and the inputs did not scale with the volume.",
+      "distractors": {
+        "A": "Claude's output quality does not degrade with volume — it processes each letter independently with the same prompt quality. The quality issue is not a volume-processing constraint; it is an input-quality issue that was masked at low volume.",
+        "C": "AI-assisted thank-you letters can be effective when the personalisation inputs are available. The failure is not inherent to AI assistance — it is specific to the absence of personal detail inputs at scale. Concluding that letters should never be AI-assisted overgeneralises.",
+        "D": "Attributing the drop to letter quality may not be the only factor, but the question asks what the scenario illustrates about task suitability. Option D sidesteps the design lesson by questioning the attribution. For exam purposes, the scenario is designed to illustrate the input-quality dependency of personalisation workflows."
+      },
+      "concept": "**Input quality dependency in personalisation workflows:**\n\nPersonalisation at any scale requires personalisation *inputs* — specific facts about the recipient that make the communication feel individual. The AI's role is to articulate those facts in a compelling way, not to invent them.\n\nThe scaling failure:\n- 30 major donors: relationship manager has specific notes on each → personalisation inputs exist → effective\n- 4,000 annual donors: only CRM data (name, gift amount, date) → personalisation inputs are generic → output is generic regardless of AI quality\n\nDesign lesson: before scaling a personalisation workflow, assess whether personalisation inputs can scale with it. If not, the workflow should either:\n- Use the available data for structured, non-personalised acknowledgements (efficient but not personalised)\n- Maintain high-quality personalisation at a controlled volume (personalised but not scaled)",
+      "examTip": "Scale failure items test whether you understand that task suitability depends on input availability, not just on task type. A personalisation task is not universally high-fit — it is high-fit when personalisation inputs are rich and low-fit when they are generic. This principle applies to any task that claims to be personalised: the quality of the personalisation is bounded by the quality of the information the workflow has about each individual."
+    }
+  },
+  {
+    "id": "WIS-A-052",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Edge case: multi-step workflow with inconsistent output formats",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A research operations coordinator at a pharmaceutical company runs a three-step Claude workflow: (1) extract adverse events from 200 case narratives, (2) standardise extracted terms to MedDRA preferred terms, (3) compile a frequency summary table. In step 3, Claude produces a narrative summary instead of the structured table the downstream pharmacovigilance database requires. What is the MOST likely root cause and correct fix?",
+    "options": [
+      { "key": "A", "text": "The model used in step 3 does not support structured output and should be replaced with an API-based structured output call" },
+      { "key": "B", "text": "Step 3's prompt did not specify the required output format — adding explicit format instructions (column headers, row structure, delimiters) to the step 3 prompt should resolve the issue" },
+      { "key": "C", "text": "Step 2's standardisation output was in the wrong format, causing step 3 to produce a narrative instead of a table" },
+      { "key": "D", "text": "Multi-step workflows always require human review between steps to prevent format drift" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "When no output format is specified, Claude defaults to the most natural format for the task — which for a \"frequency summary\" is often a narrative description. The fix is explicit format specification in step 3's prompt: define the column headers (Preferred Term, Frequency, Percentage), specify the row structure, and state that the output must be in table format compatible with the downstream system. Explicit format instructions reliably control output structure.",
+      "distractors": {
+        "A": "This is a structured output task that can be handled through prompt specification. Jumping to API-level structured output calls is an over-engineering response to a prompt-specification gap. The issue can be resolved at the prompt level before considering technical changes.",
+        "C": "Step 2's output format affects what step 3 receives as input, but the described problem is specifically that step 3 produces a narrative instead of a table — which is a step 3 format specification issue, not an input format issue. If the step 2 output contained the correct terms, step 3 would still produce the correct structure if properly specified.",
+        "D": "Human review between steps is a quality governance option but not the correct diagnostic response to a format issue. Adding a review step without fixing the format specification means reviewers receive the wrong format every cycle. The fix should address the root cause, not just add oversight around it."
+      },
+      "concept": "**Output format specification in multi-step workflows:**\n\nEach step in a multi-step workflow must specify its output format, particularly when that output feeds a downstream system with specific requirements.\n\nSpecification elements for a table output:\n- Column names (exact header text)\n- Row structure (one row per what?)\n- Data type expectations (counts as integers, not as \"approximately X\")\n- Delimiter or format type if the output will be parsed programmatically\n\nThe general rule: Claude defaults to natural language unless format is specified. In a multi-step workflow feeding a structured system, *every step* whose output must meet a structural requirement needs explicit format instructions.\n\nThe failure pattern: format is specified for step 1 (the highest-visibility step), then assumed for subsequent steps.",
+      "examTip": "Output format problems in multi-step workflows are almost always prompt specification gaps, not model capability limitations. The tell is \"produces a narrative instead of a table\" — Claude can produce tables; it was not told to. The fix is always adding explicit format instructions to the specific step where the format requirement was not specified. Check which step's prompt is missing the format specification before concluding a technical fix is needed."
+    }
+  },
+  {
+    "id": "WIS-A-053",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Failure mode: scope creep in an automated workflow",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An operations analyst at a logistics company builds a Claude workflow to summarise daily driver performance reports. Over three months, without formal redesign, the workflow scope expands: first to include fuel efficiency recommendations, then to flag potential driver disciplinary issues, then to include a preliminary HR note about each flagged driver. When the HR director discovers this, she immediately escalates to legal. What risk category does the scope expansion into HR notes MOST directly implicate?",
+    "options": [
+      { "key": "A", "text": "Data accuracy risk — HR notes generated by AI may contain factual errors about individual drivers" },
+      { "key": "B", "text": "Operational risk — the workflow is now more complex than originally designed and may have undocumented dependencies" },
+      { "key": "C", "text": "Employment law and accountability risk — generating preliminary HR notes about individual employees without HR review or defined criteria creates an undocumented, AI-generated record with potential legal consequences in disciplinary proceedings" },
+      { "key": "D", "text": "Data volume risk — adding HR notes to the daily report increases the output size beyond manageable review" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "AI-generated preliminary HR notes about individual employees — created without HR review, without defined criteria, and without employee awareness — can become part of an informal record that affects disciplinary proceedings. If a driver is later disciplined or dismissed, these AI-generated notes could be discoverable as evidence of bias, inconsistent treatment, or an undocumented pre-determination. Employment law in most jurisdictions requires that disciplinary records meet standards of fairness, documentation, and process. An unsupervised AI generating such records violates these requirements.",
+      "distractors": {
+        "A": "Accuracy risk is real — AI-generated notes may mischaracterise individual performance — but accuracy is a symptom of a deeper problem. Even perfectly accurate AI-generated HR notes without review or formal process create legal exposure. The HR director's escalation to legal points to a process and accountability concern, not just an accuracy concern.",
+        "B": "Operational complexity is a real concern in any scope-creep scenario, but it is not the risk that would cause an HR director to escalate to legal counsel immediately. The legal escalation signals that the risk category is employment law, not workflow complexity.",
+        "D": "Output volume is an operational nuisance, not a legal risk. The escalation to legal is not triggered by a report that is too long — it is triggered by content that creates legal exposure."
+      },
+      "concept": "**Scope creep in AI-assisted workflows** is a governance risk distinct from initial deployment risk. A workflow that was properly scoped can drift into a risk category it was never designed for.\n\nThe creep pattern in this scenario:\n1. Performance summaries → appropriate, low-risk\n2. Fuel efficiency recommendations → low-risk recommendations for operational improvement\n3. Driver disciplinary flags → higher risk, should trigger HR review gate\n4. Preliminary HR notes → legal risk, requires formal HR process, documentation standards, and employee rights\n\nThe failure: each incremental step seemed like a small extension of the previous one, but the aggregate drift moved the workflow from operational analytics into employment law territory.\n\nGovernance response: define scope boundaries at deployment, review any scope changes through the same approval process as initial deployment, and classify scope changes by risk category before implementing them.",
+      "examTip": "Scope creep items test whether you can identify the risk category that a gradually-expanded workflow has entered. The signal is always the reaction of a domain expert (HR director escalating to legal, compliance officer flagging, CFO freezing the workflow). The escalation recipient tells you the risk category: legal = employment or regulatory law, compliance = regulatory or audit risk, CFO = financial risk. Match the escalation to the risk category."
+    }
+  },
+  {
+    "id": "WIS-A-054",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Failure mode: prompt sensitivity in production workflows",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A marketing operations manager at a SaaS company uses a Claude-based workflow to categorise 800 monthly sales inquiries into four lead types: enterprise, mid-market, SMB, and partner. The workflow has been stable for four months. A junior analyst updates the prompt to add \"be concise\" as a style instruction. The following week, the categorisation accuracy drops significantly and several enterprise leads are misclassified as SMB. What is the MOST likely explanation?",
+    "options": [
+      { "key": "A", "text": "Adding style instructions to a classification prompt is always inappropriate and should never be done" },
+      { "key": "B", "text": "The \"be concise\" instruction changed how Claude reasoned through the classification criteria — in truncating its reasoning, it may have skipped the steps that distinguished enterprise from SMB signals" },
+      { "key": "C", "text": "The junior analyst should not have changed a production prompt without manager approval, which is a process violation unrelated to the prompt change itself" },
+      { "key": "D", "text": "The categorisation task requires a more capable model to maintain accuracy with a shorter reasoning process" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Style instructions like \"be concise\" can influence not just the output format but also the internal reasoning process. For a classification task that distinguishes between similar categories (enterprise vs. SMB can overlap on deal size for high-growth companies), the discrimination may require examining multiple signals — company size, user count, contract length, buyer persona. A conciseness instruction can compress or skip this multi-signal reasoning, leading to single-signal shortcuts that misclassify edge cases. The instruction changed the cognitive process, not just the output length.",
+      "distractors": {
+        "A": "Style instructions can be appropriate in classification prompts — for example, specifying output format (\"return only the category name\"). The problem is not the category of instruction but its specific effect on reasoning. A blanket prohibition is too broad.",
+        "C": "Process discipline (requiring approval for production prompt changes) is a valid workflow governance principle, but the question asks for the most likely technical explanation of the accuracy drop. The process violation is a separate concern from the mechanism of the failure.",
+        "D": "If the prompt change caused the failure, reverting the change should restore accuracy — making a model upgrade unnecessary. Model capability is not the variable that changed. Attributing the failure to model capability when the prompt changed misidentifies the cause."
+      },
+      "concept": "**Production prompt sensitivity** — how small prompt changes can affect classification accuracy:\n\nClassification prompts that distinguish between similar categories rely on the model working through multiple discriminating signals. Instructions that affect the reasoning process (\"be concise,\" \"respond quickly,\" \"give a one-word answer\") can unintentionally compress this reasoning.\n\nBest practices for production classification workflows:\n- Treat the production prompt as a versioned, change-controlled artifact\n- Test any prompt change against a calibration set before deploying to production\n- Document the reasoning the prompt is intended to elicit\n- Use explicit output format instructions (\"return only the category name: Enterprise, Mid-Market, SMB, or Partner\") rather than general style instructions to control output length",
+      "examTip": "Items about prompt changes causing unexpected failures test whether you understand that style instructions can affect *reasoning*, not just *output format*. \"Be concise\" is a format instruction that sounds harmless — but on a multi-signal classification task, it can shorten the reasoning chain that enables accurate discrimination. Always test prompt changes against a calibration set before production deployment."
+    }
+  },
+  {
+    "id": "WIS-A-055",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Edge case: feedback loop degradation",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A content moderation team at a social platform uses a Claude-assisted workflow where Claude flags potentially policy-violating posts and a human moderator reviews each flag, marking each as \"confirmed violation\" or \"false positive.\" After eight months, the team lead notices that the false positive rate has increased significantly. Investigation reveals two contributing factors. Which TWO factors would MOST plausibly explain the increased false positive rate? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "The platform's policy language was tightened over six months, but the Claude prompt was not updated to reflect the narrower definitions" },
+      { "key": "B", "text": "The human moderators became faster at reviewing flags over time as they gained experience" },
+      { "key": "C", "text": "The moderator team composition changed, with several new reviewers who were more conservative in confirming violations, causing what had previously been confirmed violations to now be marked as false positives" },
+      { "key": "D", "text": "Claude was updated to a newer version by the platform engineering team without updating the prompt to account for changed behaviour" },
+      { "key": "E", "text": "The volume of posts reviewed per day doubled due to platform growth, increasing the absolute number of flags" }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "A tightened policy (A) that was not reflected in the Claude prompt means Claude continues flagging under the old, broader definitions — producing flags that now fall outside the narrower policy and are correctly confirmed as false positives by the reviewers. A more conservative review team (C) means the threshold for \"confirmed violation\" shifted: content that was previously confirmed as a violation may now be marked as false positive by more conservative reviewers, even though Claude's flagging behaviour is unchanged. Both explain an increased false positive rate through different mechanisms.",
+      "distractors": {
+        "B": "Moderators becoming faster at reviewing is an efficiency improvement, not a factor that would affect the false positive rate. Speed does not change the classification outcomes.",
+        "D": "A model version update could change flagging behaviour, but the question specifies that the false positive rate increased — meaning Claude is flagging more items that reviewers consider acceptable. Without knowing the direction of the version change, this is speculative. Options A and C have clear directional mechanisms that explain the specific outcome described.",
+        "E": "Doubled post volume increases the absolute number of flags but not the false positive *rate*. Rate is a proportion — if Claude's behaviour is unchanged and the content mix is unchanged, doubling volume doubles both true positives and false positives equally, keeping the rate constant."
+      },
+      "concept": "**Sources of false positive rate increase in a moderation workflow:**\n\nThe false positive rate (FP / (FP + TP)) can increase through two distinct mechanisms:\n1. **Classifier shift**: Claude flags more items that should not be flagged (prompt stale relative to updated policy)\n2. **Label drift**: human reviewers reclassify what they confirm as a true positive (team composition change, policy interpretation change)\n\nBoth mechanisms produce the same observable metric — increased false positive rate — but require different fixes:\n- Mechanism 1: update the Claude prompt to reflect current policy definitions\n- Mechanism 2: calibrate reviewer standards through consensus exercises and updated labelling guides\n\nDiagnosing which mechanism is active requires examining whether Claude's flagging behaviour changed (A) or whether the reviewers' confirmation threshold changed (C).",
+      "examTip": "Multi-select items about metric changes test whether you understand that the same observable outcome can have multiple independent causes. The false positive rate can increase because the classifier got more aggressive (A) or because the review threshold got more conservative (C) — or both. Option E is the classic rate-vs-count trap: doubled volume affects absolute count, not rate. Learn to distinguish rate metrics from count metrics in workflow performance scenarios."
+    }
+  },
+  {
+    "id": "WIS-A-056",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Failure mode: dependency on implicit knowledge",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A contract manager at a construction company uses Claude to review subcontractor agreements and flag clauses that conflict with the prime contract. For the first six months, the workflow works well. A new contract manager takes over and the workflow begins producing flags that experienced staff call \"obviously wrong\" — clauses flagged as conflicts that are actually aligned with the prime contract. Investigation reveals the previous manager always pasted the prime contract's key deviation clauses into the session before reviewing each subcontract. The new manager skips this step. What does this illustrate?",
+    "options": [
+      { "key": "A", "text": "Claude's conflict-detection capability degrades over time without retraining" },
+      { "key": "B", "text": "The workflow's effectiveness depended on undocumented context that was transferred through individual practice rather than embedded in the workflow design — when the practitioner changed, the context was lost" },
+      { "key": "C", "text": "The new contract manager should receive more training on Claude before using the workflow" },
+      { "key": "D", "text": "Contract review is too legally complex for AI assistance without a lawyer present" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The previous manager had embedded critical context — the prime contract's key deviation clauses — into each session through personal practice. This context enabled accurate conflict detection. When the manager changed, this practice was not documented or transferred; the new manager ran the workflow without the context, producing low-quality flags. The failure is a workflow documentation gap: a process that depends on undocumented practitioner behaviour is not a repeatable workflow — it is an individual's workflow that happens to use a shared tool.",
+      "distractors": {
+        "A": "Claude's capability does not degrade without retraining. The model's behaviour is consistent; what changed is the context it receives. Attributing the failure to model degradation mislocalises the cause.",
+        "C": "The new manager's training gap is a symptom of the documentation failure. Better training would help, but the deeper fix is documenting the required context-setting step in the workflow so that any practitioner knows to include it. Training is a downstream fix; documentation is the root fix.",
+        "D": "The previous manager's successful use demonstrates that AI-assisted contract review can work. Concluding it requires a lawyer to be present overgeneralises from a specific knowledge-transfer failure."
+      },
+      "concept": "**Tacit workflow knowledge** is any step or practice that a skilled operator performs but that is not documented in the workflow specification.\n\nCommon forms:\n- Context-setting steps performed before starting the task\n- Judgment calls about what to include in the prompt\n- Manual data cleaning or formatting steps that improve output quality\n- Exception-handling approaches learned from past failures\n\nWhen tacit knowledge exists, the workflow is only repeatable by the person who holds it. Transfer failure is inevitable when the practitioner changes.\n\nThe fix: document all context-setting steps as explicit workflow requirements, include them in the written procedure, and verify that any new practitioner can reproduce the outputs by following the documented steps alone.",
+      "examTip": "Workflow portability failures are almost always caused by undocumented context-setting steps or tacit practitioner knowledge. The tell is that the workflow worked for one person and failed when a different person took it over. The root cause is always the same: knowledge that was in the practitioner's head rather than in the workflow documentation. The fix is always documentation and formalisation of the implicit steps."
+    }
+  },
+  {
+    "id": "WIS-A-057",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Edge case: automation of a process with rare but catastrophic errors",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A pharmacist at a hospital pharmacy is evaluating a proposed Claude-assisted workflow that would read physician medication orders and highlight any that deviate from the hospital's formulary or dosing guidelines — with the pharmacist reviewing each highlight before dispensing. A colleague argues the workflow is inappropriate because drug-dosing errors are potentially fatal. The pharmacist believes the workflow is appropriate as designed. Which argument BEST supports the pharmacist's position?",
+    "options": [
+      { "key": "A", "text": "Claude is highly accurate on pharmaceutical tasks and the error rate would be lower than manual review" },
+      { "key": "B", "text": "The workflow uses Claude for flagging and highlighting, not for dispensing decisions — the pharmacist reviews every flag and makes all dispensing decisions independently, preserving human accountability for all patient-safety consequences" },
+      { "key": "C", "text": "High-stakes tasks should always be done manually, and AI assistance introduces unacceptable risk regardless of how the workflow is designed" },
+      { "key": "D", "text": "The colleague's concern is valid and the workflow should be abandoned in favour of a fully human review process" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The workflow uses Claude for a detection/highlighting step — surfacing deviations from known formulary and dosing guidelines — not for the dispensing decision. The pharmacist reviews every highlighted order and makes the independent dispensing judgment. This is the correct use pattern for high-stakes domains: AI reduces the cognitive load of searching for deviations across many orders, while the pharmacist applies clinical judgment to each flagged item. The accountability for patient safety remains with the licensed pharmacist throughout.",
+      "distractors": {
+        "A": "Claiming Claude is \"highly accurate\" as the primary justification relies on an accuracy claim that cannot be independently verified and does not address the accountability structure. Accuracy claims are insufficient for high-stakes workflow justification — the question is who is accountable for errors, not just how often they occur.",
+        "C": "The colleague's general principle — \"high-stakes tasks should always be done manually\" — is too broad. Many high-stakes processes benefit from AI-assisted detection layers precisely because humans miss things when reviewing large volumes manually. The key is how accountability is structured, not whether AI is involved at all.",
+        "D": "Abandoning the workflow accepts the colleague's position without critically evaluating it. The colleague's concern is appropriate for a workflow where Claude makes dispensing decisions; it is less compelling for a workflow where Claude only flags and a pharmacist decides. Critically evaluating the colleague's argument, rather than accepting it, is the more intellectually rigorous position."
+      },
+      "concept": "**AI assistance in high-stakes domains is appropriate when:**\n- AI reduces detection workload (scanning many orders for guideline deviations)\n- Human accountability is preserved for the consequential decision (dispensing)\n- Errors in the AI layer are catchable by human review (a false positive is reviewed and correctly overridden; a false negative may reach the pharmacist but the pharmacist's own review provides a second check)\n\n**AI assistance in high-stakes domains is inappropriate when:**\n- AI makes the consequential decision without human review\n- AI generates output that is acted on without independent verification\n- Errors in the AI layer directly reach the patient without passing through a licensed professional's judgment\n\nThe pattern is always: AI for detection, human for decision.",
+      "examTip": "High-stakes appropriateness items test whether you can distinguish between AI-assisted detection and AI-driven decision-making. The colleague's concern is correct for the latter; the pharmacist's position is correct for the former. The discriminator is always: \"does a licensed human review every output before any patient-affecting action is taken?\" If yes, the concern about AI in high-stakes domains is addressed by workflow design."
+    }
+  },
+  {
+    "id": "WIS-A-058",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Failure mode: misidentifying the leverage point",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A programme director at a government agency wants to speed up a 12-week policy development cycle. A consultant proposes using Claude to summarise the 300 public consultation responses the agency receives. The programme director says this is not where the bottleneck is — the consultation analysis takes only 2 weeks, but the internal legal review of the draft policy takes 8 weeks. Where should Claude assistance MOST appropriately be focused to achieve the greatest time savings?",
+    "options": [
+      { "key": "A", "text": "On summarising the consultation responses, since this is the most structured and repeatable part of the process" },
+      { "key": "B", "text": "On replacing the legal review entirely, since 8 weeks of review is the obvious bottleneck" },
+      { "key": "C", "text": "On preparing materials for the legal review — drafting structured issue summaries, flagging potential legal conflicts, and organising the policy document for reviewers — to reduce the preparation burden within the 8-week phase" },
+      { "key": "D", "text": "On producing the final policy document, since drafting is a writing task Claude handles well" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The 8-week legal review is the bottleneck. Claude cannot replace legal review, but it can reduce the preparation burden within that phase: structuring the policy document for efficient review, generating issue summaries that help legal reviewers focus their attention, flagging potential conflicts with existing legislation identified from the policy text, and organising supporting materials. Reducing the setup and preparation time within the 8-week phase is where Claude delivers actual cycle time improvement.",
+      "distractors": {
+        "A": "Consultation summarisation is a high-fit Claude task, but optimising a 2-week phase when the bottleneck is an 8-week phase produces marginal overall cycle time improvement. Effort should follow the bottleneck.",
+        "B": "Replacing legal review entirely is inappropriate — legal review of government policy is a professional and regulatory obligation requiring qualified lawyers. Claude can assist lawyers; it cannot substitute for them on regulated policy instruments.",
+        "D": "Final drafting is a plausible Claude role, but it falls earlier in the cycle (before legal review) and does not address the bottleneck phase. Drafting better-structured policy documents might slightly reduce legal review time, but the primary efficiency gain comes from improving the review preparation activities within the 8-week phase itself."
+      },
+      "concept": "**Bottleneck targeting** is the principle that workflow efficiency improvements should be focused on the constraint — the slowest step — rather than optimising steps that are already fast.\n\nIn any multi-phase workflow:\n1. Identify the bottleneck (the step that determines overall cycle time)\n2. Ask: how can Claude reduce the time spent in that step?\n3. If Claude cannot replace the step (legal review), ask: can Claude reduce the preparation burden *within* that step?\n\nFor professional review phases:\n- Structured input documents reduce reviewer reading time\n- Issue summaries focus reviewer attention on key decisions\n- Pre-flagged conflicts reduce the discovery work within review\n- Organised supporting materials reduce document retrieval time during review\n\nEach of these makes the 8-week legal review more efficient without replacing the legal judgment.",
+      "examTip": "Bottleneck targeting items test whether you apply the constraint principle rather than defaulting to the most \"Claude-friendly\" task. The most structured, repeatable task is not always the right place to deploy Claude — it must be the task that, when sped up, reduces overall cycle time. When the bottleneck is a human professional review phase, look for ways to improve the *preparation* for that review, not ways to bypass it."
+    }
+  },
+  {
+    "id": "WIS-A-059",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Failure mode: wrong task handoff artifact",
+    "difficulty": "medium",
+    "type": "nextstep",
+    "stem": "An insurance underwriting assistant uses Claude to produce a structured risk summary for each commercial property submission, which underwriters then use to make coverage and pricing decisions. An underwriter notices that the risk summaries consistently omit broker commentary — information brokers include in cover emails that often contains context about the property's history and the applicant's relationship with the broker. The broker emails arrive with each submission but the workflow only passes the formal application documents to Claude. What should the workflow designer do NEXT?",
+    "options": [
+      { "key": "A", "text": "Accept the omission as a design choice — broker commentary is informal and may not be reliable" },
+      { "key": "B", "text": "Update the workflow input to include the broker cover email alongside the formal application documents, and update the prompt to instruct Claude to extract and flag relevant broker commentary in the risk summary" },
+      { "key": "C", "text": "Ask underwriters to add broker commentary manually to each risk summary after Claude generates it" },
+      { "key": "D", "text": "Replace the Claude-generated summary with a fully human process so that underwriters can integrate all information sources directly" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The input design is incomplete: the broker email is a material information source that arrives with each submission but is not passed to Claude. The fix is to include it in the workflow input and update the prompt to extract relevant commentary. This is a workflow input design correction — adding a missing information source — not a fundamental redesign. The next action is to make this targeted change and test that the updated summaries include broker context.",
+      "distractors": {
+        "A": "Accepting the omission dismisses information that underwriters have identified as consistently relevant. If underwriters need broker commentary to make coverage decisions, omitting it from the summary systematically degrades the summary's utility. This is not an acceptable design choice once the gap is identified.",
+        "C": "Manual addition by underwriters after generation is a workaround that defeats the purpose of the summary workflow. It adds manual effort to every case and reintroduces the consistency problem the workflow was designed to solve. Fix the input rather than compensate for the gap manually.",
+        "D": "Replacing the workflow entirely because one information source was omitted is a disproportionate response. The workflow design has one specific gap — a missing input. Fixing the input is the correct and minimal intervention. Full human processing is not justified by a correctable input omission."
+      },
+      "concept": "**Incomplete input design** is one of the most common, low-drama failures in AI-assisted workflows. The task is well-specified; the model is performing correctly; but one material information source was not included in what Claude receives.\n\nDiagnostic questions:\n- What information do human practitioners use to make this judgment?\n- Are all those information sources included in the workflow input?\n- If not, which omission is causing the quality gap?\n\nFix pattern:\n1. Identify the missing information source\n2. Confirm it arrives with each case (broker email arrives with each submission — yes)\n3. Update the input step to include it\n4. Update the prompt to instruct Claude to extract relevant content from the new source\n5. Test the updated output against the quality benchmark\n\nThe fix is targeted and minimal: add the input, update the prompt, verify.",
+      "examTip": "Nextstep items about workflow quality gaps caused by incomplete inputs should always resolve to: identify the missing input, add it to the workflow, update the prompt to use it. Never accept the omission, never shift to manual compensation, and never replace the workflow because one input was missing. The principle is the same as any debugging process: identify the specific gap, apply the minimal targeted fix."
+    }
+  },
+  {
+    "id": "WIS-A-060",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Edge case: tasks where the cost of false negatives exceeds false positives",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A safety engineer at an oil and gas company designs a Claude-assisted workflow to scan 4,000 maintenance work orders per month and flag any that describe conditions that could indicate a safety-critical defect. The workflow is calibrated to flag 8% of work orders for human safety review. An operations manager proposes recalibrating the workflow to flag only 4%, arguing that 8% is too many for the safety review team to handle. The safety engineer opposes this change. What is the safety engineer's STRONGEST argument?",
+    "options": [
+      { "key": "A", "text": "Recalibration would require re-testing the entire prompt against a calibration dataset, which takes time" },
+      { "key": "B", "text": "In safety-critical detection workflows, false negatives (genuine defects not flagged) are more dangerous than false positives (non-defects flagged for review) — reducing the flag rate saves review time but increases the risk of missing a real safety issue" },
+      { "key": "C", "text": "The operations manager does not have the technical authority to change a safety workflow" },
+      { "key": "D", "text": "The safety review team should be expanded rather than the flag rate reduced" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "In safety-critical detection, the asymmetry between false negative and false positive costs is extreme. A false positive (a non-critical work order flagged for review) costs a safety reviewer 10–15 minutes. A false negative (a genuinely safety-critical condition not flagged) could result in equipment failure, injury, or fatality. Reducing the flag rate to ease reviewer workload trades a manageable operational cost (more reviews) for an increase in catastrophic-risk exposure (more missed safety issues). This asymmetry is the safety engineer's strongest argument.",
+      "distractors": {
+        "A": "Re-testing time is a practical concern, not a safety argument. The operations manager could accept this delay and still proceed with the recalibration. This argument does not address the core safety question.",
+        "C": "Authority is a process argument, not a substantive safety argument. Even if the operations manager had the authority, the safety engineer's objection is that the change is unsafe — not that it is unauthorised. The strength of the objection must rest on the safety case.",
+        "D": "Expanding the review team is a resource solution that addresses the workload problem without degrading safety detection. This is a valid alternative to recalibration, but as stated it is a recommendation, not the safety engineer's strongest *argument against recalibration*. Option B directly addresses why reducing the flag rate is dangerous."
+      },
+      "concept": "**False negative vs. false positive cost asymmetry** in safety and risk detection workflows:\n\nFor most workflows, balanced accuracy is optimal — false positives and false negatives are roughly equally costly. For safety-critical, regulatory, and vulnerability detection workflows, the asymmetry is severe:\n\n- False positive cost: wasted review time (reversible, bounded)\n- False negative cost: undetected defect → potential catastrophic failure (irreversible, unbounded)\n\nThis asymmetry justifies high flag rates that create reviewer workload: **the correct response to too many flags is to expand review capacity, not to reduce detection sensitivity.**\n\nApplications of this principle: safety-critical maintenance, medical screening, fraud detection, vulnerability scanning, compliance monitoring.",
+      "examTip": "Asymmetric cost items test whether you can identify which error type is more expensive and derive the correct calibration principle from that. The word \"safety-critical\" in the stem is a strong signal that false negatives are catastrophically more expensive than false positives. When that asymmetry exists, the correct response to reviewer workload pressure is always resource expansion, never sensitivity reduction."
+    }
+  }
+]

@@ -1,0 +1,355 @@
+[
+  {
+    "id": "PTE-A-059",
+    "domain": "Prompting and Task Execution",
+    "topic": "Context vs. reference material — organisational norms",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A revenue operations lead at a SaaS company needs Claude to draft a renewal negotiation email to a customer whose contract expires in 60 days. She provides the customer's account history. Claude drafts an email that is accurate and professional — but frames the conversation around features and value delivered, when her company's renewal playbook requires leading with relationship acknowledgment, then commercial terms, and only then product value.\n\nShe has not provided the playbook. A colleague says: \"Just add a role like 'You are a customer success manager skilled in renewals.'\" She is not sure that will fix the specific sequencing issue.\n\nWho is correct?",
+    "options": [
+      { "key": "A", "text": "The colleague is correct — a renewal-specialist persona will apply the industry-standard sequencing that matches the company's playbook." },
+      { "key": "B", "text": "The colleague is correct — a skilled CSM persona will recognise that relationship acknowledgment should precede commercial discussion." },
+      { "key": "C", "text": "The RevOps lead is correct — persona will not reliably reproduce a proprietary sequencing convention; the playbook itself must be provided as reference material." },
+      { "key": "D", "text": "The RevOps lead is correct — the fix is an explicit constraint specifying the three required sections in order." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The RevOps lead is right for the right reason: the company's renewal playbook contains a proprietary sequencing convention. Claude's training includes general customer success and renewal best practices, but \"leading with relationship acknowledgment\" is an organisational norm that may differ from what Claude learned as industry standard. A persona evokes generic professional instincts; only providing the actual playbook as reference material guarantees the specific sequence. C names the correct mechanism.",
+      "distractors": {
+        "A": "Industry-standard CSM practice varies — some playbooks lead with value, others with relationship, others with commercial urgency. There is no single canonical sequencing that a persona reliably applies. A persona applies common patterns from training, not this company's specific playbook.",
+        "B": "This is the same error as A, stated more plausibly. The issue is not whether relationship acknowledgment is a generally good idea — it is whether a generic persona will reproduce this firm's specific three-step order reliably. It will not.",
+        "D": "An explicit format constraint specifying three sections in order would also work, and is close to correct — but D does not address the content of each section (what \"relationship acknowledgment\" means in this context). The playbook as reference material provides both the sequence and the substance. C is more complete."
+      },
+      "concept": "**Proprietary organisational norms** are a category of background Claude cannot infer. Even when a firm's practice resembles an industry pattern, the specific implementation — the exact sequence, the approved language, the required disclosures — is internal knowledge that must be supplied.\n\nThe test: *\"Does this norm appear in publicly available professional guidance, or is it specific to how this organisation has chosen to work?\"*\n- If public: a well-specified persona or task may be sufficient.\n- If proprietary: reference material (the actual document) is required.\n\nPersona activates generic professional instincts. Reference material supplies organisational specifics.",
+      "examTip": "The discrimination is between **generic professional norms** (which a persona can approximate) and **proprietary organisational conventions** (which require the actual document). The keyword in the stem is \"playbook\" — a named internal document with a specific sequence. That is the reference material signal. D is almost right but addresses structure without content; C is the most complete fix."
+    }
+  },
+  {
+    "id": "PTE-A-060",
+    "domain": "Prompting and Task Execution",
+    "topic": "Specificity — task decomposition in a single prompt",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A financial analyst at a private equity firm uses one prompt to ask Claude to: (1) summarise a 60-page information memorandum, (2) identify the top five investment risks, and (3) draft five due diligence questions for the management team. The output addresses all three but at unequal depth — the summary is thorough while the risk list and questions are shallow and generic.\n\nWhat is the MOST likely cause?",
+    "options": [
+      { "key": "A", "text": "Claude cannot handle three tasks in a single prompt and should be asked one task per message." },
+      { "key": "B", "text": "The analyst should have provided a role of investment analyst to improve depth on risk and due diligence tasks." },
+      { "key": "C", "text": "The prompt gives equal weight to three tasks without specifying relative importance or depth expectations for each." },
+      { "key": "D", "text": "The information memorandum is too long, causing Claude to allocate most of its attention to the summary and shortchange the later tasks." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "When multiple tasks share a single prompt with no depth specification, Claude allocates effort proportionally to the order and apparent complexity of each. A 60-page document will dominate attention for the summary task; tasks stated briefly without depth guidance receive correspondingly brief treatment. The fix is to specify depth expectations for each sub-task — for example, \"risk analysis should include likelihood, magnitude, and mitigant for each risk\" — so Claude knows depth is required for all three.",
+      "distractors": {
+        "A": "Claude handles multi-task prompts reliably; the issue is not an architectural constraint but an underspecified depth requirement. Breaking tasks into separate messages is one solution but not the only one.",
+        "B": "A PE analyst persona would add domain framing but would not specifically redirect depth to the risk and diligence tasks without explicit depth instructions. Persona does not correct unequal depth allocation across tasks.",
+        "D": "Document length influences how much space the summary occupies in the output, but Claude does not \"run out of attention\" in the way implied. The depth gap is caused by absence of depth instructions for the risk and diligence tasks, not by context exhaustion."
+      },
+      "concept": "**Multi-task depth calibration:** when a prompt bundles several tasks, Claude treats unstated tasks as equal-priority and minimum-depth unless instructed otherwise. To produce uniformly deep output across tasks:\n- State depth requirements per task: \"For each risk, include: likelihood, financial magnitude, and known mitigant.\"\n- Or specify a minimum output size per task: \"Due diligence questions should be probing, not generic — each should reference a specific claim in the IM.\"\n\nAlternatively, chain tasks across turns: complete the summary first, then use that output as context for the risk and diligence tasks. This gives each task a full context window and prevents depth dilution.",
+      "examTip": "Unequal depth across bundled tasks is a **task specification** problem, not a context limitation problem. D is the attractive wrong answer because it sounds technical. The real cause is that tasks 2 and 3 had no depth specification while task 1 had an implicit one (summarise a 60-page document). The fix is explicit depth instructions per task."
+    }
+  },
+  {
+    "id": "PTE-A-061",
+    "domain": "Prompting and Task Execution",
+    "topic": "Audience calibration — technical vs. executive register",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A data science lead at a retail bank is preparing a board briefing on a new credit scoring model. She uses Claude with the prompt: `\"Explain the model's feature importance and SHAP value interpretation for our board presentation.\"`\n\nThe output correctly explains SHAP values at a technical level appropriate for a data scientist. Two options for fixing this are debated:\n\n**Option P:** Add a context sentence: \"The board consists of non-technical senior executives; no ML background should be assumed.\"\n\n**Option Q:** Add a format instruction: \"Use a three-slide structure: (1) what the model does, (2) why each factor matters, (3) confidence and limitations.\"\n\nWhich is the MORE effective single fix for the register problem?",
+    "options": [
+      { "key": "A", "text": "Option Q — the three-slide structure forces Claude to explain the model in plain-language terms the board can follow." },
+      { "key": "B", "text": "Option P — naming the audience's background directly recalibrates Claude's vocabulary and assumed knowledge level." },
+      { "key": "C", "text": "Both are equally effective because register and structure are interdependent." },
+      { "key": "D", "text": "Neither — the task must be rewritten to remove technical terms like SHAP before Claude can produce a board-ready explanation." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Register — vocabulary level, assumed background, depth of technical explanation — is controlled by audience specification in context. Telling Claude the board has no ML background directly signals which vocabulary is acceptable and which must be translated. Option Q is a useful structural complement but does not change Claude's vocabulary choices within those slides. A technically worded slide deck with the right three-section structure still fails a non-technical board.",
+      "distractors": {
+        "A": "Structure is a format property; vocabulary is a register property. The three-slide structure organises the content but does not prevent Claude from filling each slide with SHAP value terminology. Format does not govern register.",
+        "C": "Register and structure are related but not interdependent. Claude can produce a well-structured document in the wrong register, or an unstructured explanation in the right register. They are controlled by different building blocks and are not equally effective as single fixes for the same problem.",
+        "D": "The task need not be rewritten to remove technical terms — instructing Claude about the audience's background will cause it to translate those terms into accessible language automatically. Task rewriting is unnecessary when context recalibrates the output."
+      },
+      "concept": "**Register calibration is an audience context function, not a format function.** This distinction is tested frequently. A clear audience statement — \"no technical background should be assumed\" — changes the vocabulary, hedging style, analogy choices, and abstraction level Claude applies to the content. Format instructions change how content is organised; they do not change how it is expressed.\n\nFor executive-audience translations of technical content:\n1. State the audience explicitly: role, background knowledge level, what they need to decide.\n2. Optionally add a format instruction for structural clarity.\n3. Do not attempt to substitute format for audience context — they address different dimensions.",
+      "examTip": "The discrimination is **register vs. structure**. When the symptom is *wrong vocabulary or knowledge-level assumption*, the fix is audience context (P). When the symptom is *hard to follow structure*, the fix is format (Q). The stem says the output is at the wrong technical level — that is a register symptom, pointing to P. The trap is A — three clear slides *feel* like they would fix the problem, but they only fix organisation, not vocabulary."
+    }
+  },
+  {
+    "id": "PTE-A-062",
+    "domain": "Prompting and Task Execution",
+    "topic": "Constraints — positive vs. negative framing",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An L&D manager at a healthcare provider is generating learning objectives for a mandatory compliance module. Her prompt includes: `\"Do not write objectives that are unmeasurable.\"` The output still includes vague objectives like \"understand the importance of HIPAA compliance\" alongside more specific ones.\n\nWhich reformulation of the constraint would MOST reliably fix this?",
+    "options": [
+      { "key": "A", "text": "\"Avoid writing objectives in passive voice.\"" },
+      { "key": "B", "text": "\"Each learning objective must begin with a Bloom's Taxonomy action verb (e.g., identify, demonstrate, apply, evaluate) and describe an observable behaviour.\"" },
+      { "key": "C", "text": "\"Do not include unmeasurable verbs such as understand, know, or appreciate.\"" },
+      { "key": "D", "text": "\"Ensure all objectives are SMART: Specific, Measurable, Achievable, Relevant, Time-bound.\"" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "A negative constraint (\"do not write unmeasurable objectives\") requires Claude to judge what counts as unmeasurable — and its judgment may not match the L&D standard. A positive instruction with concrete examples (Bloom's action verbs, observable behaviour requirement) gives Claude a replicable criterion to apply. \"Begins with an action verb and describes an observable behaviour\" is an operationally precise rule that Claude can apply mechanically.",
+      "distractors": {
+        "A": "Passive voice is a grammatical property unrelated to measurability. A passive-voice objective can still be measurable; an active-voice objective can still be vague. This constraint addresses the wrong dimension.",
+        "C": "Listing prohibited verbs is an improvement over the original, but it is still a negative constraint with an incomplete list. Claude might substitute another vague verb not on the list. A positive specification (what the objective must contain) is more robust than a growing exclusion list.",
+        "D": "SMART is a useful framework but requires interpretation — Claude must judge what counts as Specific and Measurable in this context. Option B is more operationally precise: it names the exact format element (action verb) and the exact property (observable behaviour) that satisfies the criterion."
+      },
+      "concept": "**Positive constraints outperform negative constraints** when precision matters. Negative constraints define what to avoid; positive constraints define what to produce. For output that must meet a specific quality standard:\n\n- Negative: \"Don't write vague objectives.\" → Claude applies its own vagueness judgment.\n- Positive: \"Each objective must begin with an action verb and specify an observable behaviour.\" → Claude applies a rule.\n\nThe positive formulation is testable: for each objective, Claude can check whether it starts with an action verb and whether the behaviour is observable. The negative formulation requires subjective quality judgment.",
+      "examTip": "When a negative constraint fails to produce the right output, convert it to a **positive specification**. The reformulation question is: *\"What must be present, not what must be absent?\"* Option B is the only choice that gives Claude a positive, operationally testable criterion. C is closer than the original but is still a negative (exclusion) approach and is incomplete."
+    }
+  },
+  {
+    "id": "PTE-A-063",
+    "domain": "Prompting and Task Execution",
+    "topic": "Seeking clarification — multi-stakeholder ambiguity",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A procurement specialist at a manufacturing company asks Claude to help draft a sole-source justification memo. She provides the vendor name and a brief description of the service. Claude produces a 400-word memo with standard justification language. Her manager rejects it because it does not include the specific technical requirement that makes only this vendor capable — a piece of information the specialist has but did not provide.\n\nA colleague argues: \"Claude should have asked what the technical differentiator was before drafting.\" The specialist responds: \"I should have provided it upfront.\"\n\nWho is right, and what is the prompt design lesson?",
+    "options": [
+      { "key": "A", "text": "The colleague is right — Claude should seek clarification whenever a compliance document is being drafted." },
+      { "key": "B", "text": "The specialist is right — the technical differentiator is a factual input she held; the correct fix is to provide it upfront, not to delegate the gap-finding to Claude." },
+      { "key": "C", "text": "Both are equally right — Claude should seek clarification AND the specialist should provide the input, because both are valid improvements." },
+      { "key": "D", "text": "The colleague is right — for sole-source justifications, Claude should always ask for the technical differentiator before proceeding because it is the document's central required element." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The specialist holds the technical differentiator and knows the memo requires it — she simply forgot to include it. When the prompter has the required information, the correct fix is to provide it in the prompt, not to build a clarification workflow. Claude produced the best document it could with what it had; the gap was in the input, not in Claude's behaviour. The lesson: the prompter is responsible for supplying known required inputs; clarification mode is appropriate when inputs are genuinely unknown.",
+      "distractors": {
+        "A": "Compliance document type alone does not trigger mandatory clarification. Claude cannot know in advance which inputs a specific user has versus does not have. Generalising to \"always clarify for compliance docs\" is an over-application of the principle.",
+        "C": "\"Both equally right\" sidesteps the design lesson. The efficient resolution is to provide known inputs upfront — a clarification loop is a workaround for a problem the prompter can solve directly. Both options improve the outcome, but they are not equal; C introduces unnecessary latency.",
+        "D": "D asserts a category-level clarification rule for sole-source docs. But whether to clarify depends on whether the prompter has the information, not on the document type. If the specialist had provided the differentiator upfront, no clarification would have been needed."
+      },
+      "concept": "**Clarification is for unknown inputs; upfront provision is for known inputs.** The clarification instruction is most valuable when:\n- The prompter genuinely does not know what information Claude needs.\n- The task scope is ambiguous and multiple valid interpretations exist.\n\nIt is less valuable when:\n- The prompter knows what is required but forgot to include it.\n- The missing information is a specific factual input the prompter holds.\n\nIn the second case, the correct lesson is prompt discipline: before submitting, ask yourself what a human expert would need to do this task, and verify that everything is in the prompt.",
+      "examTip": "This item tests the boundary between **clarification as a design choice** and **clarification as a workaround for input discipline**. D is the trap — it applies a specific rule to a document category, which sounds authoritative. But the principle is about whether the prompter has the information, not about what kind of document is being drafted. When the prompter has the input, provide it. Reserve clarification instructions for genuine ambiguity."
+    }
+  },
+  {
+    "id": "PTE-A-064",
+    "domain": "Prompting and Task Execution",
+    "topic": "Five building blocks — diagnosing wrong output",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A pharmaceutical regulatory writer drafts clinical study reports (CSRs). She sends Claude a 300-page clinical trial dataset and writes: `\"Summarise this clinical trial.\"` The output is a well-structured, thorough summary — but it is written for a general scientific audience rather than for an ICH E3 regulatory submission, and it runs to 8,000 words rather than the 2,500-word synopsis the submission template requires.\n\nWhich TWO building blocks are most clearly absent? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Role — she should specify that Claude is acting as a regulatory medical writer." },
+      { "key": "B", "text": "Context — the submission audience and regulatory purpose were not stated." },
+      { "key": "C", "text": "Task — \"summarise this clinical trial\" is too vague to direct the output." },
+      { "key": "D", "text": "Constraints — no word limit or length specification was given." },
+      { "key": "E", "text": "Reference material — the ICH E3 synopsis template was not provided." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "Symptom 1 (wrong audience — general science vs. regulatory submission) is a context gap: the submission type, regulatory purpose, and intended reviewer were not stated. Option B supplies that. Symptom 2 (8,000 words instead of 2,500) is a constraints gap: no length limit was specified. Option D supplies that. The task as stated — summarise — was executed correctly for a general-purpose request; the failure is missing audience context and missing length constraints.",
+      "distractors": {
+        "A": "A regulatory medical writer persona would tilt toward regulatory framing but cannot supply the specific ICH E3 requirement without being told it. More importantly, persona alone does not enforce a word count. Symptom 1 is most directly fixed by context, not role.",
+        "C": "\"Summarise\" is a valid and sufficient task instruction for a general purpose. The issue is not task vagueness but the absence of context (who it is for) and constraints (how long). Task restatement would not fix either stated symptom.",
+        "E": "The ICH E3 template would provide structural guidance but is a supplementary fix, not the primary missing building block for either stated symptom. Context and constraints are the more direct fixes."
+      },
+      "concept": "**Regulatory document prompts** require audience context and length constraints to be stated explicitly. Claude will produce a high-quality general-purpose output without them — which is correct behaviour but wrong for submission purposes.\n\nFor regulated industries, the context building block should specify:\n- The regulatory framework (ICH E3, FDA 21 CFR, EMA guidance)\n- The submission type and intended reviewer\n- The purpose (primary efficacy, safety summary, synopsis)\n\nLength constraints are especially important in regulatory writing where submission templates specify exact word or page limits.",
+      "examTip": "Two symptoms, two building blocks. Map each: symptom 1 (general audience framing) → context. Symptom 2 (wrong length) → constraints. The trap is E — providing the ICH E3 template sounds like the most expert fix. But the template addresses structure, not the two stated symptoms. **Follow the symptoms to their building blocks; resist the most-sophisticated-sounding answer.**"
+    }
+  },
+  {
+    "id": "PTE-A-065",
+    "domain": "Prompting and Task Execution",
+    "topic": "Role/persona — analytical framing benefit",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A strategy consultant needs Claude to review a proposed partnership agreement for a mid-market retailer. She does not provide a role declaration. The output identifies general contractual issues but misses commercial risks specific to retail distribution — minimum order quantities, exclusivity clauses, and category floor pricing — despite these terms appearing in the document.\n\nWhich prompt change would MOST likely surface those commercial risks?",
+    "options": [
+      { "key": "A", "text": "Add a constraint: \"Flag all clauses related to ordering, pricing, and exclusivity.\"" },
+      { "key": "B", "text": "Add a role: \"You are a senior commercial attorney specialising in retail distribution agreements.\"" },
+      { "key": "C", "text": "Add context specifying the retailer's business model and the strategic purpose of the partnership." },
+      { "key": "D", "text": "Add a format instruction requiring a risk register table with risk type, clause reference, and severity." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The commercial terms are in the document — Claude saw them but did not flag them as risks because the prompt gave no guidance on what risk categories matter to a retailer. An explicit constraint naming the risk categories of interest (ordering, pricing, exclusivity) directly instructs Claude to surface them. This is a scope instruction, not an expertise problem.",
+      "distractors": {
+        "B": "A retail distribution attorney persona would prime Claude for commercial risk awareness, but the terms were already in the document — the problem was not expertise but task scope. A constraint is the more targeted fix: it does not require Claude to infer which retail-specific categories matter, it names them directly.",
+        "C": "The retailer's business model would provide useful context for interpreting risk severity, but the primary failure is that the relevant clause categories were not flagged at all. Context addresses relevance calibration; constraints address what to flag.",
+        "D": "A risk register format organises findings but does not expand the categories Claude evaluates. Claude would produce a well-structured register of the same general contractual issues without the retail-specific commercial terms."
+      },
+      "concept": "**Explicit category instructions** are more reliable than persona-based inference for surfacing specific output categories. When you know exactly what you need Claude to identify, name it in the task or constraints building block rather than hoping a persona implies it.\n\nThe tradeoff:\n- **Persona** is efficient when you want Claude to apply a domain expert's general judgment and you cannot enumerate all the criteria.\n- **Explicit constraint** is reliable when you can name the categories and need them flagged consistently.\n\nFor document review tasks, the strongest prompts combine a professional role (for general framing) with explicit category constraints (for the specific items that matter to this use case).",
+      "examTip": "The trap is B — a specialist persona feels like the expert fix for an expertise-looking gap. But the terms were present in the document; expertise was not the issue. The problem was that the task did not scope what to flag. **When the information is already in the document and Claude just did not surface it, the fix is a constraints instruction, not a more expert persona.**"
+    }
+  },
+  {
+    "id": "PTE-A-066",
+    "domain": "Prompting and Task Execution",
+    "topic": "Context — relationship and history",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An account manager at an enterprise software firm is renewing a contract with a client who had a major service outage caused by her company eight months ago. The outage was eventually resolved, a compensation credit was applied, and the relationship was repaired. She asks Claude to draft a renewal proposal letter.\n\nHer prompt: `\"Draft a renewal proposal for our 3-year enterprise software contract with [Client].\"` She does not mention the outage or the subsequent resolution.\n\nClaude produces a letter that leads with growth data and new features. The client's procurement lead, who lived through the outage, views the omission as tone-deaf.\n\nWhat was missing from the prompt?",
+    "options": [
+      { "key": "A", "text": "A role: \"You are an experienced enterprise account manager skilled in navigating sensitive client relationships.\"" },
+      { "key": "B", "text": "A constraint: \"Acknowledge any historical service issues before presenting growth data.\"" },
+      { "key": "C", "text": "Relationship context: the history of the outage, the resolution, and the current relationship standing — background the model cannot infer." },
+      { "key": "D", "text": "A format instruction specifying a relationship-first opening paragraph before commercial content." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The outage, resolution, and current relationship standing are not in any document Claude has access to. Claude produced a technically correct renewal letter for a healthy account — because that is what the prompt implied. The account's actual history is relationship context the model cannot infer; without it, Claude cannot calibrate tone to the repaired-but-sensitive state of this relationship. Providing that history enables Claude to draft a letter that acknowledges the past while moving forward.",
+      "distractors": {
+        "A": "An experienced account manager persona signals sensitivity awareness in general, but cannot know that *this particular client* had an outage eight months ago. Persona activates general instinct; relationship history supplies specific context.",
+        "B": "A constraint to acknowledge service issues is closer, but it is a structural workaround — it tells Claude to include an acknowledgment without telling it what happened, when, and how it was resolved. The result would be a generic apology rather than a contextually accurate one. Full relationship context enables a genuine, specific acknowledgment.",
+        "D": "A relationship-first format instruction imposes a structure — opening with relationship rather than growth data — but does not provide the content for that opening. Claude would write a generic warm opening rather than one that specifically addresses the shared history."
+      },
+      "concept": "**Relationship context** is a specific category of background the model cannot infer: the history between two parties, prior incidents, open commitments, and the current emotional or reputational standing of the relationship.\n\nWhen drafting any client-facing communication where relationship dynamics matter:\n- Summarise relevant history: what happened, when, and how it was resolved.\n- State the current relationship temperature: restored confidence, ongoing tension, proactive goodwill credit.\n- Name any commitments the client is holding: credits applied, follow-through items promised.\n\nClause-level context shapes what the document says. Relationship context shapes how it says it.",
+      "examTip": "The trap is B — \"acknowledge service issues\" sounds like a targeted fix. But a constraint without the content of the acknowledgment produces a hollow paragraph. The discriminator: **the constraint tells Claude to do something; the context gives Claude the material to do it well**. For tone-sensitive communications about a shared history, you must provide both the instruction (implicit in context) and the historical facts."
+    }
+  },
+  {
+    "id": "PTE-A-067",
+    "domain": "Prompting and Task Execution",
+    "topic": "Prompt anatomy — all five building blocks combined",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "An actuary at a life insurer is building a reusable prompt for generating policyholder lapse rate commentary. After reviewing a draft prompt, her manager identifies two gaps: (1) Claude is using industry-average assumptions when the team's proprietary experience study shows materially different lapse curves, and (2) the commentary is written in academic hedging style when the audience is the pricing committee, which expects confident, direct executive language.\n\nWhich TWO additions directly fix both gaps? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Attach the team's proprietary experience study as reference material and instruct Claude to base assumptions on it." },
+      { "key": "B", "text": "Upgrade the role to: \"You are a Fellow of the Institute of Actuaries with pricing committee experience.\"" },
+      { "key": "C", "text": "Add context specifying the audience: the pricing committee expects direct, confident language without academic qualification." },
+      { "key": "D", "text": "Add a format instruction requiring bullet-point findings rather than prose paragraphs." },
+      { "key": "E", "text": "Add a constraint: \"Do not use hedging language or qualifications; present findings as conclusions.\"" }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "Symptom 1 (industry-average assumptions instead of proprietary lapse curves) is a reference material gap — the experience study must be provided and explicitly cited as the basis. Option A fixes it. Symptom 2 (academic hedging instead of confident executive language) is an audience context gap — the pricing committee's communication norms are not something Claude can infer. Option C fixes it by specifying the audience and their language expectations.",
+      "distractors": {
+        "B": "A Fellow of the Institute of Actuaries persona would reinforce technical rigor and potentially increase hedging (actuaries are trained to qualify uncertain estimates). It does not supply the proprietary experience study and may worsen the hedging symptom.",
+        "D": "Bullet-point format addresses structure, not the two stated symptoms. Academic hedging can appear in bullets as readily as in prose, and proprietary data is still absent regardless of format.",
+        "E": "\"Do not hedge\" is a blunt constraint that could produce overconfident outputs that misrepresent genuine uncertainty. The better fix for the hedging symptom is audience context (C) — telling Claude the audience expects confident language allows Claude to calibrate appropriately rather than suppress all qualification."
+      },
+      "concept": "**Proprietary data vs. audience register — two independent building blocks:**\n\nWhen output fails on two dimensions, resist the temptation to fix both with a single sophisticated change. Map each symptom:\n- Wrong data source → reference material (provide the proprietary study)\n- Wrong communication register → audience context (specify who is reading and what they expect)\n\nConstraints can reinforce context (E reinforces C) but are less elegant as primary fixes — they tell Claude what not to do rather than who it is writing for.",
+      "examTip": "Two-symptom item: symptom 1 (wrong assumptions) → reference material (A). Symptom 2 (hedging language) → audience context (C). B is a plausible single fix for both — actuarial expertise plus pricing committee experience. But B cannot supply proprietary data (symptom 1 persists) and may worsen hedging (actuaries qualify estimates). **A persona cannot substitute for a reference document or an explicit audience specification.**"
+    }
+  },
+  {
+    "id": "PTE-A-068",
+    "domain": "Prompting and Task Execution",
+    "topic": "Clarification instruction — wording and placement",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A brand manager at a hospitality company wants Claude to ask for any missing inputs before drafting marketing copy, rather than making assumptions. She adds to her prompt: `\"If you are unsure, feel free to ask.\"` Claude continues to draft without asking, even when key information (campaign channel, target demographic) is missing.\n\nWhat is MOST likely causing the clarification instruction to fail?",
+    "options": [
+      { "key": "A", "text": "Claude cannot ask questions in a non-interactive context; clarification instructions only work via the API." },
+      { "key": "B", "text": "\"Feel free to ask\" is permissive rather than directive — Claude treats it as optional and chooses to draft rather than pause." },
+      { "key": "C", "text": "The instruction is too short; clarification instructions must be at least one paragraph to be effective." },
+      { "key": "D", "text": "Claude defaulted to drafting because the brand context and hospitality domain were sufficient for a reasonable attempt." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "\"Feel free to ask\" is permissive language that grants Claude the option to ask but does not require it. Claude is biased toward helpfulness and will complete the task if it can produce a reasonable output — which it always can when inputs are missing by making assumptions. A directive instruction — \"Before drafting, list any missing inputs and ask for them\" — removes the choice and makes clarification the required next step.",
+      "distractors": {
+        "A": "Claude can ask clarifying questions in any interactive context — chat, Projects, or direct API calls used conversationally. The constraint is the wording, not the surface.",
+        "C": "Instruction length is not the determinant of effectiveness. A short directive instruction is more effective than a long permissive one. The wording matters, not the word count.",
+        "D": "Claude's default helpfulness bias is a partial explanation, but the root cause is the permissive wording. Even in a generic context, a directive clarification instruction would cause Claude to pause and ask. The hospitality domain context did not override a permissive instruction — it had nothing to override."
+      },
+      "concept": "**Directive vs. permissive clarification instructions:**\n\n- Permissive: \"You may ask questions,\" \"feel free to clarify,\" \"ask if needed.\" → Claude treats this as optional and typically drafts.\n- Directive: \"Before proceeding, identify any missing inputs and ask for them.\" → Claude treats this as a required step before drafting.\n\nFor reliable clarification behaviour, the instruction must:\n1. Be phrased as a requirement, not a permission.\n2. Specify the trigger: \"if [specific inputs] are absent.\"\n3. Appear early in the prompt, before the task instruction.\n\nPlacing the clarification instruction after the task instruction is also less effective — Claude has already begun mentally preparing the draft.",
+      "examTip": "This item tests **permissive vs. directive instruction wording**. The answer is not subtle — \"feel free to ask\" is clearly optional. But this mistake is extremely common in real prompt design. The fix is always to convert the permission into a requirement: \"Before drafting, ask for [specific missing inputs].\" Any answer that attributes the failure to a platform limitation (A) or instruction length (C) is wrong."
+    }
+  },
+  {
+    "id": "PTE-A-069",
+    "domain": "Prompting and Task Execution",
+    "topic": "Specificity — measurable success criteria",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An internal communications lead at a global manufacturer asks Claude to write a change management announcement for a new ERP system rollout. She wants the announcement to be \"engaging and not too long.\" The output is 600 words and Claude considers it appropriately engaging.\n\nShe finds it too long and too formal for her organisation's culture. Which addition to the original prompt would MOST directly have prevented both issues?",
+    "options": [
+      { "key": "A", "text": "A role: \"You are a change management communications specialist known for engaging, plain-language writing.\"" },
+      { "key": "B", "text": "Explicit success criteria: \"Maximum 300 words. Match the conversational tone of our previous announcements (examples attached).\"" },
+      { "key": "C", "text": "A format instruction: \"Use a two-paragraph structure: what is changing and what employees need to do.\"" },
+      { "key": "D", "text": "A constraint: \"Write for a non-technical audience; avoid ERP jargon.\"" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "\"Not too long\" and \"engaging\" are subjective — Claude and the manager hold different reference points for both. Providing a specific word count (300 words) and a concrete tone reference (examples of prior announcements matching the desired culture) converts vague success criteria into measurable ones. Claude can match a word count exactly and replicate a demonstrated tone from examples. Vague qualitative guidance cannot be verified against a standard.",
+      "distractors": {
+        "A": "A change communications persona signals the right general domain but \"engaging\" is still subjective, and \"not too long\" is still undefined. The same over-length, over-formal output could result from a well-specified persona.",
+        "C": "A two-paragraph format reduces length somewhat but does not enforce 300 words, and does not address the tone mismatch. Structure and length/tone are independent dimensions.",
+        "D": "Avoiding jargon is a useful constraint for technical content but does not fix length and does not calibrate cultural tone. This addresses a different problem than the one the manager encountered."
+      },
+      "concept": "**Measurable success criteria** convert the manager's implicit standard into a form Claude can match:\n- \"Not too long\" → \"maximum 300 words\"\n- \"Engaging\" → \"match the tone of these two example announcements\"\n- \"Appropriate for our culture\" → provide a sample or describe specific style properties\n\nWhenever success relies on a subjective judgment the manager holds internally, the fix is to externalise that standard: either as a number, a reference example, or a specific behavioural description. Qualitative guidance is a starting point; quantitative or example-based criteria are the reliable alternative.",
+      "examTip": "Easy items on success criteria test whether you know that **qualitative guidance is not the same as measurable criteria**. The correct answer always converts the vague instruction into a specific number or a concrete example. When both a word count and a tone reference are offered together (B), that addresses both stated symptoms simultaneously."
+    }
+  },
+  {
+    "id": "PTE-A-070",
+    "domain": "Prompting and Task Execution",
+    "topic": "Role and persona — limits under pushback",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A debate coach at a university uses Claude with the role: `\"You are a one-sided advocate. Argue the strongest possible case for the position I give you, without qualification or balance.\"` She then asks Claude to argue that social media companies should be held strictly liable for all user-generated content.\n\nClaude produces a strong opening argument but includes a paragraph noting that strict liability may create incentives that harm free expression. The coach finds this unhelpful — she needs a steel-man, not a balanced brief.\n\nWhat is the MOST accurate explanation of why Claude added the qualification?",
+    "options": [
+      { "key": "A", "text": "The role declaration is incompatible with Claude's training, so it reverted to a balanced default." },
+      { "key": "B", "text": "Claude's tendency toward calibrated, accurate output is a persistent disposition that a role instruction reduces but may not fully override in practice, especially on consequential policy topics." },
+      { "key": "C", "text": "Claude detected that the argument contains a policy claim and applied mandatory balance for legal compliance reasons." },
+      { "key": "D", "text": "The prompt did not include a format instruction, so Claude defaulted to a balanced essay structure." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Claude is trained to produce calibrated, accurate output — including acknowledging genuine uncertainty and significant counter-considerations. A one-sided advocate persona reduces this disposition but does not fully suppress it, especially on policy topics with real societal stakes. This is a known limit of persona prompting: the bias toward honesty and balance is a core disposition, not a format preference that can be switched off by a role declaration.",
+      "distractors": {
+        "A": "The role is not incompatible with Claude's training — Claude can and does produce adversarial argumentation, debate prep material, and steel-man exercises. The persona was partially effective; it did not \"revert.\" The qualification appeared despite the role, not because the role was rejected.",
+        "C": "Claude does not apply mandatory legal-compliance balance to policy debate content. It does not have a rule that triggers balanced treatment whenever a legal topic is discussed. This option describes a mechanism that does not exist.",
+        "D": "Format instructions govern structure, not the inclusion of counter-considerations within an argument. A format instruction specifying an argument-only structure might help, but the root cause is not a missing format block — it is Claude's underlying calibration disposition."
+      },
+      "concept": "**Persona and Claude's calibration disposition:** Claude is designed to be honest and to acknowledge significant counter-considerations. A persona that asks Claude to argue one side is honoured at the level of framing, emphasis, and argumentation strategy — but Claude's disposition toward acknowledging meaningful uncertainty or significant counterarguments can persist, especially on high-stakes topics.\n\nPractical mitigations for adversarial argumentation tasks:\n- Add a constraint: \"Do not include any counter-considerations or qualifications in this response.\"\n- Add context: \"This is for a debate preparation exercise; the balanced analysis is handled separately.\"\n- Acknowledge the limitation: Claude will produce stronger one-sided content than default but may retain some calibration instinct on consequential topics.",
+      "examTip": "This item tests **persona as a tendency adjuster, not a behaviour switch**. B is the most mechanistically accurate explanation. The trap is A — candidates assume the role declaration was rejected wholesale. It was not; the persona was partially effective. The qualification appeared *despite* the persona, reflecting Claude's persistent calibration disposition. The discriminator: **persona reduces but does not eliminate core dispositions**."
+    }
+  },
+  {
+    "id": "PTE-A-071",
+    "domain": "Prompting and Task Execution",
+    "topic": "Format and constraints — interaction in long documents",
+    "difficulty": "medium",
+    "type": "nextstep",
+    "stem": "A technical writer at a software company is generating product documentation sections using Claude. She has established: (1) a precise role as technical documentation specialist, (2) context about the product and target developer audience, and (3) a consistent format template with required headings. Each section comes out correctly structured and at the right register.\n\nHer remaining problem: sections frequently include tangential details about adjacent features, inflating each section from a target 400 words to 700–900 words.\n\nWhat should she do NEXT?",
+    "options": [
+      { "key": "A", "text": "Refine the format template to add a word count target per section heading." },
+      { "key": "B", "text": "Add a constraint explicitly limiting each section to its core feature only: \"Cover only the feature named in the heading; do not discuss adjacent or related features.\"" },
+      { "key": "C", "text": "Revise the context to explicitly state that this documentation covers one feature per section." },
+      { "key": "D", "text": "Add a role constraint: \"Focus only on what a developer needs to implement this specific feature.\"" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Structure and register are already correct — the problem is scope: Claude includes tangential content about adjacent features that the task did not prohibit. An explicit scope constraint — \"cover only the feature named in the heading; do not discuss adjacent features\" — directly addresses this. This is a constraints-based exclusion for content scope, the precise mechanism for ruling out categories of content Claude would otherwise include.",
+      "distractors": {
+        "A": "A word count target in the format template would create length pressure but would not prevent Claude from choosing which content to include or exclude. Claude might hit 400 words by abbreviating rather than by eliminating the tangential material.",
+        "C": "Context revision would state the one-feature-per-section intent, but context describes the situation rather than prohibiting specific behaviour. A constraint is more reliable for preventing specific content categories.",
+        "D": "Framing through the role (\"what a developer needs\") is a relevance heuristic, not a scope exclusion. Claude's judgment about what a developer needs may still include adjacent feature context that it considers relevant background."
+      },
+      "concept": "**Scope constraints vs. length constraints:** when sections are too long because of tangential content, the fix is a scope exclusion (what to omit), not a length limit (how much to write). Length limits create word pressure but allow Claude to choose how to fill the budget. Scope exclusions remove entire content categories.\n\nThe distinction:\n- \"Maximum 400 words\" → Claude may still include tangential content, just briefly.\n- \"Cover only the feature named in the heading\" → Claude cannot include the tangential content at all, regardless of space.\n\nFor documentation with clear section boundaries, scope constraints are the right tool.",
+      "examTip": "NEXT-step items: the stem tells you role, context, and format are already working. The remaining symptom is tangential content. That is a **scope** problem, addressed by constraints (B), not by tightening format (A) or refining context (C). The discriminator: length constraints manage *how much* Claude writes; scope constraints manage *what* Claude writes about."
+    }
+  },
+  {
+    "id": "PTE-A-072",
+    "domain": "Prompting and Task Execution",
+    "topic": "Cross-cutting: building block selection under time pressure",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A risk manager at a global bank has 20 minutes to prepare talking points for an emergency executive briefing on a cybersecurity incident that occurred overnight. She pastes a 15-page internal incident report into Claude with only: `\"Write briefing talking points.\"`\n\nThe output is accurate but: (1) it is structured for a technical security team audience with detailed forensic terminology, and (2) it is 1,800 words when she needs 5 bullets of 2–3 sentences each for a 10-minute exec briefing.\n\nGiven her time constraint, which TWO additions to her single re-prompt would MOST efficiently fix both problems? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "An audience specification: \"The audience is the CEO and CFO; assume no technical security background.\"" },
+      { "key": "B", "text": "A role: \"You are a crisis communications specialist who translates technical incidents for executive audiences.\"" },
+      { "key": "C", "text": "A format and length constraint: \"Produce exactly 5 bullet points, each 2–3 sentences, totalling no more than 250 words.\"" },
+      { "key": "D", "text": "A task rewrite: \"Summarise the five most significant business impacts of this incident for executive leadership.\"" },
+      { "key": "E", "text": "A context statement: \"This briefing is for a 10-minute executive slot; no technical detail is required.\"" }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "Symptom 1 (technical audience framing) is an audience context gap — specifying CEO and CFO with no security background recalibrates vocabulary and abstraction level directly. Option A fixes it. Symptom 2 (1,800 words instead of 5 concise bullets) is a format and length constraints gap — specifying exactly 5 bullets of 2–3 sentences each enforces both structure and length in one instruction. Option C fixes it. Together they address both symptoms in the fewest possible additions, which matters under time pressure.",
+      "distractors": {
+        "B": "A crisis communications persona would help with register but is the same type of signal as audience context and does not enforce a specific bullet structure or word count. Under time pressure, C is more direct and reliable than persona-based inference.",
+        "D": "Task rewrite improves relevance focus (business impacts) but does not fix the audience register (still might use technical language) or the length (still might be long). It is a useful improvement but does not efficiently fix either stated symptom.",
+        "E": "\"No technical detail\" is a useful constraint but is less precise than A (which names the specific audience and background assumptions). Under time pressure, the most targeted additions win; E is a weaker version of A's effect."
+      },
+      "concept": "**Efficiency under time pressure:** when you have one re-prompt opportunity, each addition should fix exactly one stated symptom. The diagnostic:\n1. List the symptoms.\n2. Map each symptom to its building block.\n3. Choose the most direct addition per symptom.\n\nFor this scenario:\n- Symptom 1 (wrong audience register) → audience context (A)\n- Symptom 2 (wrong length/structure) → format + length constraint (C)\n\nA persona (B) and a task rewrite (D) are improvements but are less direct fixes — they rely on Claude's interpretation rather than explicit specification.",
+      "examTip": "Under time pressure, **explicit over inferential**. B relies on Claude inferring the right register from a persona; A tells Claude the exact audience. D relies on Claude inferring length from \"business impacts\"; C specifies exactly 5 bullets of 2–3 sentences. When one re-prompt matters, be explicit about each symptom's fix. The trap is B — it sounds more complete than A, but A is more precisely targeted."
+    }
+  }
+]

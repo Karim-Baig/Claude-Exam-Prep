@@ -1,0 +1,506 @@
+[
+  {
+    "id": "PTE-C-041",
+    "domain": "Prompting and Task Execution",
+    "topic": "Format spec in non-rendering context",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A customer success manager asks Claude to write a weekly update she will paste into a plain-text email client that does not render markdown. Her prompt says: \"Format the response with headers and bullet points.\" The email arrives with pound signs, asterisks, and hyphens cluttering the text throughout.\n\nWhat should she change in her next prompt?",
+    "options": [
+      { "key": "A", "text": "Ask Claude to use HTML formatting instead of markdown." },
+      { "key": "B", "text": "Specify \"no formatting\" so all structure is removed." },
+      { "key": "C", "text": "Specify: \"Plain text only — no markdown symbols. Use ALL-CAPS labels for section names and a dash-space prefix for list items.\"" },
+      { "key": "D", "text": "Switch to the Claude.ai desktop app, which exports plain text natively." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The failure is a format-context mismatch: markdown symbols were requested but the destination cannot render them. Option C specifies a plain-text format that produces readable structure without symbols — capitalised labels for sections and dash-space list items are universally readable in plain text. The instruction explicitly names the context constraint and the acceptable substitutes.",
+      "distractors": {
+        "A": "HTML tags would produce a different set of visible characters (`<h2>`, `<li>`) in a plain-text email client. HTML is a rendering format; it does not solve the unrendered-symbols problem.",
+        "B": "\"No formatting\" removes all structure, producing a wall of undifferentiated text. The manager still needs the output to be scannable; she needs plain-text-compatible structure, not no structure.",
+        "D": "The Claude.ai desktop app does not have a native plain-text export mode that strips markdown. The output format depends on the prompt instruction, not the app surface."
+      },
+      "concept": "**Format-context matching** requires knowing the rendering environment of the destination.\n\nMarkdown renders correctly in: Claude.ai, Slack, Notion, GitHub, many documentation tools.\nMarkdown appears as symbols in: plain-text email clients, legacy CRMs, some ticketing systems, SMS, terminal output without a markdown renderer.\n\nFor non-rendering destinations:\n- Avoid markdown symbols (`#`, `*`, `**`, `-` for bullets)\n- Use capitalised section labels, indentation, or ASCII conventions\n- Test in the destination environment at least once per new deployment\n\nRule of thumb: when specifying format, also specify the rendering context: \"plain text — no markdown symbols\" is a complete format instruction.",
+      "examTip": "Format-context mismatch items are easy because the cause is immediately apparent from the symptoms (visible symbols). The trap is option A (HTML), which sounds more structured than markdown but produces the same problem in a plain-text environment. The correct answer specifies plain-text-compatible structure, not a different markup language."
+    }
+  },
+  {
+    "id": "PTE-C-042",
+    "domain": "Prompting and Task Execution",
+    "topic": "Word count instruction placement",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A bid manager adds \"Keep the response under 500 words\" to the end of a 300-word prompt that contains extensive task detail about a complex RFP. Claude consistently returns 900-word responses across two attempts. She suspects the word count instruction is being ignored.\n\nWhat is the MOST likely cause?",
+    "options": [
+      { "key": "A", "text": "500 words is below Claude's minimum response length for complex prompts." },
+      { "key": "B", "text": "The word count instruction conflicted with an implied thoroughness expectation from the task detail." },
+      { "key": "C", "text": "Word count instructions are only reliable when placed at the very beginning of a prompt." },
+      { "key": "D", "text": "The extensive task detail established a strong generation frame before the constraint was stated; placing the word count limit at the start of the prompt or in a dedicated constraints block would improve compliance." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "A long, detailed task description establishes a generation frame — a sense of scope and expected depth — before the word count constraint appears. When the constraint arrives at the end, it competes with an already-dominant frame. Moving the constraint to the opening line (\"Write in under 500 words:\") or to an explicit constraints section ensures it shapes generation from the start.",
+      "distractors": {
+        "A": "There is no minimum response length in Claude. The model produces output of whatever length the prompt implies is appropriate. Short responses to complex prompts are routinely possible with the right instructions.",
+        "B": "Implied thoroughness is a real phenomenon, but the fix is not to accept the length overrun. The fix is to place the constraint where it can compete with the thoroughness frame — at the start, not the end.",
+        "C": "Instruction placement is important, but it is not limited to the very beginning. A dedicated constraints section (\"Constraints: under 500 words\") near the start is equally effective. Option C overstates the rigidity of placement rules."
+      },
+      "concept": "**Constraint placement** affects how strongly a constraint competes with the generation frame established by the preceding prompt content.\n\nPlacement rules for length constraints:\n- Strongest: first sentence of the prompt (\"Write a 500-word summary of...\") — length is part of the frame from the start\n- Strong: a named constraints section immediately before the task\n- Weak: a trailing instruction after extensive task detail\n\nThe prompt creates a model of the expected output. Length constraints placed after detailed task descriptions arrive too late to reshape the initial model. Reorder, don't repeat.",
+      "examTip": "Length-instruction-ignored items trace to placement, not to a hard limit or an inherent conflict. Option A (minimum length) describes an invented constraint. Option C overstates the rule — it's about early placement, not exclusively first-sentence placement. Option D is correct because it names the mechanism (generation frame dominance) and the fix (move the constraint earlier)."
+    }
+  },
+  {
+    "id": "PTE-C-043",
+    "domain": "Prompting and Task Execution",
+    "topic": "Negative constraint scope creep",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A technical writer asks Claude to document a new API: \"Write developer-facing API documentation — don't oversimplify.\" The output is dense and implementation-heavy, suited for senior engineers rather than the intermediate developers who are the actual audience. What went wrong?",
+    "options": [
+      { "key": "A", "text": "\"Don't oversimplify\" is too broad — it excluded accessible explanations across the whole spectrum, and Claude compensated by maximising technical depth rather than hitting the middle register." },
+      { "key": "B", "text": "Claude defaulted to the highest technical register because the subject was explicitly labelled an API." },
+      { "key": "C", "text": "The prompt needed a role instruction to calibrate tone: \"You are a technical writer for experienced engineers.\"" },
+      { "key": "D", "text": "API documentation always requires expert-level language; a simplification pass should be applied in a second prompt." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "\"Don't oversimplify\" is a negative constraint without a positive target. It excludes one end of the simplicity spectrum (trivially simple) but does not specify where on the remaining spectrum to land. Claude interpreted the prohibition conservatively — maximum technical depth is the safest way to avoid any risk of oversimplification — producing documentation that overshot the actual audience. The fix is a positive audience specification: \"Write for intermediate developers familiar with REST APIs but new to this product.\"",
+      "distractors": {
+        "B": "API as a subject matter does not trigger a default expert-level register. Claude calibrates tone to the stated audience. The absence of an audience specification, combined with a negative constraint, produced the maximum-depth output.",
+        "C": "Adding \"You are a technical writer for experienced engineers\" would reinforce the problem, not solve it. The actual audience is intermediate developers, not experienced engineers — and the current output already sounds like it was written for the latter.",
+        "D": "This is an under-engineering answer that accepts the poor output and adds a correction step. The problem is solvable in the first prompt by adding an audience specification."
+      },
+      "concept": "**Negative constraint scope creep** occurs when a negative constraint is broader than intended, excluding more than the author meant.\n\n\"Don't oversimplify\" means different things in different contexts:\n- To the author: avoid dumbing down to a non-technical audience\n- To Claude: avoid all accessible language and intermediate-level explanations\n\nThe pattern: broad negatives suppress a range, and Claude compensates by moving to the opposite extreme.\n\nFix: pair the negative constraint with a positive audience or register target:\n- \"Don't oversimplify\" → \"Write for intermediate developers: assume REST knowledge but explain this API's specific patterns\"\n\nRule of thumb: broad negatives need positive anchors to prevent overcorrection.",
+      "examTip": "Scope creep items present output that went too far in the opposite direction from the prohibition. Option C is a trap because role instructions do help with tone — but the suggested role (experienced engineers) reinforces the wrong direction. The correct diagnosis is that the negative constraint lacked a positive anchor, causing Claude to maximise in the unconstrained direction."
+    }
+  },
+  {
+    "id": "PTE-C-044",
+    "domain": "Prompting and Task Execution",
+    "topic": "Iterative refinement — alignment drift",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A marketing manager has refined a product tagline across five turns. Each turn produces an objectively more polished version, and the manager approves each step. After turn 5 the tagline is elegant and grammatically refined but has drifted far from the original brand brief. What is the PRIMARY failure mode?",
+    "options": [
+      { "key": "A", "text": "Five refinement turns exceeded the optimal depth for creative iteration." },
+      { "key": "B", "text": "Each turn reinforced incremental surface polish without checking alignment with the original brief, causing the loop to converge on a polished but off-brand output." },
+      { "key": "C", "text": "Claude learned the manager's approval pattern and began optimising for approval signals rather than brand fit." },
+      { "key": "D", "text": "The conversation history created continuity pressure that prevented Claude from generating alternatives sufficiently different from prior turns." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Each refinement turn optimised for the quality of the prior turn as the reference point, not the original brief. Without a re-anchor to the brief at each step, gradual improvements compound into significant drift. The loop failed because the success criterion changed implicitly — from \"does this match the brief\" to \"is this better than the previous version.\" Effective refinement loops re-check brief alignment at each step.",
+      "distractors": {
+        "A": "There is no fixed optimal iteration count for creative tasks. The number of turns is not the problem; the absence of brief-alignment checks at each turn is.",
+        "C": "Claude does not model approval signals from the user's behaviour across turns. It responds to the instructions in each prompt. This option describes a personalisation mechanism that does not exist.",
+        "D": "Continuity pressure is a real dynamic in long conversations, but it is a contributing factor at most. The primary failure is the absence of brief-alignment checks, not the presence of continuity."
+      },
+      "concept": "**Alignment drift** in iterative refinement occurs when the optimisation target shifts from the original goal to the prior turn's output.\n\nPrevention: at each turn, re-anchor to the original success criterion:\n- \"Compared to the original brief [quote the brief], rate the current version. Then improve it.\"\n- Or at every third turn: \"Paste the original brief and confirm the tagline still matches it before refining further.\"\n\nSymptom: output that is polished but misaligned. The manager's approval at each step did not catch the drift because approval was relative (\"better than last time\"), not absolute (\"matches the brief\").",
+      "examTip": "Alignment drift items distinguish between *relative* quality (better than the prior version) and *absolute* quality (matches the original brief). The trap is option D (continuity pressure), which is a real mechanism but a secondary one. The primary failure is always the missing alignment check — the loop was optimising for the wrong criterion."
+    }
+  },
+  {
+    "id": "PTE-C-045",
+    "domain": "Prompting and Task Execution",
+    "topic": "Unfilled template variable",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A recruiter uses a prompt template: \"Write a personalised outreach email for {{candidate_name}} applying for the {{role_title}} position.\" A junior team member sends the template to Claude with `{{role_title}}` left unfilled.\n\nWhat will MOST likely happen?",
+    "options": [
+      { "key": "A", "text": "Claude will refuse to process the prompt because of the undefined placeholder." },
+      { "key": "B", "text": "Claude will pause and ask the user to fill in the missing variable before generating a response." },
+      { "key": "C", "text": "Claude will treat `{{role_title}}` as literal text, either including it verbatim in the output or substituting a generic placeholder term." },
+      { "key": "D", "text": "Claude will search the conversation history for a previously mentioned role title and substitute it automatically." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Claude processes prompt text as written. An unfilled placeholder like `{{role_title}}` is just a string of characters — Claude does not recognise it as a special variable requiring substitution. It will either include the literal text in the output, producing \"...applying for the {{role_title}} position,\" or interpret the braces as a label and substitute something generic. Neither produces a correctly personalised email.",
+      "distractors": {
+        "A": "Claude does not detect unfilled template variables and refuse to proceed. There is no placeholder-validation mechanism — Claude treats all text as content to respond to.",
+        "B": "Claude does not pause to request variable values unless explicitly instructed to do so. It generates a response based on the prompt as received.",
+        "D": "Claude does not scan conversation history for implied substitution values. It may use contextual inference in some cases, but silently auto-populating a named template variable from prior turns is not a default behaviour."
+      },
+      "concept": "**Template variable failure modes** occur at the human layer, not the model layer. Claude has no knowledge of your template schema — it processes the prompt text literally.\n\nUnfilled placeholder effects:\n- Literal inclusion: `{{role_title}}` appears in the output\n- Generic substitution: Claude guesses a likely value based on context\n- Either outcome produces incorrect output that may not be obvious at a glance\n\nPrevention:\n- Review all placeholders before sending\n- Use distinctive delimiters (`{{DOUBLE_BRACES}}`) that are visually obvious when unfilled\n- Build a simple checklist into the team workflow: \"verify all placeholders filled before sending\"",
+      "examTip": "Template variable items test whether you know that Claude processes text literally — it has no template engine and no placeholder validation. Options A and B both describe error-handling behaviours that do not exist. Option D describes an inference behaviour that would only occur in specific, structured contexts. The correct answer is always: literal text passes through as-is."
+    }
+  },
+  {
+    "id": "PTE-C-046",
+    "domain": "Prompting and Task Execution",
+    "topic": "Instruction pollution in project settings",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A content team has added new instructions to their Claude Project every week for three months, now totalling 45 separate instructions covering tone, length, format, prohibited words, required sections, citation style, and audience calibration. Content quality has become inconsistent, and guidelines that have been in the project for months are being violated. What is the MOST likely cause?",
+    "options": [
+      { "key": "A", "text": "The project has reached its instruction character limit, causing the oldest instructions to be silently dropped." },
+      { "key": "B", "text": "Some newer instructions were written by team members who did not read the existing ones, creating duplicates." },
+      { "key": "C", "text": "Instructions added later always override earlier instructions in the same project, suppressing the original standards." },
+      { "key": "D", "text": "45 competing instructions create a high probability of implicit conflicts and attention dilution; Claude cannot reliably satisfy all constraints simultaneously, making compliance with any individual instruction inconsistent." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "A large set of potentially conflicting instructions imposes a constraint-satisfaction problem on every generation. As the number of instructions grows, the probability that any two instructions are in subtle tension increases. Claude attempts to satisfy all of them but can only give each a fraction of its attention. Instructions that were reliably followed with 10 constraints become inconsistently followed with 45 competing constraints.",
+      "distractors": {
+        "A": "While projects do have practical limits on instruction length, there is no documented behaviour where instructions are silently dropped when a character limit is approached. This option describes an invented silent-failure mechanism.",
+        "B": "Duplicate instructions are a real problem but are a contributing factor, not the primary cause of the described broad inconsistency. Duplicates create redundancy; the inconsistency described is more systemic.",
+        "C": "There is no documented \"last instruction wins\" rule in Claude Projects. Instructions are processed holistically. This option describes an invented precedence mechanism."
+      },
+      "concept": "**Instruction pollution** is the accumulation of instructions over time without review, consolidation, or conflict resolution.\n\nWarning signs:\n- More than 20–25 instructions in a project\n- Instructions added by multiple authors without a review process\n- Older instructions that have never been tested against newer additions\n\nFix:\n1. Audit all instructions for duplicates and conflicts\n2. Consolidate related instructions into coherent sections\n3. Test the full instruction set against representative outputs\n4. Establish a governance process: any new instruction requires reviewing compatibility with existing ones\n\nRule of thumb: a project instruction set should be as short as possible while covering all genuinely required constraints.",
+      "examTip": "Instruction pollution items involve a growing set of instructions producing inconsistent results. Option A (silent character limit drop) and option C (last-instruction-wins) both describe invented Claude behaviours. Option B (duplicates) is a real problem but not the primary cause of broad inconsistency. The correct diagnosis is attention dilution plus implicit conflicts across a large instruction set."
+    }
+  },
+  {
+    "id": "PTE-C-047",
+    "domain": "Prompting and Task Execution",
+    "topic": "Multi-turn constraint dropout",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A compliance analyst is reviewing 15 vendor contracts one by one with Claude in a single conversation. In turn 1 she specified: \"Flag only clauses that violate our indemnity policy, which requires mutual indemnification.\" By turn 9, Claude is flagging generally unusual clauses that are not related to indemnity. What is the PRIMARY cause?",
+    "options": [
+      { "key": "A", "text": "As the conversation grows and each contract review adds new content, the indemnity-specific constraint from turn 1 receives proportionally less attention, causing drift toward general clause flagging." },
+      { "key": "B", "text": "Claude applied the indemnity rule to the first eight contracts and then internally reset its review criteria for subsequent ones." },
+      { "key": "C", "text": "General unusual-clause flagging is Claude's default review behaviour that re-emerges whenever specific instructions are not repeated in every turn." },
+      { "key": "D", "text": "The later contracts contained clause types outside the scope of Claude's training on indemnity requirements." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The indemnity constraint was stated once in turn 1. As each contract review adds tokens to the conversation, turn 1 becomes proportionally smaller relative to the full context. By turn 9, the active generation is much closer in context to the contract content of turns 2–8 than to the constraint in turn 1. The constraint loses influence over distance, causing drift toward default review patterns.",
+      "distractors": {
+        "B": "Claude does not internally reset or refresh its criteria between tasks in a conversation. The full history remains in context; the issue is the relative weight of distant content, not a reset mechanism.",
+        "C": "There is no documented \"default\" clause flagging behaviour that re-emerges when specific instructions are absent. Claude does not maintain a default review mode that activates when distant instructions fade.",
+        "D": "Training scope is a knowledge question; the drift described is a behaviour change within the same task context. The contracts in later turns are not categorically different — the constraint's influence diminished with distance."
+      },
+      "concept": "**Constraint dropout** in multi-turn workflows occurs when a key instruction is stated once early in the conversation and not reinforced.\n\nMitigation strategies:\n1. **Periodic restatement**: after every 3–5 turns in a multi-item review, restate the constraint: \"Reminder: flag only indemnity clauses as defined in turn 1.\"\n2. **Per-turn anchor**: prefix each contract submission with a one-line constraint reminder.\n3. **Consolidation**: if the constraint is critical for the entire workflow, copy it into each turn that requires it — a small cost relative to a missed compliance issue.\n\nRule of thumb: for workflows spanning 8+ turns with a specific analytical constraint, treat the constraint as a per-turn inclusion, not a one-time statement.",
+      "examTip": "Constraint dropout items involve a multi-turn workflow where a key rule stated early begins to erode later in the session. Options B and C describe invented internal reset mechanisms. The correct mechanism is always attention dilution over distance — the constraint is still technically in context but receives less relative weight as the conversation grows."
+    }
+  },
+  {
+    "id": "PTE-C-048",
+    "domain": "Prompting and Task Execution",
+    "topic": "JSON schema drift in long extractions",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A data analyst asks Claude to extract 50 product records from a catalogue document and output them as JSON. She specified \"output as JSON objects.\" Records 1–20 are clean and consistent, but records 21–50 introduce new field names because those source entries had additional attributes. The resulting JSON cannot be imported without normalisation.\n\nWhich prompt change would MOST reliably prevent this?",
+    "options": [
+      { "key": "A", "text": "\"Make sure all records are consistent.\"" },
+      { "key": "B", "text": "\"Use this exact schema for every record regardless of source attributes: {\\\"product_id\\\": string, \\\"name\\\": string, \\\"category\\\": string, \\\"price\\\": number, \\\"description\\\": string}. Use null for any field absent in the source.\"" },
+      { "key": "C", "text": "\"Review your output for field consistency before returning it.\"" },
+      { "key": "D", "text": "\"Output all records with the same number of fields.\"" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Providing an explicit schema with field names, types, and a null-for-absent instruction eliminates all decisions about field naming and structure. Claude's instruction to add new fields for additional source attributes was a reasonable inference from \"output as JSON objects\" — source objects with more attributes produce more fields unless the schema explicitly constrains this. The null instruction handles the missing-attribute case without introducing new fields.",
+      "distractors": {
+        "A": "\"Consistent\" is a relative qualifier with no reference schema. Consistent with what? Claude needs a concrete schema to check against — the current prompt provides none.",
+        "C": "Self-review without a schema target is equivalent to option A — Claude will attempt consistency but will choose what to be consistent with. Without a fixed schema, the review does not prevent drift.",
+        "D": "\"Same number of fields\" is closer to a schema constraint but still does not specify field names. Claude could produce consistent field counts with inconsistent names, which still fails import."
+      },
+      "concept": "**Schema drift** in long extraction tasks occurs when source records vary in attributes and the prompt allows Claude to mirror that variation in field names.\n\nThe pattern:\n- Early records → consistent source → consistent fields\n- Later records → more attributes in source → Claude adds fields to capture them\n\nPrevention: define the **canonical output schema** and instruct Claude to:\n1. Use only the specified fields\n2. Use null (not omit) for absent values\n3. Ignore source attributes that are not in the schema\n\nA canonical schema separates \"what exists in the source\" from \"what the system needs\" — the schema is the contract, not the source.",
+      "examTip": "Schema drift items involve a long extraction where early records are fine and later records diverge. The fix is always an explicit canonical schema with a null-for-absent instruction. Options A, C, and D all address consistency without specifying what to be consistent with — they are vague qualifiers that produce the same problem at smaller scale."
+    }
+  },
+  {
+    "id": "PTE-C-049",
+    "domain": "Prompting and Task Execution",
+    "topic": "Prefilling edge case — language frame conflict",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A developer configures an API call with a system prompt: \"Respond only in formal English.\" She prefills the assistant turn with \"Voilà —\" — a French exclamation. Despite the system prompt, the full response continues in French. What BEST explains this behaviour?",
+    "options": [
+      { "key": "A", "text": "Prefilling always overrides system prompt instructions for language." },
+      { "key": "B", "text": "The system prompt's language instruction was malformed, causing it to be ignored." },
+      { "key": "C", "text": "The French opening token established a language frame at the generation frontier; Claude continued in French because the immediate local context (the prefill) outweighed the more distant system prompt instruction for subsequent token prediction." },
+      { "key": "D", "text": "The fix is a negative system prompt instruction — \"never respond in French\" — rather than the positive instruction \"respond in formal English.\"" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Prefilling inserts text at the most recent position in the assistant turn — the point where Claude generates the very next token. Language is a strong local context signal: \"Voilà —\" immediately conditions the following tokens toward French. The system prompt's English instruction is earlier in the context and competes at a distance. The prefill text won the local competition for the language frame. This is an edge case where prefilling a language-marked word creates an unintended override.",
+      "distractors": {
+        "A": "Prefilling does not have a global rule that it overrides system prompts. The mechanism is local context weight, not a precedence rule. In most prefill scenarios, the system prompt instructions are respected.",
+        "B": "The system prompt instruction \"respond only in formal English\" is not malformed. It is a standard language-scope instruction. The issue is the local language signal from the prefill, not a malformed instruction.",
+        "D": "Switching to a negative instruction (\"never respond in French\") is a partial mitigation but does not address the root cause: the prefill is conditioning language choice. The real fix is to use a language-neutral prefill or to not prefill when language constraints exist."
+      },
+      "concept": "**Prefill edge cases** arise when the prefilled text introduces properties — language, register, topic frame — that conflict with system prompt instructions.\n\nMechanism: Claude generates each token by predicting the most probable continuation given all prior context. The prefilled text is the most recent and locally proximate content, giving it disproportionate influence over immediate continuations.\n\nRisk scenarios for prefilling:\n- Prefilling with a word in a non-target language\n- Prefilling with a tone marker that conflicts with a system prompt tone instruction\n- Prefilling a partial sentence that implies a different conclusion than the system prompt requires\n\nRule of thumb: prefilled text should be language-neutral and consistent with all system prompt constraints — it operates as a prompt extension, not a safe override.",
+      "examTip": "This is a hard item because it requires understanding prefilling as a local context signal, not a mechanical override. Option A (prefill always overrides) is the most tempting wrong answer for candidates who understand that prefilling influences output but overstate its scope. The correct mechanism is local context weight at the token prediction level."
+    }
+  },
+  {
+    "id": "PTE-C-050",
+    "domain": "Prompting and Task Execution",
+    "topic": "Prompt chain — missing context handoff",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A financial analyst correctly decomposes a bundled prompt into three chained tasks: (1) extract key metrics from the earnings report, (2) compare metrics to prior quarter, (3) draft an executive summary. Tasks 1 and 2 succeed. Task 3 produces a generic, template-like executive summary that mentions no specific figures. What is the MOST likely cause of task 3's failure?",
+    "options": [
+      { "key": "A", "text": "Task 3 required stronger writing capability; it should have been run on Opus." },
+      { "key": "B", "text": "Three chained tasks is still too many; tasks 1 and 2 should have been merged into one." },
+      { "key": "C", "text": "Task 3 was run in a new conversation without access to the specific metrics from tasks 1 and 2." },
+      { "key": "D", "text": "The prompt for task 3 did not include the specific outputs of tasks 1 and 2 as context; Claude drafted a summary without the data it was supposed to summarise." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "A prompt chain requires explicit context handoff: the output of each task must be included in the input to the next task. If task 3's prompt says \"draft an executive summary\" without the specific metrics and comparison from tasks 1 and 2, Claude has no data to summarise and falls back to a generic summary structure. The decomposition was correct; the context handoff was missing.",
+      "distractors": {
+        "A": "Generic output is caused by missing input data, not insufficient writing capability. Opus would produce an equally generic summary if given the same empty input. Switching models does not provide the data that is absent.",
+        "B": "Three chained tasks is standard decomposition practice. The chain itself is not the problem; the missing data handoff between tasks 2 and 3 is.",
+        "C": "Option C is close but slightly inaccurate — the prompt chain may have been in the same conversation or a new one. Either way, the root cause is the missing explicit inclusion of task 2's output in task 3's prompt. Whether the conversation is new or continuous is less important than whether the data was included."
+      },
+      "concept": "**Prompt chain context handoff** is the discipline of explicitly passing the output of task N into the prompt for task N+1.\n\nPattern:\n- Task 1 output: a table of metrics → explicitly paste or reference this in task 2\n- Task 2 output: a comparison table → explicitly paste or reference this in task 3\n- Task 3 prompt: \"Using the following metrics and comparison [paste here], draft an executive summary...\"\n\nCommon failure: running chained tasks as separate prompts without including prior outputs. Each task then operates on no data and produces generic output.\n\nRule of thumb: each task in a chain must receive its upstream outputs as explicit context, not rely on Claude to \"remember\" them.",
+      "examTip": "Prompt chain failures always trace to a missing context handoff. The distinction between C and D is precision: C says \"no access\" (which blames the environment), D says \"not included in the prompt\" (which blames the prompting practice). D is correct because the fix is always to include the prior output in the next prompt, regardless of whether they are in the same conversation."
+    }
+  },
+  {
+    "id": "PTE-C-051",
+    "domain": "Prompting and Task Execution",
+    "topic": "Refinement diminishing returns",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A UX writer has been refining a single tooltip message with Claude for seven turns. Each turn produces a slightly different version — different word order, synonyms — but no version since turn 3 is clearly superior to any other. A colleague suggests the writer should have stopped several turns earlier.\n\nWhat principle does this situation illustrate?",
+    "options": [
+      { "key": "A", "text": "Iterative refinement has diminishing returns; once quality plateaus and no turn produces a clearly superior output, further refinement adds effort without improvement." },
+      { "key": "B", "text": "Refinement loops for copywriting tasks should be capped at a maximum of five turns." },
+      { "key": "C", "text": "Refinement should only continue if each turn produces a measurably better output as validated against a pre-defined rubric." },
+      { "key": "D", "text": "The writer should have switched to a different model tier at turn 4 to introduce more variation." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "After turn 3, the quality plateau indicates the prompt has extracted most of the available quality improvement from this iteration approach. Continuing produces variation, not improvement. Recognising a plateau and stopping — selecting the best output from turns 1–3 — is more efficient than running the loop to exhaustion. Diminishing returns is a feature of all iterative refinement processes, not a failure mode.",
+      "distractors": {
+        "B": "There is no universal cap on refinement turns. Different tasks have different quality curves. Some prompts reach a plateau after 3 turns; others genuinely improve for 10 or more. Caps should be based on observed quality, not a fixed number.",
+        "C": "A rubric is good practice but not the only way to recognise a plateau. The absence of a formal rubric does not invalidate the observation that turns 3–7 produced equivalent quality. Experienced practitioners recognise plateaus without formal measurement.",
+        "D": "Switching models to introduce variation is a reasonable technique for breaking a creative plateau, but it does not address the more fundamental point: the refinement was past the point of useful return regardless of model. The principle being illustrated is diminishing returns, not model selection."
+      },
+      "concept": "**Diminishing returns in iterative refinement** are the expected outcome of a healthy refinement loop that has reached the quality ceiling for its current approach.\n\nRecognising a plateau:\n- Multiple consecutive turns produce near-equivalent outputs\n- Each turn fixes one micro-issue and introduces another\n- The writer cannot articulate what \"better\" would look like\n\nAt plateau, the options are:\n1. Stop and select the best version\n2. Fundamentally reframe the task (new approach, not more iterations)\n3. Accept that the current approach cannot improve further\n\nRule of thumb: if you cannot describe what a better output would look like, further iterations will not find it.",
+      "examTip": "Diminishing returns items are easy because the scenario clearly describes equivalent outputs across multiple turns. The correct principle (option A) is the most general statement. Options B and C describe good practices (caps, rubrics) but are not the principle being illustrated. Option D introduces a valid technique but misses the point."
+    }
+  },
+  {
+    "id": "PTE-C-052",
+    "domain": "Prompting and Task Execution",
+    "topic": "Silent output truncation",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A financial services associate asks Claude to review and risk-flag 30 client account notes. The response ends at account 24 with no error message, no indication of incompleteness, and no trailing text. The associate reviews only the 24 accounts covered, missing 6. What failure pattern does this represent?",
+    "options": [
+      { "key": "A", "text": "Claude applied an internal privacy limit that caps account reviews at 24 per response." },
+      { "key": "B", "text": "The response was silently truncated at an output length limit; without an end-of-list marker or count confirmation, the truncation was invisible to a non-vigilant reviewer." },
+      { "key": "C", "text": "Six accounts did not contain sufficient information for risk flagging and were silently skipped." },
+      { "key": "D", "text": "The original prompt was ambiguous about whether all 30 accounts required individual flags." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Output length limits can cause a response to end mid-task without any explicit signal that content is missing. When the list format ends at a natural-looking point (account 24, not mid-sentence), the truncation is especially hard to detect visually. The risk is that downstream consumers trust the output is complete without verifying the count.",
+      "distractors": {
+        "A": "There is no documented privacy-based cap on the number of records Claude will review per response. This describes an invented safety mechanism.",
+        "C": "Silent skipping of insufficient records is not a documented Claude behaviour. If Claude cannot assess a record, it typically flags the limitation explicitly rather than omitting the record silently.",
+        "D": "The prompt being ambiguous about scope would typically produce output that either asks for clarification or makes an explicit assumption. A clean end at record 24 with no commentary points to truncation, not scope ambiguity."
+      },
+      "concept": "**Silent truncation** is one of the highest-risk output failure modes because it produces no error signal. The consumer of the output has no indication that the task is incomplete.\n\nMitigation strategies:\n1. **Add a completion marker**: instruct Claude to end with \"COMPLETE: N records processed\" — a missing marker indicates truncation\n2. **Request a count summary**: \"End your response with a count of flagged vs. clean accounts\"\n3. **Verify count against expected**: always confirm that the number of output items matches the number of input items\n4. **Split large batches**: for 30+ records, process in batches of 10–15 with explicit completion confirmation per batch\n\nRule of thumb: never assume a list-output task is complete without a count verification.",
+      "examTip": "Silent truncation items test whether you recognise the failure mode and its mitigation. Option A (privacy cap) is the most technical-sounding distractor. The correct answer names both the mechanism (output length limit) and the consequence (invisible to non-vigilant reviewer). The key insight: truncation at a natural list boundary is more dangerous than mid-sentence truncation because it looks complete."
+    }
+  },
+  {
+    "id": "PTE-C-053",
+    "domain": "Prompting and Task Execution",
+    "topic": "Conflicting format specifications — project vs chat",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A management consultant's project instruction states: \"Always respond in flowing prose — no bullet points.\" A per-chat prompt for a four-option strategic comparison ends with: \"Present the comparison as a 2×4 decision matrix table.\" Claude returns a prose description of what the table would contain rather than rendering the table itself. What is the BEST explanation?",
+    "options": [
+      { "key": "A", "text": "Markdown table rendering requires the API; the Claude.ai UI always falls back to prose descriptions." },
+      { "key": "B", "text": "The per-chat prompt was ambiguous; \"decision matrix\" could mean a table or a structured prose comparison." },
+      { "key": "C", "text": "The project instruction prohibiting bullet points was interpreted broadly to exclude all non-prose formatting including tables; Claude produced a prose description as a compromise." },
+      { "key": "D", "text": "Tables cannot be generated when a format conflict exists; Claude defaults to prose in all conflict scenarios." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The project instruction \"no bullet points\" was written to prohibit list formatting, but Claude interpreted its spirit broadly as \"prose only.\" Tables are structurally more similar to bullet lists than to prose paragraphs — both impose non-flowing structure. When the per-chat prompt requested a table, Claude produced a compromise: the content of the table described in prose, satisfying the prose instruction while acknowledging the table request. The project instruction was over-broad and created an unintended constraint on tables.",
+      "distractors": {
+        "A": "Markdown tables render correctly in the Claude.ai UI. This option describes an invented rendering limitation. The UI renders markdown including table syntax.",
+        "B": "\"Present as a 2×4 decision matrix table\" is not ambiguous — it explicitly requests a table with defined dimensions. The instruction is clear; the problem is the conflict with the project rule.",
+        "D": "There is no documented \"prose fallback in all conflicts\" behaviour. Claude attempts to satisfy both instructions simultaneously, producing a compromise. A total prose-default rule is invented."
+      },
+      "concept": "**Format instruction conflicts** require the author to anticipate how broad formatting rules interact with specific per-chat format requests.\n\nThe \"no bullet points\" rule in this scenario:\n- Intended scope: prevent lists from replacing analytical prose\n- Actual scope as interpreted: exclude all non-flowing structure, including tables\n\nPrevention:\n- Write project format instructions with explicit scope: \"Use flowing prose for analytical sections; tables are permitted for comparisons and data summaries.\"\n- Anticipate the edge cases that a broad rule will encounter\n\nFix for this scenario: update the project instruction to explicitly permit tables, or override it in the per-chat prompt with: \"For this comparison only, use a table format despite the prose instruction.\"",
+      "examTip": "This is a hard format conflict item because the conflict is implicit — \"no bullet points\" was not intended to exclude tables, but was interpreted that way. Option A (UI rendering limitation) is the most plausible-sounding wrong answer for candidates who know markdown can sometimes fail to render. The correct analysis is always: trace the compromise output back to the conflict."
+    }
+  },
+  {
+    "id": "PTE-C-054",
+    "domain": "Prompting and Task Execution",
+    "topic": "Positive framing insufficient — example needed",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An editorial manager asks Claude to \"write in our company's voice — confident, direct, and slightly irreverent.\" After three separate runs the output is professional and direct but entirely lacks the brand's distinctive irreverence. The manager has tried variations of the same descriptor words. What should she do differently?",
+    "options": [
+      { "key": "A", "text": "Add more adjectives to describe the irreverent quality: \"witty, edgy, cheeky, and self-aware.\"" },
+      { "key": "B", "text": "Define \"irreverence\" explicitly in the prompt before requesting the output." },
+      { "key": "C", "text": "Ask Claude to study the brand's social media feeds before writing." },
+      { "key": "D", "text": "Include two or three short examples of existing brand copy that demonstrate the irreverent voice; let the examples show what repeated description alone cannot convey." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "After three runs with varied descriptors produce the same result, the evidence shows that description alone is insufficient to convey this brand's specific irreverence. Irreverence is a subjective, brand-specific quality that sits in the gap between what words can describe and what examples can demonstrate. Providing two or three concrete examples of the brand's actual copy gives Claude a calibration point that no list of adjectives can supply.",
+      "distractors": {
+        "A": "Three runs of varied adjectives have already failed to convey the quality. Adding more adjectives follows the same approach that has already been shown not to work — the problem is not insufficient description words.",
+        "B": "A definition of irreverence describes the concept in the abstract. Like more adjectives, it tells Claude what the quality means but does not show what the brand's specific instantiation of it looks like.",
+        "C": "Asking Claude to study social media feeds requires that content to be in the conversation context. In the Claude.ai chat interface, Claude cannot browse URLs autonomously. Even if it could, unprompted web research is not a reliable source of brand calibration."
+      },
+      "concept": "**When positive framing reaches its limit**, examples are the next tool.\n\nThe hierarchy of specification tools:\n1. **Positive framing** (\"confident, direct, irreverent\"): effective for standard qualities with shared definitions\n2. **Examples** (two or three instances of the desired output): required when the quality is brand-specific, contextual, or otherwise underdetermined by descriptors\n3. **Negative framing** (\"not like X\"): useful when the correct quality is most easily defined by contrast\n\nSigns that description is insufficient:\n- Multiple runs produce the same \"correct but missing the point\" output\n- The quality is subjective and brand-specific (irreverence, wit, warmth)\n- You cannot define the quality without pointing to an example\n\nRule of thumb: if you cannot describe it without showing it, show it.",
+      "examTip": "This item tests the boundary between positive framing and few-shot examples. After multiple failed descriptive attempts, the evidence is that description alone cannot convey the quality. The correct escalation is examples. Options A and B continue the same failing approach with more words. Option C introduces an action that is not reliably available in the chat interface."
+    }
+  },
+  {
+    "id": "PTE-C-055",
+    "domain": "Prompting and Task Execution",
+    "topic": "Template staleness failure",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A proposal team at a professional services firm uses a prompt template created 14 months ago. The template covers the firm's service portfolio, but three new service lines have been added since it was created. Recent proposals generated from the template omit the new services. What is the PRIMARY cause?",
+    "options": [
+      { "key": "A", "text": "The template was not updated to reference the new service lines, so the prompt cannot instruct Claude to include what it has not been told to include." },
+      { "key": "B", "text": "Claude's training data does not include the firm's new service lines, so it cannot describe them." },
+      { "key": "C", "text": "Prompt templates automatically expire after 12 months in Claude Projects." },
+      { "key": "D", "text": "New service lines must be added to a Project knowledge base before they can be referenced in any prompt." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "A prompt template only includes what it was written to include. If the template was authored before the three new service lines existed, it has no instruction to reference them. Claude cannot infer that new services should be mentioned when the template does not mention them. The template is stale because its content no longer matches the firm's current portfolio.",
+      "distractors": {
+        "B": "Claude does not need to have internal training knowledge about a specific firm's service lines. Descriptions of the services would be provided in the prompt or in project knowledge — the issue is that neither has been updated, not that Claude lacks internal knowledge.",
+        "C": "Prompt templates do not have an automatic expiry mechanism in Claude Projects. They remain active as written until manually updated.",
+        "D": "A Project knowledge base is one way to provide service line information, but it is not the only way. Updating the template itself to reference the new services is equally valid. Option D overstates the requirement."
+      },
+      "concept": "**Template staleness** is the gap between what a template was written to cover and what the current task requires.\n\nCommon staleness triggers:\n- New products, services, or offerings added after template creation\n- Policy changes not reflected in template instructions\n- Audience or brand changes that make template tone or format outdated\n- New formatting standards or system requirements\n\nTemplate governance:\n- Assign ownership (who is responsible for keeping each template current?)\n- Add a review date or change trigger: \"Review when service portfolio changes\"\n- Version-control templates so changes are traceable\n\nRule of thumb: treat prompt templates like any other document that must stay current with the business it serves.",
+      "examTip": "Template staleness items are easy: the prompt cannot instruct Claude to include what was not written into the prompt. Options B and C describe invented limitations. Option D describes a real approach that is not required — the simplest fix is updating the template directly. The correct answer always traces the omission to the template's content, not the model's knowledge."
+    }
+  },
+  {
+    "id": "PTE-C-056",
+    "domain": "Prompting and Task Execution",
+    "topic": "Format failure mode identification",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A communications team lead reviews two recent Claude outputs. Which TWO situations represent format failures caused by an under-specified prompt rather than a model capability issue? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Claude returned a 2,000-word report when asked for a \"comprehensive overview\" and the user wanted 500 words." },
+      { "key": "B", "text": "Claude used markdown headers in an output that was pasted into a plain-text system, producing visible symbols throughout the document." },
+      { "key": "C", "text": "Claude wrote in a formal tone when asked for a \"professional style.\"" },
+      { "key": "D", "text": "Claude returned a numbered list when the prompt said \"organise the data clearly\" but the user needed a table." },
+      { "key": "E", "text": "Claude added a one-sentence disclaimer at the end of a legal analysis." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "B: The user specified \"headers and bullet points\" without indicating the destination was a plain-text system. Claude correctly produced markdown as requested; the failure was a missing context specification (\"plain text only\"). D: \"Organise the data clearly\" is ambiguous — it could mean a numbered list, a table, or bullets. Claude chose reasonably; the failure was the absence of a specific format instruction. Both are prompt under-specification failures.",
+      "distractors": {
+        "A": "The user asked for a \"comprehensive overview\" — \"comprehensive\" invites thoroughness. The 2,000-word response may be a reasonable interpretation of \"comprehensive.\" This is a vague-qualifier failure but closer to an expectation mismatch than a pure format failure.",
+        "C": "\"Professional style\" is commonly interpreted as formal. If the user wanted something different from formal, they needed to specify it. However, this is a tone specification failure, and formal is a defensible interpretation of \"professional.\"",
+        "E": "Adding a disclaimer to a legal analysis is a behaviour related to Claude's default caution, not a format specification issue. The user did not specify \"no disclaimers,\" but this is not a format failure — it is a default behaviour the user can override with an instruction."
+      },
+      "concept": "**Format failures** divide into:\n1. **Under-specification failures**: the prompt did not name the required format, and Claude chose a reasonable but wrong alternative\n2. **Context-mismatch failures**: the correct format was specified but the destination context was not, so the format breaks on delivery\n\nBoth are prompt problems, not model capability issues. The distinction matters for diagnosis: under-specification requires adding a format instruction; context mismatch requires adding a destination-context instruction.",
+      "examTip": "Format failure items require distinguishing between prompting failures and model behaviours. B (markdown in plain-text) is a context-mismatch failure; D (list instead of table) is an under-specification failure. Options A and C involve vague qualifiers but are more ambiguous. Option E is a default behaviour, not a format failure. Look for the two options where the user's intent was clear but the prompt did not specify the format precisely enough."
+    }
+  },
+  {
+    "id": "PTE-C-057",
+    "domain": "Prompting and Task Execution",
+    "topic": "Iterative degradation — when to stop and reset",
+    "difficulty": "hard",
+    "type": "nextstep",
+    "stem": "A bid manager is refining a value proposition statement. At turn 3 it was at roughly 80% of the target quality. After two more turns, it is now at 60% — each instruction fixed one element but introduced a new problem. She is 5 turns in and the output is worse than at turn 3.\n\nWhat should she do NEXT?",
+    "options": [
+      { "key": "A", "text": "Continue adding more specific instructions to patch each newly introduced problem in sequence." },
+      { "key": "B", "text": "Switch to Opus to handle the competing constraints with stronger reasoning." },
+      { "key": "C", "text": "Stop iterating; return to the turn 3 output and start a fresh conversation with it as the baseline, adding a single consolidated instruction that addresses all remaining gaps." },
+      { "key": "D", "text": "Ask Claude to review the current output against the original brief and self-correct without further instruction." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "When iterative refinement produces a pattern of fix-one-break-another, each additional instruction adds a new constraint to a growing set of accumulated constraints that are implicitly in conflict. The correct diagnosis is that the accumulated instruction history has become counterproductive. The fix: return to the last known-good state (turn 3), start fresh, and write a single consolidated instruction covering all the gaps at once — rather than introducing them one by one into a conflicting history.",
+      "distractors": {
+        "A": "Each new patch instruction adds to the conflicting accumulated set. Continuing this pattern adds more constraints without resolving the underlying conflicts — the quality will continue to oscillate or degrade.",
+        "B": "The degradation is caused by an accumulation of conflicting instructions, not by insufficient reasoning capability. Opus cannot resolve implicit conflicts that exist in the prompt history; it will attempt to satisfy all accumulated constraints and produce the same compromise outcome.",
+        "D": "Self-correction asks Claude to work within the same accumulated constraint set that is causing the problem. Without removing the conflicting history, Claude will produce another compromise. Self-correction is useful for minor fixes; it cannot resolve instruction set conflicts."
+      },
+      "concept": "**Iterative degradation** occurs when refinement turns are net-negative: each instruction removes one problem while introducing another.\n\nDiagnosis: quality is lower at turn N than at turn N-2.\n\nCause: accumulated instructions are in implicit conflict. Each new instruction narrows the space of acceptable outputs until the space contains no option that satisfies all constraints simultaneously.\n\nFix:\n1. Identify the best output in the history (turn 3 in this case)\n2. Start fresh using that output as context\n3. Write a consolidated instruction that resolves all remaining gaps in one pass, without the accumulated conflict history\n\nPrinciple: sometimes the cheapest fix is to discard expensive work.",
+      "examTip": "Iterative degradation nextstep items require you to recognise that continuing the same approach produces worse results. The diagnostic signal is quality decreasing across turns despite instruction additions. The correct next step always involves resetting to the last good state, not continuing to add instructions. Option A is the trap — it continues the failing pattern."
+    }
+  },
+  {
+    "id": "PTE-C-058",
+    "domain": "Prompting and Task Execution",
+    "topic": "Multi-turn degradation mechanisms",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A senior analyst notices that Claude's outputs in long working sessions become less focused and consistent as the conversation grows. Which TWO mechanisms MOST directly cause this degradation? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Early instructions receive proportionally less attention as the context window fills with later content, causing constraints stated early to lose influence." },
+      { "key": "B", "text": "Claude actively deprioritises instructions that have been repeated more than three times in a conversation." },
+      { "key": "C", "text": "Per-turn instructions accumulate and may implicitly conflict with each other, creating unresolvable competing requirements that reduce output consistency." },
+      { "key": "D", "text": "The model's reasoning capability decreases monotonically with conversation length." },
+      { "key": "E", "text": "Longer conversations trigger an internal safety mode that makes Claude more cautious and hedged." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "A: As conversations grow, early instructions occupy a smaller proportion of the total context and receive proportionally less attention during generation — the attention dilution mechanism. C: Each turn that introduces a new instruction or constraint adds to a growing set of requirements. When these are not explicitly harmonised, implicit conflicts accumulate, producing inconsistent output as Claude arbitrates between competing requirements differently on each turn.",
+      "distractors": {
+        "B": "There is no documented deprioritisation mechanism based on instruction repetition count. Repeating an instruction generally reinforces it slightly rather than causing it to be deprioritised.",
+        "D": "Reasoning capability does not decrease monotonically with conversation length. Quality degrades due to context dynamics (attention dilution, instruction conflicts), not a decrease in the model's underlying capability.",
+        "E": "There is no documented safety mode that activates in long conversations. More hedged responses in long conversations typically trace to accumulated conflicting instructions or context drift, not a mode change."
+      },
+      "concept": "**Long-conversation degradation** has two primary causes that are each addressable:\n\n**Attention dilution** (cause A):\n- Fix: periodically restate critical constraints; use a summary turn to consolidate the session\n\n**Instruction accumulation conflict** (cause C):\n- Fix: audit instructions at regular intervals; start fresh when the accumulated set becomes incoherent\n\nBoth mechanisms are passive — they do not require Claude to make an active decision to ignore instructions. They are structural properties of how attention operates over a long context.",
+      "examTip": "Multi-turn degradation items will offer invented active mechanisms (Claude deprioritises repeated instructions, capability decreases, safety mode triggers) alongside the two real passive mechanisms. The real causes are structural: attention dilution over distance and implicit conflict accumulation over time. Reject any option that describes an active decision by Claude to change behaviour based on conversation length."
+    }
+  },
+  {
+    "id": "PTE-C-059",
+    "domain": "Prompting and Task Execution",
+    "topic": "Kitchen-sink output failure mechanisms",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A strategy consultant bundles five distinct analysis tasks into a single prompt and receives shallow output across all five tasks. Which TWO are the MOST direct consequences of the kitchen-sink structure that explain the shallow output? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "The total token budget was insufficient for five tasks combined, causing each task to be truncated." },
+      { "key": "B", "text": "Generation capacity and attention were divided across five tasks simultaneously, preventing deep execution on any single task." },
+      { "key": "C", "text": "Claude applied an internal per-task length cap when it detected multiple tasks in a single prompt." },
+      { "key": "D", "text": "Claude could not apply a consistent analytical frame across tasks with different output types and success criteria, causing each task to be processed superficially." },
+      { "key": "E", "text": "The five tasks shared contextual information that created circular dependencies in Claude's reasoning." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "B: When five tasks share a single generation budget, depth per task is the inverse of task count. Each task gets a fraction of the attention and generation capacity that it would receive as a dedicated prompt. D: Tasks with different output types (data analysis vs. email drafting vs. slide outline) each require a different analytical frame. A single prompt cannot establish five distinct frames simultaneously; Claude defaults to a shallow pass over each rather than deep engagement with any.",
+      "distractors": {
+        "A": "Token budget is a real constraint, but the symptom described (shallow output across all tasks) is different from truncation (tasks cut off mid-response). Shallowness indicates insufficient depth, not insufficient length.",
+        "C": "There is no documented internal per-task length cap that Claude applies when multiple tasks are detected. This describes an invented system mechanism.",
+        "E": "Circular dependencies require tasks to depend on each other's outputs in a loop. The scenario describes a bundle of five independent tasks — there is no stated circular dependency."
+      },
+      "concept": "**Kitchen-sink shallow output** results from two compounding effects:\n1. **Resource division**: generation capacity spread across N tasks → depth per task scales inversely with N\n2. **Frame fragmentation**: each task type requires a different analytical approach → a single prompt cannot establish N different frames simultaneously\n\nThe fix — task decomposition — addresses both effects:\n- Each task gets full generation capacity\n- Each task's prompt establishes a single appropriate analytical frame\n- Success criteria are evaluable independently\n\nThe expected quality of decomposed tasks is higher than the sum of the shallow bundle output.",
+      "examTip": "Kitchen-sink mechanism items test whether you know the two underlying causes of shallowness (resource division and frame fragmentation) rather than invented mechanisms (per-task cap, circular dependencies). Option A confuses shallowness with truncation — two different symptoms. The correct pair describes passive effects of dividing one prompt across multiple competing tasks."
+    }
+  },
+  {
+    "id": "PTE-C-060",
+    "domain": "Prompting and Task Execution",
+    "topic": "Length control failure patterns",
+    "difficulty": "easy",
+    "type": "multi",
+    "stem": "A policy analyst consistently receives outputs longer than specified, even after adding word count instructions to her prompts. Which TWO patterns in her prompts are MOST likely causing the word count instructions to be ignored? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "The word count instruction appears at the very end of a long prompt, after extensive task detail that has already established a generation frame before the constraint is reached." },
+      { "key": "B", "text": "She uses approximate targets — \"approximately 400 words\" — instead of exact targets — \"exactly 400 words.\"" },
+      { "key": "C", "text": "She uses vague qualifiers — \"brief,\" \"concise\" — without any numeric target, making the constraint unmeasurable." },
+      { "key": "D", "text": "She does not repeat the word count instruction in every paragraph of the prompt." },
+      { "key": "E", "text": "She is using the web app instead of the API, which does not enforce word count instructions in the same way." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "A: A word count instruction placed after a long task description arrives too late to shape the generation frame. The detailed task content has already established a scope and depth expectation; the trailing constraint competes with a dominant frame and loses. C: Vague qualifiers like \"brief\" and \"concise\" provide no measurable target. Claude interprets these relative to context — a \"brief\" response to a complex policy question may still be 800 words. Without a numeric anchor, length is uncontrolled.",
+      "distractors": {
+        "B": "Approximate targets (\"approximately 400 words\") are generally effective for length control. Claude treats these as soft caps and typically produces output within 10–20% of the target. The difference between \"approximately\" and \"exactly\" is small and is not a primary cause of systematic overrun.",
+        "D": "Repeating the word count instruction in every paragraph is unnecessary and redundant. Placement near the start of the prompt (or in a dedicated constraints section) is sufficient. Per-paragraph repetition is not a standard or recommended practice.",
+        "E": "Word count instructions work in both the web app and the API. There is no documented difference in how length instructions are processed across surfaces. This option describes an invented platform limitation."
+      },
+      "concept": "The two most common causes of word count instruction failure:\n1. **Trailing placement**: constraint arrives after the generation frame is established\n2. **Vague qualifier substitution**: no numeric target, making compliance unmeasurable\n\nBoth are fixable with a simple prompt rewrite:\n- Move the length instruction to the first sentence: \"Write a 400-word policy summary.\"\n- Replace vague qualifiers with numbers: \"approximately 400 words\" instead of \"brief\"\n\nTogether, early placement and numeric targeting are the two most reliable length control practices.",
+      "examTip": "Length control failure items typically include one plausible but wrong option about approximate vs. exact counts (B) and one wrong option about platform differences (E). The correct answers are always placement (where in the prompt the constraint appears) and specificity (numeric vs. vague). These are the two fundamental length control variables."
+    }
+  }
+]

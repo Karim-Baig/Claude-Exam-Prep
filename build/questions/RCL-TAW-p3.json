@@ -1,0 +1,502 @@
+[
+  {
+    "id": "RCL-TAW-041",
+    "domain": "Technical Awareness",
+    "topic": "Latest alias risk",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "What is the PRIMARY risk of using a 'latest' alias for model selection in a production API pipeline?",
+    "options": [
+      { "key": "A", "text": "The alias always points to the most expensive tier, increasing cost without notice" },
+      { "key": "B", "text": "A new model release may be silently assigned to the alias, changing the pipeline's output behaviour without the team's knowledge" },
+      { "key": "C", "text": "The 'latest' alias is deprecated more frequently than versioned identifiers, creating outage risk" },
+      { "key": "D", "text": "The alias is rate-limited more aggressively than explicit versioned model calls" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The 'latest' alias is a pointer that gets updated when a new model is released. When the pointer moves, the pipeline begins running against a different model without the team having tested it. Output phrasing, classification patterns, or structured format compliance may shift enough to break downstream logic silently.",
+      "distractors": {
+        "A": "The alias does not preferentially point to the most expensive tier. It resolves to whatever the current production model is, which varies over time regardless of tier.",
+        "C": "Aliases are a stable routing convenience. They are not deprecated on a different schedule from versioned identifiers.",
+        "D": "Rate limits apply based on account and tier configuration, not on whether a versioned identifier or an alias was used to specify the model."
+      },
+      "concept": "**Model version pinning** is the practice of specifying an exact model identifier rather than relying on an auto-updating alias.\n\nWhy it matters in production:\n- A pipeline validated against one model version may behave differently on the next\n- Silent behaviour changes are the most dangerous class of regression — the pipeline appears to run but produces wrong results\n- Pinning ensures the model tested in staging is the model running in production\n\nThe correct workflow: pin a version for production; intentionally test a new version in staging before migrating. The alias is useful for exploratory development, not for production pipelines with downstream logic.",
+      "examTip": "Latest alias risk = silent behaviour change. The danger is not cost or availability — it is that output behaviour shifts without warning when the alias pointer moves. Any stem describing unexpected behavioural changes in a pipeline that uses 'latest' should point to version drift as the cause."
+    }
+  },
+  {
+    "id": "RCL-TAW-042",
+    "domain": "Technical Awareness",
+    "topic": "Rate limit symptom",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "What is the MOST direct symptom when an API pipeline exceeds its rate limit?",
+    "options": [
+      { "key": "A", "text": "API calls begin to fail or return throttling errors rather than model responses" },
+      { "key": "B", "text": "The model's output quality degrades as fewer tokens are allocated per response" },
+      { "key": "C", "text": "The context window shrinks to accommodate fewer tokens per unit of time" },
+      { "key": "D", "text": "The pipeline switches automatically to a lower-tier model to maintain throughput" }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Rate limits cap the volume of requests or tokens per unit of time. When a pipeline exceeds the limit, the API returns an error — typically a 429 (Too Many Requests) status — rather than a model response. The call fails; it does not silently degrade.",
+      "distractors": {
+        "B": "Token allocation per response is not affected by rate limits. Rate limits throttle call volume; they do not reduce per-call token capacity or output quality.",
+        "C": "The context window is a property of the model tier, not a dynamic variable adjusted in response to rate pressure. It does not shrink under load.",
+        "D": "There is no automatic tier downgrade when rate limits are exceeded. The provider rejects the call; it does not reroute it."
+      },
+      "concept": "**Rate limit failures** are explicit and immediate: the API returns an error rather than silently degrading. Common rate-limit error shapes:\n- 429 Too Many Requests\n- Response body indicating which limit was exceeded (RPM, TPM, TPD)\n\nHandling rate limits in a production pipeline:\n- Implement exponential back-off and retry on 429 responses\n- Use a request queue to smooth out burst traffic\n- Monitor usage metrics to anticipate limit approaches before they cause failures\n- Contact the provider to request higher-tier rate limits for production workloads\n\nBatch processing sidesteps synchronous rate limits by using a separate asynchronous queue.",
+      "examTip": "Rate limit failure = call rejected, error returned. It is not a gradual quality degradation or a silent tier change. When a stem describes API calls failing under high volume, rate limits are the cause. When output quality degrades without failures, look at the prompt or context, not rate limits."
+    }
+  },
+  {
+    "id": "RCL-TAW-043",
+    "domain": "Technical Awareness",
+    "topic": "Low temperature guarantee",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "What does setting temperature to its lowest value guarantee in a document classification pipeline?",
+    "options": [
+      { "key": "A", "text": "Shorter output responses to reduce token consumption per call" },
+      { "key": "B", "text": "Outputs that comply more strictly with safety policies for sensitive content" },
+      { "key": "C", "text": "Consistent, near-deterministic label assignments for the same input across multiple runs" },
+      { "key": "D", "text": "Faster response times due to reduced token sampling computation" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "At the lowest temperature setting, the model consistently selects the highest-probability token at each step, producing near-identical outputs when given the same input. For a classification task, this means the same record will receive the same label reliably across runs — an important property for consistency and auditability.",
+      "distractors": {
+        "A": "Temperature controls the randomness of token selection, not the total count of tokens generated. Output length is determined by the task structure and explicit length instructions, not temperature.",
+        "B": "Safety policy compliance is governed by the model's training and safety configuration, not temperature. Low temperature increases determinism; it does not apply stricter safety filters.",
+        "D": "Computation time per token is not meaningfully affected by temperature. Token generation at low temperature may be very slightly simpler computationally, but this does not produce a noticeable speed difference."
+      },
+      "concept": "**Temperature and determinism:**\n\nTemperature is a sampling parameter. At zero (or minimum), the model always picks the highest-probability next token — producing the same output repeatedly for the same input. At higher temperatures, sampling is more random, producing varied outputs.\n\nFor classification and structured output tasks:\n- Low temperature → consistent labels, reliable format compliance, auditability\n- High temperature → varied responses, useful for brainstorming but dangerous for pipelines that parse outputs programmatically\n\nRule: any pipeline where the same input must produce the same output should use low temperature.",
+      "examTip": "Low temperature = determinism, not safety, not speed, not brevity. When the exam asks what low temperature 'guarantees,' the answer is consistent, repeatable outputs — nothing else."
+    }
+  },
+  {
+    "id": "RCL-TAW-044",
+    "domain": "Technical Awareness",
+    "topic": "Context window drift",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A long-running conversation gradually produces outputs that drift away from the original project constraints. No instructions have been changed. What is the MOST likely cause?",
+    "options": [
+      { "key": "A", "text": "The system prompt was automatically compressed to make room for new conversation turns" },
+      { "key": "B", "text": "Temperature gradually increased over the course of the session, raising output randomness" },
+      { "key": "C", "text": "The user's recent inputs are reinforcing a different direction through accumulated conversational emphasis" },
+      { "key": "D", "text": "The context window is filling with conversation history, pushing the original constraints toward or beyond the effective window boundary" }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "As a conversation accumulates turns, the context window fills. The oldest content — including early constraints and framing — is the first to approach or fall past the effective boundary. When those constraints are no longer influencing the model, outputs naturally drift toward the more recent conversational content, which may have a very different direction.",
+      "distractors": {
+        "A": "System prompts are not automatically compressed. The context window is managed by token position, not by the platform compressing earlier instructions. When the window fills, older content is simply no longer included.",
+        "B": "Temperature is a static per-call parameter. It does not drift or accumulate over a session. Increased randomness would cause varied outputs, not directional drift toward different constraints.",
+        "C": "While user inputs do influence output direction, the stem specifies no change in instructions. Gradual directional drift without input changes is a context window symptom, not a user-influence effect."
+      },
+      "concept": "**Context window filling and instruction loss** is a subtle but important failure mode in long sessions.\n\nThe mechanism:\n1. Each new turn adds tokens to the context\n2. The context has a fixed capacity\n3. When capacity is reached, the oldest tokens are no longer included\n4. Instructions placed at the beginning of the session gradually approach and then fall outside the effective window\n\nEffect: the model begins responding as if those early instructions were never given — not because it ignores them, but because they are no longer present.\n\nFix: start fresh conversations for new phases; repeat critical constraints periodically in user turns.",
+      "examTip": "Gradual drift without instruction changes in a long session → context window pressure. The instructions have not been overridden — they have been forgotten because the session has grown past the point where they are still in context."
+    }
+  },
+  {
+    "id": "RCL-TAW-045",
+    "domain": "Technical Awareness",
+    "topic": "RAG retrieval failure",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A RAG system consistently misses relevant content when answering queries on a specific topic. The content exists in the corpus. What is the MOST likely cause?",
+    "options": [
+      { "key": "A", "text": "The retrieval step fails to surface those passages because their embedding or index representation does not align with how the queries are phrased" },
+      { "key": "B", "text": "The model's context window is too small to include the retrieved passages alongside the full query" },
+      { "key": "C", "text": "The topic is outside the model's training data so it cannot interpret retrieved passages even when found" },
+      { "key": "D", "text": "Batch processing is being used for the retrieval step, causing results to arrive after the model has already generated a response" }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "RAG quality is bounded by retrieval quality. If documents are embedded or indexed in a way that does not match query phrasing — for example, technical jargon in the documents vs. plain-language queries — the vector similarity scores for relevant passages may be low, and those passages will not be retrieved. The model never sees them and cannot use them.",
+      "distractors": {
+        "B": "Context window capacity is a real constraint but would cause issues across all retrieved passages, not specifically for a single topic. Systematic misses on one topic point to retrieval, not context capacity.",
+        "C": "A model can interpret and use retrieved text even if the topic post-dates its training. Retrieval grounds the response in the provided text; the model does not need prior training-data exposure to use it.",
+        "D": "Retrieval is typically synchronous in a RAG pipeline — it runs before the model call, not in parallel. Batch processing in this context is not a standard pattern and is not the cause of consistent topic misses."
+      },
+      "concept": "**RAG retrieval quality** is the most common source of RAG system failures. The chain is: query → retrieve passages → generate answer. If retrieval is weak, the model generates from poor or missing context.\n\nCommon retrieval failure causes:\n- **Vocabulary mismatch:** documents use technical terms; queries use plain language (or vice versa)\n- **Poor chunking:** relevant content is split across chunks in a way that reduces semantic coherence\n- **Stale index:** documents have been updated but the index has not been re-embedded\n- **Insufficient retrieved passages:** the top-k setting returns too few passages to cover the relevant content\n\nFix: improve the retrieval step — better chunking, hybrid retrieval (semantic + keyword), or query rewriting before retrieval.",
+      "examTip": "When a RAG system misses content that exists in the corpus, the failure is in the *retrieval step*, not in the model. The model can only use what retrieval surfaces. Improving retrieval quality — not upgrading the model tier — is the correct fix."
+    }
+  },
+  {
+    "id": "RCL-TAW-046",
+    "domain": "Technical Awareness",
+    "topic": "Batch output quality check",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A batch job returns a high proportion of outputs that appear to misclassify the input records. What should the team check FIRST?",
+    "options": [
+      { "key": "A", "text": "Whether the model version changed automatically between submission and completion" },
+      { "key": "B", "text": "Whether the prompt and input format used in the batch call match what was validated in synchronous testing" },
+      { "key": "C", "text": "Whether the rate limit was exceeded during the batch job, causing incomplete results" },
+      { "key": "D", "text": "Whether the batch job was routed to a different geographic region, altering model output" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The most common cause of unexpected batch output is a mismatch between how the prompt and inputs were validated in synchronous testing and what was actually submitted in the batch. Format differences — different delimiters, missing fields, truncated inputs — or prompt differences between test and batch can cause systematic failures that look like model errors but are actually prompt or data preparation errors.",
+      "distractors": {
+        "A": "Model versions do not change automatically during a batch job. Batch jobs run against the version specified at submission. This is a valid concern for long-term regression, not for a single batch run.",
+        "C": "Rate limits on batch processing are managed by the provider asynchronously. They do not cause incomplete or misclassified results within a batch job in the way synchronous rate limits cause call failures.",
+        "D": "Geographic routing does not alter model outputs. The model is the same model regardless of which data centre processes the request."
+      },
+      "concept": "**Debugging batch output quality:**\n\nWhen a batch produces unexpected results, the diagnostic order is:\n1. Compare the batch prompt exactly to the tested prompt — even whitespace or delimiter differences can cause format violations\n2. Check the input data format — encoding issues, truncation, or field-ordering differences are common\n3. Spot-check a sample of the inputs and outputs manually\n4. Run a subset of the batch inputs synchronously to see if the problem reproduces\n5. Check whether the model version or configuration changed\n\nThe vast majority of batch quality issues trace to the input preparation step, not to model behaviour changes.",
+      "examTip": "Batch quality failures almost always trace to *prompt or input format mismatches* between test and production. Check what was actually sent before looking at the model. The model did not change between your test and the batch run."
+    }
+  },
+  {
+    "id": "RCL-TAW-047",
+    "domain": "Technical Awareness",
+    "topic": "Tool call failure effect",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "During a multi-step agentic task, one tool call returns an error. What is the MOST likely effect if the failure is not explicitly handled?",
+    "options": [
+      { "key": "A", "text": "The agent automatically retries the tool call up to a predefined number of attempts before halting" },
+      { "key": "B", "text": "The agent completes remaining steps using parametric memory without noting any gap in the response" },
+      { "key": "C", "text": "The agent may proceed with incomplete or incorrect information, compounding the error in subsequent reasoning steps" },
+      { "key": "D", "text": "The agent halts the entire task and returns an explicit error notification to the operator" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Agents do not have automatic error-handling behaviour built in unless it is explicitly designed. If a tool returns an error and the agent's instructions do not direct it to stop or retry, it will often proceed — either filling in with parametric memory or making assumptions based on the error message. Errors from early tool calls can then cascade: downstream reasoning steps build on incorrect intermediate data, compounding the initial failure.",
+      "distractors": {
+        "A": "Automatic retry logic must be implemented by the developer. It is not a built-in agent behaviour; without it, a single error causes the agent to proceed with missing data.",
+        "B": "While the agent may fall back to parametric memory, it does not reliably flag this as a gap. The final response may appear complete and confident while being based on incorrect or missing tool output.",
+        "D": "Agents do not automatically halt and escalate to the operator on tool errors. This behaviour must be explicitly programmed. The default is to continue, which is why unhandled tool failures are risky."
+      },
+      "concept": "**Error compounding in agentic systems** is one of the most significant risks unique to multi-step AI workflows.\n\nThe risk chain:\n1. Tool A returns an error or incorrect data\n2. The agent proceeds, using the bad data as input to step B\n3. Step B's output is based on incorrect premises\n4. Step C uses step B's output, amplifying the error\n5. The final result is wrong in ways that may not be obvious without tracing back\n\nMitigation:\n- Implement explicit tool-error handling: instruct the agent to stop, retry, or escalate on error\n- Validate tool outputs at each step before proceeding\n- Design human checkpoints at critical junctures in the workflow\n- Keep agentic tasks atomic enough that one failure does not cascade through many steps",
+      "examTip": "Unhandled tool errors in agents → error compounding, not automatic halts or retries. The agent proceeds unless explicitly instructed otherwise. This is the key risk that makes human-in-the-loop checkpoints important in agentic workflows."
+    }
+  },
+  {
+    "id": "RCL-TAW-048",
+    "domain": "Technical Awareness",
+    "topic": "Prompt caching no benefit",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A team enables prompt caching but observes no measurable reduction in per-call cost. What is the MOST likely reason?",
+    "options": [
+      { "key": "A", "text": "The model tier they are using does not support prompt caching" },
+      { "key": "B", "text": "The system prompt is shorter than the minimum length required to register a cache checkpoint" },
+      { "key": "C", "text": "Prompt caching only applies to output tokens, not to input token processing" },
+      { "key": "D", "text": "The content of the prompt changes substantially on every call, preventing a stable cached prefix from forming" }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Prompt caching requires a stable, repeated prefix to function. If the prompt changes on every call — different documents, different user context, different dynamic content at the beginning of the input — there is no fixed prefix to cache. Without a reusable prefix, the cache is never populated and no savings accrue.",
+      "distractors": {
+        "A": "While prompt caching support varies, this is not the most common explanation for zero savings. The more common explanation is a mismatch between how the prompt is structured and what caching requires.",
+        "B": "There is a minimum prefix length for caching to be effective, but the more typical failure is dynamic content that prevents any prefix from repeating at all, not a static short prefix.",
+        "C": "Prompt caching applies to input token processing — the repeated prefix of the input context. It does not apply to output tokens, which are generated fresh on every call."
+      },
+      "concept": "**Why prompt caching fails to save costs:**\n\n1. **Dynamic prefix:** if user-specific content, timestamps, or document content appears before the system prompt in the input, the 'prefix' changes every call and nothing is cached\n2. **Short prompt:** a very short system prompt has low processing cost to begin with; caching it saves little even when it works\n3. **Infrequent reuse:** caching benefits accumulate across many calls with the same prefix; a workflow with few calls sees minimal benefit\n\n**Design for caching:**\n- Place the stable, static content (system prompt, reference documents) at the beginning of the input\n- Place dynamic, per-call content (user message, variable context) at the end\n- This ensures the cacheable prefix is as large and stable as possible",
+      "examTip": "Caching requires a *stable prefix*. Dynamic content before the system prompt kills caching. When troubleshooting zero caching benefit, the first question is: does the prompt change on every call, and if so, at what position?"
+    }
+  },
+  {
+    "id": "RCL-TAW-049",
+    "domain": "Technical Awareness",
+    "topic": "Stale eval test set",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A team has used the same eval test set for 18 months without updating it. The production system now handles a wider range of inputs than the test set covers. What risk does this create?",
+    "options": [
+      { "key": "A", "text": "Eval scores will appear stable or improving even as real-world quality degrades on input types the test set does not represent" },
+      { "key": "B", "text": "The eval programme will begin generating false positives that inflate the perceived failure rate" },
+      { "key": "C", "text": "The model provider will invalidate evaluation scores from test sets not refreshed within a defined period" },
+      { "key": "D", "text": "Eval scores will fluctuate unpredictably because stale test items introduce random noise into the scoring algorithm" }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "An eval set that no longer reflects production input diversity becomes a false indicator of health. The pipeline may perform perfectly on the narrow set of examples from 18 months ago while failing on the new types of inputs that now represent the majority of real traffic. A stable or improving eval score then actively misleads the team into confidence they should not have.",
+      "distractors": {
+        "B": "A stale test set produces fewer, not more, detected failures — because the test set does not exercise the failure modes present in new input types. False negatives (missed failures) are the risk, not false positives.",
+        "C": "There is no model provider mechanism that invalidates organisation-managed eval test sets based on age. The organisation owns its eval infrastructure.",
+        "D": "Stale items do not introduce randomness. A fixed test set produces consistent scores; the problem is not noise but systematic blindness to new failure modes."
+      },
+      "concept": "**Eval set maintenance** is an ongoing responsibility, not a one-time setup.\n\nAn eval set becomes stale when:\n- The production input distribution shifts (new use cases, different user populations, seasonal variation)\n- New failure modes emerge that the original test cases do not cover\n- The model is updated and new edge cases are introduced\n\nEffects of a stale eval set:\n- False confidence — scores look good while real-world quality is unknown\n- Missed regressions — quality changes in new input types go undetected\n- Misaligned improvement signals — teams optimise for the test set rather than production quality\n\nBest practice: continuously add new test cases from real production failures and novel input types.",
+      "examTip": "A stale eval set is more dangerous than no evals — it produces confident but misleading quality signals. The risk is false confidence, not noisy results. When a stem describes quality problems that the eval 'did not catch,' stale test coverage is the likely explanation."
+    }
+  },
+  {
+    "id": "RCL-TAW-050",
+    "domain": "Technical Awareness",
+    "topic": "Fine-tuning side effects",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "After fine-tuning on domain-specific examples, a model performs worse on general-purpose tasks it previously handled well. What phenomenon does this illustrate?",
+    "options": [
+      { "key": "A", "text": "Prompt drift, where fine-tuning changes the model's calibration for how it interprets instructions" },
+      { "key": "B", "text": "Catastrophic forgetting, where training on new examples degrades performance on capabilities not represented in the fine-tuning data" },
+      { "key": "C", "text": "Rate limit collateral damage, where fine-tuning requests consume quota that otherwise serves production calls" },
+      { "key": "D", "text": "Context window compression, where fine-tuning reduces effective context capacity for out-of-domain inputs" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Catastrophic forgetting is a well-documented phenomenon in neural network training: updating the model's weights on new examples can overwrite patterns that supported prior capabilities. When fine-tuning data is narrow (one domain, one style), the model may shift weight distributions in ways that degrade performance on the broader tasks it previously handled.",
+      "distractors": {
+        "A": "Prompt drift describes gradual quality changes over time in a deployed pipeline, often from context window pressure or conversation accumulation. It is not a training artefact.",
+        "C": "Fine-tuning is a training operation separate from API call quota. It does not consume synchronous API rate limits.",
+        "D": "Context window size is a fixed property of the model architecture. Fine-tuning modifies weights; it does not alter the model's context window capacity."
+      },
+      "concept": "**Catastrophic forgetting** is a core trade-off in fine-tuning:\n\nFine-tuning updates model weights to better fit the training examples. This improvement comes at a potential cost to capabilities the training data did not reinforce — the model may 'forget' patterns it previously had.\n\nRisk factors that increase catastrophic forgetting:\n- Very narrow or homogeneous fine-tuning data set\n- Many training epochs (over-optimisation on the narrow set)\n- High learning rate during fine-tuning\n\nMitigation:\n- Include diverse general-purpose examples in the fine-tuning data to preserve broad capabilities\n- Evaluate on both the target domain AND general capabilities before deploying\n- Consider whether prompt engineering can achieve the desired result without the forgetting risk",
+      "examTip": "Fine-tuning can make things worse on tasks not in the training data — that is catastrophic forgetting. This is one reason 'exhaust prompting first' is the standard recommendation: fine-tuning has irreversible side effects that prompt changes do not."
+    }
+  },
+  {
+    "id": "RCL-TAW-051",
+    "domain": "Technical Awareness",
+    "topic": "When not to use agents",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "Which TWO scenarios describe situations where an agentic workflow would be LESS appropriate than a simpler approach? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "The task is well-defined, all necessary information is already in the context, and a single model pass will produce a correct result" },
+      { "key": "B", "text": "The task requires checking a live API for current pricing before generating a recommendation" },
+      { "key": "C", "text": "Every step of the process is fully predictable and the developer can express the entire sequence as a fixed, scripted pipeline" },
+      { "key": "D", "text": "The task involves synthesising information from multiple documents that have all been uploaded to the context" },
+      { "key": "E", "text": "The model must decide which of several tools to invoke based on the content of an incoming user request" }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "When all information is in the context and a single pass is sufficient (A), an agent adds complexity, error risk, and latency for no benefit. When the entire sequence is fully predictable and scriptable (C), a developer-scripted pipeline is simpler, more auditable, and more reliable than an agent that exercises discretion at each step.",
+      "distractors": {
+        "B": "Checking a live API mid-task is exactly the kind of real-time data retrieval that tool use in an agentic workflow enables. This is a good agent use case.",
+        "D": "Synthesising from multiple uploaded documents can be done in a single prompt call with the documents in context. No agent is needed, but this is a single-shot case, not an agent-inappropriate case — there is no agent being proposed here.",
+        "E": "Dynamic tool selection based on request content is a core agentic capability. This is an appropriate use case for an agent, not an argument against one."
+      },
+      "concept": "**The agent overhead question:** agents introduce real costs — complexity, error compounding risk, latency from multiple turns, and harder auditability. The rule is simple: only use an agent when a simpler approach genuinely cannot do the job.\n\nUse a simpler approach when:\n- One well-constructed prompt can address the entire task\n- The developer can script every step in advance\n- No live data retrieval or real-world actions are needed\n- The task is a pure generation problem with all inputs already present\n\nUse an agent when:\n- Intermediate results must influence subsequent steps\n- Live data or actions are needed mid-task\n- The path to the answer is not fully knowable in advance",
+      "examTip": "The test for whether an agent is needed: can you write one prompt with all necessary information and get the correct result? If yes, stay single-shot. Can you script every step in advance? If yes, use a pipeline. Only reach for an agent when neither is possible."
+    }
+  },
+  {
+    "id": "RCL-TAW-052",
+    "domain": "Technical Awareness",
+    "topic": "High temperature inconsistency",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A classification pipeline begins returning inconsistent labels for identical inputs across different runs. The prompt and model have not changed. What is the MOST likely cause?",
+    "options": [
+      { "key": "A", "text": "The context window is filling with cached results from prior runs, introducing label variation" },
+      { "key": "B", "text": "The model version was silently updated when the 'latest' alias was used" },
+      { "key": "C", "text": "Temperature is set high enough to introduce meaningful randomness into token selection, causing different labels to emerge across runs" },
+      { "key": "D", "text": "The batch processing queue is returning results out of order, mismatching inputs to labels" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Temperature is the most direct cause of inconsistency across runs when the prompt and model are constant. A non-zero temperature means the model samples from a probability distribution at each token step. The same input with the same prompt can produce different label assignments across runs simply because of sampling randomness.",
+      "distractors": {
+        "A": "Cached results do not persist between API calls as context. Each call receives a fresh context; there is no mechanism for prior run results to contaminate subsequent calls.",
+        "B": "Model version drift via a 'latest' alias is a real risk, but the stem states the prompt and model have not changed. If version is already pinned, this is not the cause.",
+        "D": "Batch processing result ordering is a data management concern, not a source of inconsistent labelling. Label inconsistency means the model is producing different labels, not that results are being mismatched."
+      },
+      "concept": "**Temperature and classification consistency:**\n\nFor classification tasks, any non-zero temperature introduces the possibility of sampling a different label class on different runs — especially for inputs near decision boundaries where two labels have similar probabilities.\n\nFix: set temperature to zero (or its minimum) for classification pipelines. This maximises determinism.\n\nA related diagnostic question: if temperature is already at zero and inconsistency persists, the likely cause shifts to model version drift or context differences between calls. Diagnose systematically: temperature first, then model version, then context.",
+      "examTip": "Inconsistent results for identical inputs with an unchanged prompt → temperature is the first thing to check. Classification and structured output tasks should always run at low temperature. High temperature is for creative tasks, not deterministic pipelines."
+    }
+  },
+  {
+    "id": "RCL-TAW-053",
+    "domain": "Technical Awareness",
+    "topic": "Single eval metric risk",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A team tracks only one metric in their eval programme — the percentage of outputs that pass a length check. What key risk does this single-metric approach create?",
+    "options": [
+      { "key": "A", "text": "The length metric will gradually inflate, causing the eval to report false improvements over time" },
+      { "key": "B", "text": "The model provider may flag the metric as non-standard and decline to support it" },
+      { "key": "C", "text": "The eval framework will malfunction if the metric does not include a semantic quality rubric" },
+      { "key": "D", "text": "Systematic quality failures that do not manifest as length violations — such as factual errors or wrong tone — will be invisible to the eval programme" }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "A length check is a structural test, not a quality test. Responses can be exactly the right length and be factually wrong, tone-deaf, incomplete in coverage, or misleading. A single structural metric creates a blind spot for every quality dimension it does not measure. Teams may believe quality is stable because the metric is green, while real issues compound unnoticed.",
+      "distractors": {
+        "A": "Metric values do not inflate autonomously. A well-implemented length metric will return whatever the actual pass rate is. There is no inherent upward drift.",
+        "B": "The model provider does not certify or approve organisation-managed eval metrics. Teams choose their own metrics; no approval is needed.",
+        "C": "Eval frameworks do not malfunction without a semantic rubric. A single structural metric runs cleanly; the problem is what it fails to measure, not that it causes system errors."
+      },
+      "concept": "**Eval metric coverage** is as important as having evals at all. A metric that measures one dimension provides a false sense of comprehensive quality assurance.\n\nCommon quality dimensions to measure:\n- Factual accuracy (are the claims correct?)\n- Format compliance (is the structure correct?)\n- Tone and register (does it match the target audience?)\n- Task completion (does the output address the request?)\n- Length (is it the right level of detail?)\n\nA length check alone passes a terse, factually wrong response. A factual accuracy check alone passes a correct but unreadably long response. Multiple metrics, covering different dimensions, provide meaningful coverage.\n\nA useful heuristic: imagine the worst output you could generate that would still pass your eval. If that output is clearly bad, your eval is measuring the wrong thing.",
+      "examTip": "Single-metric evals create systematic blind spots. The quality dimension that matters most for a given task is often not length, format, or any single structural property — it is the dimension the team forgot to measure."
+    }
+  },
+  {
+    "id": "RCL-TAW-054",
+    "domain": "Technical Awareness",
+    "topic": "Prompt injection via user input",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A developer has written a system prompt restricting Claude to a single product domain. A user pastes a long document ending with text instructing Claude to ignore the system prompt. What vulnerability does this attempt exploit?",
+    "options": [
+      { "key": "A", "text": "The boundary between operator instructions and user-supplied data — if Claude treats the embedded instructions as authoritative, the system prompt constraints are circumvented" },
+      { "key": "B", "text": "A context window overflow that pushes the system prompt outside the active context when long documents are added" },
+      { "key": "C", "text": "Temperature drift triggered by long input processing, which increases the likelihood of Claude deviating from its instructions" },
+      { "key": "D", "text": "API key compromise, as the user has gained operator-level access by injecting content into the user turn" }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Prompt injection exploits the fact that the model processes all text in the context — including user-supplied data — as natural language. Instructions embedded in user content attempt to be treated with the same authority as the developer's system prompt. The attack works by blurring the boundary between 'instructions from the operator' and 'data from the user.' A model that follows the embedded instruction has been prompt-injected.",
+      "distractors": {
+        "B": "Context window overflow is possible with very long documents, but the attack described here is behavioural, not volumetric. The threat is the model following the embedded instructions, not the system prompt being pushed out.",
+        "C": "Temperature is a static parameter. It does not drift in response to input length. Long input does not raise temperature or increase deviation risk.",
+        "D": "API key compromise is a credential attack. Pasting text into a user turn does not grant operator-level API access or affect authentication. The attack is entirely at the content level."
+      },
+      "concept": "**Prompt injection** attacks the instruction-data boundary in AI systems.\n\nAttack pattern:\n1. The attacker embeds instructions in data the model will process (a document, a webpage, a tool result)\n2. The model reads that data as part of its context\n3. If the model follows the embedded instructions, the operator's system prompt has been bypassed\n\nThe attack is difficult to fully prevent because natural language does not have a clear syntax-level distinction between 'instructions' and 'data.'\n\nMitigation strategies:\n- Use explicit delimiters to separate user-supplied content from instructions\n- Instruct the model to treat user-supplied documents as data only\n- Apply secondary review for responses generated from untrusted content\n- Limit what actions Claude can take when processing untrusted user input",
+      "examTip": "Prompt injection = adversarial instructions in *data* trying to override *operator instructions*. It is not a credential attack, not a context overflow, and not a temperature effect. When a stem describes embedded instructions attempting to change Claude's behaviour, prompt injection is the vulnerability."
+    }
+  },
+  {
+    "id": "RCL-TAW-055",
+    "domain": "Technical Awareness",
+    "topic": "API key exposure response",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A team discovers that an API key was included in a help document shared with 200 employees. What is the CORRECT FIRST action?",
+    "options": [
+      { "key": "A", "text": "Change all employee passwords to prevent the key from being used alongside their credentials" },
+      { "key": "B", "text": "Immediately revoke the API key in the provider console and issue a replacement, then audit recent API usage for anomalies" },
+      { "key": "C", "text": "Remove the key from the document and remind employees it is confidential, then monitor for unauthorised use" },
+      { "key": "D", "text": "Contact the model provider to freeze the account while the scope of potential misuse is assessed" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "An API key is a bearer credential — anyone who has seen the document can use it immediately. The only safe response to an exposed key is immediate revocation. Removing the document or reminding employees does not help; the key is already known to 200 people and potentially to anyone those employees forwarded the document to. Revoke first, then investigate usage.",
+      "distractors": {
+        "A": "API keys authenticate independently of employee passwords. Resetting passwords has no effect on a bearer token that does not require a password to use.",
+        "C": "Removing the document does not revoke the key. The key remains valid in every copy of the document and in anyone's memory or copy. The key itself must be revoked.",
+        "D": "Contacting the provider to freeze the entire account is disproportionate and would disrupt all API-dependent workflows. The correct action is targeted: revoke the specific exposed key while keeping the account operational."
+      },
+      "concept": "**Incident response for an exposed API key:**\n\n1. **Revoke the key immediately** — do not wait to assess scope first; every minute the key is valid extends the exposure window\n2. **Issue a replacement key** and update all systems that used the old key\n3. **Audit recent API usage logs** for unusual activity — unexpected volumes, unusual endpoints, calls from unknown IP ranges\n4. **Identify the root cause** — how did the key end up in a document? Fix the process, not just the instance\n5. **Brief stakeholders** on what happened and what actions were taken\n\nDelaying revocation to 'assess scope first' is a common mistake. The scope assessment can happen after the key is revoked; the risk cannot be stopped while the key remains valid.",
+      "examTip": "Exposed key → revoke first, investigate second. The order matters. Removing the document or changing passwords are feel-good actions that do not stop anyone who already has the key. Revocation is the only effective response."
+    }
+  },
+  {
+    "id": "RCL-TAW-056",
+    "domain": "Technical Awareness",
+    "topic": "RAG confident but wrong",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "Which TWO conditions can cause a RAG system to return a confident-sounding but factually incorrect response? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "The model's context window is larger than the number of passages the retrieval step returns per query" },
+      { "key": "B", "text": "The retrieved passages contain information that was accurate when indexed but has since become outdated" },
+      { "key": "C", "text": "The query volume exceeds the synchronous rate limit, causing some retrieval steps to time out" },
+      { "key": "D", "text": "The retrieval step returns passages that are topically adjacent but do not contain the correct answer, and the model infers a plausible response from the incomplete evidence" }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "Stale indexed content (B) produces grounded but outdated responses — the model reports what the document says, which was once correct but no longer is. Topically adjacent but non-answering passages (D) lead the model to infer from incomplete evidence, producing a response that sounds coherent because it draws on related context but is factually wrong because the specific answer was never retrieved.",
+      "distractors": {
+        "A": "Having a context window larger than the retrieved passages just means there is available space — it does not cause incorrect responses. Unused context capacity is not a failure mode.",
+        "C": "A rate limit timeout causes the retrieval step to fail, which typically produces an error or a fallback response. It does not cause a confident-sounding but incorrect response — a failure is usually visible."
+      },
+      "concept": "**RAG does not guarantee accuracy.** It grounds responses in retrieved content, but that content can be:\n- **Stale:** accurate when indexed, now outdated\n- **Adjacent but insufficient:** related but not actually answering the query, leading the model to fill the gap with plausible inference\n- **Conflicting:** multiple passages that contradict each other\n- **Incomplete:** the right document was not indexed at all\n\nThe model's fluency and confidence come from its language generation capability, not from the accuracy of what was retrieved. A confident RAG response can be based on stale or incomplete evidence without any visible signal to the reader.\n\nMitigation: include source metadata in the response so users can verify; implement freshness checks on the index; test the retrieval quality on known-answer questions.",
+      "examTip": "RAG confidence does not mean RAG accuracy. The two most common causes of confident-but-wrong RAG responses are stale index content and topically adjacent but non-answering retrieved passages. Neither shows up as an error — both look like a normal, grounded response."
+    }
+  },
+  {
+    "id": "RCL-TAW-057",
+    "domain": "Technical Awareness",
+    "topic": "Production cost underestimate",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A team's actual API costs in production ran four times higher than their pre-launch estimate. Which factor MOST commonly explains this gap?",
+    "options": [
+      { "key": "A", "text": "The model provider increased per-token pricing between the testing and production phases" },
+      { "key": "B", "text": "The platform automatically upgraded the model tier for production traffic without notification" },
+      { "key": "C", "text": "Test cost estimates were based on message length alone, while production input tokens include the full system prompt and accumulated conversation history on every call" },
+      { "key": "D", "text": "The production deployment was routed through a cloud provider that added a substantial hosting markup" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "In testing, teams often measure cost using short, isolated prompts. In production, every call includes the full system prompt, any conversation history, reference documents, and the user's message — all billing as input tokens. A system prompt that is 2,000 tokens long adds 2,000 tokens to every single call. When this full input volume was not reflected in test cost estimates, the gap between test and production costs can be large.",
+      "distractors": {
+        "A": "Per-token pricing is announced in advance and does not change silently between testing and production. Pricing changes on this scale would be communicated through the provider's official channels.",
+        "B": "The platform does not automatically upgrade model tiers for production traffic. The team controls model selection through their API configuration.",
+        "D": "Cloud provider hosting markup is a real factor but typically a modest percentage increase, not a 4x gap. The 4x gap is more characteristic of input token volume underestimation."
+      },
+      "concept": "**Common sources of API cost underestimation:**\n\n1. **System prompt volume:** a 3,000-token system prompt costs those 3,000 tokens on every call, all day, every day — this is the most underestimated line item\n2. **Conversation history accumulation:** each turn adds tokens; a 20-turn conversation carries 19 turns of history as input on turn 20\n3. **Reference documents:** a product catalogue or policy document included in every call multiplies its length by call volume\n4. **Output verbosity:** prompts that produce longer outputs than expected during testing\n\n**Cost estimation discipline:** model a realistic production call with full system prompt + expected average history + typical user message, then multiply by projected call volume.",
+      "examTip": "Production cost = (system prompt + history + user message + docs) × calls × rate. Tests that use isolated short prompts miss the system prompt and history components. The 4x gap is almost always the system prompt and conversation history being omitted from the test estimate."
+    }
+  },
+  {
+    "id": "RCL-TAW-058",
+    "domain": "Technical Awareness",
+    "topic": "SSO governance gaps",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "Which TWO situations demonstrate that SSO integration alone is insufficient to fully govern Claude access in an enterprise? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "An employee accesses Claude via a personal account on their work device, bypassing the corporate SSO-protected instance" },
+      { "key": "B", "text": "The SSO provider experiences an outage that temporarily prevents all employees from logging in" },
+      { "key": "C", "text": "An employee pastes confidential client data into a Claude prompt in violation of the data-handling policy" },
+      { "key": "D", "text": "A third-party application uses an API key rather than SSO to connect to Claude, operating entirely outside the SSO governance perimeter" },
+      { "key": "E", "text": "A manager asks their team to use Claude for a use case not covered by the organisation's approved task list" }
+    ],
+    "correct": ["A", "D"],
+    "explanation": {
+      "correct": "Personal accounts (A) bypass corporate SSO entirely — access is authenticated outside the organisation's identity provider, leaving no visibility or control. API key-based application access (D) is inherently outside SSO governance, because API keys authenticate software processes directly without SSO involvement. Both represent gaps where SSO does not reach.",
+      "distractors": {
+        "B": "An SSO outage is an availability issue, not a governance gap. It means employees temporarily cannot log in, which is the opposite of an unauthorised access problem.",
+        "C": "Data-handling policy violations are a behavioural and policy control issue. SSO governs who can access Claude, not what authenticated users do with their access. This requires complementary controls (data classification training, policy enforcement) that are separate from SSO.",
+        "E": "Using Claude for unapproved tasks is a policy governance issue. SSO authentication does not control which specific tasks employees choose to perform once logged in. This requires usage policies and potentially technical controls at the feature or Project level."
+      },
+      "concept": "**SSO's governance scope and limits:**\n\nSSO controls:\n- Which employees can access the corporate Claude instance\n- Identity lifecycle — provisioning and deprovisioning via HR workflows\n- Authentication standards (MFA, session duration)\n\nSSO does NOT control:\n- Access through personal accounts (outside SSO scope entirely)\n- API key-based application access (a different authentication mechanism)\n- What authenticated users do once logged in\n- Shadow AI usage on personal devices or accounts\n\nComplete governance requires layered controls: SSO + policy + training + usage monitoring + API key management.",
+      "examTip": "SSO governs access through the identity provider. It cannot govern access that bypasses it — personal accounts and API key applications both operate outside SSO's perimeter. These are the two governance gaps the exam will test."
+    }
+  },
+  {
+    "id": "RCL-TAW-059",
+    "domain": "Technical Awareness",
+    "topic": "Model tier upgrade ineffective",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A team upgrades from a mid-tier to the highest-tier model to fix poor output quality. After the switch, quality is unchanged. What is the MOST likely explanation?",
+    "options": [
+      { "key": "A", "text": "The highest-tier model uses a different authentication method that was not correctly configured" },
+      { "key": "B", "text": "The platform automatically reduces temperature for highest-tier calls, which lowered output variety" },
+      { "key": "C", "text": "The highest-tier model has a smaller context window than the mid-tier model, exacerbating context pressure" },
+      { "key": "D", "text": "The problem lies in underspecified or incomplete prompt instructions; additional reasoning depth cannot compensate for missing or unclear input information" }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "A higher-tier model has more reasoning capacity, but it cannot reason correctly from a prompt that provides insufficient information or unclear instructions. If the output quality problem is 'the model does not know what I want' or 'the model lacks the context to answer correctly,' upgrading the tier provides more sophisticated reasoning over the same inadequate input — the result is still wrong, just more articulately wrong.",
+      "distractors": {
+        "A": "Model tiers use the same API authentication mechanisms. Upgrading a tier does not change authentication requirements.",
+        "B": "The platform does not automatically alter temperature based on model tier. Temperature is controlled by the caller's API parameters.",
+        "C": "Higher-tier models typically have larger, not smaller, context windows. Smaller context windows on upgrade would be a rare anomaly, not the standard relationship."
+      },
+      "concept": "**When upgrading tier helps and when it does not:**\n\nUpgrading helps when:\n- The task genuinely requires deeper reasoning (complex multi-step analysis, subtle judgements)\n- The model's capability is the bottleneck — it can't handle the reasoning complexity even with a good prompt\n\nUpgrading does NOT help when:\n- The prompt is underspecified — more reasoning on unclear instructions produces more sophisticated wrong answers\n- The context lacks necessary information — higher tier cannot infer what was not provided\n- The problem is output format or style — these are prompt specification problems\n\nRule: fix the prompt before upgrading the tier. If the upgraded tier produces the same failure with the same prompt, the problem is the prompt.",
+      "examTip": "Tier upgrade doesn't fix a prompt problem. The exam will offer 'upgrade to Opus' as an attractive option in many troubleshooting scenarios. The correct answer is almost always 'improve the prompt first.' Upgrading helps when the task exceeds the tier's reasoning capacity — not when the prompt is underspecified."
+    }
+  },
+  {
+    "id": "RCL-TAW-060",
+    "domain": "Technical Awareness",
+    "topic": "Agentic failure modes",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "Which TWO failure modes are MOST specific to agentic systems and do not typically apply to single-shot prompting? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "The model generates a response that does not match the requested output format" },
+      { "key": "B", "text": "An error in an early tool call introduces incorrect data that subsequent reasoning steps compound into a more serious final error" },
+      { "key": "C", "text": "The model's output is shorter than the user expected given the task complexity" },
+      { "key": "D", "text": "The model takes an irreversible real-world action — such as sending a message or updating a record — based on a flawed intermediate reasoning step" }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "Error compounding across steps (B) is specific to multi-step systems — in a single-shot prompt, there is only one step, so nothing compounds. Taking irreversible real-world actions (D) requires tool use and multi-step agency; a single-shot prompt that generates text has no mechanism to act on external systems, so irreversible action errors are impossible without an agent.",
+      "distractors": {
+        "A": "Format mismatch is one of the most common single-shot prompting failures. It occurs regardless of whether the workflow is agentic. It is not a distinctively agentic failure mode.",
+        "C": "Output length disappointment affects single-shot prompts as readily as agentic workflows. It is a prompt specification problem, not an agent-specific failure."
+      },
+      "concept": "**Agentic-specific failure modes:**\n\n1. **Error compounding:** an incorrect intermediate result influences all subsequent steps, amplifying the initial error across the chain\n2. **Irreversible actions:** the agent takes a real-world action (sends an email, deletes a record, places an order) that cannot be undone if the step was wrong\n3. **Goal drift:** in a very long agentic session, the model loses track of the original objective and pursues a subtask instead\n4. **Tool misuse:** the agent calls a tool with incorrect parameters, producing a result that looks valid but is based on wrong inputs\n5. **Infinite loops:** the agent repeatedly tries and fails a step without recognising it should escalate or stop\n\nNone of these failure modes exist in single-shot prompting, which is why agentic systems require more robust error handling and human oversight.",
+      "examTip": "Agentic failures that have no single-shot equivalent: error compounding (requires multiple steps) and irreversible real-world actions (requires tool use + agency). Format mismatches and length problems are single-shot failures that also appear in agents — they are not agent-specific."
+    }
+  }
+]

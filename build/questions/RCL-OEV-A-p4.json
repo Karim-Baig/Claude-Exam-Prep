@@ -1,0 +1,506 @@
+[
+  {
+    "id": "RCL-OEV-A-061",
+    "domain": "Output Evaluation and Validation",
+    "topic": "Grounding limits and verification need",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "Why does providing source documents in context reduce hallucination risk without eliminating the need for independent verification?",
+    "options": [
+      { "key": "A", "text": "The model can still misread, selectively quote, or misrepresent the source documents it was given, even when those documents are present in context" },
+      { "key": "B", "text": "Source documents provided in context are not accessible to human reviewers, so verification cannot use the same sources the model saw" },
+      { "key": "C", "text": "Providing source documents increases context window length, which proportionally increases the probability of generation errors" },
+      { "key": "D", "text": "Independent verification is only required when source documents are not provided in context" }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Grounding the model with source documents eliminates the need for the model to rely entirely on parametric memory and reduces the probability of pure fabrication. But it does not guarantee faithful reproduction. The model may misread a figure, selectively excerpt a passage that changes meaning, paraphrase in a way that shifts emphasis, or omit a qualification present in the source. These are grounding-failure modes that occur even when the source is in context. Verification confirms that the model accurately and completely represented what the source actually said.",
+      "distractors": {
+        "B": "Source documents provided in context are visible to and accessible by human reviewers — that is precisely what makes grounded claims auditable. A reviewer can open the same document the model was given and compare the model's claims against it. Accessibility is not the limitation.",
+        "C": "Context window length and generation error probability do not have a simple proportional relationship. Longer context can improve performance on tasks requiring wide coverage and reduce hallucination by providing more relevant grounding material. Context length is not a liability in itself.",
+        "D": "Independent verification is required whenever claims are specific, attributable, and consequential — regardless of whether source documents were provided. Even well-grounded output requires verification of faithful representation. The need for verification is not removed by grounding; it is narrowed to a specific check (does the claim match the source?)."
+      },
+      "concept": "**Grounding reduces but does not eliminate verification need** because grounding and faithful representation are separate properties:\n\n- **Grounding**: a source is in context and the claim traces to it\n- **Faithful representation**: the model accurately and completely reproduced what the source says\n\nA claim can be grounded but unfaithfully represented in four ways:\n1. **Selective quotation**: using a fragment that misrepresents the source's overall position\n2. **Misreading**: a numerical error or key-term confusion in extracting from the source\n3. **Commission distortion**: paraphrasing that shifts meaning\n4. **Omission from source**: material in the source that the model dropped\n\nVerification against the source catches all four. Grounding makes this check possible; it does not make it unnecessary.",
+      "examTip": "This is a grounding-vs-verification discrimination item. The trap (D) presents grounding as a substitute for verification. The correct position: grounding enables verification by providing an auditable source — it does not eliminate the need to perform the audit. Grounding tells you *where to check*; verification is the actual checking."
+    }
+  },
+  {
+    "id": "RCL-OEV-A-062",
+    "domain": "Output Evaluation and Validation",
+    "topic": "Staleness vs hallucination detection workflow",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "In a verification workflow, what distinguishes the check that detects staleness from the check that detects fabrication?",
+    "options": [
+      { "key": "A", "text": "Staleness is detected by comparing the output against itself for internal consistency; fabrication is detected by comparing output against external sources" },
+      { "key": "B", "text": "Staleness is detected by comparing output against current sources that postdate the model's training; fabrication is detected by confirming the cited source exists and says what the model claims" },
+      { "key": "C", "text": "Staleness is detected by automated tools that cross-reference against training data snapshots; fabrication requires human judgment to confirm" },
+      { "key": "D", "text": "Both are detected by the same check: comparing output against any available system of record" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Staleness and fabrication are different failure modes requiring different detection checks. Staleness is detected by verifying claims against *current* authoritative sources — if the current source says something different from what the model said, the model's knowledge was outdated. Fabrication is detected by confirming the *existence* and *content* of a cited or implied source — if the source does not exist, or exists but does not say what the model claims, the claim was fabricated. The staleness check tests currency; the fabrication check tests existence and fidelity.",
+      "distractors": {
+        "A": "Internal consistency checking detects self-contradiction within the output — it is a coherence check, not a staleness check. Staleness requires comparison against external, current sources to determine whether the model's claim was once true but has since changed.",
+        "C": "There are no practical tools that cross-reference model output against its training data snapshots. Training data is not generally accessible for individual inference-time verification. Both staleness and fabrication detection require comparing against external, accessible sources — not training data.",
+        "D": "A system of record verifies currency (helping detect staleness) if it is maintained to be current, but detecting fabrication requires confirming that the *specific cited source* exists and contains the claimed content — a different check that a system of record may not perform."
+      },
+      "concept": "**Detection workflow by failure mode:**\n\n| Failure mode | What to check | How to detect |\n|---|---|---|\n| **Fabrication** | Does the cited/implied source exist? Does it say what was claimed? | Search for the source; compare claim to actual source content |\n| **Staleness** | Is the claimed fact still accurate as of now? | Check against a current, authoritative, post-training source |\n| **Misrepresentation** | Does the source exist and say something different? | Check source exists; compare claim to actual source content |\n\nA single verification check can sometimes surface both — if a source doesn't exist, you've found fabrication; if it exists but the claim reflects an old version, you've found staleness. But the detection question for each differs: \"Does this exist?\" (fabrication) vs. \"Is this still true?\" (staleness).",
+      "examTip": "The staleness/fabrication detection distinction is directly actionable: fabrication detection starts by searching for the source's existence; staleness detection starts by finding a current version of the source. These are different first moves. The exam will test whether you know which check is which — incorrect options will conflate them or incorrectly assign each to automated vs. human review."
+    }
+  },
+  {
+    "id": "RCL-OEV-A-063",
+    "domain": "Output Evaluation and Validation",
+    "topic": "Calibration and sampling design",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "How does good model calibration affect the practical design of a sampling-based verification strategy?",
+    "options": [
+      { "key": "A", "text": "Good calibration eliminates the need for random sampling because confidently-stated claims can be assumed correct" },
+      { "key": "B", "text": "Good calibration allows reviewers to skip all hedged items because uncertainty markers reliably indicate incorrect claims" },
+      { "key": "C", "text": "Good calibration allows hedging signals to serve as a useful prioritisation guide within a fixed sample, without eliminating coverage of confident claims" },
+      { "key": "D", "text": "Good calibration makes any sampling rate produce equally reliable quality estimates regardless of the task's stake level" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "When a model is well-calibrated, hedging language provides useful information: hedged claims are more likely to contain errors than assertive claims, proportionally. This allows a reviewer working through a fixed sample to allocate deeper scrutiny to hedged claims while still covering a representative set of confident claims. Calibration improves the efficiency of verification by allowing prioritisation — but it does not eliminate coverage of confident claims, because even well-calibrated models can be confidently wrong on specific items, particularly fabrications.",
+      "distractors": {
+        "A": "Calibration means confident claims are *more* likely to be correct than uncalibrated output, not that they can be assumed correct without checking. The probability shifts; the need for verification on high-risk specific claims does not disappear. A well-calibrated model still fabricates occasionally.",
+        "B": "Even with good calibration, skipping all hedged items is not correct — hedged items are higher-priority for review, not excluded. Additionally, calibration is a statistical property: a hedged claim is more likely to be wrong, not guaranteed to be wrong. Hedged-but-correct items should still inform the reviewer's overall quality assessment.",
+        "D": "Calibration affects the relationship between expressed confidence and accuracy, but it does not change the statistical relationship between sample size and the precision of quality estimates. Higher-stakes tasks still require larger samples to achieve the same confidence interval on error rate, regardless of calibration quality."
+      },
+      "concept": "**Calibration and verification design** interact productively when calibration is good:\n\n- **Well-calibrated model**: hedging → use as a triage signal for prioritisation within the sample; confident → still check high-risk claim types (statistics, citations, names)\n- **Poorly-calibrated model**: hedging signals are unreliable → use claim type and stakes alone to prioritise\n\nCalibration makes verification more *efficient* (better prioritisation) without making it less *necessary* (coverage of all high-risk claims regardless of tone).\n\nThe practical rule: calibration is a triage aid, not a verification replacement. It tells you where to look first within a fixed budget of review effort. It does not tell you which items are safe to skip entirely.",
+      "examTip": "The interaction of calibration and sampling is nuanced. Good calibration *improves* the reviewer's ability to prioritise but does not *reduce* the required coverage. Exam items on calibration will tempt you toward options A or B — skipping one direction entirely. The correct answer always describes calibration as a prioritisation tool within coverage, not as a substitute for coverage."
+    }
+  },
+  {
+    "id": "RCL-OEV-A-064",
+    "domain": "Output Evaluation and Validation",
+    "topic": "Staleness producing functional omission",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "In what specific way can a knowledge-cutoff staleness error produce a functional omission error in the same output?",
+    "options": [
+      { "key": "A", "text": "Staleness errors always produce omission errors simultaneously because outdated content is always shorter than current content" },
+      { "key": "B", "text": "A staleness error produces an omission when the model's parametric memory has been fully replaced by newer information, leaving a gap in the output" },
+      { "key": "C", "text": "Staleness and omission errors are mutually exclusive because a stale assertion occupies the same space a correct statement would, leaving no gap" },
+      { "key": "D", "text": "A staleness error can produce a functional omission when the outdated assertion suppresses mention of a current development the consumer needs in order to act correctly" }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The mechanism is suppression: when the model confidently asserts an outdated state of affairs, that assertion crowds out the current reality. The output contains no gap — it is complete in a surface sense — but the consumer acts on the stale information and fails to encounter the current information they needed. For example, if the model asserts a regulation permits an activity that was subsequently prohibited, the consumer may proceed with the activity unaware of the prohibition. The staleness produces a functional omission of the current regulatory state even though no gap in the text is visible.",
+      "distractors": {
+        "A": "Staleness errors do not always co-occur with omissions. A stale but complete description of a process that has since changed is a staleness error without necessarily producing a functional omission — the consumer might act on outdated but not dangerously incomplete information. The co-occurrence is conditional on whether the missing current information is decision-relevant.",
+        "B": "Parametric memory gaps do not work by replacing old content with new content and leaving gaps. A model's training data at cutoff is fixed; there is no process by which newer information overwrites older information in a way that creates visible output gaps. The model simply has no knowledge of post-cutoff developments.",
+        "C": "Staleness assertions do occupy space — a false statement prevents the true statement from appearing. That is precisely the mechanism by which staleness produces functional omissions. Claiming they are mutually exclusive inverts the actual relationship: staleness-as-false-assertion is the most common mechanism by which a functional omission is created without a visible gap."
+      },
+      "concept": "**Staleness-induced functional omission** is a failure mode where two error types combine:\n\n1. **Staleness**: the model asserts a fact that was correct at training time but is now outdated\n2. **Functional omission**: the current state — which the consumer needs to act correctly — never appears in the output\n\nThe interaction: the stale assertion replaces what should have been the current assertion. From the output's surface, no gap is visible. From the consumer's perspective, a critical piece of current information is absent.\n\nHigh-risk scenarios:\n- Regulatory changes (old rule asserted, new prohibition absent)\n- Product/process deprecations (old workflow described, replacement absent)\n- Medical guideline updates (old dosing stated, revised recommendation absent)\n\nDetection: comparing output against current authoritative sources surfaces both the stale claim and the absent current information simultaneously.",
+      "examTip": "This is a cross-concept item combining staleness and omission. The key insight is that staleness creates a *covert* omission — there is no visible gap because the stale content fills the space. This is why staleness is particularly dangerous: it produces a complete-seeming output with a missing piece hidden behind a confident false assertion. Detection requires current-source comparison, not just output reading."
+    }
+  },
+  {
+    "id": "RCL-OEV-A-065",
+    "domain": "Output Evaluation and Validation",
+    "topic": "Downstream fabrication accountability",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "When a fabricated claim from model output is copied into multiple downstream documents by different users, what is the accountability principle for verification of each instance?",
+    "options": [
+      { "key": "A", "text": "Each individual who incorporates the claim into their own work is responsible for verifying it before doing so" },
+      { "key": "B", "text": "Accountability rests solely with the person who prompted the original output that contained the fabrication" },
+      { "key": "C", "text": "No individual bears accountability once a claim has been incorporated into organisational documents and treated as established fact" },
+      { "key": "D", "text": "The organisation bears collective accountability, eliminating individual responsibility for verification" }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Accountability for verification follows use. Each individual who copies a claim into their own work — and who then acts on it or presents it to others — is responsible for having verified it before incorporating it. The fact that the claim originated in model output and was previously unverified does not transfer accountability from the current user to the original prompter. Verification is not a once-done activity that protects all downstream uses; each consequential use requires the user of that output to take responsibility for its accuracy.",
+      "distractors": {
+        "B": "The original prompter is accountable for verifying the output they prompted before using it themselves or sharing it. But that accountability does not extend to cover all future uses by other people who independently choose to copy the claim. Each user in the propagation chain bears their own responsibility.",
+        "C": "Organisational treatment of a claim as established fact does not remove the accountability of individuals who used unverified model output to create or propagate that claim. Discovery of the original model-output provenance can reopen accountability questions for each point of propagation.",
+        "D": "Collective organisational accountability is a governance concept that supplements but does not eliminate individual accountability. An organisation can bear liability for systemic failures; this does not dissolve the individual responsibility of each person who propagated an unverified claim."
+      },
+      "concept": "**Verification accountability in propagation chains**:\n\nWhen a model output error propagates:\n- Person A prompts → unverified output containing fabrication\n- Person B copies claim from A's output → uses in their own document\n- Person C reads B's document → relies on the claim\n\nAccountability at each step:\n- Person A: responsible for verifying before using or sharing the original output\n- Person B: responsible for verifying before incorporating into their own work\n- Person C: depends on whether B's document presented the claim as verified\n\nThe principle: each actor in the chain who *uses* the claim in consequential work bears responsibility for verifying it at their point of use. Prior unverified use by someone else does not create a legitimate expectation of correctness.",
+      "examTip": "Accountability in propagation chains is an easy concept item that tests whether candidates understand that verification responsibility travels with use, not just with origin. The common misconception (B) is that the original prompter owns all accountability. The correct principle: each use-point creates its own verification obligation for the person making that use."
+    }
+  },
+  {
+    "id": "RCL-OEV-A-066",
+    "domain": "Output Evaluation and Validation",
+    "topic": "Documentation supporting incident investigation",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "How does verification documentation support investigation when a model output error is discovered after the output has been used?",
+    "options": [
+      { "key": "A", "text": "Documentation allows the model to retrace its generation steps and identify where the error originated in the parametric memory" },
+      { "key": "B", "text": "Documentation establishes what was checked, by whom, and when — enabling investigators to determine whether verification was adequate and where accountability lies" },
+      { "key": "C", "text": "Documentation automatically triggers re-verification of the output by comparing it against the stored review record" },
+      { "key": "D", "text": "Documentation prevents further propagation of the error by flagging all downstream documents that incorporated the verified output" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Verification documentation is an accountability artifact. When an error is discovered after use, investigators need to answer: Was verification performed? What did it cover? Who was responsible? When did it happen? A documentation record can answer all four questions — establishing whether the error could have been caught by the verification that was performed, whether the verification scope was appropriate for the stakes, and who bears accountability for the output's use. Without documentation, these questions cannot be answered even if the verification was thorough.",
+      "distractors": {
+        "A": "Models do not maintain accessible traces of their generation process or parametric memory access. Verification documentation is a human record-keeping artifact; it has no connection to the model's internal generation mechanics and cannot be used to trace errors back through the model.",
+        "C": "Verification documentation is a static record of what was checked. It does not trigger any automated re-verification process. Re-verification, if needed, is a separate human decision and action that documentation may inform but does not automatically initiate.",
+        "D": "Verification documentation records what was verified; it does not create a live tracking system for downstream propagation. Preventing propagation of a discovered error requires a separate notification or recall process that operates independently of the verification record."
+      },
+      "concept": "**Verification documentation as an investigation tool** provides:\n\n1. **Scope evidence**: what checks were performed — did the review cover commission and omission errors? Specific claim categories?\n2. **Coverage evidence**: what proportion of items were reviewed — was the sampling rate appropriate for the stakes?\n3. **Accountability evidence**: who performed the review — was it independent? Was the reviewer qualified?\n4. **Timing evidence**: when was the review completed — was it before the output was used?\n\nInvestigation conclusions enabled by documentation:\n- \"Verification was performed and should have caught this error\" → process failure\n- \"Verification was performed but the error was outside its scope\" → scope design failure\n- \"No verification record exists\" → verification was either not performed or not documented\n\nEach conclusion points to a different process improvement.",
+      "examTip": "Documentation supports investigation by answering \"what did we check?\" and \"who was responsible?\" — not by improving the model or preventing propagation. The exam will offer technical-sounding distractors (A) and automation-sounding ones (C and D); the correct answer always describes documentation as a human record-keeping tool that enables accountability analysis."
+    }
+  },
+  {
+    "id": "RCL-OEV-A-067",
+    "domain": "Output Evaluation and Validation",
+    "topic": "Grounded inaccurate claims — synthesis",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A model synthesises three source documents and accurately reproduces a factual error present in one of them. Which combination of properties describes this specific claim?",
+    "options": [
+      { "key": "A", "text": "Ungrounded and inaccurate, because the model reproduced an error rather than the ground truth" },
+      { "key": "B", "text": "Grounded and accurate, because the model faithfully represented the source material it was given" },
+      { "key": "C", "text": "Grounded and inaccurate, because the claim traces to a context source but that source itself contains a factual error" },
+      { "key": "D", "text": "Ungrounded and accurate, because a claim that is wrong cannot be considered properly grounded" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Grounding and accuracy are independent. The claim is grounded because it traces to material present in the context window — the source document that contained the error is in context and the model faithfully reproduced its claim. The claim is inaccurate because the source document itself contained a factual error. The model performed correctly given its inputs: it reproduced the source faithfully. The error entered through the source's quality, not through model fabrication. This is precisely the scenario that illustrates why grounding is necessary but not sufficient for accuracy.",
+      "distractors": {
+        "A": "Grounding is about provenance, not about accuracy. The fact that the model reproduced an error does not negate the fact that the claim traces to a source in context. An inaccurate claim that is faithful to an inaccurate source is grounded — the source just happens to be wrong.",
+        "B": "Faithful representation of the source is a necessary condition for grounding, but it does not make the claim accurate if the source is wrong. Faithfulness and accuracy are different properties: faithfulness to the source is a grounding virtue; accuracy relative to reality is a separate, independently-assessed property.",
+        "D": "Grounding is a description of provenance, not of truth value. A claim can be definitively wrong about the real world and still trace clearly to a specific source in context. Grounding is not conditioned on the claim being true; it is conditioned on there being a traceable source."
+      },
+      "concept": "**The four cases of grounding × accuracy:**\n\n| | **Accurate** | **Inaccurate** |\n|---|---|---|\n| **Grounded** | Ideal: traceable and correct | This item: source in context is itself wrong; model is faithful but output is wrong |\n| **Ungrounded** | Lucky: parametric memory happens to be right | Worst case: fabricated and wrong |\n\nThe grounded+inaccurate case arises specifically when:\n- A source document contains a factual error\n- The model accurately reproduces the error from that source\n- The model's behaviour was correct (faithful to source) but the output is wrong (source was bad)\n\nVerification implication: grounding makes a claim *checkable*, but checking the claim against its source only confirms faithfulness. Confirming accuracy requires checking the source itself against an independent authority.",
+      "examTip": "This item is the hardest application of the grounding-accuracy orthogonality principle because it requires three-way reasoning: model faithfulness (grounded), source quality (inaccurate source), and output accuracy (inaccurate). Candidates who conflate grounding with accuracy will pick B. Those who understand that grounding is about provenance and accuracy is about truth will correctly identify C."
+    }
+  },
+  {
+    "id": "RCL-OEV-A-068",
+    "domain": "Output Evaluation and Validation",
+    "topic": "Spot-check escalation trigger",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "When should errors found during spot-checking trigger escalation to exhaustive review of the full batch?",
+    "options": [
+      { "key": "A", "text": "Escalation should be triggered any time the spot-check sample size exceeds the planned size" },
+      { "key": "B", "text": "Escalation should be triggered when any output in the spot-check is longer than the reviewer expected" },
+      { "key": "C", "text": "Escalation should be triggered when the model used hedging language in any spot-checked item" },
+      { "key": "D", "text": "Escalation should be triggered when spot-check errors are systematic — recurring across a category of claims rather than appearing as isolated, random occurrences" }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Systematic errors — those affecting a specific claim type, a domain, a structural element, or a recurring pattern across items — signal a batch-level problem that a random sample will undercount. An isolated, random error in a spot-check is a quality data point but may not indicate widespread contamination. A pattern of errors affecting all numerical claims, or all references to a specific topic, or all summaries of a particular document type, indicates that the full batch likely contains many more errors of that type than the spot-check revealed. Escalation is warranted to assess and correct the scope of the systematic failure.",
+      "distractors": {
+        "A": "The spot-check sample size being larger than planned is a resourcing deviation, not an error signal. A larger sample provides more confidence in the quality estimate but does not itself indicate a problem requiring escalation. Sample size and error findings are separate.",
+        "B": "Output length variation does not indicate quality problems. Some items legitimately produce longer outputs based on the content of their inputs. Length is not an error category and does not trigger escalation.",
+        "C": "Hedging language in spot-checked items indicates calibration activity by the model — it is signalling uncertainty. This is a useful quality signal that warrants closer review of hedged items, but it does not by itself justify escalating to full batch review. Hedging in one or a few items is expected normal model behaviour."
+      },
+      "concept": "**Escalation triggers** in spot-check workflows:\n\n**Triggers for full batch review**:\n- Systematic errors: same error type appears across multiple items, suggesting batch-level contamination\n- High error rate: the spot-check error rate exceeds the pre-defined escalation threshold (e.g., >10% of sampled items have errors)\n- Irreversibility: the batch is about to be acted on in an irreversible way and errors are found even in a small sample\n\n**Not triggers for full batch review**:\n- Isolated errors in otherwise clean items (address individually, don't escalate)\n- Length variation (presentational, not a quality signal)\n- Hedging language (calibration behaviour, not an error)\n\nThe escalation decision converts a statistical finding (\"this sample has systematic errors\") into an operational decision (\"we need to review everything before this batch is used\").",
+      "examTip": "The key discrimination in escalation decisions is systematic vs. isolated errors. A systematic error means the error-generating condition is present across the batch and more unchecked items likely have the same error. An isolated error is a data point for quality estimation. The exam will test whether you understand that escalation responds to pattern, not to the presence of any individual error."
+    }
+  },
+  {
+    "id": "RCL-OEV-A-069",
+    "domain": "Output Evaluation and Validation",
+    "topic": "Coherence vs accuracy independence",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "What does an internally consistent model output that contains an external factual error demonstrate about the relationship between coherence and accuracy?",
+    "options": [
+      { "key": "A", "text": "Internal consistency and factual accuracy are independent properties — a model can produce coherent but factually wrong output" },
+      { "key": "B", "text": "An internally consistent output containing a factual error proves the model's calibration is poor" },
+      { "key": "C", "text": "Internal consistency checking is redundant for outputs that have been verified against external sources" },
+      { "key": "D", "text": "A factually wrong but internally consistent output must have originated from a stale source rather than a hallucination" }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Coherence (internal consistency) and factual accuracy are properties measured against different standards. Coherence is measured against the output itself — does the document agree with itself? Accuracy is measured against external reality — does the document agree with the world? A model can produce an elaborately coherent false narrative: all sections agree, all numbers add up internally, all conclusions follow from stated premises — and every premise is wrong. The scenario described in the stem is exactly this case, demonstrating that passing a coherence check provides no information about external accuracy.",
+      "distractors": {
+        "B": "Calibration concerns how expressed confidence tracks accuracy across outputs. An internally consistent output containing a factual error could be well-calibrated (the model hedged on the wrong claim but was confidently assertive on the correct ones) or poorly calibrated. Internal consistency and calibration are separate dimensions; neither can be inferred from the other.",
+        "C": "Internal consistency checking is not redundant after external source verification — the two checks catch different things. Source verification catches external accuracy failures; consistency checking catches self-contradictions that may indicate reasoning failures even when individual claims are externally accurate.",
+        "D": "Both hallucinations and stale claims can produce internally consistent false output. A fabricated narrative that is entirely invented can be perfectly internally consistent because it was generated as a coherent whole. Internal consistency provides no information about the mechanism (hallucination vs. staleness) that produced incorrect content."
+      },
+      "concept": "**Coherence and accuracy are orthogonal**:\n\n- **Coherence**: the output does not contradict itself. Measured by reading the output alone.\n- **Accuracy**: the output correctly represents external reality. Measured by comparing the output against external sources.\n\nBoth matter, both can fail independently:\n- Coherent + accurate: ideal state\n- Coherent + inaccurate: consistently wrong — a model that tells a false story consistently\n- Incoherent + accurate: internally contradictory but individual facts are right\n- Incoherent + inaccurate: worst case — contradictory and wrong\n\nCoherence checking and accuracy checking are complementary verification steps, not substitutes for each other. Skip either and you miss one class of errors.",
+      "examTip": "Coherence-accuracy independence is an easy concept with clear real-world examples. A well-told false story is coherent and inaccurate. Exam items test whether candidates know that an internally consistent output does not imply accurate content. The correct answer always separates the two properties; distractors conflate them or derive conclusions about calibration or mechanism that the scenario does not support."
+    }
+  },
+  {
+    "id": "RCL-OEV-A-070",
+    "domain": "Output Evaluation and Validation",
+    "topic": "Simultaneous hallucination and staleness risk",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "Which TWO conditions together indicate that model output on a topic is at elevated risk from both hallucination and staleness simultaneously? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "The topic changes frequently in the real world, meaning training-time knowledge may already be outdated" },
+      { "key": "B", "text": "No current source documents were provided in context, leaving the model reliant on parametric memory for all claims" },
+      { "key": "C", "text": "The model used hedging language throughout the response, signalling widespread calibration uncertainty" },
+      { "key": "D", "text": "The output is longer than the reviewer's typical review capacity per session" },
+      { "key": "E", "text": "The topic appears frequently in the model's training data, giving it well-developed patterns for assertive responses" }
+    ],
+    "correct": ["A", "B"],
+    "explanation": {
+      "correct": "Staleness risk is elevated when the topic changes frequently (A) — the model's training-time knowledge may already be outdated. Hallucination risk is elevated when no current sources are in context (B) — the model must rely entirely on parametric memory, which it can also fabricate from. When both conditions are present simultaneously, the output is at risk from both: stale claims drawn from outdated training data, and fabricated specifics invented to fill gaps in that data. Providing current source documents mitigates both risks at once: it supplies current information (reducing staleness) and provides grounding material (reducing fabrication).",
+      "distractors": {
+        "C": "Hedging throughout the response indicates the model is calibrating its expressed confidence appropriately — this is a positive quality signal, not a risk indicator. Widespread hedging means the model recognises its uncertainty; it does not mean the model is at higher risk of error on this topic than on less-hedged topics.",
+        "D": "Output length relative to reviewer capacity is a resourcing and review-process concern, not an indicator of the content's risk profile. Long outputs from a well-grounded, current-source generation process may be lower risk than short outputs from parametric-only generation on a fast-changing topic.",
+        "E": "Frequent appearance in training data generally correlates with better model performance on a topic, not higher risk. Rich training representation gives the model more patterns to draw on accurately. High frequency in training is one factor that may reduce fabrication risk; it does not elevate it."
+      },
+      "concept": "**Simultaneous hallucination and staleness risk** arise from the same root cause: reliance on parametric memory on a topic where that memory may be both outdated and incompletely learned.\n\nThe interaction:\n- Rapidly-changing domain (A) → training-time facts likely differ from current reality\n- No current sources in context (B) → model uses parametric memory for all claims, including specific details it may confabulate\n- Result: stale claims (outdated but once-true) + fabricated specifics (gap-filling hallucinations) both appear in the same output\n\nSingle fix for both risks: inject current, authoritative source documents into context before generation. This addresses staleness (model gets current information) and hallucination (model has grounding material to generate from).",
+      "examTip": "The two conditions in this item (fast-changing topic + no current context sources) combine into a specific risk profile. The exam may test each condition independently in other items; here they combine. The key cross-concept insight: grounding addresses both staleness and hallucination risk simultaneously, making it the most efficient mitigation when both risks are elevated."
+    }
+  },
+  {
+    "id": "RCL-OEV-A-071",
+    "domain": "Output Evaluation and Validation",
+    "topic": "Verification approach for unreliable parametric domains",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "Which verification approach is most appropriate for high-stakes output on a domain where the model's parametric knowledge is known to be unreliable or rapidly outdated?",
+    "options": [
+      { "key": "A", "text": "Ask the model to generate the output multiple times and select the most consistent response across runs" },
+      { "key": "B", "text": "Require all specific claims to be traced to current, authoritative source documents provided in context or confirmed against independent sources before use" },
+      { "key": "C", "text": "Apply a higher-tier model to reduce the error rate before conducting sampling-based verification" },
+      { "key": "D", "text": "Increase the number of items on the review checklist to cover more potential error categories for this domain" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "When parametric memory is known to be unreliable or outdated on a domain, the appropriate response is to systematically displace parametric memory with grounded, current sources — and then verify that the model accurately represented those sources. Requiring claims to trace to current, authoritative sources provided in context addresses both the staleness risk (current sources replace outdated parametric knowledge) and the hallucination risk (grounded sources give the model accurate material to draw from). The combination of source injection and source-level verification is the most robust approach for high-stakes, unreliable-parametric-memory domains.",
+      "distractors": {
+        "A": "Generating the output multiple times and selecting the most consistent response finds the most probable answer in parametric memory — but on a domain where that memory is unreliable, the most frequent answer may still be wrong. Consistency across fabricated or stale parametric responses confirms the model's pattern, not accuracy.",
+        "C": "A higher-tier model has deeper reasoning capability and generally better accuracy, but if its training data is similarly outdated on a fast-changing domain, it will produce higher-quality but still stale output. Tier escalation reduces error rate on domains where training is adequate; it does not fix the fundamental problem of outdated or unreliable parametric knowledge.",
+        "D": "A more detailed checklist improves coverage of anticipated error types within the domain. But if the domain's claims are not traceable to current sources, the checklist can only verify the model's internal consistency and format compliance — it cannot verify currency or accuracy without independent sources."
+      },
+      "concept": "**Verification approach for unreliable parametric domains**:\n\nWhen parametric memory is known to be a poor reliability basis for a domain:\n1. **Inject current sources**: provide authoritative, up-to-date documents in context before generation — this grounds the output and reduces dependence on parametric memory\n2. **Verify source traceability**: confirm that specific claims can be traced to the injected sources\n3. **Verify source accuracy**: confirm that the sources themselves are authoritative and current\n4. **Apply exhaustive or high-rate sampling**: given known unreliability, use higher-than-default review intensity\n\nThe approach combines *grounding at generation time* with *source-verification at review time* — addressing both the generation risk and the verification risk.",
+      "examTip": "For unreliable-parametric-memory domains, the correct answer always involves grounding with current sources and source-level verification — not multiple runs (A), tier escalation (C), or checklist expansion (D). Those approaches work on domains where parametric memory is generally reliable; they do not address the fundamental problem of a domain where the model's training is a weak basis for accurate claims."
+    }
+  },
+  {
+    "id": "RCL-OEV-A-072",
+    "domain": "Output Evaluation and Validation",
+    "topic": "Closing the verification loop",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "What does it mean to 'close the loop' between verification findings and prompt improvement in a model workflow?",
+    "options": [
+      { "key": "A", "text": "Storing verified correct outputs in Project knowledge so the model learns from them in future sessions" },
+      { "key": "B", "text": "Asking the model to revise any outputs that failed verification before they are discarded" },
+      { "key": "C", "text": "Using patterns found in verification failures to identify and fix prompt or instruction deficiencies that caused those failures" },
+      { "key": "D", "text": "Notifying all output consumers when a previously verified output is later found to contain an error" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Closing the loop means treating verification findings as diagnostic data about the prompt and workflow, not just as pass/fail verdicts on individual outputs. If verification repeatedly finds a specific type of error — all commission errors on a particular claim type, or consistent omissions of a specific output section — those patterns point to a deficiency in the prompt's instructions, constraints, or examples that should be fixed. The loop is closed when a verification finding leads to a prompt change that prevents the same error type from recurring.",
+      "distractors": {
+        "A": "Project knowledge stores information the model draws on during generation; it does not enable the model to learn from verified outputs in the sense of updating its weights. Additionally, storing model outputs (even verified ones) as Project knowledge introduces risks of compounding errors in future outputs. This describes a different practice, not loop-closing.",
+        "B": "Asking the model to revise a failed output is a repair step, not a loop-closing step. It addresses the specific output but does not address the underlying cause — the prompt or instruction deficiency that produced the failure. Without changing what caused the failure, the same errors will recur in future outputs.",
+        "D": "Consumer notification when a verified output is later found wrong is an incident response activity — it addresses the consequence of a past failure. Loop-closing addresses the *cause* of failures by feeding verification findings back into prompt design, preventing future recurrences."
+      },
+      "concept": "**Verification-to-improvement loop**:\n\n1. **Verification** identifies specific errors in model output\n2. **Pattern analysis** asks: is this a one-off or a recurring error type?\n3. **Root cause identification**: what in the prompt, instructions, or examples produces this error type?\n4. **Prompt improvement**: change the prompt or instruction to prevent recurrence\n5. **Re-verification**: confirm that the change reduced or eliminated the error type\n\nThis loop converts verification from a quality-gatekeeping activity into a continuous improvement activity. Without closing the loop, verification catches errors but the workflow remains broken. With loop closure, each cycle of verification makes the next cycle easier.",
+      "examTip": "Closing the loop is about using error *patterns* to improve the *cause* of errors, not about handling individual failed outputs or managing consequences. The exam will offer remediation (B) and incident response (D) options that address individual failures without addressing their cause. The correct answer always points backward to the prompt and forward to prevention."
+    }
+  },
+  {
+    "id": "RCL-OEV-A-073",
+    "domain": "Output Evaluation and Validation",
+    "topic": "Comprehensive multi-source synthesis verification",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "Which TWO practices together constitute a comprehensive verification approach for a multi-source synthesis, addressing both commission and omission errors? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Comparing each specific claim in the synthesis against its stated or implied source to confirm it is accurately represented" },
+      { "key": "B", "text": "Asking the model to identify which source document each claim came from before any verification begins" },
+      { "key": "C", "text": "Reading each source document and confirming that all material findings from that source appear in the synthesis" },
+      { "key": "D", "text": "Applying a readability metric to confirm the synthesis meets the target reading level and audience register" },
+      { "key": "E", "text": "Asking a second model to summarise the same sources and comparing the two model summaries for consistency" }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "A is the commission check: each claim in the synthesis is compared against its source to confirm accurate representation — this catches fabricated claims, misquotes, and distortions. C is the omission check: each source is read to confirm that all material findings appear in the synthesis — this catches dropped content, including disconfirming evidence from one source that the synthesis suppressed. Together, A and C run verification in both directions (synthesis→source and source→synthesis), providing comprehensive coverage of both error classes.",
+      "distractors": {
+        "B": "Having the model attribute each claim to a source is a useful traceability step that makes verification easier, but it does not constitute verification itself. The attribution may also be wrong or incomplete. Attribution by the model is an input to verification, not a verification step.",
+        "D": "Readability and register metrics assess presentational quality. They do not evaluate whether the synthesis accurately represents the sources or whether all material content was included. A synthesis can read beautifully while containing commission and omission errors.",
+        "E": "Two model summaries may share the same errors if both models draw on the same training knowledge or misread the same source material. Model-to-model consistency does not establish accuracy relative to the original sources. Both summaries must be verified against the actual source documents, not against each other."
+      },
+      "concept": "**Comprehensive synthesis verification** requires both directions:\n\n**Commission check** (A): synthesis → source\n- For each specific claim: find the source passage it should derive from and confirm the claim accurately represents it\n- Catches: fabricated claims, misquotes, distortions, attribution errors\n\n**Omission check** (C): source → synthesis\n- For each source document: read it and confirm all material findings appear in the synthesis\n- Catches: dropped findings, suppressed contradictions, selective emphasis\n\nBoth directions are required for comprehensive coverage. A synthesis that passes only the commission check (all stated claims are accurate) can still be misleadingly incomplete. A synthesis that passes only the omission check (all source content appears somewhere) can still contain distortions of that content.",
+      "examTip": "Multi-source synthesis verification multi-select items always test whether you know both directions of verification are needed. Option E (model-to-model comparison) is a persistent distractor that sounds like an independent check — it is not, because both models share the same failure modes. The correct answers always involve the human reviewer comparing against the actual source documents in both directions."
+    }
+  },
+  {
+    "id": "RCL-OEV-A-074",
+    "domain": "Output Evaluation and Validation",
+    "topic": "Verification before downstream pipeline use",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "When model output is used as input to a second model or automated process, what verification step should occur before passing the output downstream?",
+    "options": [
+      { "key": "A", "text": "The downstream model should be prompted to flag any claims in the input that it cannot reproduce from its own parametric memory" },
+      { "key": "B", "text": "The first model should generate the output twice to confirm consistency before it is passed downstream" },
+      { "key": "C", "text": "The second model will detect and correct errors in the first model's output as part of its own generation process" },
+      { "key": "D", "text": "Human verification of the first model's output should be completed before it is used as input to the downstream process, because errors propagate and may compound in multi-stage pipelines" }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "In a multi-stage pipeline, errors in upstream output become flawed premises for downstream processing. A fabricated statistic passed as input to a second model will be treated as fact by that model, which may then build additional inferences, calculations, or claims on top of the error — compounding the original mistake. Human verification before handoff to the downstream stage breaks this propagation chain at the source, preventing compounded errors from reaching the final output.",
+      "distractors": {
+        "A": "A downstream model flagging claims it cannot confirm from its own parametric memory does not constitute verification. Parametric memory of the downstream model may have the same gaps as the first model. Additionally, the downstream model cannot verify claims against external sources — it can only note disagreement with its own training knowledge.",
+        "B": "Two consistent outputs from the first model may both be consistently wrong. Consistency confirms the model's stable pattern, not the accuracy of the content. If the first model fabricated a claim reliably across runs, two-run consistency confirmation simply confirms the fabrication is stable.",
+        "C": "Downstream models treat their input as given premises. They do not independently verify claims from upstream models against external sources — they generate output based on whatever they receive as input. An error passed downstream is not automatically detected or corrected; it is processed as fact."
+      },
+      "concept": "**Multi-stage pipeline error propagation** is a compounding risk:\n\n- Stage 1 error → Stage 2 treats error as fact → Stage 2 builds on error → Stage 3 inherits compounded error\n\nVerification should occur at each stage where output is consequential before passing downstream:\n\n1. **Verify Stage 1 output** before it becomes Stage 2 input\n2. **Verify Stage 2 output** before it becomes Stage 3 input (if Stage 2 adds new claims)\n3. **Verify final output** before external use\n\nSkipping upstream verification because \"the downstream model will catch it\" is a systematic error: downstream models are not error detectors for upstream outputs. They are processors that amplify whatever they receive.\n\nThe cost of verification at Stage 1 is lower than the cost of tracing and correcting a compounded error in the final output.",
+      "examTip": "Pipeline error propagation is a cross-domain concept (appears in workflow design as well as OEV). The key principle: errors compound, not cancel, in multi-stage AI pipelines. Verification should happen at the earliest stage where human review is feasible, not deferred to the end of the pipeline or delegated to a downstream model."
+    }
+  },
+  {
+    "id": "RCL-OEV-A-075",
+    "domain": "Output Evaluation and Validation",
+    "topic": "Evaluation vs verification for improvement decisions",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "What is the key distinction between evaluating a model workflow and verifying a specific model output, as they relate to improvement decisions?",
+    "options": [
+      { "key": "A", "text": "Workflow evaluation assesses systematic performance across many outputs and informs whether the workflow should be changed; output verification confirms whether a specific item is correct and informs whether it should be used" },
+      { "key": "B", "text": "Workflow evaluation is performed before deployment; output verification is performed after deployment — they serve the same function at different project phases" },
+      { "key": "C", "text": "Workflow evaluation is automated; output verification requires human judgment — they are the same activity performed by different actors" },
+      { "key": "D", "text": "Workflow evaluation measures cost and latency; output verification measures accuracy — they address different properties of the same workflow" }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The distinction is the unit of analysis and the decision it informs. Output verification is instance-level: does this specific output accurately represent its source? Should this specific item be used? The answer is binary for that item. Workflow evaluation is population-level: across many outputs, does this workflow produce acceptable quality? Should the workflow be changed? The answer informs systemic decisions — whether to revise the prompt, switch the model tier, change the task decomposition. Both are necessary; neither substitutes for the other.",
+      "distractors": {
+        "B": "Both evaluation and verification can be performed before or after deployment. Pre-deployment evaluation tests whether a workflow is ready; post-deployment evaluation monitors ongoing performance. Pre-use verification checks items before they are used; post-use verification (retrospective) checks whether past items were accurate. The distinction is unit of analysis, not project phase.",
+        "C": "Both evaluation and verification can involve automation or human judgment in various proportions. LLM-as-judge approaches can automate both; human reviewers can perform both. The distinction between them is not who performs them but what question each answers.",
+        "D": "Workflow evaluation can measure accuracy, cost, latency, user satisfaction, and other properties. Output verification specifically assesses correctness of individual claims. The property assessed (accuracy vs. cost) is not the defining distinction — the unit of analysis (item vs. workflow) is."
+      },
+      "concept": "**Evaluation vs. Verification** serve different improvement decision types:\n\n**Output Verification** → Item-level decision:\n- Q: Is this item correct?\n- Decision: Use it / revise it / reject it\n- Informs: individual use decisions\n\n**Workflow Evaluation** → System-level decision:\n- Q: Does this workflow produce acceptable quality across tasks of this type?\n- Decision: Keep workflow / change prompt / change tier / change task structure\n- Informs: workflow design and improvement decisions\n\nThe relationship: verification findings feed evaluation (error rates across verified items measure workflow performance). Evaluation findings inform verification design (known error patterns inform what to check for in future verification).\n\nNeither replaces the other: verification without evaluation catches individual errors without fixing the workflow; evaluation without verification produces quality metrics without protecting individual outputs from harm.",
+      "examTip": "Verification/evaluation items frequently offer timing-based or actor-based distractors (B, C). The defining distinction is unit of analysis: item (verification) vs. population/system (evaluation). Exam items will test whether you can identify which practice answers which question — item-correctness (verification) vs. workflow-quality (evaluation)."
+    }
+  },
+  {
+    "id": "RCL-OEV-A-076",
+    "domain": "Output Evaluation and Validation",
+    "topic": "Mixed grounded and ungrounded output",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A model output contains both grounded claims traceable to uploaded source documents and ungrounded claims from parametric memory, mixed together. What is the most important first verification step?",
+    "options": [
+      { "key": "A", "text": "Check all claims against the model's training data to identify which are parametric in origin" },
+      { "key": "B", "text": "Identify which claims are grounded and which are ungrounded, so verification effort can be directed appropriately — grounded claims require source-checking, ungrounded claims require source-finding" },
+      { "key": "C", "text": "Reject the entire output and re-prompt with explicit instructions to use only the provided source documents for all claims" },
+      { "key": "D", "text": "Ask the model to label each claim as grounded or ungrounded before verification begins" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "When grounded and ungrounded claims are mixed, the first step is triage: determining which claims are which. Grounded claims need a source-checking verification (compare the claim to the source document in context). Ungrounded claims need a source-finding verification (find an external source that confirms or refutes the claim). These are different checks with different tools and different effort levels. Performing the triage first allows verification effort to be proportionate: if the ungrounded claims are low-risk (general process descriptions), they may not need extensive source-finding; if they are high-risk (specific statistics or names), they require immediate attention.",
+      "distractors": {
+        "A": "Training data is not generally accessible for comparison at inference time. There is no practical mechanism for comparing model output against training data to determine which claims came from which source. Provenance must be inferred from context — claims that match content in the uploaded documents are grounded; others are likely parametric.",
+        "C": "Rejecting the entire output because some claims are ungrounded discards potentially valuable grounded content unnecessarily. The appropriate response is targeted verification of ungrounded claims, not wholesale rejection. If the ungrounded claims are few and verifiable, the grounded content can be used after verification.",
+        "D": "Asking the model to label its own claims as grounded or ungrounded may produce useful first-pass information but cannot be used as a reliable verification input. The model may mislabel claims, particularly for borderline cases where a claim draws on both context and parametric memory. Labelling by the model is a triage aid, not a verified classification."
+      },
+      "concept": "**Mixed-provenance output triage** is a practical first step when grounding is partial:\n\n1. **Identify grounded claims**: claims that can be matched to specific passages in the uploaded source documents\n2. **Identify ungrounded claims**: claims that lack a traceable source in context — these require external source-finding\n3. **Risk-stratify ungrounded claims**: are they high-risk (specific, attributable, consequential) or low-risk (general, non-attributable)?\n4. **Apply appropriate verification**:\n   - Grounded → compare to source document\n   - Ungrounded + high-risk → find and verify against external source\n   - Ungrounded + low-risk → accept with awareness of verification gap or verify if stakes warrant\n\nSkipping triage leads to inefficient verification (checking grounded claims with source-finding effort) or missed verification (treating all claims as grounded when some are not).",
+      "examTip": "Triage items test whether you understand that grounded and ungrounded claims require different verification actions. The key insight is that verification strategy should follow provenance — you check a grounded claim differently from an ungrounded one. The first step in mixed output is always to establish provenance before selecting the verification approach."
+    }
+  },
+  {
+    "id": "RCL-OEV-A-077",
+    "domain": "Output Evaluation and Validation",
+    "topic": "Escalation threshold calibration",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "What specific risk arises from setting the escalation threshold too high — requiring a large proportion of sampled errors before triggering full batch review?",
+    "options": [
+      { "key": "A", "text": "A high threshold substantially increases the total number of items the reviewer must check before a decision is reached" },
+      { "key": "B", "text": "A high threshold causes reviewers to flag minor formatting issues that do not warrant escalation decisions" },
+      { "key": "C", "text": "Errors occurring below the threshold may cause significant harm in a large batch because the absolute error count is high even at a low percentage rate" },
+      { "key": "D", "text": "A high threshold prevents the organisation from building a useful record of batch error rates for benchmarking over time" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "A threshold defined as a percentage can create a false sense of acceptable risk when the batch is large. A 5% error rate triggers no escalation, but in a batch of 10,000 items, a 5% error rate means 500 incorrect items will be acted on without further review. The harm from 500 wrong outputs may be substantial even if the rate looks modest. Escalation thresholds must be calibrated not only to error rate but also to batch size and per-item consequence — a threshold appropriate for a 100-item batch may be unacceptable for a 10,000-item batch at the same rate.",
+      "distractors": {
+        "A": "The size of the sample required to trigger (or not trigger) escalation is determined by the sample size used for spot-checking, not by the escalation threshold itself. A high threshold means fewer batches are escalated, but it does not change the effort spent reaching the threshold decision.",
+        "B": "Escalation thresholds are error-rate thresholds, not categories of error types. They do not change whether reviewers flag minor issues — that is a reviewer judgment call independent of the escalation threshold. A high threshold makes escalation less frequent; it does not alter what reviewers flag during their checks.",
+        "D": "Escalation decisions and error rate benchmarking are separate activities. Error rates from all batches — whether escalated or not — can be recorded for benchmarking regardless of the threshold setting. A high threshold means fewer full-review batches, but the sample-based error rate data from each batch is still available for trend analysis."
+      },
+      "concept": "**Threshold calibration** requires considering both error rate and absolute consequence:\n\n- **Rate-only threshold** (e.g., \"escalate if >10% of sampled items have errors\"): fails for large batches where even a low rate produces many absolute errors\n- **Absolute-number threshold** (e.g., \"escalate if >50 items per batch contain errors\"): may trigger too easily for large batches, not easily for small batches\n- **Combined threshold** (e.g., \"escalate if >5% rate OR >100 absolute errors\"): captures both dimensions\n\nAdditional calibration factors:\n- Per-item consequence: high consequence per error lowers the appropriate threshold\n- Reversibility: irreversible batch applications warrant lower thresholds\n- Batch homogeneity: heterogeneous batches may need stratified thresholds\n\nThe rule: threshold setting must account for scale. A threshold that is safe for a 100-item batch may be inadequate for a 100,000-item batch at the same error rate.",
+      "examTip": "The rate-vs-absolute distinction is the key insight for threshold calibration items. A percentage threshold looks precise but becomes inadequate as volume grows. Exam items will offer answer C as a real risk that requires candidates to think about scale — small percentages of large numbers are still large numbers."
+    }
+  },
+  {
+    "id": "RCL-OEV-A-078",
+    "domain": "Output Evaluation and Validation",
+    "topic": "Complete claim verification requirements",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "Which two properties must both be confirmed for verification to be considered complete for a specific factual claim?",
+    "options": [
+      { "key": "A", "text": "The claim must include hedging language and the source must be present in the context window" },
+      { "key": "B", "text": "The claim must be internally consistent with adjacent claims and stylistically appropriate for the intended audience" },
+      { "key": "C", "text": "The claim must be shorter than a specified length limit and must include a citation to a named source" },
+      { "key": "D", "text": "The claim must be accurate relative to its source, and the source must itself be authoritative and current" }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Complete verification of a factual claim requires confirming both that the model accurately represented its source (claim accuracy relative to source) and that the source itself is reliable (source authority and currency). The first check catches commission and omission errors in the model's representation. The second check catches source-level failures that grounding alone does not address: an outdated source, an unreliable source, or a secondary source that misrepresented the primary. Both conditions must hold for verification to be complete.",
+      "distractors": {
+        "A": "Hedging language is a calibration signal, not a verification requirement. A claim can be complete and accurate while stated without hedging. Source presence in context establishes grounding, which is a necessary condition for traceability but does not confirm accuracy or source quality. Hedging + context presence is insufficient for verification.",
+        "B": "Internal consistency and stylistic appropriateness are quality dimensions distinct from factual accuracy. A claim can be internally consistent with adjacent wrong claims, and stylistically perfect while factually incorrect. These properties do not constitute claim verification.",
+        "C": "Length constraints and citation presence are format requirements. A short, cited claim can be inaccurate; a long, uncited claim can be correct. Format compliance is a separate quality dimension from factual verification. Citation presence matters because it enables verification; it does not substitute for performing the verification."
+      },
+      "concept": "**Complete claim verification** has two necessary conditions that address different failure modes:\n\n1. **Claim accuracy relative to source**: does the model's claim correctly represent what the source says?\n   - Catches: commission distortions, misquotes, selective excerption\n   - Check: compare claim to source text\n\n2. **Source authority and currency**: is the source itself reliable and current?\n   - Catches: outdated sources (staleness), unreliable sources (inaccurate grounding), secondary-source distortions\n   - Check: assess source origin, assess source currency relative to claim domain\n\nNeither condition alone is sufficient:\n- Accurate relative to source + unreliable source → claim may be wrong despite faithful reproduction\n- Authoritative, current source + inaccurate representation → claim is wrong despite good source",
+      "examTip": "This item synthesises grounding, source quality, and claim accuracy into a single framework. The two conditions in D correspond to the two steps that grounding enables but does not complete: checking whether the model was faithful to its source (claim accuracy relative to source) and checking whether the source was worth being faithful to (source authority and currency). Both steps are required for verification to be complete."
+    }
+  },
+  {
+    "id": "RCL-OEV-A-079",
+    "domain": "Output Evaluation and Validation",
+    "topic": "Evaluation vs spot-check for workflow improvement",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "Which TWO properties distinguish a formal evaluation from a spot-check when the purpose is deciding whether to change a model workflow? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "A formal evaluation uses a statistically determined sample sized to detect the minimum error rate of concern at a specified confidence level" },
+      { "key": "B", "text": "A spot-check is always performed by the person who authored the prompt; a formal evaluation is always performed by an independent reviewer" },
+      { "key": "C", "text": "A formal evaluation uses defined quality criteria and a representative test set, enabling quantified performance comparisons before and after workflow changes" },
+      { "key": "D", "text": "A spot-check produces no written findings; a formal evaluation always produces a written report that can be shared with stakeholders" },
+      { "key": "E", "text": "A formal evaluation is performed only before deployment; a spot-check is always reactive, performed only after an error is reported" }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "A formal evaluation's distinguishing features for workflow improvement decisions are statistical rigour (A) and defined criteria with a representative test set (C). Statistical rigour means the sample is sized to detect the minimum practically significant error rate with known confidence — not just a handful of items. Defined criteria and a representative test set mean you can measure the same thing before and after a change and compare the results quantitatively. Without A, you cannot claim statistical confidence in your quality estimate. Without C, you cannot compare results across runs or attribute changes to the workflow modification being tested.",
+      "distractors": {
+        "B": "Spot-checks can be performed by anyone — including independent reviewers — and formal evaluations can be performed by prompt authors with appropriate separation. The actor distinction is not definitional; independence is a governance choice applied proportionately to stakes, not a structural distinguishing feature of either activity.",
+        "D": "Both spot-checks and formal evaluations can produce written findings or informal notes, depending on the organisation's practices. The presence or absence of a report is an administrative choice, not a property that defines either activity. Formal evaluations typically do produce structured reports, but the defining feature is statistical and methodological rigour, not documentation format.",
+        "E": "Formal evaluations are appropriate both before and after deployment — pre-deployment evaluation determines readiness; post-deployment evaluation monitors ongoing performance. Spot-checks can be proactive quality checks, not just reactive responses to reported errors. The timing is not definitionally constrained for either activity."
+      },
+      "concept": "**Formal evaluation vs. spot-check for workflow improvement decisions:**\n\n| Property | Spot-Check | Formal Evaluation |\n|---|---|---|\n| **Sample size** | Informal, small | Statistically determined |\n| **Criteria** | Implicit or ad hoc | Explicitly defined |\n| **Test set** | Opportunistic | Representative of task distribution |\n| **Quantification** | Qualitative impression | Quantified error rates with confidence |\n| **Comparability** | Hard to compare across runs | Designed for before/after comparison |\n\nSpot-checks are appropriate for ongoing quality monitoring and quick triage. Formal evaluations are required when the decision is whether to change the workflow — because only a statistically powered evaluation can distinguish real improvement from sampling variation.",
+      "examTip": "The workflow improvement use case is the key discriminator in this item. Spot-checks give you a quality impression; formal evaluations give you a quantified estimate you can act on and compare. When the decision is whether a workflow change improved performance, you need the before-and-after comparability and the statistical confidence that only a formal evaluation (A and C) provides. Actor and timing (B and E) are governance choices, not structural definitions."
+    }
+  },
+  {
+    "id": "RCL-OEV-A-080",
+    "domain": "Output Evaluation and Validation",
+    "topic": "Grounding, calibration, and accuracy interaction",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "Which TWO statements correctly describe the relationship between grounding, calibration, and accuracy in producing reliable model output? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "A claim can be grounded and inaccurate if the source it traces to is itself wrong" },
+      { "key": "B", "text": "Good calibration ensures that grounded claims are also accurate because the model knows which sources to trust" },
+      { "key": "C", "text": "High accuracy can be achieved without grounding if the model's parametric memory happens to be correct on the relevant topic" },
+      { "key": "D", "text": "Grounding makes a claim auditable but does not guarantee accuracy; accuracy additionally requires that the source is correct and the model represented it faithfully" },
+      { "key": "E", "text": "A well-calibrated model will always hedge on ungrounded claims, making grounding detectable from the output text alone" }
+    ],
+    "correct": ["A", "D"],
+    "explanation": {
+      "correct": "A correctly states the grounded+inaccurate case: grounding traces provenance to a source, but if the source is wrong, the output faithfully reproduces an error. This demonstrates grounding and accuracy are independent. D correctly states the complete accuracy requirement: grounding makes a claim auditable (checkable against its source), but accuracy further requires the source to be correct and the model to have represented it faithfully — two additional conditions that grounding alone does not satisfy. Together, A and D define the limits of what grounding guarantees and what additional conditions are needed for the output to be both checkable and correct.",
+      "distractors": {
+        "B": "Calibration concerns the relationship between expressed confidence and accuracy — it does not give the model the ability to assess source quality. A well-calibrated model expresses appropriate uncertainty, but it cannot evaluate whether a source in context is authoritative or current. Good calibration and source quality are independent.",
+        "C": "While high accuracy is achievable without grounding in theory (parametric memory can be correct), this is not a reliable or auditable basis for consequential use. Parametric accuracy is uncheckable and unrepeatable across models and model versions. Grounding is required for *verifiable* accuracy — knowing the accuracy in a specific instance, not just hoping the model's memory is right.",
+        "E": "A well-calibrated model hedges on claims where it has uncertainty, but grounding affects a different dimension than calibration. A model may assert an ungrounded claim with high confidence (overconfident on a specific fabrication) and hedge on a grounded claim where the source is ambiguous. Calibration and grounding are independent: the confidence level expressed does not reliably signal whether the claim traces to a source."
+      },
+      "concept": "**Three-way framework: Grounding × Calibration × Accuracy:**\n\n- **Grounding** (provenance): does the claim trace to a context source?\n- **Calibration** (confidence alignment): does expressed confidence track reliability?\n- **Accuracy** (truth): is the claim correct relative to external reality?\n\nKey relationships:\n- Grounding → enables auditability (you can check the claim against its source)\n- Grounding alone → does NOT guarantee accuracy (source may be wrong)\n- Calibration → enables prioritisation (hedged claims warrant closer scrutiny)\n- Calibration alone → does NOT guarantee accuracy (model can be confidently wrong)\n- Accuracy → requires grounding (to be verifiably accurate) AND source quality AND faithful representation\n\nAll three are needed for *reliable and verifiable* output. Any one alone is insufficient.",
+      "examTip": "This synthesis item tests the full three-way relationship. The correct answers (A and D) both concern the limits of grounding — grounding is necessary but not sufficient for accuracy. Distractors B and E incorrectly claim that calibration or output text analysis can substitute for checking source quality and provenance. C correctly identifies a real phenomenon (accurate parametric output) but describes it as sufficient, which it is not for auditable, repeatable reliability."
+    }
+  }
+]

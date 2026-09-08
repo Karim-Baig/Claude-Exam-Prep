@@ -1,0 +1,404 @@
+[
+  {
+    "id": "WIS-B-033",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Fallback when output is refused at scale",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A customer experience team at a retail bank deploys Claude to respond to thousands of customer complaint emails per day. An engineer notices that Claude declines to respond to a subset of messages that contain aggressive or threatening language, flagging them rather than drafting a reply.\n\nWhat should the workflow design specify for these flagged cases?",
+    "options": [
+      { "key": "A", "text": "Retry the same prompt with a softer instruction set to encourage Claude to produce a draft despite the difficult content." },
+      { "key": "B", "text": "Discard the flagged messages from the queue and process only the cases Claude can handle." },
+      { "key": "C", "text": "Route flagged messages to a specialist human team trained in managing escalated or sensitive customer complaints." },
+      { "key": "D", "text": "Store the flagged messages and process them as a batch at the end of the day when queue pressure is lower." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "When Claude declines to process a category of messages, the workflow must route those cases to the appropriate human resource — here, a specialist team for escalated complaints. Claude's flagging behaviour is functioning as an appropriate triage signal: these messages require a level of sensitivity and authority that the AI is not handling. The fallback is not optional; failing to handle these cases means customers with the most serious complaints receive no response.",
+      "distractors": {
+        "A": "Retrying with a softer prompt to overcome Claude's decline on threatening content attempts to circumvent a legitimate safety behaviour. It does not address the underlying need for a specialist human response to aggressive or threatening messages.",
+        "B": "Discarding flagged cases means the most escalated customer complaints are simply not handled — which is both a service failure and a regulatory risk for a bank handling customer complaints under financial services obligations.",
+        "D": "Batching flagged messages for end-of-day processing introduces unnecessary delay on the cases that may be most time-sensitive, and does not address who handles them or how."
+      },
+      "concept": "A **decline-triggered fallback** is the workflow path that activates when Claude refuses to process a specific input category. It is the complement to a capability-triggered fallback (when Claude cannot do a task) — here, Claude will not do the task, which is a different trigger.\n\nFor high-volume customer-facing workflows, the decline rate should be monitored as a metric. A consistent decline pattern on a specific message category usually indicates:\n- A need for a specialist handling team for that category\n- A potential gap in the original use-case scoping (if the volume of declines is unexpectedly high)\n- Occasionally, an opportunity to re-examine whether the flagging criteria are calibrated correctly\n\nThe fallback must be defined before go-live — discovering that a category of inputs has no handling path after deployment means customers are being dropped.",
+      "examTip": "This easy item tests whether you treat a refusal as a routing signal. Options A and B are the two wrong instincts: override the refusal, or ignore the messages. Option D is a delay tactic that doesn't solve the routing problem. The correct answer is always route to the appropriate human resource when Claude declines a sensitive or complex category."
+    }
+  },
+  {
+    "id": "WIS-B-034",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "STP on financial commitment",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A procurement manager at a manufacturing plant uses Claude to generate supplier payment recommendations based on invoice data and payment terms. A colleague proposes connecting Claude's output directly to the payment processing system so approved amounts are released automatically.\n\nWhat is the PRIMARY risk of this design?",
+    "options": [
+      { "key": "A", "text": "Claude may calculate payment amounts in a currency format that is incompatible with the payment processing system." },
+      { "key": "B", "text": "The payment processing system may not support the data structure Claude produces without a validated integration layer." },
+      { "key": "C", "text": "AI-generated payment amounts would reach the payment system without a human verifying each transaction, creating STP on financial outflows." },
+      { "key": "D", "text": "Suppliers may object to receiving payments calculated by an AI system without human authorisation." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Connecting Claude's output directly to a payment release system creates straight-through processing on financial outflows. If Claude calculates an incorrect payment amount — due to an error in the invoice data, a misapplied discount, or a misread payment term — that incorrect amount goes to the supplier without any human checking it. Financial STP on outbound payments is a significant control failure and is typically prohibited by financial controls frameworks.",
+      "distractors": {
+        "A": "Currency format compatibility is a technical integration concern. Even if the format is fully compatible, STP on payment authorisation remains unacceptable. Technical compatibility is a prerequisite for the system to function; human approval is a prerequisite for it to be appropriately controlled.",
+        "B": "Integration layer requirements are a software engineering concern. A validated integration makes the connection technically reliable but does not address the governance gap — human authorisation of each payment.",
+        "D": "Supplier opinion about AI-generated payments is a relationship management concern, not a primary risk. The primary risk is the financial control failure, not the supplier's perception of the process."
+      },
+      "concept": "**Financial STP controls** exist precisely because payment errors are costly and often difficult to reverse. The standard control framework for payment workflows requires:\n- At least one human authorisation before any payment is released\n- A segregation of duties between the person who initiates and the person who approves\n- A complete audit trail linking each payment to the authorising individual\n\nAI assistance in payment recommendation is valuable: it can process large volumes of invoices, flag discrepancies, and generate a reconciled payment schedule. But the recommendation output must pass through a human approval gate before it reaches the payment system. The connector's write-back trigger must be the human approval action, not Claude's output generation.",
+      "examTip": "Financial STP items are among the clearest in the bank. Whenever an AI recommendation would cause money to leave the organisation without a human confirming the transaction, the answer is STP on financial outflows. Options A and B are technical distractors; option D is a stakeholder perception distractor. Keep the focus: does a human verify each payment before release? If not, it is STP."
+    }
+  },
+  {
+    "id": "WIS-B-035",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Designing escalation for ambiguous outputs",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A clinical documentation specialist at a hospital uses Claude to extract structured diagnosis codes from free-text physician notes. Occasionally Claude produces outputs where multiple code options are listed rather than a single code, indicating ambiguity in the source note.\n\nWhat should the workflow design specify for these ambiguous outputs?",
+    "options": [
+      { "key": "A", "text": "Default to the first code Claude lists, as its ordering reflects confidence ranking." },
+      { "key": "B", "text": "Instruct Claude to always select one code by adding 'choose the most likely option' to the prompt, eliminating ambiguous outputs." },
+      { "key": "C", "text": "Route ambiguous outputs to a certified clinical coder for manual code selection, treating Claude's multiple options as candidates rather than a final classification." },
+      { "key": "D", "text": "Exclude ambiguous outputs from the coding run and return them to the ordering physician to rewrite the note with more diagnostic clarity." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "When Claude produces multiple options, it is accurately representing the ambiguity in the source material — a signal that the task requires human judgement to resolve. A certified clinical coder is trained to make this determination based on context, clinical knowledge, and coding guidelines. Routing to a coder treats Claude's output as a useful set of candidates (reducing the coder's search space) while ensuring a qualified human makes the final classification decision.",
+      "distractors": {
+        "A": "Assuming Claude's first-listed code reflects a confidence ranking is an unverified inference. Claude does not reliably order multiple options by confidence unless explicitly instructed to do so, and even then the instruction does not guarantee that ordering is clinically appropriate.",
+        "B": "Forcing Claude to select a single code when the source note is genuinely ambiguous does not resolve the underlying ambiguity — it just hides it. The resulting output carries false precision and may be clinically incorrect. Prompt instructions cannot compensate for ambiguous source material.",
+        "D": "Returning notes to the physician for rewrites is a quality improvement step but is operationally impractical at volume and introduces significant delay. It also does not help notes that are ambiguous due to genuine clinical complexity rather than poor documentation."
+      },
+      "concept": "**Ambiguity as an escalation signal:** when Claude produces hedged, multi-option, or 'it depends' outputs, it is often accurately reflecting that the task requires more information or professional judgement than the input provides. This is different from an error — it is an honest representation of uncertainty.\n\nWorkflow design should treat Claude's expressed uncertainty as a routing trigger:\n- Single code output → standard processing path\n- Multiple code output → escalation to certified coder\n- 'Insufficient information' output → return to source for clarification\n\nThis pattern is more reliable than instructing Claude to always produce a single answer (which forces false precision) or defaulting to the first option (which assumes an ordering convention that may not hold).\n\nThe principle: **Claude's uncertainty expressions are design inputs, not defects to suppress.**",
+      "examTip": "This item tests whether you treat Claude's multi-option output as a signal or a problem to eliminate. Option B is the classic 'force a single answer' trap — it suppresses the ambiguity signal rather than handling it. On the exam, when Claude's output reflects genuine uncertainty in the source material, the correct design routes that uncertainty to a human expert, not a prompt instruction that forces a choice."
+    }
+  },
+  {
+    "id": "WIS-B-036",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Resilience — service unavailability",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A managing director at a logistics company has mandated that all outbound freight quotes be processed through a Claude-assisted pricing workflow. During a 4-hour Claude service outage on a Tuesday morning, the sales team cannot issue any quotes and loses three time-sensitive bids.\n\nWhat is the MOST appropriate corrective action for the workflow design?",
+    "options": [
+      { "key": "A", "text": "Implement a secondary AI pricing tool as a hot standby that activates automatically when Claude is unavailable." },
+      { "key": "B", "text": "Document and train a manual pricing procedure that sales staff can execute independently during Claude outages, and define the trigger conditions that activate it." },
+      { "key": "C", "text": "Negotiate an uptime SLA with Anthropic that compensates the company for bids lost during service outages." },
+      { "key": "D", "text": "Build a cache of recent Claude-generated pricing outputs that the sales team can reference during outages for similar bid types." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The corrective action is a documented and trained manual fallback procedure. When Claude is unavailable, the team needs a defined process they can execute without the AI tool. This requires documentation of the pricing logic, training so staff can apply it under time pressure, and a clear trigger (Claude unavailable → activate manual procedure). A fallback that exists in a document no one has read or practised is not a real fallback.",
+      "distractors": {
+        "A": "A secondary AI tool reduces the probability of total outage but does not address the structural gap: what happens when both tools are unavailable? It also duplicates cost and integration complexity. The manual procedure is always required as the last-resort fallback.",
+        "C": "SLA compensation is a commercial and legal remedy for losses already incurred, not a workflow design improvement. Compensation does not restore lost bids or prevent future disruptions from having the same impact.",
+        "D": "A cache of prior outputs is a reference tool but not a procedure. Sales staff need to generate new quotes for new bid scenarios; a cache of old outputs may not be applicable and could result in incorrectly priced bids."
+      },
+      "concept": "**Manual fallback procedures** are the most fundamental resilience feature for any AI-assisted workflow. They answer the question: 'how does the work get done when the AI tool is not available?' Key elements of an effective manual fallback:\n\n1. **Documentation** — written procedure for performing the task without the AI\n2. **Training** — staff have practised the manual procedure before they need it under pressure\n3. **Trigger definition** — the condition that activates the fallback (outage confirmed, latency exceeds X minutes)\n4. **Reversion** — the condition that returns the team to the standard AI-assisted workflow\n\nThe manual procedure does not need to match the speed or quality of the AI-assisted version — it needs to be executable and produce output that meets the minimum service standard. For a quoting workflow, a manual procedure that takes twice as long is far better than no procedure at all.",
+      "examTip": "Resilience items frequently offer a technical alternative (secondary AI tool, cache, SLA) and the correct manual fallback option. The exam expects you to choose the fundamental design fix over the technical add-on. The reasoning: technical alternatives reduce probability of failure but do not eliminate it — the manual procedure is the backstop that must always exist. Choose the manual procedure when a scenario shows the workflow halted by tool unavailability."
+    }
+  },
+  {
+    "id": "WIS-B-037",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Handoff from Claude to system of record",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A patient services coordinator at a speciality clinic uses Claude to draft patient intake summaries from structured intake forms. The coordinator reviews each summary and, when satisfied, copies the content into the clinic's electronic health record (EHR). The clinic director wants to replace the copy-paste step with an automated EHR write triggered when the coordinator clicks 'Approve'.\n\nWhat must be confirmed before implementing this change?",
+    "options": [
+      { "key": "A", "text": "The EHR system supports an API endpoint for receiving externally generated clinical notes in the clinic's configured note format." },
+      { "key": "B", "text": "The coordinator's 'Approve' action constitutes a legally valid clinical attestation for EHR entries under applicable healthcare record regulations." },
+      { "key": "C", "text": "Claude's intake summary will always match the character limit of the EHR note field to avoid truncation on write." },
+      { "key": "D", "text": "The automated write will not overwrite previous notes already present in the patient's EHR record." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Before automating writes into a clinical health record, the organisation must confirm that the approval action meets the legal standard for attestation. In many jurisdictions and EHR frameworks, entries in the clinical record must be attested by a licensed clinician, not just any staff member. If the coordinator is not a licensed clinician, their 'Approve' click may not constitute a valid clinical attestation, making the automated entries non-compliant with health record regulations. This is the governing question before implementation.",
+      "distractors": {
+        "A": "API compatibility is a technical prerequisite for the integration to function, but it does not address whether the integration is legally permissible. Even if the API works perfectly, non-compliant entries undermine the EHR's integrity as a legal record.",
+        "C": "Character limit handling is a technical edge case. If it occurs, it is fixable; it does not block implementation. The legal attestation question is a fundamental design constraint, not an edge case.",
+        "D": "Overwrite protection is an important technical safeguard, but it is a secondary consideration after the attestation question is resolved. Most EHR APIs are designed to append rather than overwrite; this is a standard implementation concern."
+      },
+      "concept": "**Clinical attestation** is the legally required act by which a licensed healthcare provider verifies and takes responsibility for an entry in a patient's medical record. Many EHR systems and healthcare regulations distinguish between clinical staff (physicians, nurses, licensed therapists) who may attest clinical notes, and administrative staff (coordinators, intake clerks) who may not.\n\nWhen automating AI-assisted content into a clinical system of record, three attestation questions must be answered:\n1. Who is authorised to attest clinical record entries under applicable law and the facility's credentialing policies?\n2. Does the proposed approval action meet the attestation standard? (A click may or may not, depending on how the workflow and EHR are configured)\n3. Is the attestation linked to the specific version of the content that will be written to the record?\n\nGetting attestation wrong in a clinical EHR is not a technical error — it creates non-compliant medical records with potential liability implications.",
+      "examTip": "Healthcare workflow items frequently involve a regulatory or legal question as the primary concern, even when the scenario seems to be about API integration. The tell: 'electronic health record' + 'approved' + 'write' should immediately raise the attestation question. Option A (API compatibility) is the distractor for candidates who treat this as a technical integration problem. The governance question always precedes the technical implementation question in regulated clinical contexts."
+    }
+  },
+  {
+    "id": "WIS-B-038",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Over-automation failure mode",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A digital ops manager at an insurance company automates a policy-renewal workflow: Claude reads structured policy data, generates a renewal letter, and the system emails it directly to the policyholder. No human step is included. After two months, the manager discovers that renewal letters for policies with mid-term endorsements reflect the original policy terms rather than the endorsed terms, because the structured data feed did not include endorsement records.\n\nWhat does this incident MOST directly illustrate?",
+    "options": [
+      { "key": "A", "text": "Claude cannot reliably process insurance policy data without domain-specific fine-tuning." },
+      { "key": "B", "text": "Removing the human review step eliminated the control that would have caught data completeness errors before they reached policyholders." },
+      { "key": "C", "text": "The email delivery system should have held renewal letters in a queue for at least 24 hours to allow error detection." },
+      { "key": "D", "text": "The structured data feed should have been validated by the IT team before the workflow went live." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The root cause is that the automation removed the human review step — the point at which a reviewer would have noticed that the letter did not reflect the endorsement. Claude produced accurate output given its input; the input was incomplete. A human reviewer examining the letter against the full policy file would have caught the discrepancy before delivery. Full automation of a customer-facing output bypassed the control that would have detected the data gap.",
+      "distractors": {
+        "A": "Claude processed the data it received correctly; there is no evidence it needs domain-specific fine-tuning. The problem is input completeness, not model capability. Blaming the model for not surfacing information absent from its input is incorrect.",
+        "C": "A 24-hour delivery delay does not create a review step — it just postpones delivery. Unless someone is actively checking the letters during that window, the delay does not catch errors. The required fix is a review step, not a delay.",
+        "D": "IT validation of the data feed is a good practice and would have caught the endorsement gap at setup. However, the incident illustrates a workflow design flaw that persists regardless of whether data validation was done: the absence of a human review step means ongoing data quality issues have no catch point during production."
+      },
+      "concept": "**Over-automation failure** occurs when the drive to eliminate manual steps removes controls that were catching errors the automated system does not detect. This failure mode is particularly dangerous for customer-facing outputs, where errors reach external parties before any internal review occurs.\n\nThe general pattern:\n1. Workflow is automated end-to-end for efficiency\n2. Input data has a quality or completeness issue that the AI processes faithfully (garbage in, garbage out)\n3. No human review step exists to catch the output discrepancy before delivery\n4. Errors reach customers or external systems at the speed of automation\n\nThe corrective design principle: **full automation of customer-facing outputs requires either (a) a human review step before delivery, or (b) exceptionally robust input validation that detects every possible data quality issue before Claude processes it.** Both are usually needed; (b) alone is insufficient because new data quality issues will always emerge.",
+      "examTip": "Over-automation items feature a root cause that is the missing review step, even when the data quality issue seems like the proximate cause. Option D is attractive because 'validate the data feed' sounds like a technical fix — but it addresses only the specific known data gap, not the systemic absence of a human check. Option B identifies the structural design flaw. On the exam, when a fully automated workflow delivers incorrect content to external parties, the answer is always the missing human gate."
+    }
+  },
+  {
+    "id": "WIS-B-039",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Connector scope — read vs. write",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A business systems analyst at a 2,000-person logistics company is configuring a Claude connector to the company's order management system (OMS). The use case is helping customer service agents quickly summarise order status for customers. A developer suggests also enabling write access so Claude can update order records directly when customers request changes.\n\nWhat is the MOST important design consideration before enabling write access?",
+    "options": [
+      { "key": "A", "text": "Whether write operations to the OMS will increase API call volume enough to affect system performance." },
+      { "key": "B", "text": "Whether Claude's write actions will be logged with the specific change made, the customer interaction that triggered it, and the agent who was present during the session." },
+      { "key": "C", "text": "Whether the OMS supports rollback functionality for records updated through the API in case of erroneous writes." },
+      { "key": "D", "text": "Whether customers have consented to having their order records updated by an AI system rather than a human agent." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Before enabling write access, the most important consideration is whether every write action will be traceable: which record was changed, by what action, in which customer session, with which agent present. Without this audit trail, an incorrect write (wrong address, wrong cancellation, wrong product substitution) cannot be investigated, attributed, or reversed with confidence. Auditability is the governing design requirement for write access, because write actions have immediate, real-world effects on orders.",
+      "distractors": {
+        "A": "API call volume and performance impact are operational concerns that can be managed through rate limiting and load testing. They are not the most important design consideration when evaluating whether write access is appropriate and safe.",
+        "C": "Rollback capability is a useful safety net and is worth confirming, but it is a recovery mechanism, not a prevention mechanism. Auditability (B) is needed both to prevent errors and to support rollback when needed — the audit log is what enables a precise rollback.",
+        "D": "Customer consent for AI record updates is a valid data governance and transparency consideration, but it is a policy question to be resolved at the programme level, not the most important design consideration for the connector configuration specifically."
+      },
+      "concept": "**Read vs. write connector permissions** differ fundamentally in their risk profile:\n- **Read access:** Claude can see data; errors affect the quality of advice or summaries but do not change any record\n- **Write access:** Claude can change data; errors immediately affect real-world state — order records, customer data, financial balances\n\nWrite access requires additional design controls that read access does not:\n1. **Audit logging** — every write must be traceable to a specific interaction, agent, and timestamp\n2. **Human approval gate** — writes triggered by AI should require agent confirmation before execution, not happen automatically\n3. **Scope limitation** — Claude should write only specific, defined fields, not have open-ended update access\n4. **Rollback mechanism** — the OMS should support reversal of AI-initiated writes\n\nThe principle: **expand to write access only when the audit and approval infrastructure is in place to make every write traceable and reversible.**",
+      "examTip": "When a scenario escalates from read to write connector access, auditability is the first question — not performance, not rollback, not consent (though those matter too). The exam tests this because write access is a significant capability expansion that fundamentally changes the risk profile of an AI tool. The tell: 'enable write access so Claude can update records' should immediately raise 'what does the audit trail look like for each write?'"
+    }
+  },
+  {
+    "id": "WIS-B-040",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Checkpoint design for batch processing",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A paralegal at a 15-attorney law firm uses Claude to process 200 lease agreements per month, extracting key terms into a structured data table. The managing partner wants to add a review checkpoint. The paralegal proposes reviewing every extracted record. The partner's preference is to review only the final data table once all 200 leases are processed.\n\nWhich approach is MOST appropriate for this use case?",
+    "options": [
+      { "key": "A", "text": "The paralegal's approach: review each extracted record as it is produced to catch errors early, before they accumulate." },
+      { "key": "B", "text": "The partner's approach: review the complete 200-record table once processing is finished, which is more efficient." },
+      { "key": "C", "text": "Neither: apply a risk-stratified sampling approach that reviews 100% of leases above a defined value threshold and samples the remainder." },
+      { "key": "D", "text": "Neither: process a sample batch of 20 leases first, review those thoroughly, and use findings to adjust the extraction prompt before processing the remaining 180." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Before committing to a review regime for 200 leases, the team should validate the extraction quality on a representative sample. If the sample reveals systematic extraction errors — a clause consistently misidentified, a field reliably misread — the prompt can be corrected before those errors propagate to all 200 records. Once the extraction is confirmed as reliable on the sample, a risk-stratified review of the full run is appropriate. Option D is a structured quality validation step that precedes the review regime design.",
+      "distractors": {
+        "A": "Reviewing every record individually provides thorough coverage but defeats the efficiency purpose of batch AI processing. If every record requires full manual review, the AI has added little value. This approach scales linearly with volume.",
+        "B": "Reviewing only the final table of 200 records makes it very difficult to trace errors back to specific leases. The reviewer is comparing 200 rows of extracted data — without the source documents alongside each row, verifying accuracy is impractical. End-of-batch review works for summaries, not extractions that need source verification.",
+        "C": "Risk stratification by lease value is a sensible steady-state regime, but it should be adopted after the extraction quality is validated, not as the initial approach for a new deployment. Without knowing how frequently Claude makes extraction errors on this document type, even the sampling rate for the high-value tier is uncertain."
+      },
+      "concept": "**Batch workflow quality validation** follows a staged approach:\n\n1. **Pilot sample** — run a small representative batch, review 100%, identify error patterns\n2. **Prompt refinement** — fix systematic errors in the prompt based on pilot findings\n3. **Risk-stratified production regime** — once quality is confirmed, define the ongoing review rate based on error frequency and consequence\n\nThis sequence is critical because systematic prompt errors multiply across the full batch volume. A 5% error rate in the pilot means 10 errors in 200 records — manageable if caught early, significant if discovered in end-of-batch review.\n\nThe paralegal's approach (every record) and the partner's approach (table only) represent opposite ends of the review-effort spectrum. Both skip the calibration step. The right question before choosing a review regime is: 'How reliable is Claude's extraction on this document type for these specific fields?'",
+      "examTip": "When a scenario presents a binary choice (review everything vs. review the final table), the exam often expects a third option that sequences correctly: pilot first, then calibrate the review regime. This tests whether you think about quality validation as a precursor to steady-state oversight design. Option C is a reasonable steady-state regime but is wrong as the first step for a new deployment."
+    }
+  },
+  {
+    "id": "WIS-B-041",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Escalation path — regulatory edge case",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A sanctions compliance analyst at a bank uses Claude to screen transaction counterparties. Claude identifies a counterparty name that is an 85% fuzzy match to a sanctioned entity on the SDN list but rates its own confidence as 'uncertain.' Under the bank's current workflow, uncertain matches are auto-cleared if no senior analyst reviews them within 24 hours. The compliance director is reviewing this design.\n\nWhich assessment is MOST accurate?",
+    "options": [
+      { "key": "A", "text": "The 24-hour review window is reasonable because it balances operational efficiency with the need for human oversight of uncertain matches." },
+      { "key": "B", "text": "The auto-clear on inaction creates an opt-out oversight mechanism for a potential sanctions match — the bank cannot demonstrate active human clearance of cases that time out." },
+      { "key": "C", "text": "The design is adequate provided the bank can document that senior analysts are expected to review uncertain matches within the 24-hour window." },
+      { "key": "D", "text": "The design is acceptable because an 85% fuzzy match is below the threshold that constitutes a probable sanctions hit requiring mandatory human review." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Auto-clearing a potential sanctions match based on reviewer inaction is an opt-out design applied to a context where active human clearance is required. Sanctions regulations require that institutions take affirmative steps to screen and clear counterparties — passive clearance through a timed default does not constitute active compliance. If the bank is examined and cannot produce evidence that a human actively cleared a match, the timed-out auto-clear represents a compliance gap, not a documented clearance decision.",
+      "distractors": {
+        "A": "The 24-hour window's length is not the issue — the mechanism is. Even a 72-hour window with auto-clear on inaction has the same flaw: inaction becomes clearance. The design problem is structural, not temporal.",
+        "C": "Documenting that analysts are 'expected' to review is not the same as documenting that they did review. In a regulatory examination, the question is whether each match has a recorded human review and clearance decision. An expectation is not a record.",
+        "D": "An 85% fuzzy match is a potential sanctions hit that requires active investigation and clearance, not automatic clearance because the score falls below an assumed threshold. Fuzzy matching is used precisely because sanctioned entities may use variant name spellings; the score alone does not determine whether review is required."
+      },
+      "concept": "**Sanctions screening compliance** requires active clearance decisions — documented evidence that a qualified human reviewed each potential match and made an affirmative decision (clear or escalate). Auto-clear on inaction violates this requirement because:\n\n1. The record shows no human review occurred (the reviewer did not act)\n2. The system treated non-action as clearance\n3. The bank cannot produce an audit record of who cleared the match and on what basis\n\nThis is a specific application of the opt-out vs. opt-in principle. For regulatory compliance contexts (sanctions, AML, KYC), **opt-in design is not optional** — passive consent-by-inaction does not meet the documentary standard regulators apply.\n\nDesign fix: uncertain matches remain in a hold queue until a senior analyst actively clears or escalates. Timed expiry may exist for operational resilience, but it should flag the item as 'auto-expired: requires review' rather than 'cleared.'",
+      "examTip": "This hard item applies the opt-out vs. opt-in principle to a specific regulatory context. The discriminator between B and C is the difference between expectation and evidence: C assumes documented expectations satisfy the compliance requirement, but regulatory examinations look for records of actual review, not policies about expected review. When a scenario involves sanctions, AML, or KYC screening, the compliance standard always requires affirmative recorded human action for each match."
+    }
+  },
+  {
+    "id": "WIS-B-042",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Handoff design edge case — conflicting outputs",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A senior underwriter at a specialty insurer uses two different Claude-assisted tools: Tool A analyses structured risk data from the application form; Tool B analyses unstructured broker correspondence. On a complex D&O application, Tool A recommends a moderate risk band; Tool B flags several concerning statements in broker emails that suggest the applicant may have undisclosed claims history. The underwriter must produce a binding quote within 4 hours.\n\nWhat is the MOST appropriate NEXT step for the underwriter?",
+    "options": [
+      { "key": "A", "text": "Average the outputs from Tool A and Tool B and produce a quote at the midpoint risk band, reflecting both data sources." },
+      { "key": "B", "text": "Use Tool A's output as the primary signal, since structured risk data is more reliable than unstructured correspondence analysis." },
+      { "key": "C", "text": "Treat the conflicting outputs as an escalation signal and contact the broker directly to clarify the correspondence before binding." },
+      { "key": "D", "text": "Apply a conservative loading to the Tool A risk band to account for the uncertainty flagged by Tool B, and bind at that loaded rate within the deadline." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Conflicting signals from two AI-assisted analyses indicate genuine ambiguity that requires human investigation before a binding decision. Tool B's flag about potential undisclosed claims history is not a vague concern — undisclosed claims history is a material fact in D&O underwriting. The correct next step is to resolve the ambiguity by going to the source: contact the broker for clarification. A 4-hour deadline creates time pressure but does not eliminate the duty to investigate material information.",
+      "distractors": {
+        "A": "Averaging outputs from two tools that use different data types and analytical methods produces a number that is not grounded in either analysis. Risk band averaging is not an actuarially valid technique for resolving conflicting signals.",
+        "B": "Treating structured data as inherently more reliable than unstructured analysis is a generalisation that may not hold in this specific case. Tool B's flag is not a general quality issue — it identified specific statements in broker correspondence. Dismissing it because of data type discounts potentially material information.",
+        "D": "Applying a conservative loading without investigating the flagged concern produces a quote that prices risk without understanding it. If the undisclosed claims history concern is valid, even a conservatively loaded quote may be inadequate. The decision to bind should follow investigation, not replace it."
+      },
+      "concept": "**Conflicting multi-tool outputs** are a specific failure mode in workflows that use more than one AI-assisted analysis on the same case. When two tools produce conflicting signals, the conflict itself is information — it indicates that the case has characteristics that produce different conclusions depending on which data is examined.\n\nHandling conflicting outputs:\n1. Do NOT average or blend the outputs — blending removes the signal that the conflict carries\n2. Identify the nature of the conflict: are the tools looking at different data? Different time periods? Different risk dimensions?\n3. Determine which tool's signal is more material for the specific decision\n4. If the conflict is unresolved, escalate to human investigation before committing\n\nFor underwriting, conflicting signals between structured application data and unstructured correspondence are particularly significant — correspondence often contains information not yet reflected in the structured application.",
+      "examTip": "Hard underwriting items frequently present time pressure as a distractor (4-hour deadline) to test whether you let urgency override investigation of material facts. Option D is the 'expedient' wrong answer — apply a loading and move on. The exam expects you to recognise that potential undisclosed claims history is a material fact that must be investigated before binding, not priced around. Time pressure does not eliminate the duty to investigate material information; it creates an urgency to investigate promptly."
+    }
+  },
+  {
+    "id": "WIS-B-043",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Auditability failure modes",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A head of compliance at a consumer lender reviews the audit trail for a Claude-assisted credit decision workflow. The trail records: the applicant's data file, the Claude-generated credit assessment, and the final credit decision (approved/declined). The compliance officer notes that the log does not capture which version of the credit model prompt was active when each assessment was run, nor whether the prompt was modified between assessments.\n\nWhy is this a significant audit trail gap?",
+    "options": [
+      { "key": "A", "text": "Without the prompt version, the lender cannot reproduce the exact Claude output for a given applicant if challenged — two different prompts on the same data could produce different credit assessments." },
+      { "key": "B", "text": "The prompt version is legally required under consumer credit regulations and its absence constitutes a regulatory violation." },
+      { "key": "C", "text": "Recording prompt versions is primarily a software development concern and belongs in the IT change log, not the credit decision audit trail." },
+      { "key": "D", "text": "Without the prompt version, the lender cannot benchmark Claude's performance against competitor models under the same conditions." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "An audit trail must enable reconstruction of the decision — what inputs were provided, what process produced the output, and what decision was made. If the prompt can change between assessments, the same applicant data run through two different prompt versions may produce different credit assessments. Without recording which prompt was active, the lender cannot reconstruct whether a challenged decision was produced by the current prompt or a previous one. This makes the audit trail insufficient for investigating complaints or regulatory enquiries about specific decisions.",
+      "distractors": {
+        "B": "While consumer credit regulations do require explainability and adverse action documentation, a specific legal requirement for prompt version logging is not universally codified at this level of specificity. The issue is best framed as an auditability gap rather than a specific regulatory violation, to avoid making a claim about a specific regulation that may not apply universally.",
+        "C": "IT change logs and credit decision audit trails serve different purposes: the IT log tracks when a change was made; the decision audit trail records what process produced each specific decision. A prompt change that affects credit outcomes belongs in the decision trail because it is a decision process element, not merely a software artefact.",
+        "D": "Benchmarking against competitor models is not an audit trail purpose. Competitive benchmarking is a model evaluation activity, separate from the auditability of individual credit decisions."
+      },
+      "concept": "**Prompt versioning as an audit element:** in AI-assisted workflows where the prompt can change over time (due to optimisation, policy updates, or error correction), the prompt version is a process input to the decision. A complete audit trail must record all inputs that materially affected the output.\n\nFor credit decisions specifically, the audit trail should include:\n- Applicant data used (version/timestamp of the data file)\n- Prompt version active at the time of the assessment\n- Model output (the assessment)\n- Human decision (approve/decline) with decision-maker identity and timestamp\n\nWithout prompt version tracking:\n- Two identical applicant files run at different times may produce different assessments if the prompt changed\n- The lender cannot reproduce the decision-making process for a specific decision\n- Regulatory investigations of individual decisions cannot be fully reconstructed\n\nImplementation: treat prompt versions like software versions — version-control the prompt and log the active version ID with each assessment run.",
+      "examTip": "This hard item tests a subtle gap: the applicant data and the final decision are logged, but the process element (which prompt produced the assessment) is missing. The exam tests whether you understand that the prompt is a decision process input, not just a technical configuration. Option C is the distractor for candidates who think prompt management belongs in IT — in a consequential decision workflow, the prompt is a decision process element that belongs in the decision audit trail."
+    }
+  },
+  {
+    "id": "WIS-B-044",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "HITL checkpoint placement — multi-stage pipeline",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "An actuarial director at a large reinsurance company is designing a three-stage Claude-assisted pipeline for treaty pricing: Stage 1 — Claude extracts loss statistics from cedant data files; Stage 2 — Claude models expected loss ratios using the extracted statistics; Stage 3 — Claude generates a pricing recommendation. The director must decide where to place human-in-the-loop checkpoints. Which TWO placements are MOST important? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "A checkpoint after Stage 1 to verify that loss statistics were extracted correctly before they propagate into the modelling and pricing stages." },
+      { "key": "B", "text": "A checkpoint within Stage 2 to review each individual modelling assumption as Claude applies it." },
+      { "key": "C", "text": "A checkpoint after Stage 3 to review and approve the pricing recommendation before it is communicated to the cedant." },
+      { "key": "D", "text": "A checkpoint before Stage 1 to confirm that the cedant data file has been classified as an authorised data source." },
+      { "key": "E", "text": "A checkpoint during Stage 2 to ensure the modelling method selected by Claude is appropriate for this cedant's loss history pattern." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "Option A is critical because Stage 1 errors in extraction propagate through all downstream stages — incorrect loss statistics produce incorrect loss ratios, which produce incorrect pricing. A checkpoint here prevents compounding errors. Option C is critical because Stage 3 output is the externally communicated commitment: the pricing recommendation sent to the cedant. No AI-generated pricing recommendation for a reinsurance treaty should leave the organisation without actuary review. These two checkpoints — one at the input quality gate and one at the output commitment gate — are the most important in a multi-stage pipeline.",
+      "distractors": {
+        "B": "Reviewing each individual modelling assumption as Claude applies it creates an extremely granular checkpoint that interrupts the modelling process mid-execution. The complete model output, once produced, is a better object for actuarial review than each individual assumption in isolation. Mid-Stage 2 interruption does not add proportionate control value.",
+        "D": "Source file authorisation is a data governance prerequisite that should be confirmed before the workflow starts, not as a named checkpoint within the pipeline. It is a workflow precondition, not a pipeline control point.",
+        "E": "Confirming the modelling method is an important actuarial judgement, but it overlaps substantially with what a post-Stage 2 / pre-Stage 3 review would cover. The stage boundary checkpoint (reviewing the modelled output before it feeds pricing) is more practical than a within-stage method confirmation that interrupts Stage 2 execution."
+      },
+      "concept": "**Multi-stage pipeline checkpoint strategy** follows the principle that checkpoints should be placed at stage boundaries where errors can be caught before propagating, and at the final output before external commitment.\n\nFor a three-stage pipeline:\n- **After Stage 1 (data extraction):** verify accuracy of inputs to all subsequent stages — the highest leverage point, because extraction errors compound\n- **After Stage 2 (modelling):** optionally, if the model produces interpretable intermediate outputs worth reviewing\n- **After Stage 3 (recommendation):** mandatory before external communication — no AI recommendation for a consequential financial transaction leaves without human authorisation\n\nThe rule: **the longer the pipeline, the more important the first-stage checkpoint becomes** — a small error in Stage 1 amplifies through every subsequent automated step. And the external-facing output always requires a gate.",
+      "examTip": "Multi-stage pipeline items require you to prioritise among multiple valid checkpoint locations. The discriminators: (1) where do errors propagate most damaging? (after extraction = Stage 1); (2) what is the external commitment point? (Stage 3 output). Options B and E describe within-stage interruptions that are less practical than boundary checkpoints. Option D is a precondition, not a checkpoint. The exam pattern: first-stage input quality + last-stage output gate = the two most important checkpoints in any pipeline."
+    }
+  },
+  {
+    "id": "WIS-B-045",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Connector risk — write-back scope creep",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A systems architect at a healthcare network is reviewing a Claude connector to the patient relationship management (PRM) system. The connector was originally scoped for read-only access to support patient communication drafting. A product manager requests expanding it to allow Claude to update appointment records, flag accounts for follow-up, and add notes to patient files — all triggered by conversation context without explicit agent approval. Which TWO design controls are MOST critical before enabling these write capabilities? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Requiring an explicit agent confirmation step before any write operation is executed, so Claude cannot update records autonomously." },
+      { "key": "B", "text": "Configuring the connector to log each write operation with the agent session ID, the specific field updated, and a timestamp." },
+      { "key": "C", "text": "Restricting the write scope to fields that are non-clinical in nature, ensuring patient clinical data cannot be modified by Claude." },
+      { "key": "D", "text": "Implementing a read-back confirmation step after each write to verify the PRM received the update correctly." },
+      { "key": "E", "text": "Encrypting all data transmitted between Claude and the PRM connector to protect patient information in transit." }
+    ],
+    "correct": ["A", "B"],
+    "explanation": {
+      "correct": "Option A prevents autonomous writes: requiring an agent's explicit confirmation before each write ensures that a human authorises every change to a patient record. Without this, Claude could update appointment records or add notes based solely on its interpretation of conversation context — without the agent intending that action. Option B creates an audit trail for every write: logging the agent session, field, and timestamp is the minimum required to trace, investigate, and reverse any erroneous write to a patient record. Together these controls make write access auditable and human-authorised.",
+      "distractors": {
+        "C": "Restricting writes to non-clinical fields is a reasonable scope-limiting control but does not address the fundamental concern: appointment records, follow-up flags, and account notes — while potentially non-clinical — still require human authorisation before AI modification. Scope limitation is a complement to, not a replacement for, the approval and audit controls.",
+        "D": "A read-back confirmation verifies that the write was received correctly by the system — a technical data integrity check. It does not control whether the write should have happened in the first place or ensure that a human authorised it. It is a data consistency mechanism, not a governance control.",
+        "E": "Encryption in transit is a baseline security requirement for any healthcare data exchange and should already be in place. It is not a control specific to enabling write access — it applies equally to the existing read-only connector."
+      },
+      "concept": "**Write access scope creep** occurs when a connector that was designed for read-only use is incrementally expanded to include write capabilities without the corresponding governance controls being added. This is a common integration risk pattern.\n\nFor any write-capable connector to a clinical or patient-record system, two controls are non-negotiable:\n1. **Human approval gate:** every write requires an explicit action by a named human user. The AI cannot write records autonomously, even in response to a clear conversation signal.\n2. **Write audit log:** every write is recorded with enough detail to reconstruct what happened, who was present, and what changed.\n\nScope limitation (restricting which fields can be written) is a valuable secondary control that limits blast radius if a write occurs erroneously — but it does not substitute for the approval gate or the audit log.\n\nKey principle: **read access adds information to the agent's context; write access changes real-world state. The governance requirements are categorically different.**",
+      "examTip": "Connector write-access items have a predictable structure: the two critical controls are always the human approval gate and the audit log. Scope limitation (C) and read-back (D) are secondary controls that appear attractive but do not address the primary concerns. Encryption (E) is a baseline requirement that belongs in any data exchange, not a control specific to write access expansion. Identify the governance controls (approval, audit) before the technical controls (scope, encryption, verification)."
+    }
+  },
+  {
+    "id": "WIS-B-046",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Resilience design — multiple failure scenarios",
+    "difficulty": "medium",
+    "type": "nextstep",
+    "stem": "An operations director at a specialty insurance broker is designing a Claude-assisted workflow for producing renewal packs for commercial clients. The workflow is 80% designed: data extraction from the policy management system, Claude-assisted draft generation, and a distribution step are all defined. The director is now designing the resilience layer before finalising the workflow for rollout.\n\nWhat should the director specify FIRST in the resilience layer?",
+    "options": [
+      { "key": "A", "text": "The maximum acceptable queue depth before Claude-generated drafts are considered at risk of breaching SLAs." },
+      { "key": "B", "text": "A documented manual procedure for draft production that account handlers can execute without Claude when the service is unavailable." },
+      { "key": "C", "text": "An automated monitoring alert that notifies the operations team when Claude's average response time exceeds 60 seconds." },
+      { "key": "D", "text": "A secondary Claude deployment on an alternative API key to absorb traffic if the primary account reaches its rate limit." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The foundational element of any resilience layer is the manual fallback procedure: what the team does when the AI tool is completely unavailable. Monitoring alerts (C) tell the team something is wrong; queue thresholds (A) define escalation triggers; secondary deployments (D) reduce failure probability. All of these are useful additions, but none is functional without a manual fallback — if Claude is unavailable and no manual procedure exists, the workflow stops regardless of alerts or monitoring. The manual procedure must be specified first because everything else in the resilience layer is layered on top of it.",
+      "distractors": {
+        "A": "Queue depth thresholds are useful for SLA management and alerting, but they define when to act, not what to do when the tool is unavailable. Without the manual procedure, knowing the queue has reached threshold does not help.",
+        "C": "Response time monitoring is a detection mechanism that identifies when performance is degrading. It is valuable for early warning, but detection without a defined response procedure (the fallback) leaves the team knowing something is wrong with no planned way to keep working.",
+        "D": "A secondary API deployment reduces rate-limit and account-level failure risk but does not address service-level outages that affect the Anthropic platform. It is a useful redundancy measure but not the foundational element of resilience — if the platform is down, a second API key will also fail."
+      },
+      "concept": "**Resilience layer sequencing** follows a logical order:\n1. **Manual fallback procedure** — defines how work continues when the AI is unavailable\n2. **Trigger conditions** — defines when the fallback activates\n3. **Detection mechanisms** — monitoring and alerting that identifies failures quickly\n4. **Redundancy measures** — secondary deployments, caching, or alternative tools that reduce failure frequency\n\nThis ordering reflects a principle: the fallback procedure is what makes the workflow resilient. Everything else — monitoring, redundancy, queue management — improves the speed of detection and the probability of staying in the primary path. If only one resilience element can be implemented, the manual fallback is the one that must exist.\n\nFor a commercial insurance broker, renewal pack SLA failures have direct client and regulatory consequences. The manual procedure is not optional even if the broker expects Claude to be highly available.",
+      "examTip": "Nextstep resilience items test whether you reach for the foundational control (manual fallback) before the operational refinements (monitoring, queue management, redundancy). Options A, C, and D are all valid resilience elements that belong in the layer — but none of them functions as a substitute for the manual procedure when the primary system is completely unavailable. First specify the fallback; then layer the detection and redundancy mechanisms."
+    }
+  },
+  {
+    "id": "WIS-B-047",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Data flow integrity across handoffs",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A data analyst at a media agency exports campaign performance data from an ad platform and uploads it to Claude for trend analysis. The exported file contains data from multiple clients in the same spreadsheet. Claude's analysis references all clients' data in its summary.\n\nWhat is the PRIMARY data management error in this workflow?",
+    "options": [
+      { "key": "A", "text": "The analyst should have used a connector to the ad platform rather than an exported file." },
+      { "key": "B", "text": "The multi-client data file was uploaded without separating clients, causing Claude to produce a commingled analysis that violates client data segregation." },
+      { "key": "C", "text": "Claude cannot reliably distinguish between multiple clients in a single spreadsheet without explicit labelling of each row." },
+      { "key": "D", "text": "The ad platform export should have been reviewed by the account director before upload to confirm data accuracy." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Uploading a multi-client data file into Claude's context comingles data across clients. When Claude analyses the combined file, its output may draw on or reference all clients' performance data, violating the data segregation obligation that agencies hold toward each client. Each client's data is confidential to that client; commingling it in a shared AI context creates a data governance breach at the handoff point.",
+      "distractors": {
+        "A": "The upload method (file vs. connector) is a workflow efficiency choice, not the primary data governance issue. A connector pulling multi-client data without segregation would create the same problem.",
+        "C": "Claude's ability to distinguish clients is a capability question that is separate from the governance issue. Even if Claude could perfectly segregate outputs by client, the confidential data of each client would still be present in the same context window — accessible in ways the client has not consented to.",
+        "D": "Account director review for data accuracy is a quality control step, not the primary data management issue here. The problem is the commingling of confidential client data in a shared context, not the accuracy of the individual records."
+      },
+      "concept": "**Client data segregation** in agency and professional services contexts means that data belonging to one client is never commingled with data from another client in the same processing environment. In a Claude workflow, this means: one client's data per context window, per conversation, per file upload.\n\nCommon violations in practice:\n- Multi-client exports uploaded as a single file\n- A shared Project knowledge base containing data from multiple clients\n- A conversation that starts with Client A data and then adds Client B data without a session reset\n\nThe data governance principle: **Claude's context window is a processing environment.** Whatever enters it may influence the output. Multi-client data in one context window means each client's confidential information is processed alongside the other's — even if the output appears to be about only one client.",
+      "examTip": "Agency and professional services scenarios frequently test client data segregation at the handoff point — specifically, whether the data uploaded to Claude's context contains data from multiple clients or principals. The tell is 'multi-client' + 'same file/session.' The answer is always the commingling violation, not a capability question about whether Claude can handle it."
+    }
+  },
+  {
+    "id": "WIS-B-048",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Checkpoint design for irreversible actions",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A campaign operations manager at a non-profit uses Claude to generate donation acknowledgement emails for 10,000 supporters after a major fundraising campaign. The proposed workflow generates all 10,000 emails and triggers bulk email delivery immediately after generation with no intermediate review step.\n\nWhat is the MOST important checkpoint to add before delivery?",
+    "options": [
+      { "key": "A", "text": "A word-count check to confirm each email meets the minimum length standard before delivery." },
+      { "key": "B", "text": "A sample review of 10–20 generated emails to verify accuracy of personalisation and donor details before triggering bulk send." },
+      { "key": "C", "text": "An automated subject-line scan to check for prohibited words that may trigger spam filters." },
+      { "key": "D", "text": "A delivery rate limiter that sends 500 emails per hour rather than all 10,000 simultaneously." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Bulk email delivery is irreversible: once sent, emails cannot be recalled. A sample review of 10–20 emails before triggering the full send allows the manager to verify that personalisation is accurate (correct donor names, amounts), tone is appropriate, and no systematic errors exist across the batch. If the sample reveals a consistent error — for example, all emails use a wrong salutation or wrong donation amount — the full send can be paused and corrected before 10,000 donors receive an incorrect acknowledgement.",
+      "distractors": {
+        "A": "Word count is a superficial quality metric that does not detect the most consequential errors: wrong names, wrong amounts, wrong personalisation. An email can meet a word count minimum and still contain a significant personalisation error.",
+        "C": "Spam filter optimisation is a deliverability concern, not the primary content quality checkpoint. Even an email that passes all spam filters may contain incorrect personalisation data that damages donor relationships.",
+        "D": "Rate limiting affects delivery speed, not content quality. Sending 500 emails per hour instead of 10,000 at once means errors reach 500 donors before the next batch — but they still reach donors. Rate limiting does not prevent errors from being sent."
+      },
+      "concept": "**Pre-send sample review** is a critical quality checkpoint for any bulk AI-generated communication that is irreversible once sent. The sample size does not need to be large — 10–20 emails across a batch of 10,000 is sufficient to detect systematic errors in personalisation logic, template application, or data binding.\n\nThe sample review should specifically check:\n- Personalisation fields (name, gift amount, campaign name) are correct\n- Salutation and closing are appropriate to the relationship\n- No confidential information from one donor appears in another's email (a data commingling risk in bulk generation)\n- Tone and content match the approved communication standard\n\nThe rule for irreversible bulk actions: **sample before send, regardless of volume.** The cost of a pre-send sample review is trivial compared to the reputational and relationship cost of sending 10,000 incorrect donor acknowledgements.",
+      "examTip": "Irreversible action checkpoint items always have a sample review as the correct answer when the action is bulk and external-facing. Options A and C are technical quality checks that miss the primary risk (personalisation errors). Option D is a throttling mechanism that slows error propagation but does not prevent it. The exam pattern: bulk send + no human review = checkpoint needed, and the checkpoint is a sample review before triggering."
+    }
+  }
+]

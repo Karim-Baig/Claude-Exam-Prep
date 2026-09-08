@@ -1,0 +1,506 @@
+[
+  {
+    "id": "RCL-PTE-041",
+    "domain": "Prompting and Task Execution",
+    "topic": "Kitchen-sink prompt",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "What is a kitchen-sink prompt?",
+    "options": [
+      { "key": "A", "text": "A prompt that contains no few-shot examples" },
+      { "key": "B", "text": "A prompt focused on a single, well-defined task" },
+      { "key": "C", "text": "A prompt overloaded with multiple distinct tasks, requirements, and instructions simultaneously" },
+      { "key": "D", "text": "A prompt that uses all five building blocks in every statement" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "A kitchen-sink prompt bundles too many distinct tasks or requirements into a single request — summarise, extract, classify, reformat, and translate all in one prompt. The name reflects the idea of throwing everything in at once. The result is output that partially satisfies several goals without fully satisfying any: tasks get dropped, weighted unevenly, or handled inconsistently. The fix is decomposition into one focused prompt per task.",
+      "distractors": {
+        "A": "The absence of few-shot examples is a design choice, not an anti-pattern by itself. Many effective prompts use zero examples. Kitchen-sink refers to overloading tasks, not to the presence or absence of examples.",
+        "B": "A prompt focused on a single task is precisely the opposite of a kitchen-sink prompt. Single-job scoping is the recommended practice. Kitchen-sink is the failure mode that single-job scoping is designed to prevent.",
+        "D": "Using all five building blocks is sound prompt design. A prompt can include role, context, task, constraints, and format while still being focused on one job. The anti-pattern is about task overload, not about how many building blocks are used."
+      },
+      "concept": "The **kitchen-sink anti-pattern** is one of the most common prompting failures. It arises when a user tries to maximise efficiency by bundling every related request into one prompt. In practice, multi-task prompts produce outputs that:\n\n- Drop or only partially handle the less prominent tasks\n- Weight tasks unevenly based on their position in the prompt (earlier instructions often receive more attention)\n- Produce outputs of inconsistent quality across the bundled jobs\n- Are difficult to evaluate because there are multiple simultaneous success criteria\n\nThe correct fix is **decomposition**: identify the distinct tasks in the bundle, separate them into individual focused prompts, and address each one with its own well-specified instructions. This produces better output for each task and makes it easy to identify which step failed if something goes wrong.",
+      "examTip": "Kitchen-sink and one-job-one-prompt are two sides of the same coin: the anti-pattern and its remedy. When an exam stem describes a prompt trying to 'summarise AND classify AND reformat AND translate,' that is a kitchen-sink prompt. The correct fix is always decomposition — never 'add more instructions to clarify' or 'escalate to a higher model tier.'"
+    }
+  },
+  {
+    "id": "RCL-PTE-042",
+    "domain": "Prompting and Task Execution",
+    "topic": "Buried ask",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "What is the 'buried ask' anti-pattern in prompt design?",
+    "options": [
+      { "key": "A", "text": "Placing the most important instruction in the middle or end of a long prompt where it may receive insufficient weight" },
+      { "key": "B", "text": "Asking Claude to suppress its reasoning from the output" },
+      { "key": "C", "text": "Requesting information that Claude cannot retrieve from training data" },
+      { "key": "D", "text": "Padding the start of a prompt with redundant context to increase its length" }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "A buried ask is when the core instruction — what Claude actually needs to do — is hidden in the middle or at the end of a long prompt, surrounded by context, background, or preamble. Models attend to instructions differently depending on their position; instructions buried deep in a long prompt may be underweighted relative to content that precedes them. The fix is to position the primary instruction prominently, typically at the beginning or just before the reference material.",
+      "distractors": {
+        "B": "Suppressing reasoning from the output is a format or constraint choice — asking Claude to provide only the conclusion without its reasoning steps. It is not a prompt design anti-pattern and has no relationship to instruction placement.",
+        "C": "Requesting content beyond Claude's training knowledge is a grounding issue — the fix is to supply reference material. It is unrelated to the structural placement of instructions within a prompt.",
+        "D": "Padding a prompt with redundant context at the start is a different issue — it adds tokens without value. Buried ask is specifically about the placement of the core task instruction relative to surrounding content."
+      },
+      "concept": "The **buried ask** occurs when a prompt begins with extensive background, context, or qualifications before finally arriving at the actual task. By the time the model reaches the instruction, it has processed many tokens of other content. The core request arrives late in the context, where it may receive less weight than the material that preceded it.\n\nCommon manifestation: a long business scenario followed by 'and by the way, please also identify any compliance risks' appended at the end. That final instruction is the buried ask.\n\nFixes:\n1. Lead with the task — 'Identify compliance risks in the following contract excerpt' — before providing the contract\n2. Use a summary at the top ('This prompt asks you to: [task]') followed by the details\n3. Use XML tags to label the task section so the model recognises it as the instruction regardless of position\n\nThe buried ask is related to the document-placement principle: the question should come *after* the document, but the *task instruction* should be stated clearly at the start of the prompt.",
+      "examTip": "Buried ask and document placement interact. The recommendation is: state the task clearly at the start, then provide the document, then restate the specific question after the document. This prevents both the buried ask (task is lost in the preamble) and the document-reading failure (question comes before the material the model should read)."
+    }
+  },
+  {
+    "id": "RCL-PTE-043",
+    "domain": "Prompting and Task Execution",
+    "topic": "Output format specification",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "What does an output format specification in a prompt govern?",
+    "options": [
+      { "key": "A", "text": "The factual accuracy of Claude's claims" },
+      { "key": "B", "text": "The tone and register Claude uses throughout the response" },
+      { "key": "C", "text": "The internal reasoning process Claude applies before generating" },
+      { "key": "D", "text": "The structure, visual presentation, and length conventions of the output" }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Output format specification controls how the response is organised and presented: whether it appears as a bulleted list, a numbered sequence, a markdown table, a JSON object, a document with headers, or plain prose. It also governs length — word count ceilings or targets — and other presentational conventions such as whether to bold key terms or use code blocks. Format specification addresses the *shape* of the output, not its content, accuracy, or reasoning.",
+      "distractors": {
+        "A": "Factual accuracy is a function of grounding — whether the model has accurate source material in its context and whether it reasons correctly from it. The format block specifies how accurate content should be shaped, not whether it is accurate.",
+        "B": "Tone and register are calibrated primarily through the context block (audience description) and the role block (persona). Format governs visual structure, not the interpersonal register of the prose.",
+        "C": "Internal reasoning is governed by a chain-of-thought instruction, which is a reasoning directive rather than a format directive. Whether the reasoning appears in the output is a format choice, but the reasoning process itself is not."
+      },
+      "concept": "**Output format specification** is a subset of the format building block, concerned with the presentational choices that make an output usable in its intended context. Common format specifications include:\n\n- **Structure type**: bullets, numbered list, table, headers, JSON, code block, prose\n- **Length**: word count target or ceiling, number of items in a list, number of paragraphs\n- **Labelling**: whether to bold key terms, use headers, add footnotes\n- **Nesting**: whether lists should be flat or hierarchical\n- **Markdown usage**: whether to use markdown formatting (relevant when the output will be rendered)\n\nFormat specification is one of the most impactful micro-edits in prompt iteration because even a correct and complete response can be unusable if it arrives in the wrong shape — a JSON parser expects JSON, not prose; a slide deck needs bullets, not paragraphs. Specifying format upfront prevents reformatting work downstream.",
+      "examTip": "Format specification items test whether you know that format governs shape — not content, accuracy, or reasoning. A common distractor is tone or register (context block) or accuracy (grounding). The question 'what does a format block control?' always has an answer about *structure and presentation*, never about *what the response says* or *how true it is*."
+    }
+  },
+  {
+    "id": "RCL-PTE-044",
+    "domain": "Prompting and Task Execution",
+    "topic": "Conflicting instructions",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "What makes a prompt exhibit the 'conflicting instructions' anti-pattern?",
+    "options": [
+      { "key": "A", "text": "Including both a format block and a constraints block in the same prompt" },
+      { "key": "B", "text": "Including two instructions that cannot both be satisfied simultaneously" },
+      { "key": "C", "text": "Using both positive and negative framing in the same constraints block" },
+      { "key": "D", "text": "Providing more than three few-shot examples in the prompt" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Conflicting instructions are two directives that are mutually exclusive: they cannot both be satisfied by any single output. For example, 'be comprehensive and cover all details' paired with 'keep the response to 100 words' creates a conflict — at 100 words, no topic can be covered comprehensively. The model must resolve the conflict by prioritising one instruction over the other, often unpredictably. The fix is to review the prompt for contradictions and resolve them explicitly before submitting.",
+      "distractors": {
+        "A": "Including both a format block and a constraints block is sound prompt design — they serve complementary purposes (shape vs. content exclusion). They do not conflict; they operate independently. Having both in a prompt is expected and recommended.",
+        "C": "Using both positive and negative framing in the same prompt is also fine — positive framing specifies desired behaviour while constraints exclude unwanted content. They are designed to coexist and do not inherently conflict.",
+        "D": "The number of few-shot examples is a design choice with quality implications, but providing many examples is not inherently an anti-pattern unless the examples are unrepresentative or consume excessive context space."
+      },
+      "concept": "**Conflicting instructions** arise from prompts that evolve incrementally — the user adds a new requirement without reviewing whether it contradicts earlier ones. Common conflict pairs:\n\n- 'Be thorough' + 'keep it brief'\n- 'Do not use technical terms' + 'include the API endpoint paths'\n- 'Follow the formal report structure' + 'write in casual, conversational prose'\n- 'Summarise in three bullet points' + 'include all the nuances and caveats'\n\nThe model cannot satisfy both sides of a contradiction, so it must choose. The choice is often unpredictable — sometimes the earlier instruction wins, sometimes the later one, sometimes neither does well.\n\nThe fix: before submitting any prompt, read it for internal consistency. If two instructions pull in opposite directions, resolve the tension explicitly: 'Be thorough within 200 words, prioritising risks over recommendations if space is limited.'",
+      "examTip": "Conflicting instructions vs. kitchen-sink prompts: conflicting instructions *cannot* both be satisfied — it is a logical impossibility. A kitchen-sink prompt overloads tasks — it is *possible* for each task to be done, but doing all of them simultaneously degrades quality. Both are anti-patterns, but they fail for different structural reasons."
+    }
+  },
+  {
+    "id": "RCL-PTE-045",
+    "domain": "Prompting and Task Execution",
+    "topic": "Positive framing definition",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "What does 'positive framing' mean as a prompting strategy?",
+    "options": [
+      { "key": "A", "text": "Using encouraging language in the prompt to improve output quality" },
+      { "key": "B", "text": "Praising Claude's prior response before requesting a revision" },
+      { "key": "C", "text": "Specifying what Claude should do rather than what it should avoid" },
+      { "key": "D", "text": "Including only factually accurate background in the context block" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Positive framing specifies the *desired* behaviour directly: 'write in plain language accessible to a non-specialist.' Negative framing specifies what to avoid: 'do not use jargon.' Positive framing is more reliable because it leaves no ambiguity about the target — the model is told precisely what to produce. Negative framing removes an undesired option but leaves the desired replacement open to interpretation.",
+      "distractors": {
+        "A": "Using encouraging language ('great job!', 'please') is politeness padding — it adds tokens without improving output. Positive framing is a technical term about instruction *structure* (what to do vs. what not to do), not about the politeness or encouragement level of the prompt.",
+        "B": "Praising prior output before requesting revision is a conversational pattern that can introduce sycophancy effects — the model may be more likely to produce output similar to the praised version rather than genuinely improving. This is neither positive framing as a technical term nor a recommended practice.",
+        "D": "Including accurate background is about context quality — the truthfulness of situational information. Positive framing is about instruction structure: how constraints and requirements are stated, not what the context contains."
+      },
+      "concept": "**Positive framing** is the instruction-design principle of specifying what should happen rather than what should not. In the five-block model:\n\n- **Format block**: positive framing is always used ('write as a table') — format is inherently positive specification\n- **Constraints block**: negative framing is appropriate when the goal is to prohibit a specific content category ('do not include pricing')\n- **Context and task blocks**: positive framing is standard\n\nThe practical guidance: use positive framing whenever specifying a desired behaviour or quality. Reserve negative framing (constraints) for well-defined content exclusions. The clearest failure of negative-only framing: 'do not be vague' tells the model vagueness is wrong but does not specify what precise, specific, quantitative, or evidence-based looks like in this context. Positive framing fills that gap.",
+      "examTip": "Positive framing is tested against politeness padding and against the constraints block's negative framing. The discriminator: positive framing is about *instruction structure* (what to do vs. what to avoid), not about the *tone* of the prompt (friendly vs. formal). When an option mentions 'encouraging language' or 'politeness,' it is describing a different concept."
+    }
+  },
+  {
+    "id": "RCL-PTE-046",
+    "domain": "Prompting and Task Execution",
+    "topic": "Politeness padding",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "What is the primary cost of 'politeness padding' in a prompt?",
+    "options": [
+      { "key": "A", "text": "It adds tokens without improving output quality, consuming context window space unnecessarily" },
+      { "key": "B", "text": "It confuses Claude about which portion of the prompt is the actual task instruction" },
+      { "key": "C", "text": "It triggers more cautious and hedged responses by signalling uncertainty" },
+      { "key": "D", "text": "It increases latency because Claude must parse non-instructional content" }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Politeness padding — phrases like 'Could you please kindly help me,' 'I hope you don't mind,' or excessive expressions of gratitude — adds tokens to the prompt without providing instructional value. Claude does not perform better because of politeness; its output quality is governed by the clarity and completeness of the actual instructions. In long prompts or high-volume pipelines, padding accumulates token cost without any quality return.",
+      "distractors": {
+        "B": "Politeness phrases are not sufficiently similar to instructions to confuse Claude about what the task is. The model distinguishes polite preamble from operative instructions. Confusion is more likely from genuinely ambiguous task statements or buried asks, not from 'please' and 'thank you.'",
+        "C": "Politeness does not trigger hedged or cautious responses. Hedging in responses is caused by genuine uncertainty in the model's reasoning, ambiguous task scope, or lack of grounding — not by the social register of the prompt.",
+        "D": "Latency is primarily driven by output length and model tier. Parsing a few extra words of preamble does not materially affect generation speed. Token cost is the real concern with padding, not latency."
+      },
+      "concept": "**Politeness padding** is any non-instructional language added to a prompt out of social habit rather than functional necessity. Examples:\n\n- 'I was hoping you might be able to help me with...'\n- 'Please and thank you!'\n- 'I know you're very busy, but...'\n- 'If it's not too much trouble...'\n\nClaude treats all text in the prompt as content to process. It does not perform better because of politeness — it responds to the clarity and completeness of instructions, not to their social register. The practical implication: write prompts as precise instructions, not as social requests.\n\nPoliteness padding is a minor anti-pattern compared to kitchen-sink prompts or conflicting instructions. Its primary cost is token inefficiency. In single-use conversational contexts, the cost is negligible. In automated, high-volume pipelines where prompts run thousands of times per day, accumulated padding becomes a real cost.",
+      "examTip": "Politeness padding is the least harmful of the PTE-C anti-patterns — it wastes tokens but does not corrupt output. Exam items on this topic test whether you know that output quality is governed by instruction quality, not by social register. 'Adding politeness phrases improves Claude's output' is always a wrong answer."
+    }
+  },
+  {
+    "id": "RCL-PTE-047",
+    "domain": "Prompting and Task Execution",
+    "topic": "Iterative refinement loop",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "What is an iterative refinement loop in the context of prompting?",
+    "options": [
+      { "key": "A", "text": "A chain-of-thought technique where Claude reasons recursively until it converges on an answer" },
+      { "key": "B", "text": "A multi-turn conversation strategy that never resets context" },
+      { "key": "C", "text": "The process of adding more examples to a prompt after each unsatisfactory response" },
+      { "key": "D", "text": "Using Claude's output as input to a revised follow-up prompt to progressively improve quality" }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "An iterative refinement loop is the practice of reviewing Claude's output, identifying what is partially right and what needs improvement, and then writing a targeted follow-up prompt that uses the prior output as context and steers the next response toward the desired result. Each iteration produces a draft that is closer to the goal than the last. It is the operational equivalent of the edit-review-revise cycle in human writing.",
+      "distractors": {
+        "A": "Recursive reasoning within a single response is an internal model process sometimes associated with extended thinking or CoT. Iterative refinement is a multi-turn *human-model interaction loop*, not a single-response reasoning technique.",
+        "B": "Iterative refinement may involve keeping a conversation's context across turns, but it is not defined by refusing to reset. Starting a fresh conversation when drift occurs is sometimes the correct choice *within* an iterative process. The defining characteristic is using prior output as a basis for the next prompt.",
+        "C": "Adding examples to a prompt addresses the few-shot design — it is a prompt-revision step that might occur between iterations, but it is not the defining feature of an iterative refinement loop. Refinement loops focus on directing progressive improvement, not on adding examples."
+      },
+      "concept": "**Iterative refinement** treats the first Claude response as a draft, not a final product. The loop:\n\n1. Submit the initial prompt\n2. Review the output — identify what is correct and what needs improvement\n3. Write a targeted follow-up prompt that specifies the remaining gap ('The structure is right; now add a risk rating (High/Medium/Low) to each item')\n4. Repeat until the output meets the success criterion\n\nEffective refinement is targeted — each iteration closes one specific gap, not everything at once. Targeting one improvement per turn prevents the model from losing what was already correct while fixing what was wrong.\n\nIterative refinement should not be confused with starting over. When conversation drift has accumulated over many turns, a fresh conversation with an improved initial prompt is more efficient than continuing to iterate on a noisy thread.",
+      "examTip": "Iterative refinement vs. fresh start: use refinement when the prior output is partially correct and targeted improvement is possible. Use a fresh start when context drift has made the thread unreliable or when the initial prompt was so fundamentally wrong that the output provides no useful base. The exam discriminates between these two responses to a failing output."
+    }
+  },
+  {
+    "id": "RCL-PTE-048",
+    "domain": "Prompting and Task Execution",
+    "topic": "Prefilling",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "What is prefilling in Claude prompting?",
+    "options": [
+      { "key": "A", "text": "Adding background context to the system prompt before the first user turn" },
+      { "key": "B", "text": "Providing the opening characters or words of Claude's response to steer its continuation from the first token" },
+      { "key": "C", "text": "Pre-loading reference documents into the conversation context before asking a question" },
+      { "key": "D", "text": "Setting a few-shot example as the first exchange in every conversation" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Prefilling is the technique of starting Claude's response for it — supplying the opening text of the assistant turn before generation begins. Because the model continues from whatever is already in its response, prefilling constrains the output from the very first generated token. Common uses: starting with `{` to force JSON output, starting with a specific heading to anchor the response structure, or beginning with a phrase that sets the register.",
+      "distractors": {
+        "A": "Adding background context to the system prompt is standard prompt construction — it is the context or role block in the system turn, not prefilling. Prefilling specifically refers to partially populating the *assistant* turn, not the system or user turns.",
+        "C": "Pre-loading reference documents is providing reference material in the context window. It is a context-preparation step. Prefilling is about providing the beginning of the model's *response*, not about adding material for the model to read.",
+        "D": "Setting a few-shot example as the first exchange is a few-shot design pattern — it demonstrates the desired input-output format. Prefilling is specifically about partially completing the assistant's response for the current turn, not about prior example exchanges."
+      },
+      "concept": "**Prefilling** is an API-level technique that places content at the start of the assistant's response before the model generates. Because the model continues from whatever is in its turn, the prefilled text anchors all subsequent generation.\n\nCommon applications:\n- **JSON output**: prefill with `{\\n  \"` to enforce valid JSON from the first token\n- **Header anchoring**: prefill with `## Summary\\n` to force the response to begin with that header\n- **Register setting**: prefill with a phrase in the desired tone to anchor the style\n- **Skip preamble**: prefill with a direct statement to prevent Claude from opening with 'Certainly! I'd be happy to...'\n\nPrefilling is more deterministic than a format instruction because it physically occupies the beginning of the response rather than *requesting* a particular opening. It is most useful when the exact format of the first few characters matters — particularly for structured data outputs or when downstream systems parse the response.",
+      "examTip": "Prefilling vs. format instruction: both aim to control output structure, but they work differently. A format instruction *requests* a structure; prefilling *starts* the structure before generation. Prefilling is more reliable for the very beginning of the response; format instructions govern the overall shape. Items that ask which is 'more deterministic' point to prefilling."
+    }
+  },
+  {
+    "id": "RCL-PTE-049",
+    "domain": "Prompting and Task Execution",
+    "topic": "Length and depth control",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "What does length and depth control in a prompt govern?",
+    "options": [
+      { "key": "A", "text": "The number of reference sources Claude will consult when forming its answer" },
+      { "key": "B", "text": "How many reasoning steps Claude will perform before outputting a conclusion" },
+      { "key": "C", "text": "Word count targets, level of detail, and the degree of elaboration in the output" },
+      { "key": "D", "text": "The reading level of the prompt itself" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Length and depth control is a subset of the format block concerned with how much the model says and at what level of detail. Length directives include word count ceilings ('no more than 150 words'), page equivalents ('fit within one A4 page'), or item counts ('limit to five bullet points'). Depth directives include 'provide a high-level overview without technical detail,' 'include specific examples for each claim,' and 'address only the headline finding, not the methodology.' Together they calibrate verbosity and granularity.",
+      "distractors": {
+        "A": "The number of sources Claude consults is a retrieval or grounding design concern, not a length-and-depth specification. Claude's access to sources is determined by what is in the context window and any tool-use configuration.",
+        "B": "The number of reasoning steps is associated with chain-of-thought prompting — directing the model to externalise more or fewer steps in its reasoning. Length and depth control governs the output, not the reasoning process preceding it.",
+        "D": "The reading level of the prompt is an irrelevant concept — the prompt is written by the user, not the model. Reading level may appear as a depth directive for the *output* ('write at an eighth-grade reading level'), but it is not the thing that length and depth control governs about the prompt itself."
+      },
+      "concept": "**Length and depth control** sits within the format block and governs two related but distinct dimensions:\n\n- **Length**: how many words, sentences, bullets, or pages the output should contain\n- **Depth**: how much detail, evidence, and nuance each point should receive\n\nThese can be specified independently:\n- 'Long and shallow': a 500-word overview that covers many topics briefly\n- 'Short and deep': a 100-word treatment of one specific issue with full supporting evidence\n- 'Long and deep': a comprehensive 2,000-word analysis — appropriate for a white paper\n- 'Short and shallow': a one-sentence executive answer\n\nWithout length and depth control, models tend toward verbose, moderately-detailed responses. Adding explicit directives shifts the output toward the appropriate register for its use case: a busy executive needs short-and-shallow; a technical review needs short-and-deep; a background briefing needs long-and-shallow.",
+      "examTip": "Length control and depth control are distinct even though they appear together. A prompt can specify one without the other. 'Write three bullet points' is length control. 'Include a supporting example for each point' is depth control. Exam items may pair them or ask about each independently. Both are format-block directives."
+    }
+  },
+  {
+    "id": "RCL-PTE-050",
+    "domain": "Prompting and Task Execution",
+    "topic": "Multi-turn conversation management",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "What is multi-turn conversation management in the context of prompting?",
+    "options": [
+      { "key": "A", "text": "Structuring exchanges across multiple turns to maintain context, avoid drift, and preserve the relevance of earlier instructions" },
+      { "key": "B", "text": "Distributing a single task across multiple simultaneous Claude conversations" },
+      { "key": "C", "text": "Managing the number of few-shot examples added across a conversation's history" },
+      { "key": "D", "text": "Switching between model tiers across turns to balance cost and quality" }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Multi-turn conversation management is the practice of maintaining a productive conversation across multiple exchanges: keeping the thread on topic, recognising when earlier instructions have been forgotten or overridden, knowing when to restate key context, and deciding when to start a fresh conversation rather than continuing a drifted one. It is the operational skill of managing a model interaction over time rather than within a single exchange.",
+      "distractors": {
+        "B": "Running a single task across multiple simultaneous conversations is a parallelism strategy unrelated to multi-turn management. Multi-turn management is about sequential exchanges within one conversation thread, not concurrent separate threads.",
+        "C": "Managing few-shot examples across a conversation's history is a specific micro-technique within conversation management, not its definition. Multi-turn management is a broader concept covering context maintenance, instruction persistence, and drift detection.",
+        "D": "Switching model tiers across turns is an infrastructure-level decision not typically available in standard conversational interfaces. Multi-turn management is about prompt and conversation design within a session, not about model selection between turns."
+      },
+      "concept": "**Multi-turn conversation management** addresses a practical challenge: as a conversation grows longer, the model's effective attention to earlier instructions may diminish, context can drift, and the thread may evolve away from the original goal.\n\nKey practices:\n- **Restate key instructions** at critical points, especially after many intervening turns\n- **Summarise agreed decisions** to consolidate what has been established before moving forward\n- **Detect drift** — notice when responses start to diverge from the established task scope\n- **Know when to restart** — when drift is severe or the conversation has become noisy, starting a fresh conversation with an improved initial prompt is more productive than iterating on a corrupted thread\n- **Use references to prior output** — 'using the plan from two turns ago, now add...' — to maintain continuity without restating everything\n\nMulti-turn management is distinct from iterative refinement: refinement is about progressively improving a specific output; multi-turn management is about maintaining coherence across the full session.",
+      "examTip": "Multi-turn management items often ask when to continue vs. when to start fresh. The principle: when context drift has made earlier instructions unreliable, or when the accumulated conversation history is noisy enough to degrade output quality, starting a fresh conversation with an improved initial prompt is the correct choice. Persistence is not inherently virtuous — coherence is."
+    }
+  },
+  {
+    "id": "RCL-PTE-051",
+    "domain": "Prompting and Task Execution",
+    "topic": "Prefill vs continuation instruction",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "What precisely distinguishes prefilling from a continuation instruction in a prompt?",
+    "options": [
+      { "key": "A", "text": "Prefilling requires a prior system prompt; a continuation instruction does not" },
+      { "key": "B", "text": "Prefilling applies only to structured JSON outputs; continuation instructions apply to prose" },
+      { "key": "C", "text": "A continuation instruction uses positive framing; prefilling uses negative framing" },
+      { "key": "D", "text": "Prefilling places text inside the assistant turn before generation; a continuation instruction directs Claude to follow from a stated starting point within a normal user or system turn" }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Prefilling is a structural API-level act: text is placed inside the assistant message field before the model generates, so the model literally continues from that content. A continuation instruction — 'begin your response with the phrase X' or 'start immediately with the recommendation, no preamble' — is a directive in the user or system turn asking the model to behave as if it had started a certain way. Both aim to control the beginning of the output, but prefilling is positional (it occupies the assistant turn) while a continuation instruction is directive (it requests a behaviour).",
+      "distractors": {
+        "A": "Both prefilling and continuation instructions can be used with or without a system prompt. The presence or absence of a system prompt is not what distinguishes them. Prefilling operates at the assistant-turn level regardless of system prompt configuration.",
+        "B": "Prefilling works for any output type, not just JSON. Starting with `{` for JSON is a common use, but starting with a markdown header, a specific phrase, or a code block delimiter are equally valid. The technique is format-agnostic.",
+        "C": "Neither prefilling nor continuation instructions are categorised by framing style. Both are positive specification techniques — they define what the output should start with. Negative framing belongs to the constraints block and has no relationship to either technique."
+      },
+      "concept": "**Prefilling vs. continuation instruction** is a distinction between *mechanism* and *direction*:\n\n**Prefill** (API-level):\n- Text is placed in the `assistant` message before generation begins\n- The model has no choice but to continue from that exact text\n- Works at the character level — the first generated token follows the last prefilled character\n- Most reliable for deterministic output beginnings\n\n**Continuation instruction** (prompt-level):\n- A directive in the system or user turn that asks the model to start a certain way\n- The model may comply, but it could also add preamble before the requested start\n- Less reliable than prefilling for the very first characters of the output\n- More accessible — does not require API-level message construction\n\nPrefilling is more powerful but requires API access. Continuation instructions are accessible in any interface but are less deterministic. In practice, continuation instructions work well for most cases; prefilling is warranted when the exact beginning matters critically (e.g., the output must be valid JSON from character one).",
+      "examTip": "The discriminating property is where the technique operates: prefilling operates *inside the assistant turn* (structural); a continuation instruction operates *inside the user/system turn* (directive). If an exam item says 'which is more deterministic for controlling the very first character of output,' the answer is prefilling — because it physically occupies the response space rather than requesting a behaviour."
+    }
+  },
+  {
+    "id": "RCL-PTE-052",
+    "domain": "Prompting and Task Execution",
+    "topic": "When to use negative constraints",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "When is a negative constraint preferable to positive framing for specifying output behaviour?",
+    "options": [
+      { "key": "A", "text": "When the desired behaviour is easy to describe in words" },
+      { "key": "B", "text": "When a specific, well-defined content category must be excluded regardless of how the task is framed" },
+      { "key": "C", "text": "When the model is already producing output close to the desired style" },
+      { "key": "D", "text": "When the prompt already contains more than two positive framing directives" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Negative constraints are the right tool when the goal is to exclude a specific, well-defined content category — 'do not include pricing information,' 'avoid speculation about future regulatory changes,' 'do not recommend products by name.' In these cases, the prohibited category is unambiguous and the exclusion should hold regardless of how the task is otherwise framed. Positive framing cannot achieve this; it can only specify what to do, not what to systematically omit.",
+      "distractors": {
+        "A": "When the desired behaviour is easy to describe in words, positive framing is preferred — it specifies the target directly. Positive framing is the tool of choice when the goal can be stated positively and precisely. Negative framing is a fallback for categories that are easier to define by exclusion.",
+        "C": "When the model is already close to the desired output, targeted positive instructions to close the remaining gap are usually most effective. Negative constraints do not help tune output that is already approximately correct — they prevent specific unwanted content, not near-misses.",
+        "D": "The number of existing positive directives has no bearing on whether to add a negative constraint. Adding a negative constraint is always driven by whether there is a specific content category that must be excluded, not by a count of existing instructions."
+      },
+      "concept": "**Negative vs. positive framing** is not a binary choice — effective prompts often use both:\n\n- **Positive framing**: specifies desired behaviour ('write in plain language with one example per claim')\n- **Negative constraint**: excludes a specific category ('do not include cost estimates')\n\nThe right tool depends on what you are trying to achieve:\n- If specifying a *desired quality or behaviour* → positive framing\n- If excluding a *specific content category* → negative constraint\n\nNegative constraints work well for exclusions because they are unambiguous and persistent: 'do not include competitor names' holds throughout the output regardless of context. Positive framing cannot achieve the same effect because it specifies targets, not exclusions.\n\nThe failure mode of over-relying on negative constraints: 'do not be vague, do not use jargon, do not write formally, do not include speculation' — a long list of negatives that tells the model many things it must avoid but nothing about the positive target. Combining a few well-placed negative constraints with positive-framing directives produces the most reliable results.",
+      "examTip": "The exam discriminates positive vs. negative framing by asking which is appropriate for a given goal. The rule: exclusion of a specific well-defined category → negative constraint. Specification of a desired quality → positive framing. Hard items present both as apparently applicable and ask which is *more appropriate* for the described situation."
+    }
+  },
+  {
+    "id": "RCL-PTE-053",
+    "domain": "Prompting and Task Execution",
+    "topic": "Kitchen-sink vs conflicting instructions",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "What is the critical structural difference between a kitchen-sink prompt and one with conflicting instructions?",
+    "options": [
+      { "key": "A", "text": "Kitchen-sink prompts are longer; conflicting-instruction prompts are always short" },
+      { "key": "B", "text": "Kitchen-sink prompts use negative framing; conflicting-instruction prompts use positive framing" },
+      { "key": "C", "text": "A kitchen-sink prompt attempts too many tasks simultaneously; conflicting instructions are contradictory and cannot all be satisfied even in isolation" },
+      { "key": "D", "text": "Kitchen-sink prompts produce no output; conflicting-instruction prompts always produce partial output" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The structural difference is between *overload* and *contradiction*. A kitchen-sink prompt is overloaded: each individual task could be completed, but trying to do all of them at once in a single prompt degrades quality. A conflicting-instruction prompt has a logical contradiction: at least two instructions cannot both be satisfied, even if attempted one at a time. One is a capacity problem (too much); the other is a logical problem (impossible to resolve).",
+      "distractors": {
+        "A": "Length is not the distinguishing factor. A very long prompt may be neither kitchen-sink nor conflicting. A conflicting prompt can be short ('be comprehensive but limit to 50 words'). Length is a proxy at best, not the definition.",
+        "B": "Framing style (positive vs. negative) is independent of whether a prompt overloads tasks or contains contradictions. Both anti-patterns can appear with either framing style. The distinction is structural (overload vs. contradiction), not grammatical.",
+        "D": "Both anti-patterns typically produce output — Claude attempts to complete the task in both cases. A kitchen-sink prompt produces incomplete or uneven output across the bundled tasks; a conflicting-instruction prompt produces output that prioritises one conflicting instruction over the other, often unpredictably. Neither routinely produces no output."
+      },
+      "concept": "**Kitchen-sink vs. conflicting instructions** — two distinct structural failures:\n\n**Kitchen-sink** (overload):\n- Many tasks, each individually completable\n- Failure mode: quality degradation, dropped tasks, uneven weighting\n- Fix: decompose into one-task-per-prompt\n\n**Conflicting instructions** (contradiction):\n- Two or more directives that are mutually exclusive\n- Failure mode: model must choose which to follow; choice is unpredictable\n- Fix: identify and resolve the contradiction explicitly before submitting\n\nA prompt can suffer from both at once: a kitchen-sink prompt with conflicting instructions is overloaded *and* contains contradictions. Diagnosing which anti-pattern is present determines the fix. For kitchen-sink: decompose. For conflicting instructions: reconcile or prioritise.",
+      "examTip": "The discriminating property is: can all the instructions theoretically be satisfied? If yes but doing so degrades quality → kitchen-sink. If no, because they logically contradict → conflicting instructions. This test works even when the prompt is long (could be kitchen-sink) or short (could be conflicting). Always ask: is this a capacity problem or a logical impossibility?"
+    }
+  },
+  {
+    "id": "RCL-PTE-054",
+    "domain": "Prompting and Task Execution",
+    "topic": "Iterative refinement vs fresh start",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "When is starting a fresh conversation the correct choice over continuing to iterate on an existing one?",
+    "options": [
+      { "key": "A", "text": "When conversation drift has made the thread so noisy that a well-crafted initial prompt would be more reliable than further iteration" },
+      { "key": "B", "text": "When the user wants to switch to a different model tier for the next response" },
+      { "key": "C", "text": "When the prior response was completely correct but needs minor formatting changes" },
+      { "key": "D", "text": "When the task requires fewer than three follow-up turns to complete" }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Starting fresh is the right choice when the conversation history has accumulated so much noise — irrelevant tangents, outdated instructions, incorrect prior outputs — that the model's effective context for the real task is degraded. At that point, the accumulated history is working against quality rather than for it. A single, well-crafted prompt that incorporates the lessons learned from the failed iterations will produce better results than continuing to layer corrections on a corrupted thread.",
+      "distractors": {
+        "B": "Model tier switching is typically configured at the session level, not between turns within a conversation. Starting a fresh conversation may coincide with tier switching, but the decision to start fresh should be driven by context quality, not by tier selection.",
+        "C": "When the prior response is essentially correct and only minor formatting changes are needed, a targeted follow-up instruction ('please reformat the response as a numbered list') is far more efficient than starting fresh. Starting fresh is warranted when the output quality is fundamentally wrong, not when it needs minor polish.",
+        "D": "The number of turns required has no bearing on whether to restart. A three-turn task can proceed efficiently in a well-managed thread. A one-turn task might require a restart if the initial prompt was so poorly constructed that the response is unusable."
+      },
+      "concept": "**Iterative refinement vs. fresh start** is a judgment call governed by the quality of the existing conversation context:\n\n**Continue iterating when**:\n- The prior output is partially correct and a targeted correction can close the gap\n- Key context and decisions from earlier turns are still active and accurate\n- The thread remains aligned with the original goal\n\n**Start fresh when**:\n- Conversation drift has accumulated: outdated instructions, topic deviations, incorrect prior outputs that the model is now treating as established facts\n- The initial prompt was structurally wrong: the right fix is a better prompt, not more corrections\n- Earlier turns contain errors that the model keeps referencing or building on\n\nThe practical test: 'If I were writing this prompt for the first time, knowing what I now know, would my initial prompt look like this current conversation?' If no, start fresh with that improved prompt.",
+      "examTip": "Fresh start vs. iterative refinement items test a judgment principle, not a rule. The signal for fresh start is always *context degradation* — when the accumulated history is making output worse rather than better. The signal for continued iteration is *partial correctness* — when the output is close and a targeted follow-up can close the gap."
+    }
+  },
+  {
+    "id": "RCL-PTE-055",
+    "domain": "Prompting and Task Execution",
+    "topic": "Reusable prompt templates",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "What is the primary advantage of a reusable prompt template with variables over writing a new prompt from scratch for each use?",
+    "options": [
+      { "key": "A", "text": "Templates prevent Claude from producing inconsistent results across different model tiers" },
+      { "key": "B", "text": "Templates eliminate the need for context and format blocks in each prompt" },
+      { "key": "C", "text": "Templates enable few-shot learning without requiring explicit examples" },
+      { "key": "D", "text": "Templates preserve proven prompt logic and structure while allowing instance-specific values to be substituted efficiently" }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "A reusable template captures a working prompt structure — including the proven role, context frame, task specification, constraints, and format — and marks the parts that vary by instance as substitutable variables. For each new use, only the variable values change; the proven logic remains intact. This ensures structural consistency across all instances, reduces the risk of inadvertently breaking a working prompt by rewriting it, and lowers per-use effort for common tasks.",
+      "distractors": {
+        "A": "Output consistency across model tiers is governed by the tier's capabilities and the prompt quality, not by whether the prompt is templated. A well-crafted template run on two different tiers will still produce different output if the tiers have different reasoning capabilities.",
+        "B": "Templates still require context and format blocks — in fact, templates are typically where those blocks live permanently so they do not have to be rewritten for each use. The variable substitution replaces instance-specific values, not structural building blocks.",
+        "C": "Few-shot learning requires explicit examples, which a template may or may not include. Templates are about structural reuse, not about deriving example-based learning implicitly. These are unrelated mechanisms."
+      },
+      "concept": "**Reusable prompt templates** are partially-fixed prompt structures with clearly-marked variable placeholders. A template for a contract review might look like:\n\n```\nYou are a [ROLE]. Review the following [DOCUMENT_TYPE] for [REVIEW_GOAL].\n\n[CONSTRAINTS]\n\nDocument:\n<contract>\n[DOCUMENT_CONTENT]\n</contract>\n\n[FORMAT_INSTRUCTIONS]\n```\n\nEach bracketed element is a variable. For each use, only the variables are filled in; the structural logic remains unchanged.\n\nBenefits:\n- **Consistency**: all instances follow the same proven structure\n- **Efficiency**: only fill variables, no prompt architecture decisions per use\n- **Maintainability**: improving the template once improves all future uses\n- **Team standardisation**: teams can share templates to ensure consistent prompt quality across members\n\nTemplates are particularly valuable in team settings and automated workflows where different users or systems need to produce consistent outputs from the same prompt logic.",
+      "examTip": "Template items test whether you know that the benefit is *structural preservation with instance-level variation* — not any of the more exotic capabilities distractors might suggest (model-tier consistency, implicit few-shot, eliminating building blocks). The core value: proven structure + variable substitution = consistency at scale."
+    }
+  },
+  {
+    "id": "RCL-PTE-056",
+    "domain": "Prompting and Task Execution",
+    "topic": "Template variables",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "What do variables in a reusable prompt template enable?",
+    "options": [
+      { "key": "A", "text": "Dynamic switching between model tiers based on the variable value" },
+      { "key": "B", "text": "Substituting instance-specific values while preserving the proven prompt structure" },
+      { "key": "C", "text": "Attaching different reference documents to each output section automatically" },
+      { "key": "D", "text": "Adjusting the reasoning depth of the model based on the complexity of the input" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Variables in a prompt template are placeholders for the parts of a prompt that change between uses — the specific topic, the input document, the target audience, the review goal. By substituting these values into a fixed structure, each invocation produces a customised prompt without requiring a full rewrite. The template's proven structural logic — its role definition, constraints, format instructions — remains constant and benefits from prior optimisation.",
+      "distractors": {
+        "A": "Variables in a prompt template are text substitutions within the prompt content. They have no capability to select or switch model tiers, which is determined by API configuration or interface settings, not by prompt text values.",
+        "C": "Automatically attaching different reference documents per output section describes a dynamic document-assembly capability that would require programmatic orchestration, not simple variable substitution within a prompt template.",
+        "D": "Reasoning depth is a function of model tier (Haiku vs. Sonnet vs. Opus) and any chain-of-thought instructions in the prompt. Variables substitute content; they do not adjust model behaviour based on input complexity."
+      },
+      "concept": "**Template variables** are marked placeholders in a reusable prompt that represent the instance-specific information that changes between uses. Examples of what becomes a variable:\n\n- The name or type of the document being analysed\n- The target audience for this particular run\n- The specific topic or scope\n- The date range for a report\n- The organisation name in a customised communication\n\nVariables can be simple substitutions (`{{TOPIC}}` → 'supply chain risk') or can contain longer blocks of text (`{{DOCUMENT_CONTENT}}` → the full contract text).\n\nThe complementary set — what stays fixed in the template — is equally important: the structural logic, the proven constraints, the format directives, and any few-shot examples. Variables exist to make the fixed structure useful across many instances, not to replace structure with flexibility.",
+      "examTip": "Variables are the flexibility layer in a template; the fixed structure is the consistency layer. Items that test template variables ask what they enable (substitution of instance-specific content) vs. what they do not do (tier selection, automatic document assembly, reasoning depth adjustment). Focus on the core definition: placeholder → substituted value at use time."
+    }
+  },
+  {
+    "id": "RCL-PTE-057",
+    "domain": "Prompting and Task Execution",
+    "topic": "Kitchen-sink anti-pattern traits",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "Which TWO behaviours are characteristic of a kitchen-sink prompt? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Bundling multiple distinct tasks into a single prompt that should be addressed separately" },
+      { "key": "B", "text": "Providing too many few-shot examples for a simple classification task" },
+      { "key": "C", "text": "Including instructions of unequal priority without signalling which matters most" },
+      { "key": "D", "text": "Using both positive and negative framing in the same prompt" },
+      { "key": "E", "text": "Specifying the output format before stating the task" }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "A is correct: bundling multiple distinct tasks is the defining characteristic of a kitchen-sink prompt. C is correct: when multiple tasks or requirements of unequal importance are bundled together without priority signalling, the model must decide which to prioritise, typically weighting them by position or apparent prominence — often not by actual importance. Both traits degrade output quality by overloading the model with undifferentiated requirements.",
+      "distractors": {
+        "B": "Too many few-shot examples for a simple task is a prompt-efficiency issue (unnecessary context use), not a kitchen-sink anti-pattern. Kitchen-sink is specifically about task overload, not example count.",
+        "D": "Using both positive framing ('write clearly') and negative constraints ('avoid jargon') in the same prompt is standard practice — they are complementary instruction types. This is not an anti-pattern.",
+        "E": "Specifying format before task is a sequencing choice. While it is often recommended to state the task before format details, this ordering preference is not the kitchen-sink anti-pattern. Kitchen-sink is about task overload, not about element ordering."
+      },
+      "concept": "**Kitchen-sink prompt characteristics** all trace back to a single root cause: trying to maximise efficiency by combining too much into one request.\n\nThe two diagnostic signals:\n1. **Multiple distinct tasks** that should each have their own focused prompt\n2. **Priority ambiguity** — many requirements with no signal about which matters most if space or quality trade-offs arise\n\nThe model handles overload by making implicit priority decisions: typically, earlier instructions receive more attention than later ones, and more prominent (longer, more specific) instructions receive more weight than brief ones. These implicit prioritisation rules rarely match the user's actual priorities.\n\nThe corrective design principle: one prompt, one job, one success criterion.",
+      "examTip": "Kitchen-sink items test whether you can identify task overload vs. other prompt quality issues. Distractors will include legitimate practices (using both positive and negative framing) and different anti-patterns (too many examples). The reliable signal for kitchen-sink: 'multiple distinct tasks in one prompt that could each stand alone.'"
+    }
+  },
+  {
+    "id": "RCL-PTE-058",
+    "domain": "Prompting and Task Execution",
+    "topic": "Prefilling properties",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "Which TWO accurately describe prefilling as a Claude prompting technique? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "It adds contextual background to the beginning of the user message" },
+      { "key": "B", "text": "It provides the opening text of the assistant's response before the model generates" },
+      { "key": "C", "text": "It is equivalent to placing a few-shot example at the very end of the prompt" },
+      { "key": "D", "text": "It can enforce a specific output format from the first generated character" },
+      { "key": "E", "text": "It requires the system prompt to define what Claude should continue from" }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "B is correct: prefilling literally provides the opening text of the assistant's message before the model begins generating — the model continues from whatever is already there. D is correct: because the model generates from the prefilled content, the output format is anchored from the first character. Starting with `{` forces JSON; starting with `| Column1 |` forces a markdown table; starting with a specific phrase forces a particular opening statement.",
+      "distractors": {
+        "A": "Contextual background belongs in the user or system message (the context block). Prefilling is specifically about populating the *assistant* message before generation — not the user message. These are distinct message positions in the conversation structure.",
+        "C": "A few-shot example at the end of the prompt is a user-turn instruction that shows the desired input-output pattern. Prefilling physically occupies the assistant turn before generation. These operate on different message positions and serve different purposes.",
+        "E": "Prefilling does not require a system prompt to define what to continue from. The content to continue from is the prefilled text itself. Prefilling works independently of whether a system prompt is present."
+      },
+      "concept": "**Prefilling mechanics**:\n\n1. In an API call, the conversation history includes an `assistant` message with some initial text\n2. The model reads the full context, including the partially-completed assistant response\n3. The model generates the *continuation* of the assistant response from where the prefill left off\n4. From the model's perspective, it is completing its own prior output\n\nThis is different from requesting a specific output beginning via a user-turn instruction. A user-turn instruction ('start your response with...') is a directive the model can comply with or inadvertently override. Prefilling cannot be overridden because the model is not choosing to start a certain way — the content is already there, and the model adds to it.\n\nKey applications: enforcing valid JSON (`{`), anchoring a markdown structure, forcing the model to skip its default preamble, locking the first assertion in an analysis.",
+      "examTip": "Prefilling is a mechanism, not a format instruction. Format instructions *request* a shape; prefilling *creates* it. The exam may test whether you know that prefilling operates in the assistant turn (not the user turn) and that it is more deterministic than a user-turn format request. Both B and D are mechanistic facts about how prefilling works."
+    }
+  },
+  {
+    "id": "RCL-PTE-059",
+    "domain": "Prompting and Task Execution",
+    "topic": "Iterative refinement loop properties",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "Which TWO correctly describe effective iterative refinement as a prompting practice? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Each iteration uses the prior output as context and targets one specific remaining gap" },
+      { "key": "B", "text": "Iterative refinement is always preferable to starting a fresh conversation" },
+      { "key": "C", "text": "It is most productive when the first output is partially correct and a targeted correction can close the gap" },
+      { "key": "D", "text": "Each iteration should change multiple variables simultaneously to find the fix as quickly as possible" },
+      { "key": "E", "text": "Iterative refinement is equivalent to task decomposition since both involve multiple prompting steps" }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "A is correct: effective refinement uses the prior output as context and targets one specific, identified gap per turn — preserving what is already correct while improving what is not. C is correct: iterative refinement is productive when the initial output is partially correct and there is a clear, targetable remaining gap. When the output is fundamentally wrong or the conversation is too noisy, starting fresh is the better choice.",
+      "distractors": {
+        "B": "Starting fresh is sometimes the correct choice — specifically when conversation drift has accumulated or when the initial prompt was so wrong that no iteration can recover it efficiently. Refinement is not always preferable to a fresh start.",
+        "D": "Changing multiple variables per iteration makes it impossible to identify which change produced the improvement. The principle is to change one variable at a time — isolate, test, confirm, then move to the next. Multi-variable iteration is a debugging anti-pattern.",
+        "E": "Iterative refinement and task decomposition are structurally different. Refinement is a sequential improvement process applied to a single task's output. Decomposition splits a complex task into separate sub-tasks, each addressed independently. Both involve multiple steps, but the purpose and structure differ entirely."
+      },
+      "concept": "**Effective iterative refinement** follows a disciplined loop:\n\n1. Review the current output against the success criterion\n2. Identify the *most important* remaining gap\n3. Write a follow-up prompt that *targets that specific gap* without disturbing what is already correct\n4. Incorporate the prior output as context ('In the plan you produced, now add X to each action item')\n5. Review the new output — is the gap closed? Did the correction break anything else?\n\nThe discipline of targeting *one gap per iteration* serves two purposes:\n- Preserves what is already correct (fixing everything at once often disrupts good elements)\n- Allows attribution: if the targeted correction works, you know why; if it introduces a new problem, you know what caused it\n\nRefinement should be abandoned in favour of a fresh start when: (a) the prior output is not partially correct — it is fundamentally wrong; (b) conversation drift has accumulated too much noise; (c) the initial prompt was so poorly constructed that a better initial prompt would be more productive.",
+      "examTip": "Two principles tested in multi-select refinement items: (1) one-gap-per-iteration (A), not multi-variable changes (D); (2) refinement is conditional — only when the output is partially correct (C), not always (B). Items will include both the 'always better' distractor and the 'multi-variable' distractor. Both are wrong."
+    }
+  },
+  {
+    "id": "RCL-PTE-060",
+    "domain": "Prompting and Task Execution",
+    "topic": "First-pass usefulness anti-patterns",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "Which TWO anti-patterns most directly reduce the usefulness of a prompt's first-pass output? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Using XML-style tags for section separation" },
+      { "key": "B", "text": "Burying the primary task instruction at the end of a long context block" },
+      { "key": "C", "text": "Stating a word count ceiling in the format block" },
+      { "key": "D", "text": "Including instructions that contradict each other within the same prompt" },
+      { "key": "E", "text": "Providing both a role block and a context block in the same prompt" }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "B is correct: a buried task instruction receives less attention relative to the surrounding material, causing the model to underweight the actual task — the most direct cause of a first-pass output that misses the primary requirement. D is correct: conflicting instructions force the model to choose which directive to follow, often unpredictably, producing output that satisfies one instruction but violates another — a first-pass failure that requires rework to resolve.",
+      "distractors": {
+        "A": "XML-style tags improve section separation and reduce prompt injection risk. They are a best-practice technique, not an anti-pattern. Using them increases first-pass output quality, not reduces it.",
+        "C": "A word count ceiling is a legitimate format directive that constrains output size. It may cause the model to trim content — which could be seen as a constraint — but it is not an anti-pattern. Explicit length control generally improves prompt predictability.",
+        "E": "Including both a role block and a context block in the same prompt is sound prompt design. They serve complementary functions (persona vs. situational facts) and their presence together is standard in well-crafted prompts."
+      },
+      "concept": "**First-pass usefulness** is the proportion of a prompt's initial outputs that meet the success criterion without requiring iteration. It is the primary measure of prompt quality in production contexts.\n\nThe two anti-patterns that most directly damage first-pass usefulness:\n\n1. **Buried ask**: the core task instruction is not prominent, so the model underweights it. Output is shaped by whatever content *precedes* the buried instruction — often the context block — rather than by the task itself.\n\n2. **Conflicting instructions**: the model cannot satisfy both sides of a contradiction. It must choose, and the choice is unpredictable. The resulting output satisfies one instruction at the expense of another, requiring a rework cycle that a conflict-free prompt would have avoided.\n\nBoth are fixable before submission: bury → reposition the task instruction; conflict → resolve the contradiction explicitly. A pre-submission review for these two anti-patterns is among the highest-value habits in prompt crafting.",
+      "examTip": "The exam may ask about anti-patterns that reduce first-pass quality vs. those that create secondary problems. Buried ask and conflicting instructions are first-pass quality killers because they prevent the model from correctly interpreting what it should do *on the first attempt*. Kitchen-sink prompts degrade output quality but still produce *some* useful output. Buried ask and conflicting instructions are more fundamental."
+    }
+  }
+]

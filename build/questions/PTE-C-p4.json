@@ -1,0 +1,506 @@
+[
+  {
+    "id": "PTE-C-061",
+    "domain": "Prompting and Task Execution",
+    "topic": "Combined format and count specification",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A content operations lead at a telecoms company asks Claude to generate 10 social media posts for a product launch. Without format guidance, results have been inconsistent: some posts are too long, some use hashtags, some do not, some include emoji, some do not. She wants all 10 standardised for her social media scheduling tool.\n\nWhat single prompt addition would MOST standardise output across all 10 posts?",
+    "options": [
+      { "key": "A", "text": "\"Write 10 social media posts about the product launch.\"" },
+      { "key": "B", "text": "\"Make the posts consistent with each other.\"" },
+      { "key": "C", "text": "\"Use a professional tone for all posts.\"" },
+      { "key": "D", "text": "\"Each post: exactly 240 characters, end with 2–3 relevant hashtags, no emoji, active voice. Apply this format to all 10 posts.\"" }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Option D specifies every dimension that has been inconsistent: character count (240), structural element (2–3 hashtags at the end), prohibited element (no emoji), and voice register (active). Applying a named format rule to all 10 posts in a single instruction eliminates per-post inference. Each of the four inconsistencies the lead observed is addressed by one of the four specifications.",
+      "distractors": {
+        "A": "This is the original prompt with a count added. It does not address any of the four identified inconsistencies.",
+        "B": "\"Consistent\" is a relative qualifier with no reference standard. Claude will make the posts consistent with each other, but the shared standard it chooses may still be the wrong length, may include emoji, or may omit hashtags.",
+        "C": "Tone controls register but not character count, hashtag use, emoji, or voice. It addresses none of the four identified inconsistency dimensions."
+      },
+      "concept": "**Complete format specification** names every dimension of output that matters for the downstream use:\n- Quantity (character count, word count)\n- Required elements (hashtags, a signature line, a CTA)\n- Prohibited elements (emoji, jargon, passive voice)\n- A repetition instruction (\"apply to all 10 posts\")\n\nFor batch output where every item must meet the same standard, the format spec functions as a quality template. Missing one dimension leaves that dimension to inference, which produces the variation the lead was trying to eliminate.",
+      "examTip": "Standardisation items have one option with multiple specific, measurable constraints and three options with vague or partial ones. The correct answer names every dimension of the observed inconsistency. Count how many of the stated problems each option addresses — the correct answer addresses all of them."
+    }
+  },
+  {
+    "id": "PTE-C-062",
+    "domain": "Prompting and Task Execution",
+    "topic": "Decomposition requires per-task specification",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A strategy analyst correctly decomposes a 5-task bundled prompt into 5 separate prompts. The first individual prompt — \"Analyse the competitive positioning of three firms\" — returns a 2,500-word essay when she needed a 500-word briefing note. What does this reveal?",
+    "options": [
+      { "key": "A", "text": "Decomposition alone is insufficient — each individual task also needs its own format and length specification; the kitchen-sink was fixed but the under-specification problem transferred to each decomposed task." },
+      { "key": "B", "text": "500 words is too short for a three-firm competitive analysis; the length expectation needs revision." },
+      { "key": "C", "text": "The task requires further decomposition — one prompt per firm rather than all three together." },
+      { "key": "D", "text": "A word count instruction should have been in the original bundled prompt; decomposition was premature." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Decomposition breaks the kitchen-sink into individual tasks, which is the right structural fix. But each individual task inherits the same under-specification problem as the original prompt: no format instruction, no length target, no scope boundary. Claude interprets \"analyse the competitive positioning of three firms\" as an invitation to be thorough, producing 2,500 words. The lesson: decomposition addresses task bundling; per-task specification addresses task quality.",
+      "distractors": {
+        "B": "500 words is a legitimate briefing-note length for a three-firm competitive summary. The issue is not the length expectation — it is the absence of a length instruction in the prompt.",
+        "C": "Further decomposition (one prompt per firm) would produce three separate outputs that the analyst would need to consolidate. The original decomposition was appropriate; what is missing is a length constraint within the existing task.",
+        "D": "Adding a length instruction to the bundled prompt would not have fixed the kitchen-sink problem; it would just have produced shallow output of the right length. Decomposition was correct and necessary; per-task specification is the additional step."
+      },
+      "concept": "**Decomposition and specification are complementary, not substitutes.**\n\nDecomposition fixes: attention division across multiple tasks.\nPer-task specification fixes: under-specified format, length, and scope within each task.\n\nA properly decomposed and specified prompt chain:\n1. One task per prompt (decomposition)\n2. Each prompt includes: format, length target, scope, and success criterion (specification)\n\nThe common mistake: treating decomposition as the complete fix and expecting each decomposed task to produce correct output without further specification. Decomposition is the container; specification is the content.",
+      "examTip": "This item tests whether you know that decomposition and specification are two separate prompt improvements. Candidates who understand kitchen-sink decomposition may select option C (more decomposition) when the real gap is specification. The tell is in the symptom: a single decomposed task producing wrong-length output points to a missing length specification, not a structural bundling problem."
+    }
+  },
+  {
+    "id": "PTE-C-063",
+    "domain": "Prompting and Task Execution",
+    "topic": "Combining prefilling with template variables",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A developer at a fintech firm is building an API-based workflow that generates investment risk summaries. Each summary must begin with a structured header: `RISK LEVEL: [High/Medium/Low] | ASSET CLASS: [type]`. Without this header, the downstream parser fails. She has tried format instructions but the header appears inconsistently.\n\nWhich technique combination would MOST reliably produce the required opening?",
+    "options": [
+      { "key": "A", "text": "A format instruction alone: \"Begin every response with the risk level and asset class header.\"" },
+      { "key": "B", "text": "A template variable for asset class in the user message, combined with a prefilled assistant turn starting with `RISK LEVEL:` to mechanically commit the opening structure." },
+      { "key": "C", "text": "A post-generation validation step that inserts the header if it is absent." },
+      { "key": "D", "text": "A project-level instruction defining the required header format for all responses." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The prefill commits the opening token of the response to `RISK LEVEL:`, eliminating any probability of Claude producing a different opener. The template variable supplies the asset class dynamically from the workflow data. Together these two techniques — prefilling for structural guarantee and template variables for dynamic content — produce a mechanically reliable header that a parser can depend on across all runs.",
+      "distractors": {
+        "A": "A format instruction reduces the probability of a wrong opener but does not eliminate it. The developer's observation that the header appears \"inconsistently\" after using instructions confirms that instructions alone are not sufficient for a parser that needs 100% reliability.",
+        "C": "Post-generation validation is a recovery mechanism, not a prevention mechanism. It adds a processing step for every call and requires its own error handling. Prevention is preferable to recovery for a critical structural requirement.",
+        "D": "Project instructions are not available in API-only workflows in the same way as Claude.ai Projects. Even where they apply, they provide a probabilistic improvement like option A rather than a mechanical guarantee."
+      },
+      "concept": "**Combining prefilling with template variables** is a pattern for API workflows that need both structural reliability and dynamic content.\n\n- **Prefilling** provides structural commitment: the first token(s) are fixed, ensuring the parser's expected opening is always present\n- **Template variables** provide data parameterisation: each call substitutes runtime values without requiring manual prompt editing\n\nWhen to combine them:\n- The downstream consumer is a parser or automated system (not a human)\n- The opening structure is critical for processing\n- The content varies per call (different asset classes, different risk levels)\n\nThis combination is the API equivalent of a schema-enforced structured output.",
+      "examTip": "This is a combining-techniques item: neither prefilling alone nor template variables alone achieves the full requirement. Prefilling provides structural guarantee; variables provide dynamic content. When a parser scenario requires 100% structural reliability, the answer is always prefilling (not instructions). The variable is needed for the dynamic content element."
+    }
+  },
+  {
+    "id": "PTE-C-064",
+    "domain": "Prompting and Task Execution",
+    "topic": "Escalation from adjectives to examples",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A bid manager has refined her executive summary template with positive tone instructions across four iterations: \"concise,\" \"outcome-focused,\" \"client-centric,\" and \"compelling.\" After four attempts the summaries remain generic and formula-following. What should she try NEXT?",
+    "options": [
+      { "key": "A", "text": "Add two more adjectives to the instruction: \"strategic\" and \"differentiating.\"" },
+      { "key": "B", "text": "Replace all adjectives with a single negative constraint: \"not generic.\"" },
+      { "key": "C", "text": "Add two examples of excellent executive summaries from past winning bids and instruct Claude to match their quality, specificity, and energy." },
+      { "key": "D", "text": "Move the tone instruction from the template to a Project-level instruction." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Four iterations of increasingly specific adjectives have all produced the same result. The evidence shows that description cannot convey what this bid manager means by \"excellent\" — the quality is specific to high-performing bids in her context, not a generic standard. Examples from actual winning bids provide calibration that no list of adjectives can supply: Claude can infer the voice, specificity level, and structural choices from real instances of the desired output.",
+      "distractors": {
+        "A": "This continues the approach that has already failed four times. \"Strategic\" and \"differentiating\" are more adjectives in the same category as the four that did not work. Repeating a failing approach with more of the same ingredient is unlikely to produce a different result.",
+        "B": "\"Not generic\" is a negative constraint that tells Claude what to avoid but gives no positive target. It is less specific than the four adjectives already tried and moves in the wrong direction.",
+        "D": "Moving the instruction from template to Project level does not change the quality of the instruction — the same words at project level are as unhelpful as the same words at template level. Location does not fix content."
+      },
+      "concept": "The **adjective escalation ceiling** is reached when the quality being described is:\n- Brand-specific or context-specific (not a generic standard)\n- Dependent on judgement that cannot be fully verbalised\n- Consistently producing the same wrong result despite varied descriptors\n\nWhen you hit the ceiling:\n1. Stop adding adjectives — you have exhausted the instructable description space\n2. Provide examples — let the model infer the quality from instances of it\n3. The examples should be real, high-quality instances of the target output, not invented ones\n\nRule of thumb: if four different adjectives produce the same result, the fifth will too. Switch to examples.",
+      "examTip": "This item is easy because the setup gives you the evidence directly: four adjective iterations produced the same result. The correct response is the only one that changes the approach — from description to demonstration. Traps A and D continue or reposition the same approach; trap B moves from positive to negative framing, which is a regression."
+    }
+  },
+  {
+    "id": "PTE-C-065",
+    "domain": "Prompting and Task Execution",
+    "topic": "Buried ask in long conversation context",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A procurement analyst has been reviewing vendor contracts with Claude for 12 turns. In turn 12 she writes several paragraphs summarising the review so far, then ends with: \"...and could you also flag any clauses that violate our GDPR data processing requirements?\" Claude continues the general contract discussion without flagging any GDPR clauses.\n\nWhich COMBINATION of problems MOST likely explains this outcome?",
+    "options": [
+      { "key": "A", "text": "The GDPR flagging task requires a separate project with the GDPR policy documents uploaded." },
+      { "key": "B", "text": "Claude lacks knowledge of GDPR requirements and could not assess clause compliance." },
+      { "key": "C", "text": "The analyst needed to paste the GDPR requirements explicitly rather than naming the regulation." },
+      { "key": "D", "text": "The GDPR task was buried at the end of a long turn AND competed with 11 prior turns of general contract review context that dominated the active generation frame." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Two reinforcing problems: first, the GDPR task is a buried ask in turn 12 — hidden at the end of several paragraphs, after a summary that frames the task as continuation of the general review. Second, 11 prior turns have established a strong general contract review frame that outweighs a new task instruction introduced at the end of a long turn. Both factors work in the same direction: the GDPR flagging task is structurally and contextually suppressed.",
+      "distractors": {
+        "A": "A project with uploaded documents would improve Claude's ability to apply specific policy requirements, but the primary failure is that the GDPR task was not cleanly communicated as the task for this turn, not a missing knowledge source.",
+        "B": "Claude has general knowledge of GDPR data processing principles. The issue is not knowledge but task visibility — the flagging instruction was not structured as the primary deliverable of the turn.",
+        "C": "Providing explicit requirements would improve specificity, which is valuable. But it does not address the buried-ask problem — even explicit requirements buried at the end of a long summary would suffer the same fate."
+      },
+      "concept": "**Compounding prompt problems** produce effects that are harder to diagnose than any single problem alone.\n\nIn this scenario:\n- **Buried ask** (turn-level): task is at the end of a multi-paragraph turn\n- **Context domination** (conversation-level): 11 turns of general review outweigh a new task introduced late in the thread\n\nFix both simultaneously:\n1. Start turn 12 with the task: \"Flag all clauses in this contract that violate GDPR data processing requirements. Specifically: [list relevant GDPR principles].\"\n2. Provide the contract or clause text AFTER the task statement\n\nWhen two problems compound, the fix must address both.",
+      "examTip": "The cross-cutting nature of this item is the tell — the stem says \"which COMBINATION.\" A single-cause answer (A, B, or C) is insufficient because neither the buried ask alone nor the context domination alone fully explains the outcome. The correct answer names both mechanisms explicitly."
+    }
+  },
+  {
+    "id": "PTE-C-066",
+    "domain": "Prompting and Task Execution",
+    "topic": "Template design for multi-practice-area consistency",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A legal operations director is designing a master prompt template for 15 lawyers across M&A and employment law matters. M&A outputs need a risk matrix; employment outputs need a narrative summary. She wants a single template that enforces consistent quality while accommodating both practice areas.\n\nWhat is the BEST structural approach?",
+    "options": [
+      { "key": "A", "text": "Include a practice area variable — {{matter_type: M&A | employment}} — and a conditional output format section specifying the risk matrix for M&A and the narrative for employment, with an instruction that only one section applies per use." },
+      { "key": "B", "text": "Create two separate templates and train lawyers to select the correct one per matter." },
+      { "key": "C", "text": "Write both output format requirements into the template and instruct Claude to \"use the appropriate format for the matter type.\"" },
+      { "key": "D", "text": "Use a project instruction to set a default output format and let lawyers override it per chat." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "A single template with a {{matter_type}} variable and conditional format sections enforces consistency (all lawyers use the same template, same quality instructions) while accommodating the format difference (M&A gets a risk matrix, employment gets a narrative). The conditional instruction makes the selection rule explicit — \"only one section applies\" — which prevents Claude from attempting to produce both formats simultaneously.",
+      "distractors": {
+        "B": "Two separate templates create two maintenance obligations. When quality standards change, both templates must be updated. One template with variables is more maintainable and prevents divergence over time.",
+        "C": "\"Use the appropriate format for the matter type\" is an implicit instruction that requires Claude to infer which format is appropriate. This is less reliable than an explicit conditional specification and may produce format errors on edge cases.",
+        "D": "A project default with per-chat overrides works but places the format decision at the lawyer level, requiring each lawyer to know the correct override — the same training overhead as two separate templates, without the enforcement benefit of a template structure."
+      },
+      "concept": "**Conditional template design** uses variables with enumerated values to route to practice-specific content while maintaining shared quality standards.\n\nStructure:\n```\n[Shared quality instructions — applies to all matter types]\n[Shared context instructions]\n{{matter_type}} determines output format:\n- If M&A: [risk matrix specification]\n- If employment: [narrative summary specification]\n[Shared constraints]\n```\n\nBenefits:\n- Single maintenance point for shared quality standards\n- Explicit routing logic reduces inference errors\n- New practice areas are added as a new conditional branch\n\nRule of thumb: use conditional variables when tasks share most characteristics but differ on one or two dimensions.",
+      "examTip": "Multi-practice-area template items test the tension between consistency (one template, shared standards) and flexibility (practice-specific formats). Option C is the most attractive wrong answer because it attempts both goals in one template — but \"use the appropriate format\" is implicit and unreliable. The correct approach makes the conditional explicit through a variable and named format sections."
+    }
+  },
+  {
+    "id": "PTE-C-067",
+    "domain": "Prompting and Task Execution",
+    "topic": "Kitchen-sink format collision",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A product marketing manager asks Claude in a single prompt to: (1) generate a feature comparison table and (2) write a narrative blog post about the same features. The response alternates between prose and table format, producing a hybrid that is neither a clean table nor a coherent blog post.\n\nWhat does this MOST directly demonstrate?",
+    "options": [
+      { "key": "A", "text": "Claude cannot produce both a table and prose within a single response." },
+      { "key": "B", "text": "Bundling tasks with incompatible output formats into one prompt causes Claude to blend the formats, satisfying neither — decomposing into two separate prompts would allow each task to produce its intended format cleanly." },
+      { "key": "C", "text": "The table should have been generated first; the blog post prompt should then reference it as source material." },
+      { "key": "D", "text": "The prompt needed an explicit section header between the two requested outputs." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "A comparison table and a narrative blog post have fundamentally incompatible output structures. A single prompt cannot establish two distinct structural frames simultaneously; Claude attempts a compromise that satisfies neither. The table format and the narrative prose format compete throughout the response, producing a hybrid. Decomposing into two prompts allows each to establish the correct structure from the first token.",
+      "distractors": {
+        "A": "Claude can produce both tables and prose within a single response — but as distinct, clearly separated sections. The problem here is that two incompatible output types were requested without structural separation, not that Claude is incapable of either format.",
+        "C": "Generating the table first and then using it as source material for the blog post is a valid prompt chain approach, but it is an improvement to a sequential workflow, not a description of what went wrong in this single-prompt scenario.",
+        "D": "A section header helps Claude separate two output types, but the deeper issue is that a single-prompt format collision produces a compromise output regardless of headers. Decomposition into two separate prompts with dedicated format instructions for each is the correct fix."
+      },
+      "concept": "**Format collision** is a specific kitchen-sink failure mode where the bundled tasks require structurally incompatible output types.\n\nCommon incompatible pairs:\n- Table (structured, positional) + narrative prose (flowing, sequential)\n- JSON (hierarchical, machine-readable) + bullet summary (human-scannable)\n- Formal executive summary + casual FAQ format\n\nWhy a single prompt fails: the model establishes an output frame based on the first task encountered; the second task's format requirement conflicts with that frame, producing a blend.\n\nFix: decompose into separate prompts, each with a single output type specified. If a single document is required, structure it with explicit named sections.",
+      "examTip": "Format collision items are a specific kitchen-sink variant. Option A (Claude can't do both) is a capability claim — Claude CAN produce both, just not in the same unstructured prompt. Option D (add a header) addresses symptom, not cause. Option C describes a valid chaining approach but doesn't diagnose the core format conflict. The correct explanation always names the incompatibility and the decomposition fix."
+    }
+  },
+  {
+    "id": "PTE-C-068",
+    "domain": "Prompting and Task Execution",
+    "topic": "Specific vs vague negative constraint",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A compliance analyst receives outputs where every paragraph begins with \"It is important to note that...\" — a filler opener she wants eliminated. She has added \"Don't use filler phrases\" to her prompt twice with no improvement.\n\nWhat is the MOST effective next step?",
+    "options": [
+      { "key": "A", "text": "Add \"Don't use filler phrases\" to the Project instruction so it applies to all conversations." },
+      { "key": "B", "text": "Switch to Opus — the mid-tier model is more prone to filler openers than the top tier." },
+      { "key": "C", "text": "Replace the vague prohibition with a specific one: \"Never begin a paragraph with 'It is important to note that' or any similar introductory qualifier. Start each paragraph directly with the substantive finding.\"" },
+      { "key": "D", "text": "Prefill the assistant turn with the first substantive word to bypass the filler opener." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "\"Don't use filler phrases\" is vague — Claude may not classify \"It is important to note that\" as a filler phrase. A specific prohibition names the exact string to avoid and provides a positive instruction for what to do instead (begin directly with the substantive finding). Specificity is the missing element; escalating to a project instruction or a model switch would apply the same vague instruction at a different scope.",
+      "distractors": {
+        "A": "Moving the same vague instruction to project level applies the same instruction more broadly but does not make it more specific. The instruction has already failed twice in a chat prompt; the same words at project level will fail for the same reason.",
+        "B": "Filler openers are a product of the generation distribution for certain instruction contexts, not a model tier characteristic. Switching tiers for a phrasing pattern addresses the wrong variable.",
+        "D": "Prefilling works for eliminating the very first opener of the entire response. But the pattern is every paragraph opener — prefilling fixes only the first paragraph and leaves all subsequent paragraphs unaddressed."
+      },
+      "concept": "**Specificity in negative constraints** applies the same principle as specificity in positive instructions: the more concrete the instruction, the more reliably it is followed.\n\nGradient from vague to specific:\n- \"Don't use filler\" (vague — undefined category)\n- \"Don't use introductory qualifiers\" (better — named category)\n- \"Never begin a paragraph with 'It is important to note that'\" (specific — exact string)\n- \"Never begin a paragraph with 'It is important to note that' or 'Please note that'. Begin directly with the substantive point.\" (most specific — named strings + positive alternative)\n\nFor persistent phrasing patterns, naming the exact phrase is always more reliable than naming the category.",
+      "examTip": "This item combines negative constraints with specificity. The instruction has already failed twice — evidence that the category label (\"filler\") is insufficient. The correct fix is the most specific available version of the prohibition. Options A and B apply the same specificity level in different places; only option C changes the specificity level."
+    }
+  },
+  {
+    "id": "PTE-C-069",
+    "domain": "Prompting and Task Execution",
+    "topic": "Iterative refinement graduating to template",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A marketing team has refined a press release prompt through 8 iterations over 6 weeks. Version 8 consistently produces high-quality press releases. The team lead declares the iteration complete. A senior manager asks what the right NEXT step is to make the quality gains durable and usable by the full team of 12.\n\nWhat is the MOST appropriate response?",
+    "options": [
+      { "key": "A", "text": "Archive the full conversation history so team members can reference the iterative reasoning steps that led to version 8." },
+      { "key": "B", "text": "Promote the version 8 prompt to a Project-level instruction so all chats in the project inherit its logic." },
+      { "key": "C", "text": "Share the version 8 prompt informally via email so team members can copy and modify it." },
+      { "key": "D", "text": "Formalise version 8 as a named, documented template with clear placeholders for variable elements, store it in the team's shared template library, and establish a process for future updates." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The iterative loop produced a high-quality prompt. Formalising it as a template serves four goals that the other options do not: (1) it names and documents the template so any team member can find and use it; (2) placeholders make the variable elements explicit, preventing ad hoc modifications that break quality; (3) a shared library is a searchable, persistent store; (4) an update process prevents the template from becoming stale without governance. The iteration is done; template governance starts here.",
+      "distractors": {
+        "A": "Archiving the conversation history captures the reasoning but not the output. Team members would need to read 8 rounds of iteration to understand the final prompt — an impractical access pattern. The value is in version 8, not the path to it.",
+        "B": "A project instruction applies the logic to all chats but is not designed for variable substitution, does not document the placeholders, and is harder to maintain and version than a template library entry.",
+        "C": "Informal sharing via email produces copies that diverge immediately as each team member makes their own modifications. There is no single source of truth, no version control, and no governance — the quality gains will erode within weeks."
+      },
+      "concept": "**Template graduation** is the process of converting a refined prompt into a governed, reusable artifact.\n\nWhen to graduate:\n- The prompt consistently produces high-quality output across multiple runs\n- The task recurs for multiple team members\n- Quality must be maintained across the team, not just the original author\n\nGraduation steps:\n1. Identify fixed vs. variable elements\n2. Replace variable elements with named placeholders\n3. Add usage documentation (what each placeholder expects)\n4. Store in a versioned, shared location\n5. Establish an owner and a review trigger\n\nRule of thumb: an iterated prompt that stays in one person's chat is private knowledge. A template in a shared library is organisational knowledge.",
+      "examTip": "Template graduation items test what comes AFTER a successful iterative loop. Option C (informal sharing) is the most tempting wrong answer because it's the simplest action — but it produces divergent copies. Option B (project instruction) is also plausible but doesn't serve the variable-substitution use case of a template. The correct answer always includes formalisation, documentation, and governance."
+    }
+  },
+  {
+    "id": "PTE-C-070",
+    "domain": "Prompting and Task Execution",
+    "topic": "Depth vs length — single-instruction fix",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A grant writer drafting a project narrative for a foundation application needs a 3-page deliverable. She prompts Claude for \"a comprehensive and deeply detailed narrative of the project's methodology, outcomes, and evaluation framework.\" Claude returns 12 pages of thorough content. She cannot use it as-is.\n\nWhat is the ONE-STEP fix?",
+    "options": [
+      { "key": "A", "text": "\"Write a 3-page project narrative (~900 words) covering methodology, outcomes, and evaluation framework — prioritise the most distinctive aspects and omit supporting rationale.\"" },
+      { "key": "B", "text": "Specify page count, word count, and section count together to constrain both length and depth simultaneously." },
+      { "key": "C", "text": "Remove \"comprehensive\" or \"deeply detailed\" — having both establishes a conflicting depth signal." },
+      { "key": "D", "text": "Draft a full version and then ask Claude to cut it to 3 pages in a second prompt." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Option A does three things in one instruction: sets a concrete length target (3 pages / ~900 words), names the required sections (methodology, outcomes, evaluation), and provides a depth guidance principle (most distinctive aspects, omit supporting rationale). This directly resolves the depth-vs-length tension: the word count sets the ceiling; the omission instruction tells Claude which content to sacrifice to reach it. It is a complete, one-step fix.",
+      "distractors": {
+        "B": "Specifying page count, word count, and section count together is thorough but is not simpler or more effective than option A. Three overlapping length controls can also conflict with each other. Option A is more parsimonious.",
+        "C": "\"Comprehensive\" and \"deeply detailed\" are emphatic but not logically contradictory — they are synonymous in this context, not conflicting. Removing one does not set a length target; the output might still be 12 pages.",
+        "D": "A two-step approach works but is not a one-step fix. The question specifies one step. Additionally, asking Claude to cut an existing 12-page document to 3 pages may produce a different omission pattern than specifying scope upfront."
+      },
+      "concept": "**Resolving depth-vs-length tension** requires a single instruction that specifies:\n1. The target length (number/page count)\n2. The content to prioritise\n3. The content to omit\n\nAll three elements are needed because Claude will fill the available word count. Without a prioritisation instruction, it may keep the wrong 900 words when cutting from 12 pages.\n\nThe omission instruction is the critical differentiator: \"omit supporting rationale\" tells Claude which content is expendable when the ceiling forces trade-offs.",
+      "examTip": "Depth-vs-length items ask for a one-step fix when the prompt specifies depth (comprehensive, detailed) but not length. The correct answer is always a combined length + scope + omission instruction. Removing adjectives (option C) changes emphasis but not length. Two-step approaches (option D) are valid but excluded by the \"one step\" constraint in the question."
+    }
+  },
+  {
+    "id": "PTE-C-071",
+    "domain": "Prompting and Task Execution",
+    "topic": "Template and project instruction consistency",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An HR team has a Project instruction: \"All outputs must use UK English spelling.\" Their job description template uses American spelling in its example sections. New job descriptions are being produced with mixed spelling throughout. What is the MOST efficient fix?",
+    "options": [
+      { "key": "A", "text": "Delete the project instruction and embed the UK English rule directly in the template." },
+      { "key": "B", "text": "Update the template's example sections to use UK English, making the template and project instruction consistent." },
+      { "key": "C", "text": "Create a separate project configured without the UK English instruction for job description work." },
+      { "key": "D", "text": "Add an explicit override in each chat: \"Use UK English for all spelling throughout this response.\"" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The project instruction says \"UK English\" but the template demonstrates American spelling in its examples. Claude respects the project instruction for its own generated content but mirrors the style of examples provided — the examples are in the context window as style anchors. Updating the examples to UK English removes the conflict at its source and requires no change to the project instruction or any per-chat action.",
+      "distractors": {
+        "A": "Deleting the project instruction removes a quality standard that presumably applies to all outputs, not just job descriptions. A surgical fix (update the template) is preferable to removing a team-wide standard.",
+        "C": "Creating a separate project for job description work adds maintenance overhead and splits the team's workflow across two projects — disproportionate to the problem, which is a template example style inconsistency.",
+        "D": "A per-chat override requires every team member to remember to add the instruction every time. This is ongoing effort for a problem that can be fixed once at the template level."
+      },
+      "concept": "**Template and project instruction consistency** prevents the situation where one layer of configuration undermines another.\n\nHow example style affects output:\n- Claude uses examples in the context window as style anchors\n- If examples use American spelling, Claude generates content in that register, even when a project instruction says otherwise\n- The example acts as a local context signal that competes with the project instruction\n\nMaintenance principle: when a template and a project instruction conflict, fix the template — it is the source of the conflict and the most targeted fix. Do not remove team-wide standards to accommodate a single template's inconsistency.",
+      "examTip": "Template-project instruction conflict items identify that examples in a template can override project instructions for generated content. The fix is always to align the template's examples with the project instruction, not to remove the project instruction or add per-chat overrides. Option B is the minimum-footprint fix."
+    }
+  },
+  {
+    "id": "PTE-C-072",
+    "domain": "Prompting and Task Execution",
+    "topic": "Long session consolidation strategy",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A financial analyst is two hours into a complex quarterly review session at 35 turns. Outputs have become less precise, and recent responses contradict the agreed framework established in turns 1–5. She must complete the remaining analysis but cannot restart from scratch.\n\nWhat is the BEST strategy?",
+    "options": [
+      { "key": "A", "text": "Add a framework reminder to the start of every subsequent prompt to counteract the drift." },
+      { "key": "B", "text": "Ask Claude to recall the framework from turns 1–5 by referencing those turn numbers explicitly." },
+      { "key": "C", "text": "In the current conversation, ask Claude to produce a clean summary of the agreed framework; start a new conversation with that summary as the opening context for the remaining analysis." },
+      { "key": "D", "text": "Switch to Opus for the remaining turns to restore consistency and precision." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "A consolidated summary, produced while still in the current thread, captures the agreed framework without the accumulated drift of 35 turns. Starting a fresh conversation with that summary as the opening context gives Claude a clean, coherent brief: the correct framework plus any essential findings from prior turns. The remaining analysis then runs against a coherent context rather than a drifted one.",
+      "distractors": {
+        "A": "Adding a framework reminder at the start of each subsequent prompt reduces drift incrementally but does not eliminate the 34 turns of contradictory context already accumulated. Each prompt still competes with a large drifted context.",
+        "B": "Claude does not reliably retrieve content by turn number — turn numbers are not an indexed addressing system. Even if it could, the framework from turns 1–5 still competes with the 30 later turns of drift.",
+        "D": "Model switching addresses reasoning depth, not context drift. Opus processing the same drifted 35-turn context will produce the same consistency problems, with deeper analysis of the wrong framework."
+      },
+      "concept": "**Session consolidation** is the technique for recovering a long, drifted analysis session without discarding all progress.\n\nProcess:\n1. In the drifted conversation: \"Summarise the analytical framework we agreed on in the first few turns. Include: [key decision points, agreed metrics, scope boundaries].\"\n2. Review the summary for accuracy and completeness.\n3. Start a new conversation: \"We are continuing a quarterly review analysis. The agreed framework is: [paste summary]. Please continue with [next task].\"\n\nThis pattern:\n- Preserves the valuable knowledge from the session\n- Eliminates the drifted context\n- Gives the remaining analysis a coherent foundation\n\nDifference from complete restart: a restart loses all prior work; consolidation extracts the value (the framework) while discarding the noise (35 turns of drift).",
+      "examTip": "Long-session consolidation items test whether you know the summary-then-reset pattern. Option A (per-prompt reminder) is the most common wrong answer — it treats the symptom rather than fixing the underlying context problem. Option D (model switch) confuses reasoning depth with context consistency. The correct pattern always involves extracting value from the drifted session before resetting."
+    }
+  },
+  {
+    "id": "PTE-C-073",
+    "domain": "Prompting and Task Execution",
+    "topic": "Three-audience format and length specification",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A regulatory affairs director at a pharma company needs a document serving three audiences: (1) clinical team — 2-page technical summary with data tables; (2) legal team — 1-page risk narrative; (3) executive team — one-paragraph strategic recommendation. Her prompt asks for \"a comprehensive regulatory review document.\" Claude returns a 15-page technical report.\n\nWhich prompt structure would MOST precisely produce all three required components?",
+    "options": [
+      { "key": "A", "text": "\"Write a comprehensive regulatory review with clearly labelled sections for clinical, legal, and executive audiences.\"" },
+      { "key": "B", "text": "\"Write three separate documents — one for clinical, one for legal, one for executives — each at the appropriate length.\"" },
+      { "key": "C", "text": "\"Write a regulatory review document with three audience-specific sections, each at the appropriate depth.\"" },
+      { "key": "D", "text": "\"Write a single document with three named sections:\\n**Clinical Summary**: 2 pages, include data tables, technical depth appropriate for clinical scientists.\\n**Legal Risk Narrative**: 1 page, flowing prose, focus on regulatory exposure and liability.\\n**Executive Recommendation**: 1 paragraph, strategic framing only, no technical detail.\\nEach section is self-contained.\"" }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Option D specifies every dimension for each audience section: name, length, format elements (data tables, prose), content scope (technical depth, regulatory exposure, strategic framing only), and a constraint (self-contained). Three audiences × four specifications each = twelve specifications in one prompt. This is the level of detail required when three incompatible format requirements must coexist in one document.",
+      "distractors": {
+        "A": "\"Clearly labelled sections\" leaves length, format, and content scope undefined. Claude will allocate length based on inferred complexity — clinical and legal topics are complex, so the result may still be heavily skewed toward technical content.",
+        "B": "Three separate documents avoid the single-document constraint problem but require three separate prompts and may produce less integrated strategic alignment across sections. The director specified a single document.",
+        "C": "\"Appropriate depth\" is an implicit instruction that requires Claude to infer what each audience considers appropriate. Without explicit length targets, Claude may produce sections of similar length rather than 2 pages / 1 page / 1 paragraph."
+      },
+      "concept": "**Multi-audience single-document specification** requires the most complete format instruction in the PTE-C scope because three sets of requirements must coexist without contaminating each other.\n\nFor each audience section, specify:\n1. Section name (for navigation)\n2. Length (pages, word count, or a natural unit)\n3. Format elements (tables, prose, bullets)\n4. Content scope (what to include and exclude)\n5. Self-containment instruction (prevents sections from referencing each other's content)\n\nThe self-containment instruction is particularly important: clinical scientists reading their section should not need to read the executive paragraph to understand it, and vice versa.",
+      "examTip": "This is a hard specification item because three audiences require three sets of specifications. Options A, B, and C all fail because they rely on Claude to infer at least one dimension per audience. The correct answer provides complete specifications for all three. The discriminator: count how many dimensions each option specifies per audience. Option D specifies four; others specify one or zero."
+    }
+  },
+  {
+    "id": "PTE-C-074",
+    "domain": "Prompting and Task Execution",
+    "topic": "Diagnosing and remediating two simultaneous anti-patterns",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A business analyst reviews a colleague's prompt and identifies two problems: (1) the main task is buried in the fourth paragraph after three paragraphs of background; (2) the prompt asks Claude to \"be detailed, concise, comprehensive, and brief.\" What is the MOST complete remediation?",
+    "options": [
+      { "key": "A", "text": "Move the task statement to the first sentence; replace the contradictory qualifiers with a single positive specification: a word count and a named scope." },
+      { "key": "B", "text": "Remove the background paragraphs entirely so the task appears first by default." },
+      { "key": "C", "text": "Replace both \"detailed\" and \"comprehensive\" with a word count instruction, leaving the task in its current position." },
+      { "key": "D", "text": "Add a section header \"Task:\" before the task statement and remove the conflicting qualifiers." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Option A addresses both problems completely: moving the task to the first sentence fixes the buried ask; replacing the contradictory qualifiers with a word count and named scope fixes the conflicting instruction. Each fix targets the root cause of one anti-pattern. Option A is the most complete remediation because it addresses both problems with their correct solutions.",
+      "distractors": {
+        "B": "Removing background paragraphs surfaces the task by default, but three paragraphs of background may be necessary context. The correct fix is to reorder (task first, background second), not to delete. This is also an incomplete fix — it does not address the conflicting qualifiers.",
+        "C": "Adding a word count addresses the conflicting qualifiers but leaves the task buried in paragraph four. This is a partial fix that addresses only one of the two identified problems.",
+        "D": "A section header makes the buried task easier to find but does not move it to the opening position — the three background paragraphs still establish a frame before the task. This is also a partial fix that does not address the qualifiers."
+      },
+      "concept": "**Multi-anti-pattern remediation** requires identifying the correct fix for each anti-pattern and combining them.\n\nAnti-pattern inventory for this prompt:\n1. **Buried ask** → Fix: move task statement to first position\n2. **Conflicting instructions** (detailed + concise, comprehensive + brief) → Fix: resolve the contradiction with a measurable specification\n\nApplying both fixes in one revision produces a prompt that:\n- Opens with the task (anti-buried-ask)\n- Has a single unambiguous length and scope target (anti-conflicting-instructions)\n\nWhen a prompt has multiple anti-patterns, the remediation must address each one. Partial fixes leave one anti-pattern active and produce partially improved output.",
+      "examTip": "Two-anti-pattern items require identifying the correct fix for each anti-pattern and applying both. Options B and C are each partial — they fix one problem while leaving the other unaddressed. Option D addresses the buried ask symptomatically (header) rather than structurally (move the task). Only option A applies the structurally correct fix to both problems."
+    }
+  },
+  {
+    "id": "PTE-C-075",
+    "domain": "Prompting and Task Execution",
+    "topic": "Combining buried-ask fix with format specification",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An internal auditor writes a prompt: three paragraphs describing a vendor risk scenario, then ending with \"...and could you perhaps let me know what you think?\" Claude returns a general commentary on vendor risk management. She needed a structured risk register with columns: Risk, Likelihood (H/M/L), Impact (H/M/L), and Mitigation Control.\n\nWhich revision addresses ALL identified problems in one step?",
+    "options": [
+      { "key": "A", "text": "Remove the politeness padding and add the risk register format at the end of the existing prompt." },
+      { "key": "B", "text": "\"Produce a risk register with columns: Risk, Likelihood (H/M/L), Impact (H/M/L), and Mitigation Control. Source the risks from the following vendor scenario: [scenario text]\"" },
+      { "key": "C", "text": "Ask Claude in a follow-up turn to reformat the commentary as a risk register." },
+      { "key": "D", "text": "Add a section header \"Deliverable:\" before the format request at the end of the current prompt." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Option B addresses three problems simultaneously: it leads with the task (risk register) before the context (vendor scenario), eliminating the buried ask; it specifies the exact output format (four columns with defined value scales); and it removes the hedged language. The task-first structure establishes the correct frame from the first token; the schema eliminates all format inference.",
+      "distractors": {
+        "A": "Removing politeness padding and adding the format at the end is an improvement but still leaves the task last — after three paragraphs of scenario context. The buried-ask problem persists because the task still arrives after the frame-setting content.",
+        "C": "A follow-up turn fixes the immediate output but adds a round-trip cost and requires the auditor to catch the problem each time. It is a recovery action, not a prompt fix. The next fresh use of the prompt will produce the same wrong output.",
+        "D": "Adding a section header makes the buried deliverable more visible but does not move it to the leading position. Three paragraphs of vendor context still establish a commentary frame before the task instruction. Structural reordering is required, not labelling."
+      },
+      "concept": "**Combining buried-ask fix with format specification** produces a prompt that is simultaneously:\n- Task-first (eliminating the framing problem)\n- Explicitly formatted (eliminating the inference problem)\n- Direct (eliminating the hedging problem)\n\nThe pattern:\n1. Open with the deliverable and its format: \"Produce a risk register with columns: [schema]\"\n2. Then provide the source material: \"Source the risks from the following: [scenario]\"\n\nThis structure guarantees that the format and the task are the dominant frame, and the scenario content is positioned as supporting material rather than the primary content.",
+      "examTip": "Combined buried-ask + format items require a prompt that leads with both the task AND the format specification. Option A fixes the format but not the task position. Option D labels the deliverable but does not move it. The correct answer always restructures the prompt with the task-plus-format as the opening instruction and the source material following it."
+    }
+  },
+  {
+    "id": "PTE-C-076",
+    "domain": "Prompting and Task Execution",
+    "topic": "Fixing bundled segment-specific tasks",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A communications manager asks Claude to write 5 product announcement emails — one per customer segment — in a single prompt. She receives 5 generic emails with identical structure and no segment-specific messaging. Which TWO changes TOGETHER would MOST effectively produce differentiated, segment-specific emails? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Switch to Opus for stronger segment differentiation capability." },
+      { "key": "B", "text": "Add \"Be segment-specific\" to the existing bundled prompt." },
+      { "key": "C", "text": "Write one prompt per segment so each prompt can establish a clear single-audience frame." },
+      { "key": "D", "text": "For each segment prompt, provide the segment's specific characteristics, primary concerns, and preferred communication register explicitly." },
+      { "key": "E", "text": "Ask Claude to review the 5 generic emails and differentiate them in a follow-up turn." }
+    ],
+    "correct": ["C", "D"],
+    "explanation": {
+      "correct": "C addresses the structural problem: five emails in one prompt divide generation attention and cannot each receive a dedicated audience frame. One prompt per segment allows each to establish a clean, single-audience context. D addresses the content problem: without explicit segment characteristics, Claude has no basis for differentiation. Providing each segment's specific concerns and register gives Claude the raw material for genuine personalisation. C and D together fix the structure and the content — neither alone is sufficient.",
+      "distractors": {
+        "A": "Generic output is not a reasoning depth problem; it is a structural and information problem. Opus cannot differentiate without segment-specific input, and cannot focus without a per-segment prompt structure.",
+        "B": "\"Be segment-specific\" is a vague instruction that tells Claude to differentiate without providing the information needed to do so. Without segment characteristics in the prompt, Claude has nothing to differentiate on.",
+        "E": "A follow-up differentiation turn adds a step without fixing the underlying information gap. Claude will attempt differentiation but, without segment data, will produce surface variations rather than genuine messaging differences."
+      },
+      "concept": "**Segment-specific output** requires both structural and content conditions:\n1. **Structural**: one prompt per segment (decomposition), so each prompt has a single audience frame\n2. **Content**: explicit segment characteristics in each prompt — demographics, needs, concerns, preferred tone\n\nNeither condition alone is sufficient:\n- Decomposition without segment data → 5 generic emails produced separately\n- Segment data in one bundled prompt → data is present but attention is divided\n\nTogether: 5 prompts × segment-specific context → 5 differentiated emails.",
+      "examTip": "This is a two-factor failure item: structure (bundled) AND content (no segment data). The correct answer pair fixes both factors. Single-factor fixes (B = content hint without decomposition; C without D = decomposition without data) are incomplete. When a scenario shows both a bundling problem and a missing information problem, both must be fixed simultaneously."
+    }
+  },
+  {
+    "id": "PTE-C-077",
+    "domain": "Prompting and Task Execution",
+    "topic": "Multi-problem prompt revision sequence",
+    "difficulty": "hard",
+    "type": "nextstep",
+    "stem": "A bid manager identifies three problems in her capability statement prompt: (1) output is 800 words when 300 are needed; (2) the capability statement task appears after 200 words of company background — the main deliverable is buried; (3) the tone instruction \"professional but approachable\" consistently produces stiff, formal text across three runs. She must fix all three in a single revised prompt.\n\nWhat approach would MOST effectively address all three in one revision?",
+    "options": [
+      { "key": "A", "text": "Open the revised prompt with the task and word count: \"Write a 300-word capability statement\"; follow with a positive tone instruction anchored by an example sentence demonstrating the desired register; then provide the company background as context." },
+      { "key": "B", "text": "Fix tone first (add more adjectives), then fix length (add the word count), then fix the buried ask (add a section header) — three sequential targeted changes to the existing prompt." },
+      { "key": "C", "text": "Fix the length first by inserting \"300 words\" into the existing prompt; address the structure and tone in two follow-up refinement turns." },
+      { "key": "D", "text": "Restructure the prompt by moving the task and background to match their current order but add a word count, a tone adjective, and a section header." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Option A applies the correct fix for all three problems in one pass, in the most efficient order. Leading with task + word count (\"Write a 300-word capability statement\") simultaneously fixes the buried ask and establishes the length constraint as part of the generation frame from the first token. A positive example-anchored tone instruction replaces the subjective pair \"professional but approachable\" with a demonstrable standard. Company background follows as supporting material — the correct structural position. Three problems, three fixes, one revision.",
+      "distractors": {
+        "B": "Sequential targeted changes to the existing prompt preserve the current structure between changes, meaning the buried ask is not fixed until the third change. Adding more adjectives for tone repeats the approach that already failed three times. This option requires three editing passes.",
+        "C": "Inserting a word count alone is a partial fix. The buried ask and tone problems remain, requiring two more refinement turns — a three-turn process rather than a one-pass revision. The question specifies a single revised prompt.",
+        "D": "Moving task and background to match their current order is a contradiction — the current order has the task buried after background. This option preserves the buried ask while adding a header and adjective that partially address the other two problems."
+      },
+      "concept": "**Efficient multi-problem revision** applies all fixes in a single rewrite, in the order that serves the prompt's structure:\n\n1. Task + length (first line — sets frame and quantity simultaneously)\n2. Tone (second, as a specification with an example)\n3. Context (last — supporting material follows the task)\n\nThis order is not arbitrary: length placed in the first sentence sets the generation frame before any context adds scope-expansion pressure. Tone with an example is more reliable than adjectives alone. Background at the end is supporting material, not framing content.\n\nThree problems resolved in one pass, in the right structural order.",
+      "examTip": "Multi-problem revision nextstep items test whether you apply all fixes simultaneously rather than sequentially. The correct answer resolves all three problems in one revision in a logically ordered structure. Options B and C require multiple passes — both are excluded by the \"single revised prompt\" framing. Option D contains a logical contradiction."
+    }
+  },
+  {
+    "id": "PTE-C-078",
+    "domain": "Prompting and Task Execution",
+    "topic": "Template design — consistency and flexibility balance",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A consulting firm is designing a proposal template for 50 consultants across 8 practice areas. The managing director wants consistent quality standards while allowing practice-specific customisation. Which TWO template design choices BEST balance these goals? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Lock every element of the template so no customisation is possible." },
+      { "key": "B", "text": "Use named placeholder variables for practice-specific elements — {{practice_area}}, {{primary_service}}, {{relevant_case_study}} — while keeping quality instructions, format, and tone as fixed template text." },
+      { "key": "C", "text": "Add a \"Practice area notes\" section at the end of the template where practice leads document their specific context, providing Claude with relevant differentiation information per engagement." },
+      { "key": "D", "text": "Create a separate template for each of the 8 practice areas with no shared elements." },
+      { "key": "E", "text": "Allow consultants to freely modify the template's instruction text in addition to substituting variables." }
+    ],
+    "correct": ["B", "C"],
+    "explanation": {
+      "correct": "B: Named placeholder variables provide a structured customisation path that preserves the fixed quality and format logic. Consultants substitute values within a controlled schema — customisation is possible without touching the instruction text that enforces quality. C: A dedicated practice area notes section provides free-form space for context that cannot be reduced to a single placeholder value — detailed client history, unusual regulatory context, specific service differentiation. Together, B provides structured customisation and C provides free-form context, while both preserve the fixed quality instructions.",
+      "distractors": {
+        "A": "A fully locked template achieves consistency at the cost of all flexibility. Practice-specific customisation is impossible, reducing the template's usefulness across 8 practice areas with genuinely different contexts.",
+        "D": "Eight separate templates achieve practice-specific flexibility at the cost of consistency. When quality standards change, all 8 templates must be updated. Divergence over time is likely.",
+        "E": "Allowing consultants to modify instruction text defeats the consistency goal. Within weeks, consultants will have individually modified instruction sets that diverge from each other and from any shared quality standard."
+      },
+      "concept": "**Template flexibility architecture** has three zones:\n1. **Fixed**: quality instructions, format schema, tone specification — these enforce the standard\n2. **Structured variable**: named placeholders for predictable variable content — practice area, service, case study\n3. **Free-form section**: a designated space for context that varies too much for a placeholder schema\n\nThe design goal: maximum customisation within the fixed quality framework. Structured variables and a free-form section provide this. Locking everything eliminates flexibility; allowing instruction edits eliminates consistency.",
+      "examTip": "Template design balance items test whether you can separate the fixed elements (quality/format instructions) from the variable elements (content). Option B covers the structured variable zone; option C covers the free-form zone. Both preserve the fixed quality instructions. Options A and D are the extremes (full lock vs. full separation) that each sacrifice one of the two goals."
+    }
+  },
+  {
+    "id": "PTE-C-079",
+    "domain": "Prompting and Task Execution",
+    "topic": "Prompt chain design — reliability practices",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An operations manager is designing a three-stage prompt chain: (1) extract data from 50 reports; (2) analyse patterns across the extracted data; (3) draft an executive briefing. Which TWO design decisions would MOST improve chain reliability? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Include the full output of each stage explicitly in the input to the next stage, labelled as the source data for that step." },
+      { "key": "B", "text": "Run all three stages in parallel to reduce total processing time." },
+      { "key": "C", "text": "Use the same prompt template for all three stages to maintain structural consistency." },
+      { "key": "D", "text": "Require each stage to end with a completion marker — such as \"EXTRACTION COMPLETE: 50 records\" — so truncation is detectable before the next stage begins." },
+      { "key": "E", "text": "Assign each stage to a different model tier based on the complexity of that stage's task." }
+    ],
+    "correct": ["A", "D"],
+    "explanation": {
+      "correct": "A: Explicit context handoff — including the full output of stage N in stage N+1's prompt — is the fundamental reliability requirement of a prompt chain. Without it, each stage operates on no data from prior stages. D: Completion markers at the end of each stage output allow the manager to verify completeness before advancing. A silently truncated extraction (only 43 of 50 records) would propagate errors into the analysis and briefing without a marker to catch it.",
+      "distractors": {
+        "B": "The three stages are sequential by design — analysis requires the extracted data; briefing requires the analysis. Running them in parallel is impossible without violating the dependency structure.",
+        "C": "The three stages have different tasks, output types, and success criteria. A single template does not serve extraction (structured data), pattern analysis (analytical prose), and an executive briefing (narrative summary). Each stage needs its own appropriate prompt.",
+        "E": "Tier selection per stage is a cost-optimisation consideration, not a reliability improvement. Reliability comes from correct data handoff and completeness verification, not from which tier processes each stage."
+      },
+      "concept": "**Prompt chain reliability** rests on two foundations:\n1. **Explicit context handoff**: each stage receives its prior stages' outputs as named, explicit input — not relying on conversational context\n2. **Completeness verification**: each stage ends with a verifiable completion signal — a record count, a section tally, a status marker — before the next stage consumes its output\n\nWithout (1): downstream stages operate on assumptions, not data.\nWithout (2): silent errors in upstream stages propagate invisibly into downstream outputs.\n\nTogether: the chain is end-to-end verifiable — each stage can be confirmed correct before advancing.",
+      "examTip": "Prompt chain reliability items offer options that address correctness (A, D) alongside options that address efficiency (B, E) or structural consistency (C). Reliability and efficiency are separate concerns; the question asks for reliability. The correct pair always includes explicit data handoff AND a verification mechanism. Parallel execution (B) is an appealing distractor for candidates focused on efficiency rather than reliability."
+    }
+  },
+  {
+    "id": "PTE-C-080",
+    "domain": "Prompting and Task Execution",
+    "topic": "Signs that project instructions need consolidation",
+    "difficulty": "easy",
+    "type": "multi",
+    "stem": "A content team lead is auditing their Claude Project's instruction set before the quarterly review. Which TWO signs indicate the instruction set needs consolidation? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "The project has been active for more than 6 months." },
+      { "key": "B", "text": "Two instructions in the set give Claude conflicting guidance about output length for the same task type." },
+      { "key": "C", "text": "The instruction set has grown to 50 items covering overlapping areas, added incrementally by multiple team members without a review process." },
+      { "key": "D", "text": "The project knowledge base contains documents uploaded more than 3 months ago." },
+      { "key": "E", "text": "The project is shared across more than 10 team members." }
+    ],
+    "correct": ["B", "C"],
+    "explanation": {
+      "correct": "B: Conflicting instructions for the same task type are a direct sign of instruction pollution — two instructions will produce an unresolvable contradiction that degrades output consistency. This is a quality problem that must be resolved before the next use. C: 50 incrementally added items from multiple authors without review is the definition of an ungoverned instruction set. Overlap, duplication, and implicit conflict are inevitable at this scale. Both signs indicate the instruction set has outgrown its current structure and must be consolidated.",
+      "distractors": {
+        "A": "Project age alone is not an indicator of instruction quality problems. A 6-month-old project with well-governed, minimal instructions may be perfectly healthy. Age is a trigger for a review, not a sign of a problem in itself.",
+        "D": "Document age in the knowledge base is a knowledge currency issue, not an instruction quality issue. Stale documents affect knowledge accuracy; they do not indicate instruction conflicts or pollution.",
+        "E": "Team size does not indicate instruction quality problems. A large team with well-authored, minimal instructions has no consolidation need; a two-person team with 50 conflicting instructions does."
+      },
+      "concept": "**Instruction set consolidation triggers:**\n- A discovered conflict between two instructions (B)\n- Uncontrolled growth from multiple authors without review (C)\n- Duplicated instructions that express the same thing in different words\n- Instructions that have become obsolete because the underlying requirement changed\n\n**Not consolidation triggers** (but are separate maintenance concerns):\n- Project age → trigger for a scheduled review\n- Knowledge base staleness → trigger for content refresh\n- Team size → trigger for access management review\n\nRule of thumb: audit the instruction set whenever a quality regression is observed, before adding a new instruction, and on a quarterly calendar regardless of whether problems are observed.",
+      "examTip": "This easy item tests whether you distinguish instruction quality signals from other project maintenance signals. Options A, D, and E are each legitimate maintenance concerns — but for different dimensions of the project (age, knowledge currency, access). Only B and C directly signal instruction quality problems that require consolidation. The key word: consolidation is specifically for instruction conflicts and ungoverned growth."
+    }
+  }
+]

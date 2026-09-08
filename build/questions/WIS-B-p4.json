@@ -1,0 +1,404 @@
+[
+  {
+    "id": "WIS-B-049",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Escalation vs. fallback distinction",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A support team lead at a SaaS company configures two paths for their Claude-assisted ticket triage:\n\n**Path 1:** Tickets involving billing disputes above £500 are automatically routed to the billing specialist team.\n**Path 2:** When Claude's service is unavailable, all tickets are queued and handled manually by support agents.\n\nWhich statement CORRECTLY describes the relationship between these two paths?",
+    "options": [
+      { "key": "A", "text": "Both paths are escalation paths, because both route work away from Claude to a human resource." },
+      { "key": "B", "text": "Path 1 is an escalation path triggered by case characteristics; Path 2 is a fallback path triggered by system unavailability." },
+      { "key": "C", "text": "Path 1 is a fallback path; Path 2 is an escalation path triggered when volume exceeds Claude's capacity." },
+      { "key": "D", "text": "Both paths are fallback paths, because both activate when the standard workflow cannot proceed." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Escalation and fallback serve different purposes. An escalation path routes cases based on their characteristics — risk level, complexity, value, or topic — to a more appropriate or more senior resource. Path 1 routes high-value billing disputes to specialists because those cases exceed what the standard routing handles. A fallback path activates when the system itself cannot operate, routing work to humans until the system recovers. Path 2 activates on service unavailability, not case type.",
+      "distractors": {
+        "A": "Both paths do involve human handling, but conflating escalation with fallback obscures the different design considerations. Escalation design asks 'which cases should be routed to whom and why?' Fallback design asks 'how does work continue when the AI system is unavailable?'",
+        "C": "This reverses the definitions. Path 2 is not an escalation triggered by volume — it activates on system unavailability regardless of volume. Volume-based capacity escalation would look different: e.g., routing overflow tickets to a second team when queue depth exceeds a threshold.",
+        "D": "Fallback paths activate on system-level failures, not on case characteristics. Path 1 activates because of the case's value, not because the standard workflow cannot proceed. Calling both 'fallback' would imply that high-value cases represent a workflow failure, which they do not."
+      },
+      "concept": "**Escalation paths** and **fallback paths** are both routing mechanisms in an AI-assisted workflow, but they differ in trigger and purpose:\n\n| | Escalation | Fallback |\n|---|---|---|\n| **Trigger** | Case characteristics (value, complexity, risk) | System failure or unavailability |\n| **Purpose** | Route to the right human for this type of case | Continue working when the AI tool is down |\n| **Always needed?** | When task types vary in risk/complexity | Yes — for any workflow dependent on an external service |\n\nA well-designed workflow has both: escalation paths for cases that exceed the AI's scope, and fallback paths for when the AI service fails. These are complementary, not alternatives.",
+      "examTip": "Escalation vs. fallback is a vocabulary item that recurs in scenario analysis questions. The discriminator: escalation is triggered by *what the case is*; fallback is triggered by *whether the tool works*. When a question presents both paths in the same scenario, identify which trigger each path responds to."
+    }
+  },
+  {
+    "id": "WIS-B-050",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Avoiding STP on regulated output",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An HR system administrator at a bank configures Claude to generate termination letters based on employee records. A manager proposes that when the termination reason is 'voluntary resignation' and no performance issues are flagged, the letter should be emailed to the employee automatically without any HR review.\n\nWhat is the PRIMARY concern with this proposal?",
+    "options": [
+      { "key": "A", "text": "Claude may generate letters with inconsistent tone across different voluntary resignation cases." },
+      { "key": "B", "text": "Termination letters are employment-consequential documents; auto-sending without HR review creates STP on a document that may require legal accuracy and could be subject to challenge." },
+      { "key": "C", "text": "The proposal would require integration with the email system, which adds technical complexity to the workflow." },
+      { "key": "D", "text": "Employees who receive AI-generated termination letters may react negatively if they discover the process was automated." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Termination letters are employment-consequential documents: they confirm employment status changes, may trigger severance or benefit calculations, and can be referenced in employment disputes. Even a voluntary resignation letter may contain legally material statements. Auto-sending without HR review means any error in the letter — incorrect final pay statement, wrong last working date, missing required language — reaches the employee without a qualified person verifying it first.",
+      "distractors": {
+        "A": "Tone consistency is a quality concern but is secondary to the governance risk. An HR-reviewed letter with slightly varying tone is far preferable to an unreviewed letter with a legal error.",
+        "C": "Technical integration complexity is a project management concern, not a governance concern. The question asks for the PRIMARY risk, which is the absence of human review on a consequential employment document.",
+        "D": "Employee perception is a change management concern that is real but secondary. Even if employees would never discover the process was automated, sending unreviewed employment documents is a governance risk independent of how it is perceived."
+      },
+      "concept": "**Employment-consequential documents** — termination letters, offer letters, performance improvement plans, disciplinary notices — carry legal and regulatory significance that makes human review before delivery non-optional. The stakes are not about tone or formatting; they are about the legal accuracy of statements that may be cited in employment disputes, wrongful termination claims, or regulatory investigations.\n\nThe 'it seems simple' trap: voluntary resignation termination letters appear low-risk because there is no performance dispute. But even simple letters can contain errors with consequences: wrong final date, incorrect COBRA notice, missing state-required language. HR review catches these before delivery, not after.\n\nDesign rule: **the category of document determines the review requirement, not the apparent simplicity of the specific case.**",
+      "examTip": "Employment document STP items frequently feature a 'simple case' rationale to make automation seem reasonable. Resist it. The category of document — termination letter, disciplinary notice, offer letter — determines the review requirement. 'Voluntary resignation, no performance issues' does not reduce the legal significance of the document. When the document category is employment-consequential, the review is required."
+    }
+  },
+  {
+    "id": "WIS-B-051",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "MCP connector — principle of least privilege",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A solutions architect at a wealth management firm is configuring a Claude connector to the firm's portfolio management system (PMS). The connector is intended to help relationship managers quickly retrieve client portfolio summaries during client calls. The architect proposes granting the connector access to all client records and all portfolio data fields in the PMS.\n\nWhat design principle does this configuration violate?",
+    "options": [
+      { "key": "A", "text": "Resilience — a single connector with broad access is a single point of failure if the PMS connection is lost." },
+      { "key": "B", "text": "Least privilege — the connector should be granted access only to the data fields and client records necessary for the specific use case, not all available data." },
+      { "key": "C", "text": "Auditability — broad access makes it harder to trace which data was accessed for each client conversation." },
+      { "key": "D", "text": "Segregation of duties — relationship managers and back-office staff should not use the same data connector." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Granting the connector access to all client records and all data fields violates least privilege. The use case — portfolio summaries for relationship managers during client calls — requires access to a defined subset: the RM's own clients, and the fields needed for a summary (portfolio value, asset allocation, recent transactions). Broad access means Claude's context can include data for clients the RM does not cover, and fields that go beyond what a summary requires, creating unnecessary exposure.",
+      "distractors": {
+        "A": "Broad access does not directly affect resilience — a connector is a single component regardless of its access scope. Resilience concerns relate to availability, fallbacks, and redundancy, not data access scope.",
+        "C": "Auditability does become harder with broader access (more potential data in scope per query makes the access log less informative), but this is a secondary consequence. The primary principle violated is least privilege — the connector should not have access it does not need.",
+        "D": "Segregation of duties governs which human roles can initiate or approve certain actions. A data connector is not a person; the segregation principle applies to the human workflow, not to the connector's access configuration."
+      },
+      "concept": "**Least privilege** applied to connectors means the connector is granted access to the minimum data required for the workflow it supports — no broader. For a Claude connector to a financial system:\n\n- **Data field scope:** access only the fields the use case requires. A portfolio summary use case needs value, allocation, and recent transactions — not fee schedules, compliance notes, or client credit risk ratings.\n- **Record scope:** restrict access to records the user is authorised to view. A relationship manager connector should return only their own client records, not all firm clients.\n- **Operation scope:** read-only for read-use-cases. Write access requires a separate, stronger justification.\n\nApplying least privilege at the connector level limits the blast radius if a session is compromised or if Claude inadvertently includes more data than intended in its output.",
+      "examTip": "Connector access scope items consistently test least privilege. The tell: a broad access grant ('all records,' 'all fields') when the use case is specific. The correct framing is always to scope down to the minimum required for the actual workflow. Options A, C, and D describe real principles but are not the one violated by overly broad data access. Least privilege is the governing principle for 'how much access does this connector need?'"
+    }
+  },
+  {
+    "id": "WIS-B-052",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Human review — consequential decision categories",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A product owner at a fintech company is mapping a loan application workflow. Claude assists with document extraction, credit analysis, and draft decision letters. The product owner asks which step MUST have a mandatory human review before proceeding.\n\nWhich answer is MOST accurate?",
+    "options": [
+      { "key": "A", "text": "Document extraction — because errors in extracted data propagate to all downstream steps." },
+      { "key": "B", "text": "Credit analysis — because the model's reasoning is complex and requires actuarial oversight." },
+      { "key": "C", "text": "The credit decision itself — because lending decisions affecting a consumer's access to credit are consequential decisions that require human accountability." },
+      { "key": "D", "text": "Draft decision letters — because external communications to applicants must be reviewed before sending." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The lending decision — approve, decline, or refer — is the consequential step. It determines the applicant's access to credit and, if adverse, triggers regulatory obligations (adverse action notices, non-discrimination requirements). Regardless of how well Claude performs the supporting analysis, the decision itself must be made by or reviewed and authorised by a qualified human. Document extraction and credit analysis are inputs; the decision letter is a downstream artefact. The decision is the control point.",
+      "distractors": {
+        "A": "Document extraction quality is important because errors propagate, but mandatory human review of each extraction is not required in the same sense as human accountability for the lending decision. Quality checks on extraction can be done via sampling or automated validation.",
+        "B": "Actuarial review of the credit analysis is a quality practice but is not the mandatory control point. The analysis is an input to the decision; the decision is where accountability is required. Even if the analysis is reviewed, the decision can still proceed without human accountability if no gate is placed there.",
+        "D": "Decision letters must be reviewed before sending, but this is a downstream artefact of the decision. If the decision itself has a human approval gate, the letter is the communication of that approved decision. Reviewing the letter without having a gate on the decision misses the primary accountability point."
+      },
+      "concept": "**Consequential decision categories** are classes of decisions that require human accountability because they materially affect individuals' rights, opportunities, or financial wellbeing. For lending:\n\n- The credit decision (approve/decline/refer) affects the applicant's access to financial services and triggers regulatory obligations\n- This is the mandatory human accountability point — regardless of how the analysis was produced\n\nA common design error is placing review at supporting steps (extraction, analysis) but allowing the decision to be automated. This produces workflows with human review everywhere except the step that matters most.\n\nThe principle: **identify the step where accountability is legally and ethically required, and place a mandatory human gate there.** For consequential individual decisions (lending, hiring, clinical recommendations), that step is the decision itself, not its supporting analysis.",
+      "examTip": "This item tests the hierarchy of mandatory review points. All four options describe legitimate review steps — the question is which is MOST mandatory. The decision is the apex control point because it is where regulatory accountability, non-discrimination obligations, and consumer protection requirements attach. Supporting steps (extraction, analysis, letter) are quality controls; the decision is the governance control. In any workflow affecting individual rights, the decision step is where mandatory human accountability lives."
+    }
+  },
+  {
+    "id": "WIS-B-053",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Designing for auditability — legal discovery",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "General counsel at a large pharmaceutical company is asked by the head of AI operations: 'If we receive a discovery request related to an AI-assisted regulatory submission, what records do we need to be able to produce?' The general counsel's answer defines the minimum audit trail the AI workflow must generate.\n\nWhich answer MOST completely identifies the required records?",
+    "options": [
+      { "key": "A", "text": "The final submitted document and the name of the signatory." },
+      { "key": "B", "text": "The AI-generated draft, the reviewer's edits or confirmation of no changes, the approver's identity and timestamp, and the prompt or task description used to generate the draft." },
+      { "key": "C", "text": "The AI-generated draft and the email chain approving it for submission." },
+      { "key": "D", "text": "The final submitted document and a written declaration from the responsible officer that the content is accurate." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "A discovery request for an AI-assisted regulatory submission may require demonstrating: what the AI produced, how it differed from what was submitted, who reviewed and what they confirmed, who authorised submission, and what instructions produced the AI output. Option B captures all these elements. The prompt or task description is particularly important because it shows what the AI was asked to do — whether the instructions were appropriate for a regulatory context is itself potentially discoverable.",
+      "distractors": {
+        "A": "The final document and signatory show what was submitted and who signed — but not whether appropriate human review of the AI-generated content occurred, nor what the AI was actually asked to produce.",
+        "C": "An approval email chain is better than A but is an informal record. It may not capture the AI draft (only the approved version), may not record what edits were made, and may not capture the prompt. Email chains are also the most contested records in discovery.",
+        "D": "A post-submission declaration is an attestation about the content but does not document the process: how was the submission produced, who reviewed the AI draft, and what was the AI asked to do? Declarations without process records are weak evidence in discovery."
+      },
+      "concept": "**Discovery-ready audit trails** for AI-assisted work product require documentation of the entire production process, not just the final output. For a regulatory submission:\n\n1. **The prompt/task description** — what was the AI instructed to do? Was it appropriate for regulatory use?\n2. **The AI draft** — what did the AI produce before human review?\n3. **Review evidence** — what did the reviewer verify? What, if anything, did they change?\n4. **Approval record** — who authorised submission, when, and in what capacity?\n5. **Final submitted version** — what was actually filed?\n\nThe gap between the AI draft and the final submission is particularly significant: it shows what human intervention added or corrected. A discovery request focused on AI involvement will specifically look for this gap.\n\nRetention policy: these records must be retained for at least the period of potential legal exposure — which for regulatory submissions may be measured in years or decades.",
+      "examTip": "Discovery-focused audit items test completeness, not just existence. The four options form a spectrum from minimal (A, D) to partial (C) to complete (B). The prompt/task description is the most-often-omitted element — candidates forget that what was asked of the AI is itself a process record. On the exam, when an audit trail is described without the prompt, the trail is incomplete. Add the prompt to every mental checklist of AI audit records."
+    }
+  },
+  {
+    "id": "WIS-B-054",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Handoff to system — data transformation risk",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A finance controller at a mid-size retailer uses Claude to convert unstructured supplier invoices into a structured format for entry into the accounts payable system. Claude extracts: vendor name, invoice number, line items, VAT amount, and total. Before the finance team manually enters this data into the AP system, the controller learns that the AP system uses a different VAT calculation convention than the invoices Claude is processing.\n\nWhat should the controller do BEFORE resuming the workflow?",
+    "options": [
+      { "key": "A", "text": "Instruct Claude to apply the AP system's VAT convention in its extraction output, updating the prompt to account for the difference." },
+      { "key": "B", "text": "Add a review step where the AP clerk verifies the VAT figures against the original invoices before AP entry, to catch any convention mismatch." },
+      { "key": "C", "text": "Run a reconciliation of all invoices processed to date to determine whether any VAT amounts entered into the AP system are incorrect." },
+      { "key": "D", "text": "Suspend the workflow and assess whether Claude's extraction output is compatible with the AP system's convention before continuing." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Before resuming the workflow, the controller must understand whether Claude's current output is compatible with the AP system. If it is not, entering Claude's VAT figures into the AP system will produce incorrect financial records. The correct first step is to suspend and assess: reproduce a sample extraction, compare the VAT figures to what the AP system expects, and confirm whether a prompt update resolves the mismatch. Resuming without this assessment risks propagating systematic VAT errors into the financial system of record.",
+      "distractors": {
+        "A": "Updating the prompt is likely the correct fix, but it should not be implemented before confirming the nature of the convention difference and testing the revised prompt output. Updating the prompt and resuming without testing creates the same risk as the original problem.",
+        "B": "Adding a review step is a valuable control for ongoing operations but does not address the immediate need: confirming whether Claude's current output is compatible with the AP system before more invoices are processed with the same potential error.",
+        "C": "Reconciling past entries is an important remediation step, but it addresses historical data that may already be incorrect — not the immediate question of whether to continue the workflow. Past reconciliation should happen alongside a suspension, not instead of it."
+      },
+      "concept": "**Data transformation compatibility** is a critical handoff design concern: Claude's output must be in a format and using conventions that the receiving system of record can accept correctly. A mismatch between Claude's output convention and the system's expected convention produces systematic errors — every entry made using the mismatched data will be wrong in the same way.\n\nBefore implementing a data extraction workflow:\n1. Confirm the exact format and conventions the receiving system expects\n2. Verify Claude's output against those specifications on a sample\n3. Test that the prompt can produce fully compatible output before going live\n\nWhen a mismatch is discovered mid-operation:\n1. Suspend the workflow to prevent further incorrect data from entering the system\n2. Assess the nature and scope of the mismatch\n3. Remediate historical data if entries have already been made\n4. Test the corrected workflow before resuming",
+      "examTip": "Data transformation items frequently present an 'update the prompt' option (A) as the obviously correct fix. But option A skips the assessment step — you cannot safely update the prompt and resume without first confirming the nature of the mismatch and testing the fix. Suspend and assess (D) is the correct first step because it prevents compounding the error. 'First, stop. Then understand. Then fix.' On the exam, when a systematic data format error is discovered, the immediate action is suspension and assessment, not prompt revision."
+    }
+  },
+  {
+    "id": "WIS-B-055",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Resilience — context preservation across failures",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A case manager at a government benefits agency uses Claude in multi-turn conversations to gather and verify applicant information for benefit claims. When a Claude session is unexpectedly terminated mid-conversation, the case manager must restart with a new session and re-gather information the applicant has already provided.\n\nWhat workflow feature would MOST directly address this resilience gap?",
+    "options": [
+      { "key": "A", "text": "Increase the session timeout limit so Claude's context window remains active for longer between interactions." },
+      { "key": "B", "text": "Configure Claude to summarise gathered applicant information to a persistent case record at defined intervals during the conversation, so progress is preserved regardless of session state." },
+      { "key": "C", "text": "Train case managers to save a copy of the conversation transcript at regular intervals during long cases." },
+      { "key": "D", "text": "Redesign the workflow to collect all applicant information in a single session rather than across multiple turns." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The resilience gap is that gathered information exists only in Claude's session context, which is lost when the session terminates. The fix is to write gathered information to a persistent record at defined intervals — so that when a session terminates, only the work since the last save is lost, not everything. This requires a step in the workflow where Claude's structured output is written to the case management system or a session log at checkpoints during the conversation.",
+      "distractors": {
+        "A": "Session timeout configuration is a platform or account setting, not a workflow design feature. Even with extended timeouts, unexpected terminations can still occur. Timeouts address normal inactivity, not unexpected failures.",
+        "C": "Manual transcript saving by case managers is an operationally fragile fallback — it depends on the manager remembering to save, and a transcript is not the same as structured data in the case record. This is a workaround, not a designed resilience feature.",
+        "D": "Redesigning to collect all information in a single session does not address unexpected session terminations — a single session can terminate unexpectedly as easily as a multi-turn session. It also constrains the workflow in ways that may not accommodate complex cases or applicant breaks."
+      },
+      "concept": "**Context preservation across session failures** is a resilience requirement for any multi-turn workflow where Claude accumulates information over the course of a long conversation. Since Claude's context exists only within a session, session termination (unexpected or planned) loses the accumulated context.\n\nDesign patterns for preserving context:\n1. **Incremental structured saves:** at defined milestones in the conversation (e.g., after each applicant section is completed), Claude's output is written to a persistent case record or external system\n2. **Session resume protocol:** if the session terminates, the workflow can reload the last saved state into a new session prompt, so the conversation continues from the saved point rather than from scratch\n3. **Progress token:** a structured summary of gathered information that can be pasted into a new session to restore context\n\nThe key design principle: **assume session termination can happen at any point; design the workflow so that each session checkpoint preserves enough state to continue without starting over.**",
+      "examTip": "Context preservation items test whether you understand that Claude's memory is session-scoped. Option A addresses timeout behaviour (normal inactivity), not unexpected failure. Option C is a manual workaround that adds operational burden without guaranteed reliability. Option D constrains the workflow without fixing the failure mode. The correct answer is always a designed mechanism that writes progress to a persistent store at intervals — not a human workaround or a constraint on when conversations can occur."
+    }
+  },
+  {
+    "id": "WIS-B-056",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Approval gate — external commitment",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A regional director at a commercial real estate firm uses Claude to draft letters of intent (LOIs) for property acquisitions. The current workflow: Claude generates the LOI based on deal parameters; an associate reviews it; the LOI is sent to the seller. The regional director proposes removing the associate review to reduce the typical 2-day turnaround to same-day.\n\nA senior partner objects, citing a case where an associate's review caught an LOI that used the wrong purchase price due to a conversion error in the deal parameters.\n\nWhat is the MOST accurate assessment of the regional director's proposal?",
+    "options": [
+      { "key": "A", "text": "The proposal is justified: a 2-day review delay is competitively disadvantageous in a fast-moving market, and a single historical error is insufficient basis for maintaining the review step." },
+      { "key": "B", "text": "The proposal should be partially adopted: automate the review for standard LOIs and retain manual review only for LOIs above a defined transaction value." },
+      { "key": "C", "text": "The proposal is not justified: an LOI creates a preliminary commitment to deal terms; removing the review step creates STP on an external legal instrument where errors could be commercially binding." },
+      { "key": "D", "text": "The proposal is justified if the deal parameter input step is enhanced with a validation check to prevent conversion errors before Claude generates the LOI." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "An LOI is an external document that can be construed as a preliminary commitment to the deal terms it contains — including the purchase price. Sending an LOI with an incorrect purchase price is not merely an embarrassment; it may create a legal position the firm must manage with the seller. Removing the review step creates STP on an external legal instrument, regardless of competitive timing pressures. The senior partner's example illustrates exactly the failure mode the review step is designed to catch.",
+      "distractors": {
+        "A": "Competitive timing is a real consideration in real estate, but it does not override the governance requirement for an external legal commitment. One known historical error demonstrates a real failure mode, not a statistical anomaly. The review step caught it once; it will catch future occurrences.",
+        "B": "Stratifying by transaction value is a reasonable tiered approach, but it does not address the underlying issue: conversion errors in deal parameters are equally probable on small and large transactions. A purchase price error on a 'standard' low-value LOI is still a legally significant error.",
+        "D": "Enhanced input validation reduces conversion error probability but does not eliminate it. Validation catches known error patterns; novel errors (wrong currency, wrong unit, wrong deal) will still occur. A review step catches errors that validation does not anticipate. Replacing a human review step with automated validation on the input side is not an equivalent control."
+      },
+      "concept": "**External legal instruments** — letters of intent, term sheets, proposals, settlement offers — represent a category where STP is particularly dangerous because the document creates or implies commitments to a counterparty who receives it. Unlike an internal document, an LOI with an error has already left the organisation by the time the error is discovered.\n\nFor this category of output, the review step must occur before external delivery. The review's purpose is not formatting — it is catching material errors before they become the firm's stated position in a transaction.\n\nCompetitive timing pressures are a real concern in fast-moving markets. The appropriate design response is not to remove the review but to:\n- Reduce review cycle time (same-day review SLA rather than 2-day)\n- Assign a dedicated reviewer with authority to turn reviews around in hours\n- Improve the deal parameter input to reduce error probability\n\nEliminating the review entirely is the wrong solution to a review cycle time problem.",
+      "examTip": "External legal commitment items are some of the clearest STP scenarios in the exam. The argument for removing review always involves speed or efficiency; the counter is always that the document creates an external commitment that errors make legally significant. Option D is the most seductive wrong answer — fixing the input seems to fix the problem. But input validation and human review are not substitutable: one addresses known error patterns, the other addresses all error patterns including novel ones."
+    }
+  },
+  {
+    "id": "WIS-B-057",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "HITL design — high-volume low-stakes vs. low-volume high-stakes",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A head of operations at an insurance company is comparing two Claude-assisted workflows:\n\n**Workflow X:** 5,000 routine claim acknowledgement emails per day (no coverage determination, purely administrative confirmation).\n**Workflow Y:** 30 complex liability assessments per day (determining coverage position for disputed claims).\n\nThe head of operations proposes applying the same human review model to both: 100% human review before any output is sent or actioned.\n\nA business analyst argues this is inefficient for Workflow X and underserved for Workflow Y.\n\nWhat review design would MOST appropriately serve both workflows?",
+    "options": [
+      { "key": "A", "text": "Apply a 5% random sample review to Workflow X and 100% human review to Workflow Y, calibrated by the stakes and reversibility of each output type." },
+      { "key": "B", "text": "Apply 100% review to both, as the analyst's argument prioritises efficiency over governance." },
+      { "key": "C", "text": "Apply 100% review to Workflow X (high volume requires more oversight) and 50% review to Workflow Y (low volume means fewer total reviews)." },
+      { "key": "D", "text": "Apply automated quality checks to both workflows and remove human review from both, as Claude's accuracy is sufficient for insurance operations." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Review intensity should be proportional to the stakes and irreversibility of each output. Workflow X produces administrative acknowledgements with no coverage or financial determination; errors are correctable and carry minimal legal or financial consequence. A 5% sample review detects systematic problems while being operationally sustainable. Workflow Y produces coverage positions on disputed claims — legally significant, potentially irreversible if the insurer's position is communicated to the claimant. These require 100% review by a qualified claims professional. The business analyst's diagnosis is correct: the same review model applied to both is either over-controlled for X or under-controlled for Y.",
+      "distractors": {
+        "B": "100% review for 5,000 administrative emails is operationally unsustainable and provides no proportionate governance benefit — the cost of errors in acknowledgement emails is low and correctable. Uniform maximisation of review effort ignores the risk-proportionate design principle.",
+        "C": "This inverts the relationship between volume and review intensity. High volume of low-stakes outputs does not require more oversight — it requires efficient oversight that samples appropriately. Low volume of high-stakes outputs requires intensive review regardless of the small number of cases. Volume and stakes are independent dimensions.",
+        "D": "Removing human review from liability assessments on disputed claims eliminates the control on the most consequential output in either workflow. Automated quality checks can detect formatting or completeness issues but cannot replace qualified coverage assessment by a claims professional."
+      },
+      "concept": "**Risk-proportionate review design** across multiple workflows in the same organisation:\n\n| Characteristic | Low-stakes workflow | High-stakes workflow |\n|---|---|---|\n| Output type | Administrative, non-binding | Legal or financial commitment |\n| Reversibility | High (can be corrected) | Low (once communicated, creates a position) |\n| Review intensity | Sampling (5–10%) | Full (100%) |\n| Reviewer qualification | General quality reviewer | Domain-qualified professional |\n\nThe error in applying uniform review to both workflows is treating volume as the driver of review intensity. Volume is a throughput constraint; stakes are a governance constraint. High volume of low-stakes work justifies efficient sampling. Low volume of high-stakes work requires intensive review regardless.\n\nOperational design: match review resources to the workflow that generates the most serious errors if overlooked — not the workflow with the most volume.",
+      "examTip": "This hard item discriminates between volume and stakes as review intensity drivers. Option C is the classic inversion trap — it assigns more review to the high-volume workflow and less to the low-volume one, using volume as the proxy for stakes. The exam expects you to use stakes and reversibility as the primary review intensity drivers. When volume and stakes point in opposite directions (high volume, low stakes vs. low volume, high stakes), stakes always wins."
+    }
+  },
+  {
+    "id": "WIS-B-058",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Connector failure mode — stale reference data",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A credit analyst at a bank uses a Claude connector to pull current interest rate reference data from the bank's treasury system. During a period of system maintenance, the treasury system returns cached rate data that is 5 days old. Claude uses this data to draft loan pricing sheets, which are reviewed by a pricing officer and approved without either party noticing the stale rates.\n\nWhat does this incident PRIMARILY reveal about the workflow design?",
+    "options": [
+      { "key": "A", "text": "The connector should be designed to include the data timestamp in Claude's output, so the pricing officer can verify the currency of the reference data before approving the pricing sheet." },
+      { "key": "B", "text": "The pricing officer failed in their review duty and should have independently verified the rates before approval." },
+      { "key": "C", "text": "The treasury system's maintenance window should be scheduled outside business hours to avoid affecting loan pricing workflows." },
+      { "key": "D", "text": "Claude should be prompted to query whether the data it has received is current before producing a pricing output." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The design gap is that the connector returned stale data without any indication of its age, and the workflow had no mechanism for the pricing officer to verify data currency. If the connector surfaced the data timestamp alongside the rates, the pricing officer would have been able to see that the reference rates were 5 days old — a significant staleness for interest rate pricing. The fix is a workflow design change: data provenance (source and timestamp) must be visible to the human reviewer, not hidden inside the connector's data payload.",
+      "distractors": {
+        "B": "Attributing the failure to the pricing officer's review duty ignores the design gap: the officer had no visibility that the data was stale. Blaming the reviewer for not detecting a condition that the workflow did not surface is unfair and does not fix the underlying design problem.",
+        "C": "Scheduling maintenance outside business hours reduces the frequency of the problem but does not eliminate it. System maintenance can occur unexpectedly; the design must be resilient to stale data regardless of when maintenance occurs.",
+        "D": "Prompting Claude to query data currency is not a reliable mechanism. Claude cannot independently verify that the treasury system's data is current — it can only process what the connector returns. Asking Claude to self-assess data freshness it has no way to verify does not fix the design problem."
+      },
+      "concept": "**Data provenance in connector outputs** is the principle that the source, currency, and version of data surfaced through a connector should be visible to the humans who review and act on Claude's output. Without provenance, reviewers cannot distinguish fresh data from stale data, authoritative data from a cached version, or a complete dataset from a partial one.\n\nProvenance fields every connector should surface:\n- Data timestamp (when was the data last updated in the source system?)\n- Data source (which system, which query?)\n- Completeness indicator (is this a full result set or a partial/cached one?)\n\nThis is particularly critical for reference data used in financial pricing, where staleness of a few days can produce materially incorrect outputs in volatile rate environments.\n\nThe connector's metadata is as important as its data payload: displaying a rate without a timestamp gives the reviewer no way to assess its reliability.",
+      "examTip": "Connector staleness items test whether you identify the design gap (missing provenance) or assign blame to the reviewer. The pricing officer cannot detect staleness that the workflow doesn't surface — option B is the blame-the-reviewer trap. Option D is the 'ask Claude' trap: Claude cannot verify what the connector returns. The design fix is always at the output surface: make provenance visible to the human reviewer as part of the standard workflow output."
+    }
+  },
+  {
+    "id": "WIS-B-059",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Approval gate — regulated advice boundary",
+    "difficulty": "medium",
+    "type": "nextstep",
+    "stem": "A financial advice operations lead is designing a Claude-assisted workflow to help junior advisers draft client suitability reports for investment recommendations. The workflow design so far: (1) Claude analyses the client's risk profile, investment objectives, and product features; (2) Claude drafts a suitability narrative; (3) the junior adviser reviews the narrative. A compliance manager reviews the design and points out that a regulated firm cannot rely on a junior adviser's unsupervised review as the final approval step for a suitability report.\n\nWhat should the operations lead specify NEXT to address the compliance manager's concern?",
+    "options": [
+      { "key": "A", "text": "Replace Claude with a rule-based engine for suitability analysis, which is easier to audit than an LLM." },
+      { "key": "B", "text": "Add a senior adviser or compliance officer approval step between the junior adviser's review and the report being sent to the client, with the approver confirming the suitability rationale." },
+      { "key": "C", "text": "Instruct Claude to include a disclaimer in the suitability narrative stating that the report has been produced with AI assistance." },
+      { "key": "D", "text": "Require the junior adviser to document their specific comments or edits before the report advances, to create a record of their review." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The compliance manager's concern is that a junior adviser's unsupervised review is insufficient for a regulated suitability report. The correct next step is to add a senior approved person (a qualified financial adviser or compliance officer) as the final approver before the report reaches the client. This creates the supervised sign-off chain that financial regulation requires for client-facing investment advice: the senior approved person is accountable for the suitability recommendation.",
+      "distractors": {
+        "A": "Replacing Claude with a rule-based engine is a significant technology change that does not address the compliance concern, which is about the approval chain, not the analysis technology. A rule-based engine with the same junior-adviser-only approval has the same compliance gap.",
+        "C": "AI-assistance disclosure is a transparency best practice and may be required in some regulatory contexts, but it does not substitute for a qualified senior sign-off. Disclosing AI involvement does not confer regulatory compliance on a report that lacks appropriate approved-person supervision.",
+        "D": "Documenting the junior adviser's review creates an audit trail but does not resolve the supervision gap. The compliance concern is that the junior adviser should not be the final authority on a regulated suitability report — adding documentation of their role does not change the authority question."
+      },
+      "concept": "In **regulated financial advice contexts**, suitability reports require sign-off by an approved person — a licensed individual who takes regulatory responsibility for the recommendation. Junior advisers may be in training or operating under supervision; their review is valuable but cannot be the terminal approval step.\n\nWorkflow design implication: when the regulatory framework requires an approved-person sign-off, the workflow must include a gate where that approval occurs. The AI drafting and junior review steps are inputs to that gate, not substitutes for it.\n\nSequence: AI draft → junior review (quality check) → senior approved-person sign-off → client delivery\n\nThe senior sign-off is not a rubber stamp — it represents the approver taking regulatory responsibility for the suitability assessment. The workflow should make clear what the approver is attesting to, and the record of their approval must be retained.",
+      "examTip": "Nextstep items in regulated advice contexts test whether you add the required oversight tier rather than add documentation, change technology, or add disclosure. The compliance manager named a specific gap: junior adviser unsupervised review as final approval. The next step is to add the missing tier above it. Options C and D add things around the existing structure; option A replaces the tool. Only option B adds the missing approval tier that regulation requires."
+    }
+  },
+  {
+    "id": "WIS-B-060",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Combining auditability and resilience in a regulated context",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A chief operations officer at a regulated consumer credit firm is reviewing a Claude-assisted workflow for processing credit limit increase requests. The workflow must satisfy two requirements: (1) every decision must be traceable to a named human authoriser; (2) the firm must be able to process requests even if Claude is unavailable for up to 8 hours. Which TWO design features MOST directly address both requirements? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "A mandatory human approval step where a named credit officer reviews Claude's analysis and records their approval decision before the credit limit is updated." },
+      { "key": "B", "text": "A real-time dashboard showing Claude's processing queue, enabling managers to monitor throughput during normal operations." },
+      { "key": "C", "text": "A documented manual credit assessment procedure, trained across the credit officer team, that can be activated when Claude is unavailable." },
+      { "key": "D", "text": "An automated rollback mechanism that reverses any credit limit changes made while Claude was unavailable, once Claude service is restored." },
+      { "key": "E", "text": "A secondary Claude project configured with the same system prompt, accessible to a different team member if the primary user's account is restricted." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "Option A addresses requirement 1 (traceability): the mandatory human approval step, with the named credit officer's identity recorded, is what makes every decision traceable to a human authoriser — not the AI. Claude's analysis is an input; the officer's recorded approval is the decision. Option C addresses requirement 2 (resilience): a documented, trained manual procedure ensures the firm can continue processing credit limit requests during an 8-hour Claude outage. Together these address both requirements independently.",
+      "distractors": {
+        "B": "A throughput dashboard supports operational monitoring but does not contribute to decision traceability (requirement 1) or service continuity during unavailability (requirement 2). It is a management information tool.",
+        "D": "Automatically rolling back changes made during Claude's unavailability would eliminate any credit decisions made using the manual procedure — defeating the purpose of having one. If the manual procedure is designed correctly, decisions made during the outage should be valid and should not be reversed simply because Claude was not involved.",
+        "E": "A secondary Claude project provides redundancy for one type of failure (primary user account restriction) but does not address service-level outages. If Claude as a service is unavailable, a secondary project in the same service is equally unavailable. This option also does not address decision traceability (requirement 1)."
+      },
+      "concept": "When two distinct requirements — auditability and resilience — must both be satisfied, the design must include one feature that independently addresses each:\n\n**Auditability in regulated credit decisions:**\n- Every decision must be traceable to a named human with authority\n- The record must show who decided, based on what information, and when\n- This is regulatory compliance for consumer credit: the human is accountable for the credit decision, not the AI\n\n**Resilience for up to 8 hours:**\n- An 8-hour outage is a significant operational window — multiple business hours\n- The manual procedure must be trained and ready before the outage, not improvised during it\n- Staff must be able to execute it under time pressure without consulting documentation for the first time\n\nThe two features are independent: auditability does not help if the process halts during an outage; resilience does not help if decisions made during normal operations are untraceable.",
+      "examTip": "When a question names two distinct requirements, match one correct answer to each requirement and eliminate options that address neither. Option D is a sophisticated distractor: it sounds like a resilience feature but actually undermines the manual fallback procedure. Option E sounds like resilience but addresses only a narrow failure type. On the exam, 'which TWO' items are much easier once you identify what each named requirement actually needs — then eliminate anything that serves neither."
+    }
+  },
+  {
+    "id": "WIS-B-061",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Escalation path — multi-stakeholder approval",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A policy analyst at a government agency uses Claude to draft responses to citizen enquiries about benefit entitlements. A quality review found that 8% of Claude's drafts contain inaccurate entitlement calculations. The agency head proposes fixing this by routing all responses through three levels of review: analyst, supervisor, and legal officer — before sending.\n\nA process engineer argues this three-level review is disproportionate and will create a 5-day response time, compared to the agency's 3-day SLA.\n\nWhat is the BEST resolution?",
+    "options": [
+      { "key": "A", "text": "Accept the three-level review: for government benefit responses, thoroughness is more important than SLA compliance." },
+      { "key": "B", "text": "Eliminate the review step and fix the 8% error rate by refining Claude's prompt to include the current entitlement calculation rules." },
+      { "key": "C", "text": "Apply risk stratification: route complex or high-value entitlement cases through all three review levels; route straightforward cases through analyst review only after prompt refinement to reduce the 8% error rate." },
+      { "key": "D", "text": "Reduce the SLA to 5 days to accommodate the three-level review without changing the workflow structure." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The process engineer is correct that three-level review for all responses is disproportionate. But the agency head is correct that the 8% error rate requires more than the current single-level review. The resolution is two-pronged: reduce the error rate through prompt refinement (addressing the root cause), and apply risk-stratified review (more levels for complex/high-stakes cases, fewer for straightforward ones). This achieves the goal of reliable responses within SLA — not by choosing between quality and speed, but by matching review intensity to case risk.",
+      "distractors": {
+        "A": "Blanket acceptance of the three-level review violates the SLA and applies disproportionate oversight to straightforward cases. SLA compliance for citizen enquiries is itself a service obligation — not a convenience to sacrifice for thoroughness.",
+        "B": "Eliminating the review step and relying on prompt refinement alone is insufficient for government benefit entitlement responses. An 8% error rate affects citizens' rights; even a substantially reduced error rate after prompt work may still require a review step for complex cases. Prompt refinement addresses the root cause but does not eliminate the oversight requirement.",
+        "D": "Extending the SLA to accommodate an inefficient review process places the cost of over-engineering on citizens who need responses. The SLA exists to serve citizens; redesigning the process to meet it is preferable to changing the SLA."
+      },
+      "concept": "**Multi-level review design** must balance thoroughness with operational feasibility. Three levels of review are appropriate for the most complex, high-stakes cases — they create bottlenecks and SLA violations if applied universally.\n\nThe resolution to a 'more review vs. faster response' dilemma is almost always risk stratification:\n\n1. **Fix the root cause** — if the error rate is high, prompt refinement or data quality improvement should happen alongside review redesign, not instead of it\n2. **Match review levels to case risk** — complex, high-value, or legally sensitive cases warrant intensive review; straightforward cases can progress with lighter-touch oversight once the prompt is refined\n3. **Monitor the error rate post-refinement** — risk stratification thresholds should be calibrated based on observed accuracy after prompt improvement\n\nThis approach achieves both objectives: quality for high-risk cases and SLA compliance for the majority.",
+      "examTip": "When an exam item presents a binary choice between thoroughness and speed, the answer is almost always risk stratification — not a choice between the two extremes. The tell: the scenario presents two positions that are both partially correct (agency head: error rate is real; process engineer: three levels for all is disproportionate). The exam expects synthesis, not a choice between the two. Two-part answers (fix the cause + stratify the review) recur in hard operational design items."
+    }
+  },
+  {
+    "id": "WIS-B-062",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Auditability — version-controlled workflows",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A head of compliance at an asset management firm learns that the firm's Claude-assisted trade reconciliation workflow has been updated three times in the past quarter — the system prompt, the escalation criteria, and the output format all changed. A regulatory enquiry asks the firm to explain how a specific reconciliation exception from six weeks ago was handled.\n\nWhat audit record does the firm need to answer this question completely?",
+    "options": [
+      { "key": "A", "text": "The reconciliation exception report from six weeks ago and the email approving the exception resolution." },
+      { "key": "B", "text": "The current system prompt and escalation criteria, plus the exception report and resolution approval." },
+      { "key": "C", "text": "The system prompt, escalation criteria, and output format that were active six weeks ago, together with the exception report and the identity and timestamp of the person who reviewed and resolved the exception." },
+      { "key": "D", "text": "The log of all three workflow updates showing what changed and when, plus the final exception report." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "To explain how a specific exception from six weeks ago was handled, the firm must reconstruct the workflow as it existed at that time: the prompt, escalation criteria, and output format that were active then. If the regulator asks why the exception was classified a certain way, the answer depends on the criteria that were in effect — not the current criteria. The record also needs the exception report and the reviewer's identity and timestamp for the resolution. Option C assembles the complete picture: process configuration at the time + decision record.",
+      "distractors": {
+        "A": "The exception report and resolution approval show what was decided but not what process produced the classification. Without the workflow configuration that was active at the time, the firm cannot explain how the exception was identified, classified, or escalated.",
+        "B": "The current system prompt and escalation criteria are not what were active six weeks ago. The workflow has been updated three times since — using current configuration to explain a past decision is incorrect and potentially misleading to the regulator.",
+        "D": "The log of updates shows what changed and when, which helps establish which configuration was active at the time. But the log alone does not contain the actual configuration content — the firm needs the specific version of each element that was in effect, not just a record that changes occurred."
+      },
+      "concept": "**Workflow version control** is the practice of maintaining historical records of the configuration elements that govern an AI-assisted workflow — system prompts, escalation criteria, output format specifications, classification rules — so that past decisions can be reconstructed and explained.\n\nFor compliance and regulatory purposes, the relevant version is the one that was **active at the time of the decision**, not the current version. This is analogous to version control in software: the code that produced an output must be traceable, not just the current code.\n\nWhat must be version-controlled in an AI-assisted compliance workflow:\n- System prompts (including any updates)\n- Escalation criteria and thresholds\n- Output format specifications\n- Data sources and connector configurations\n\nVersion control implementation: treat each workflow update as a versioned release with a date stamp. Link each output record to the workflow version that was active when it was produced.",
+      "examTip": "This item tests whether you understand that the audit record for a past decision must reference the *past* configuration, not the *current* one. Option B is the most seductive wrong answer — it sounds comprehensive but uses current configuration to explain a past decision. On the exam, whenever a workflow has changed and a past decision must be explained, the correct answer includes the historical version of the configuration that was active at the time."
+    }
+  },
+  {
+    "id": "WIS-B-063",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "HITL and data flow — patient safety context",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A clinical systems director at a large hospital network is designing a Claude-assisted workflow for generating medication reconciliation reports at patient admission. The reports list discrepancies between the patient's reported home medications and active hospital prescriptions. Which TWO design controls are MOST critical for patient safety in this workflow? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Requiring a pharmacist or prescribing clinician to review and sign off on each reconciliation report before any discrepancy is acted upon." },
+      { "key": "B", "text": "Configuring Claude to flag cases where the source data (reported medications vs. prescription list) appears incomplete or contradictory, routing these to the pharmacist as priority cases." },
+      { "key": "C", "text": "Storing each reconciliation report in the EHR with a timestamp and the patient's admission ID, enabling retrospective audit of reconciliation decisions." },
+      { "key": "D", "text": "Using a read-only connector to the hospital's pharmacy system so Claude can access active prescriptions directly rather than relying on manually entered data." },
+      { "key": "E", "text": "Sending the reconciliation report to the patient so they can confirm the accuracy of their reported home medication list." }
+    ],
+    "correct": ["A", "B"],
+    "explanation": {
+      "correct": "Option A ensures that no reconciliation discrepancy leads to a clinical action without a qualified clinician reviewing and approving the report — the fundamental patient safety control for a medication reconciliation workflow. Medication discrepancies can be life-critical; acting on AI output without pharmacist or clinician review creates direct patient harm risk. Option B addresses data quality: Claude flagging incomplete or contradictory source data ensures that pharmacists are alerted to cases where the reconciliation may be unreliable, preventing the workflow from producing a false assurance of completeness when the source data is insufficient.",
+      "distractors": {
+        "C": "Audit trail storage is important for retrospective review and quality improvement, but it is not the most critical safety control for active patient care. The audit trail documents what happened; options A and B prevent harmful outcomes from happening.",
+        "D": "A read-only pharmacy connector improves the accuracy of Claude's input data, which is valuable. But improved input data does not eliminate the need for clinical review of the reconciliation output — it reduces the probability of a data-entry error on the prescription side while not addressing the comparison logic or the clinician sign-off requirement.",
+        "E": "Sending the report to the patient for confirmation is a transparency and engagement practice but is not appropriate as a patient safety control. Patients may not accurately recall all home medications, may not understand the clinical significance of discrepancies, and clinical reconciliation decisions must be made by qualified professionals."
+      },
+      "concept": "**Medication reconciliation** is a patient safety process designed to identify and resolve discrepancies between a patient's actual medications and those prescribed during a care transition. Errors in medication reconciliation are a leading cause of preventable adverse events.\n\nFor an AI-assisted medication reconciliation workflow, two patient safety requirements are paramount:\n\n1. **Mandatory qualified clinical review before action** — no discrepancy identified by Claude should trigger a medication change without a pharmacist or prescribing clinician confirming the reconciliation assessment\n2. **Data quality and completeness flagging** — the workflow must surface cases where the input data is insufficient to produce a reliable reconciliation, so clinicians are alerted rather than presented with a false-confident report\n\nAudit trails (C) and connector data quality (D) are important supporting features, but they are subordinate to the two primary safety controls.",
+      "examTip": "Patient safety workflow items require you to identify the controls that prevent direct patient harm — always the mandatory clinical review and the data quality signal. Audit trails (C) and connector access (D) are infrastructure; patient engagement (E) is transparent but not a safety control. When 'patient safety' appears in the stem, the two correct answers are almost always: the human clinical approval gate, and the mechanism that alerts clinicians when the AI cannot produce a reliable output."
+    }
+  },
+  {
+    "id": "WIS-B-064",
+    "domain": "Workflow Integration and Solution Design",
+    "topic": "Resilience and auditability — combined cross-cutting judgment",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A digital transformation lead at a logistics company has built a Claude-assisted shipment exception workflow. After six months in production, an internal audit finds two problems: (1) during two 3-hour Claude outages last quarter, 140 shipment exceptions were not processed, causing customer SLA breaches; (2) the audit cannot determine who reviewed and approved exceptions resolved during normal operations, because the approval log captures only the exception ID and resolution code, not the reviewer's identity.\n\nWhich single action MOST efficiently addresses BOTH findings?",
+    "options": [
+      { "key": "A", "text": "Add reviewer identity to the approval log and build a manual exception processing procedure for Claude outages." },
+      { "key": "B", "text": "Deploy a secondary Claude instance that processes exceptions when the primary is unavailable, and add reviewer identity to the approval log." },
+      { "key": "C", "text": "Add reviewer identity to the approval log and configure Claude to alert the team when it detects an impending outage." },
+      { "key": "D", "text": "Build a manual exception processing procedure for outages, and configure the approval log to capture the full exception narrative in addition to the ID and resolution code." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The audit found two independent failures: a resilience gap (no manual fallback for outages) and an audit trail gap (reviewer identity not logged). Option A directly addresses both with the minimum necessary fix: adding reviewer identity closes the audit trail gap; building a manual procedure closes the resilience gap. This is the most efficient combination because it fixes the exact identified deficiency in each area without adding unnecessary complexity.",
+      "distractors": {
+        "B": "A secondary Claude instance reduces outage probability but does not eliminate it — if the Claude service is down, a second Claude project is also unavailable. The resilience gap is the absence of a non-Claude fallback, not insufficient Claude redundancy. This option also correctly addresses the log gap but solves the resilience problem incorrectly.",
+        "C": "Alerting the team to an impending outage is useful for awareness but does not give them a way to continue processing exceptions during the outage. An alert without a manual procedure leaves the team knowing the problem is occurring without the means to address it. This option correctly addresses the log gap but does not fix resilience.",
+        "D": "Capturing the full exception narrative in the log is a more comprehensive audit trail improvement, but the identified gap was specifically the missing reviewer identity — not the absence of a narrative. This option correctly fixes resilience but over-engineers the audit trail fix. The minimum required fix to close the identified finding is reviewer identity; a full narrative is good practice but not the targeted remediation."
+      },
+      "concept": "**Two-finding audit remediation** requires precision: fix the exact identified gap, not a related but different gap, and not an over-engineered version of the fix.\n\nFor finding 1 (resilience — no processing during outages): the minimum fix is a documented manual procedure that enables the team to continue without Claude.\nFor finding 2 (audit trail — reviewer identity missing): the minimum fix is adding the reviewer identity field to the approval log.\n\nOption selection discipline: when multiple options each fix one finding correctly but fix the other incorrectly or disproportionately, the correct answer is the one that addresses both findings with the minimum necessary change. This tests whether you read precisely — 'reviewer identity' vs. 'full narrative' is the discrimination between A and D for finding 2.",
+      "examTip": "This item tests precision: the audit findings name specific gaps, and the correct answer fixes those specific gaps — not adjacent or expanded versions. Option D is the distractor for candidates who add more than required (full narrative vs. reviewer identity). Option B is the distractor for candidates who think a second Claude instance solves the outage problem. Read the finding precisely, identify the minimum fix, and select the option that implements both minimum fixes. Under-engineering is a defect; over-engineering on an audit remediation is waste."
+    }
+  }
+]

@@ -1,0 +1,506 @@
+[
+  {
+    "id": "PTE-B-041",
+    "domain": "Prompting and Task Execution",
+    "topic": "Biased few-shot example set",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A customer success manager at a B2B software company builds a few-shot prompt to classify support tickets as High, Medium, or Low priority. After one week, she notices 90% of tickets are classified Medium. Reviewing the prompt reveals all five examples show Medium-priority tickets.\n\nWhat is the MOST likely cause of this classification skew?",
+    "options": [
+      { "key": "A", "text": "All five examples demonstrated Medium priority, so Claude treats Medium as the default class for ambiguous inputs." },
+      { "key": "B", "text": "Five examples are too few to support a three-tier classification task." },
+      { "key": "C", "text": "Claude cannot classify support tickets without access to the live ticketing system." },
+      { "key": "D", "text": "Priority classification requires numeric scoring rubrics rather than qualitative examples." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "When every example demonstrates the same output class, Claude learns that class as the dominant pattern. Inputs that are ambiguous — and support ticket priority often involves grey areas — default to the class the examples have reinforced. The example set defined Medium as the archetype; other classes received no exemplar and were therefore marginalised. The fix is to add representative examples for each tier.",
+      "distractors": {
+        "B": "Count is not the root issue here — diversity is. Even twenty examples would produce the same skew if all twenty showed Medium. The five examples are insufficient in coverage, not in number.",
+        "C": "Claude can classify any text pasted into a prompt. Live system access is relevant for integration architectures, not for text-based classification from prompt context.",
+        "D": "Numeric rubrics are one approach to classification but are not required. Well-designed qualitative examples are effective for classification tasks. The absence of a rubric is not what caused the skew."
+      },
+      "concept": "**Example distribution determines class weighting.** When one class dominates the training examples, Claude implicitly learns that class as the most likely outcome for ambiguous inputs.\n\nFor classification prompts with N output classes:\n- Include at least one example per class\n- For classes that are commonly confused, include two or more examples\n- For the class that is hardest to detect, consider over-representing it in examples\n\nA homogeneous example set produces a homogeneous output distribution — not because Claude is broken, but because it is doing exactly what the examples suggest.",
+      "examTip": "Ninety percent of one class when three classes exist is the unmistakable signature of a biased example set. When output skews toward one class and that class is over-represented in examples, representativeness is always the answer. Count (B) is the standard misdirection."
+    }
+  },
+  {
+    "id": "PTE-B-042",
+    "domain": "Prompting and Task Execution",
+    "topic": "CoT verbosity without quality gain",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A junior analyst at a wealth management firm adds \"think step by step\" to a prompt generating one-paragraph summaries of 30 client portfolio positions. The output becomes five paragraphs per position — four of reasoning, one of summary. The analyst reports no quality improvement but a review process now taking three times as long.\n\nWhat does this outcome MOST likely indicate?",
+    "options": [
+      { "key": "A", "text": "Chain-of-thought is incompatible with portfolio analysis tasks." },
+      { "key": "B", "text": "The task did not require externalised reasoning — CoT added cost and verbosity without addressing a quality gap in the original output." },
+      { "key": "C", "text": "The analyst should have specified \"brief chain-of-thought\" to constrain the reasoning length." },
+      { "key": "D", "text": "Five paragraphs per position is the correct depth for financial summaries; the review process needs updating, not the prompt." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Chain-of-thought is a tool for tasks where visible reasoning is needed — evaluation, multi-step logic, audit. One-paragraph portfolio summaries are a constrained generation task where the reasoning is not the deliverable. Adding CoT produces extensive, unneeded reasoning blocks that triple review time with no improvement in summary quality. The tool was applied to a problem it does not solve.",
+      "distractors": {
+        "A": "There is no categorical incompatibility between CoT and financial tasks. CoT is appropriate for portfolio evaluation, risk analysis, and multi-factor decisions. It is inappropriate for high-volume constrained generation where reasoning adds no value.",
+        "C": "\"Brief chain-of-thought\" is not a standard phrase that reliably constrains reasoning length. While length instructions can modulate output, the more principled answer is to omit CoT when reasoning is not the goal.",
+        "D": "Five paragraphs of reasoning per summary is not an appropriate target for a client-facing position summary. The prompt added work that the task did not require. The process is not the problem — the prompt choice is."
+      },
+      "concept": "**The cost of chain-of-thought is proportional to the reasoning it generates.** For simple tasks at volume, CoT multiplies token output and review effort with no corresponding quality improvement.\n\nCoT is appropriate when:\n- The reasoning is the deliverable (auditable analysis, explained recommendations)\n- The task involves multi-step logic where intermediate results matter\n- The output needs to be independently verified step by step\n\nCoT is inappropriate when:\n- Output is constrained and simple (one-paragraph summaries, short descriptions)\n- Volume makes latency a design constraint\n- The analyst needs output, not reasoning about output",
+      "examTip": "The tell in this item is \"three times as long to review, no quality improvement\" — that is the cost-without-benefit signature of misapplied CoT. The question tests whether you can separate the appropriate tool (CoT for auditability) from the inappropriate application (CoT for constrained generation)."
+    }
+  },
+  {
+    "id": "PTE-B-043",
+    "domain": "Prompting and Task Execution",
+    "topic": "Inconsistently applied delimiters",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A legal analyst tags five of eight contracts with `<contract>...</contract>` delimiters but forgets to tag the remaining three. Claude correctly applies review criteria to the tagged contracts but treats the three untagged documents as additional instructions rather than content to review.\n\nWhat does this outcome MOST clearly illustrate?",
+    "options": [
+      { "key": "A", "text": "XML tags must be declared in a header at the top of the prompt for Claude to recognise them consistently." },
+      { "key": "B", "text": "Eight documents exceed the number that can be separately tagged in a single prompt." },
+      { "key": "C", "text": "Structural conventions applied inconsistently across a prompt produce inconsistent behaviour — all documents must follow the same tagging convention for reliable results." },
+      { "key": "D", "text": "Claude automatically identifies untagged documents by their formatting and does not require explicit tags." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Tags work as a structural convention: Claude learns that content inside `<contract>` tags is content to review. When three documents arrive without tags, Claude has no structural signal to interpret them as content rather than instructions. Because the prompt already uses tags for some content, the untagged text is more likely to be misinterpreted. Inconsistency in applying a convention undermines the convention's effectiveness.",
+      "distractors": {
+        "A": "No declaration header is needed. XML tags in prompts are processed as conventions, not as schema-validated syntax. The absence of a header did not cause the problem — the absence of consistent tagging did.",
+        "B": "There is no documented limit on the number of tagged sections in a single prompt. Eight contracts, each in their own tags, is a standard pattern that works without a count constraint.",
+        "D": "Claude does not reliably infer that untagged blocks of text are documents rather than instructions when the surrounding context mixes both. Without structural signals, Claude parses text based on content and position, which can produce unpredictable results."
+      },
+      "concept": "**Structural conventions must be applied consistently to be reliable.** If XML tags are used for some documents but not others in the same prompt, Claude applies different parsing logic to different sections — correctly interpreting tagged content as structured input while treating untagged content ambiguously.\n\nBest practice: when you adopt a tagging convention in a prompt, apply it to every instance of that content type. Partial adoption creates structural ambiguity in the sections left untagged.",
+      "examTip": "This item tests consistency, not existence. The analyst used tags — the failure was not using them everywhere. When behaviour is correct for some inputs and wrong for others in the same prompt, the cause is almost always inconsistent application of a structural convention."
+    }
+  },
+  {
+    "id": "PTE-B-044",
+    "domain": "Prompting and Task Execution",
+    "topic": "Prompt chain without human review",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A product manager chains four prompts: Stage 1 extracts user research themes; Stage 2 scores themes by strategic importance; Stage 3 maps themes to feature ideas; Stage 4 drafts a product roadmap. All four stages are submitted and run without reviewing any intermediate output. The final roadmap contains priorities that a product director later identifies as inaccurate.\n\nWhat is the PRIMARY design flaw?",
+    "options": [
+      { "key": "A", "text": "Four stages is too many — prompt chains should be limited to a maximum of three stages." },
+      { "key": "B", "text": "Stage 4 should have been run before Stage 3 to anchor the roadmap structure before feature ideation." },
+      { "key": "C", "text": "All four stages should have been combined into a single comprehensive prompt for coherence." },
+      { "key": "D", "text": "No human review occurred between stages, so any error in Stage 1 or Stage 2 compounded undetected through Stages 3 and 4." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Task decomposition with chaining is designed to create quality gates between stages. Running four stages without any intermediate review eliminates those gates entirely — the error-propagation protection that justifies the complexity is absent. If Stage 1 misclassified a research theme, Stage 2 scored a wrong theme, Stage 3 mapped wrong features, and Stage 4 enshrined those features in a roadmap — all without a single human intervention. The design had the structure of a pipeline but lacked the oversight that makes pipelines safe.",
+      "distractors": {
+        "A": "There is no maximum stage count for prompt chains. Stage count should be determined by the logical structure of the task. Four stages is a common and appropriate depth for complex product workflows.",
+        "B": "Stage ordering should follow logical dependency. The roadmap logically follows feature ideation, which follows theme scoring — the sequence is correct. Reversing 3 and 4 would break the logical flow.",
+        "C": "Combining all four stages into one prompt would make the problem worse: no intermediate outputs, no review opportunities, and lower quality at each stage due to scope overload."
+      },
+      "concept": "**Unchained chaining** — running a multi-stage pipeline with no human review between stages — removes the principal benefit of decomposition. The design looks like a quality-controlled pipeline but functions like a black box.\n\nFor product, strategy, and high-stakes workflows:\n- Stage 1 output should be reviewed before becoming Stage 2 input\n- Errors caught at Stage 1 cost one stage's effort; errors caught at Stage 4 cost all four\n- The cost of review is always lower than the cost of downstream correction\n\nThe pattern of running all stages sequentially and reviewing only the final output is common and almost always wrong for consequential work.",
+      "examTip": "When a chained pipeline produces wrong final output, the diagnosis almost always includes \"no intermediate review.\" Distractors often propose structural changes (fewer stages, different order) rather than the real fix: adding review gates. The chain structure was fine; the oversight architecture was absent."
+    }
+  },
+  {
+    "id": "PTE-B-045",
+    "domain": "Prompting and Task Execution",
+    "topic": "Compound chain failures",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An operations analyst ran a five-stage prompt chain to redesign a warehouse process. The final design is generic, does not reference the Stage 1 bottleneck findings, and Stage 3 contained obvious errors that went unnoticed. (Choose TWO)\n\nWhich TWO design failures MOST likely caused these problems?",
+    "options": [
+      { "key": "A", "text": "The analyst used XML tags in Stage 1 but not in subsequent stages, breaking the structural convention mid-chain." },
+      { "key": "B", "text": "Stage 3 outputs were not reviewed before being passed to Stages 4 and 5." },
+      { "key": "C", "text": "The model used in Stage 1 was insufficient for bottleneck analysis." },
+      { "key": "D", "text": "The Stage 1 bottleneck findings were not explicitly embedded in the final stage's prompt." },
+      { "key": "E", "text": "Five stages is too many for a single chained workflow." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "Option B explains the unnoticed Stage 3 errors: if Stage 3 output was passed directly to Stage 4 without review, errors propagated silently. Option D explains the generic final output: the Stage 1 bottleneck findings — the specific, concrete content that should have grounded the redesign — were not in the final stage's context, so the design had nothing specific to work with.",
+      "distractors": {
+        "A": "Inconsistent XML tagging would affect parsing within tagged stages, but the symptom described — generic output and unnoticed errors — points to missing state and missing review, not parsing failures.",
+        "C": "Model capability is rarely the root cause of generic output. The symptoms described (generic, not referencing specific findings) indicate missing input context, not insufficient model capacity.",
+        "E": "Five stages is not inherently too many. The number of stages should match the logical complexity of the task. The failures here are design choices within the chain, not the chain length."
+      },
+      "concept": "Multi-stage pipeline failures typically fall into two categories:\n\n1. **Missing review gates** — errors in a stage are not caught before they become inputs to the next stage\n2. **Missing state** — the specific outputs that should inform later stages are not explicitly included in those stages' prompts\n\nBoth failures can occur in the same pipeline and compound each other: unreviewed errors that are also not passed forward produce a final output that is both wrong and disconnected from the upstream work.",
+      "examTip": "When a pipeline fails, map symptoms to causes: generic output → missing state from upstream; unnoticed errors → missing review gates. Choose-TWO items on chained workflows usually have one answer for each failure type. Match each correct answer to the symptom it explains."
+    }
+  },
+  {
+    "id": "PTE-B-046",
+    "domain": "Prompting and Task Execution",
+    "topic": "Over-decomposition risk",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An L&D specialist decomposes a course development task into eight separate prompts: one for learning objectives, five for individual module content, one for assessment design, and one for formatting. She asks a colleague whether this level of granularity is appropriate.\n\nWhat is the PRIMARY risk of over-decomposing a workflow?",
+    "options": [
+      { "key": "A", "text": "Each stage boundary adds handoff overhead and a potential state-transfer error — multiplying these across eight stages introduces more coordination complexity than the task warrants." },
+      { "key": "B", "text": "Over-decomposition causes Claude to generate contradictory outputs across stages that cannot be reconciled." },
+      { "key": "C", "text": "Eight prompts will always exceed the token budget of a standard subscription plan." },
+      { "key": "D", "text": "Claude cannot accept more than five chained prompts in a single workflow." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Every stage boundary introduces: a state-transfer step (capturing and embedding the previous output), a review opportunity (which takes time), and a potential handoff error (if state is incorrectly passed). For a task that could be handled in three or four stages without loss of quality, eight stages multiplies coordination overhead and the risk of transfer errors without proportionate benefit. Decomposition should match the logical structure of the task, not be applied maximally.",
+      "distractors": {
+        "B": "Over-decomposition does not inherently cause contradictory outputs. Contradiction across stages can occur with any chain length and is addressed by consistent state passing, not by reducing stage count.",
+        "C": "Token consumption is determined by prompt and response lengths, not by stage count. Eight prompts, each modest in length, may total fewer tokens than two very long prompts.",
+        "D": "There is no platform-imposed limit of five chained prompts. The constraint on chain depth is practical — coordination overhead and state integrity — not a hard technical cap."
+      },
+      "concept": "**Appropriate decomposition** matches stage boundaries to genuine quality-gate or state-complexity boundaries in the task. Excessive decomposition creates:\n\n- More handoff points, each a potential state-transfer failure\n- More review steps, increasing time-to-completion\n- Coordination overhead that may exceed the quality benefit\n\nThe right question is not \"how small can I make each stage?\" but \"where does it genuinely matter to check output before proceeding?\" For most content development workflows, three to five stages is sufficient.",
+      "examTip": "Over-decomposition is a real anti-pattern often overlooked. The answer is always about **coordination cost scaling with stage count**, not about Claude's technical limits or token budgets. Options that invent hard limits (five stages, token cap) are fabricating constraints."
+    }
+  },
+  {
+    "id": "PTE-B-047",
+    "domain": "Prompting and Task Execution",
+    "topic": "Contradictory examples",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An HR analyst builds a five-example few-shot prompt to classify employee survey responses as Satisfied, Neutral, or Dissatisfied. Two examples use nearly identical phrasing — one is labelled Satisfied, the other Dissatisfied. Classification of moderate-tone responses is highly inconsistent in testing.\n\nWhat is the MOST likely cause of this inconsistency?",
+    "options": [
+      { "key": "A", "text": "Five examples are too few for a three-class classification task." },
+      { "key": "B", "text": "Contradictory examples — similar inputs mapped to different output classes — create conflicting signals and produce unpredictable output for boundary inputs." },
+      { "key": "C", "text": "Survey response classification is inherently too subjective for few-shot prompting to handle reliably." },
+      { "key": "D", "text": "Classification prompts require a separate example set for each survey demographic to work accurately." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "When two examples with nearly identical phrasing are assigned to opposite classes, Claude is given contradictory evidence about where the class boundary lies. For inputs near that boundary — moderate-tone responses — Claude has no coherent signal to resolve the contradiction and produces inconsistent output. The fix is to remove or revise the contradictory pair so examples define clear, unambiguous class boundaries.",
+      "distractors": {
+        "A": "Count is not the variable causing inconsistency here. The problem is internal contradiction within the existing set. Adding more examples without resolving the contradiction would worsen rather than fix the issue.",
+        "C": "Subjectivity in classification can be addressed with clear examples and explicit criteria. The inconsistency here is caused by a specific prompt defect — contradictory examples — not by an inherent limitation of the task type.",
+        "D": "Demographic-specific example sets may improve cultural nuance but are not required for basic three-class classification. This option invents an architectural requirement that does not exist."
+      },
+      "concept": "**Example consistency** is a prerequisite for reliable few-shot classification. When examples contradict each other:\n- Claude cannot identify a consistent mapping from input to class\n- The decision boundary is undefined at the contradiction point\n- Inputs near that boundary produce coin-flip-like outputs\n\nBefore deploying a few-shot classification prompt, review examples for internal consistency: no two examples should produce different outputs for substantially similar inputs unless the difference is clearly meaningful and the examples are carefully designed to demonstrate that distinction.",
+      "examTip": "Easy item: contradictory examples → inconsistent output at the boundary. This is a clean cause-effect relationship. The count distractor (A) is the standard misdirection for few-shot quality questions. Inconsistency is the signal; contradiction is the cause."
+    }
+  },
+  {
+    "id": "PTE-B-048",
+    "domain": "Prompting and Task Execution",
+    "topic": "Step-by-step instruction placement",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A senior consultant asks Claude to \"evaluate this proposal step by step and then give me a final recommendation.\" The response begins with the recommendation, with no visible steps. She repeats the instruction in the same prompt. The response still leads with the recommendation.\n\nWhat is the MOST likely cause, and what is the CORRECT fix?",
+    "options": [
+      { "key": "A", "text": "Claude does not support step-by-step evaluation for consulting proposal tasks — a different technique is required." },
+      { "key": "B", "text": "Repeating instructions in a prompt causes Claude to average them, weakening the step-by-step directive." },
+      { "key": "C", "text": "The step-by-step instruction appears mid-prompt rather than immediately before the question — moving it to the very end of the prompt, immediately before the question, strengthens its influence over response structure." },
+      { "key": "D", "text": "Chain-of-thought cannot be triggered by conversational phrasing; a specific technical phrase is required." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Instruction position within a prompt affects how strongly it influences response structure. Instructions at the very end — immediately before the model generates its response — carry more weight on output format than the same instruction embedded mid-prompt among other content. When the step-by-step directive is separated from the question by substantial text, it has reduced influence. Repositioning it to the end, immediately before the question, is the structural fix.",
+      "distractors": {
+        "A": "Step-by-step evaluation is fully supported for proposal analysis. There is no categorical incompatibility. The failure is a positioning and instruction-influence problem, not a capability limitation.",
+        "B": "Repeating an instruction does not average or cancel it — Claude processes all instances. However, repetition without repositioning does not change the influence issue; the instruction is still in the wrong location.",
+        "D": "\"Think step by step\" and conversational variants like \"evaluate step by step\" are both recognised as chain-of-thought triggers. No specific technical phrase is required."
+      },
+      "concept": "**Instruction position** matters for response structure directives. The general principle: instructions that govern the **format and sequence of the response** should appear as close as possible to the question, at the very end of the prompt.\n\nThis is sometimes called the **recency effect** in prompt structure: the last instruction before the response begins carries stronger formatting influence than the same instruction buried mid-prompt.\n\nFor step-by-step evaluation prompts: `<document>` ... `<document>` Then: \"Evaluate this step by step, covering each of the following dimensions: ... Then give a final recommendation.\"",
+      "examTip": "This hard item tests a subtle prompt-engineering principle: position affects influence. The candidate who knows only that \"step by step\" triggers CoT will miss the diagnosis. The fix is not a different phrase — it is repositioning the existing phrase to the end. Option D is the most dangerous distractor because it sounds like a technical fact."
+    }
+  },
+  {
+    "id": "PTE-B-049",
+    "domain": "Prompting and Task Execution",
+    "topic": "Few-shot gaps for edge cases",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A compliance analyst deploys a few-shot prompt to flag data privacy risks in vendor contracts. It works well for standard privacy clauses but consistently misses ambiguous sub-processor language and cross-border transfer provisions. All five training examples show clear, obvious privacy violations. (Choose TWO)\n\nWhich TWO changes MOST directly address the identified gaps?",
+    "options": [
+      { "key": "A", "text": "Add examples that specifically demonstrate sub-processor and cross-border transfer cases at the detection boundary." },
+      { "key": "B", "text": "Increase the total example count from five to fifteen, distributing them evenly across all risk types." },
+      { "key": "C", "text": "Add a brief instruction describing what to look for in sub-processor and cross-border provisions, alongside the new targeted examples." },
+      { "key": "D", "text": "Switch to a more capable model tier to handle complex contractual language." },
+      { "key": "E", "text": "Split the prompt into two: one for standard privacy violations and a second for complex provisions." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "Option A provides examples for the specific gap types — sub-processor and cross-border cases — giving Claude concrete signal for the patterns it currently cannot detect. Option C adds targeted instruction text that explains what to look for in those provision types. Together, examples and instructions are complementary: examples show the patterns, instructions explain the conceptual boundary. For edge cases where the detection boundary is subtle, both forms of guidance are warranted.",
+      "distractors": {
+        "B": "Distributing fifteen examples evenly across risk types would add some sub-processor and cross-border examples, but \"even distribution\" is a blunt approach. The targeted additions in option A are more efficient and precise.",
+        "D": "Model tier does not address missing example coverage. A more capable model without examples for the gap types will still miss them — capability is not the constraint when the signal is absent.",
+        "E": "Splitting into two prompts adds overhead but does not solve the core problem: the complex-provision prompt would still need examples and instructions for those patterns. Splitting without adding the necessary guidance postpones the problem."
+      },
+      "concept": "**Targeted gap filling** is more efficient than blanket expansion when a prompt has specific blind spots:\n\n1. Identify the classes or input patterns being missed\n2. Add examples that specifically demonstrate those patterns — not generic additions\n3. Optionally add brief instruction text that explains the conceptual distinction Claude is missing\n\nFor edge cases at the detection boundary — ambiguous language, complex legal provisions — examples alone may be insufficient; instruction text that explains the conceptual distinction provides additional signal that examples cannot fully convey.",
+      "examTip": "This hard item tests targeted repair vs. generic scaling. \"Add more examples evenly\" (B) sounds systematic but is less effective than targeted examples for the specific gaps (A). The real question is: what is Claude missing and why? Gap examples + gap instructions is the precise answer to a specific gap."
+    }
+  },
+  {
+    "id": "PTE-B-050",
+    "domain": "Prompting and Task Execution",
+    "topic": "Missing examples for structural patterns",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A grant officer asks Claude to extract all award conditions from a 50-page federal grant agreement. The extraction misses six conditions embedded in complex conditional structures: \"If the grantee fails to... the award may be...\" The officer asks what is causing the omissions.\n\nWhat is the MOST likely cause?",
+    "options": [
+      { "key": "A", "text": "The prompt provided no examples showing how to extract conditions from conditional sentence structures, so Claude did not apply that pattern to the if-then constructions." },
+      { "key": "B", "text": "Federal grant language uses specialised vocabulary that Claude cannot parse without domain-specific training." },
+      { "key": "C", "text": "Fifty pages exceeds the practical document length for extraction tasks." },
+      { "key": "D", "text": "The prompt asked for \"conditions\" but the correct legal term is \"obligations\" — the terminology mismatch caused the misses." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Claude extracted conditions in straightforward declarative form but missed conditions encoded in conditional structures. This is a pattern-coverage gap in the prompt: no example demonstrated extraction from \"if... then...\" constructions, so Claude did not generalise to that pattern. Adding an example that shows a conditional-structure condition being extracted would close this gap.",
+      "distractors": {
+        "B": "Claude has extensive coverage of federal grant and legal language from its training. Specialised vocabulary is not the barrier for standard US grant agreement terminology.",
+        "C": "Fifty pages is well within the practical range for document extraction tasks. Length did not cause the selective omission of a specific structural pattern.",
+        "D": "Claude recognises both \"conditions\" and \"obligations\" in legal contexts and would not systematically miss content based on a single synonym difference. The omissions track a structural pattern, not a vocabulary mismatch."
+      },
+      "concept": "**Structural pattern coverage** is a form of example representativeness. If a task requires extracting information from multiple sentence structures, examples should cover each structure type.\n\nFor legal and policy extraction:\n- Declarative statements: \"The grantee must...\"\n- Conditional statements: \"If... then...\"\n- Negative obligations: \"The grantee shall not...\"\n- Cross-references: \"As defined in Section 4...\"\n\nEach structure type may require a separate example to ensure Claude applies consistent extraction logic across all forms.",
+      "examTip": "When extraction succeeds for obvious cases but fails for a specific sentence structure, the cause is always missing example coverage for that structure — not vocabulary, not length, not terminology. The diagnostic question: does the prompt show examples of this structural pattern? If not, add one."
+    }
+  },
+  {
+    "id": "PTE-B-051",
+    "domain": "Prompting and Task Execution",
+    "topic": "Kitchen-sink prompt anti-pattern",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A product analyst sends Claude a 600-word prompt containing: company background, target market context, six feature ideas, competitive landscape notes, three operational constraints, and a final question asking for a priority ranking of the features. The response ranks only two of the six features and ignores the constraints entirely.\n\nWhat is the PRIMARY structural flaw in this prompt?",
+    "options": [
+      { "key": "A", "text": "Six features exceed the number Claude can rank in a single prompt." },
+      { "key": "B", "text": "The prompt mixes background context, analytical content, and task instructions without structural separation, making it difficult for Claude to identify what it is being asked to do." },
+      { "key": "C", "text": "The prompt should have been submitted via API rather than the chat interface." },
+      { "key": "D", "text": "Six hundred words exceeds the practical character limit for a single message." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "A 600-word prompt containing six distinct types of content — background, market, features, competitive data, constraints, and task — is the classic kitchen-sink anti-pattern. Without structural separation, Claude must infer which content is context, which is data to analyse, and which is the actual task. The instruction is buried. Claude allocated attention to the prominent, detailed content (features) and underweighted the constraints, which appeared as a side condition rather than a key requirement. XML tags and task decomposition would structure this appropriately.",
+      "distractors": {
+        "A": "Claude can rank six items reliably. The problem is not the number of features to rank but the structural noise surrounding the ranking task.",
+        "C": "Interface choice does not affect how Claude processes a structurally complex prompt. A kitchen-sink prompt produces the same result through API or chat.",
+        "D": "Six hundred words is well within practical limits for any Claude interface. Length is not the variable causing selective execution."
+      },
+      "concept": "The **kitchen-sink anti-pattern** occurs when a prompt tries to provide all relevant context, data, and instructions in an unstructured block. The failure modes:\n\n- The task question is buried after substantial preamble\n- Constraints appear as qualifications rather than as first-class requirements\n- Claude allocates attention proportional to text volume, not to semantic priority\n\nFix: separate each type of content with XML tags, state the task clearly and prominently, and reduce context to what is strictly necessary for the task.",
+      "examTip": "When a prompt mixes many types of content and output is incomplete or ignores certain requirements, the diagnosis is structural noise — the kitchen-sink anti-pattern. The fix is structure, not a different interface or a longer response. Constraint-ignoring is the signature symptom: constraints buried in prose are the most common casualty."
+    }
+  },
+  {
+    "id": "PTE-B-052",
+    "domain": "Prompting and Task Execution",
+    "topic": "Targeted document query",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A policy researcher uploads a 200-page government regulation and asks: \"What is the penalty for a first-time violation of Section 14(b)?\" The response describes the general penalty framework but does not cite Section 14(b) specifically.\n\nWhat is the MOST effective prompt adjustment?",
+    "options": [
+      { "key": "A", "text": "Ask Claude to summarise the entire regulation before answering the specific question." },
+      { "key": "B", "text": "Upload the regulation in sections rather than as one large file." },
+      { "key": "C", "text": "Direct Claude to search specifically within Section 14(b), quote the relevant text, and then answer the question — rather than asking a general question about the full document." },
+      { "key": "D", "text": "Switch to Research mode to allow Claude to cross-reference external regulatory databases." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "A general question applied to a 200-page regulation invites a general answer. By directing Claude to a specific section and requiring it to quote the text before answering, the researcher anchors the response to the actual provision rather than the general framework. The quote requirement is a discipline that forces Claude to locate and surface the exact language rather than paraphrase from the broader document.",
+      "distractors": {
+        "A": "A full document summary is a lossy step — specific section details like Section 14(b) penalty language may not survive summarisation of a 200-page document. Summarising before extracting a specific fact is the wrong sequence.",
+        "B": "Uploading in sections adds complexity without necessarily directing Claude to Section 14(b). The section structure is a document management choice, not an attention-direction technique.",
+        "D": "Research mode adds external web sources. For a question about a specific provision in a specific uploaded regulation, external databases are irrelevant — the answer must come from the document itself."
+      },
+      "concept": "**Targeted section queries** are more effective than general document questions for large documents with a specific information need. The pattern:\n\n1. Name the section explicitly: \"Within Section 14(b)...\"\n2. Require quotation before interpretation: \"...quote the relevant text...\"\n3. Then ask the specific question: \"...and explain what this means for a first-time violation.\"\n\nThis three-part structure prevents general-framework responses by requiring a specific grounding step before any interpretation.",
+      "examTip": "For large-document queries, the fix for a general response is always more **specificity in the question**, not more document processing (summarise first) or more external sources (Research mode). Direct Claude to the section, require the quote, then ask the question."
+    }
+  },
+  {
+    "id": "PTE-B-053",
+    "domain": "Prompting and Task Execution",
+    "topic": "Cross-session state loss",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A financial analyst uses a three-stage prompt chain across three separate days. On day three she starts a new chat session for Stage 3. The Stage 3 output references \"the previous analysis\" but the content is generic — the specific findings from days one and two do not appear.\n\nWhat is the MOST likely cause?",
+    "options": [
+      { "key": "A", "text": "Claude cannot access files shared in previous sessions through the standard chat interface." },
+      { "key": "B", "text": "Starting a new session on day three reset the model's conversation memory from days one and two." },
+      { "key": "C", "text": "A three-day prompt chain exceeds the maximum session duration for chained workflows." },
+      { "key": "D", "text": "The Stage 1 and Stage 2 outputs were not embedded in the Stage 3 prompt — Claude had no access to the upstream findings." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Claude has no persistent memory across sessions. When the analyst started a new chat on day three, she began a blank context. The Stage 3 prompt did not include the Stage 1 or Stage 2 outputs — so Claude had nothing specific to work from. The reference to \"the previous analysis\" in the output is Claude generating plausible-sounding language without grounding. The fix: embed the verified Stage 1 and Stage 2 outputs explicitly in the Stage 3 prompt.",
+      "distractors": {
+        "A": "Claude cannot access any prior session content regardless of file or text format — not because of interface limitations but because each session begins with a blank context. The issue is not file access; it is absent context.",
+        "B": "There is no \"memory\" to reset — Claude does not accumulate memory between sessions in the first place. Starting a new session means starting with no prior context. This is the mechanism, but option D describes the fix correctly while B only describes the mechanism without prescribing the solution.",
+        "C": "There is no maximum session duration or day-count limit for prompt chains. The constraint is always about what is in context, not how many days have passed."
+      },
+      "concept": "**Cross-session prompt chains** require explicit context reconstruction at each session boundary. Claude has no persistent memory:\n- A new chat session = a blank context\n- Prior work exists only in the practitioner's records, not in Claude's memory\n- Any prior output that Stage N+1 needs must be explicitly included in Stage N+1's prompt\n\nThis is a fundamental property of stateless language models, not a limitation of a specific interface.",
+      "examTip": "Any item where output references prior work but the content is generic = missing state. When sessions span multiple days or when a new chat is started, the practitioner must manually reconstruct the relevant context. Option B describes what happens (no memory) without identifying the fix; option D identifies both the cause and the actionable solution."
+    }
+  },
+  {
+    "id": "PTE-B-054",
+    "domain": "Prompting and Task Execution",
+    "topic": "Multi-document prompt structure",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A senior manager uploads three policy documents and a compliance checklist in a single long prompt. Claude's response addresses some checklist items but misses others, and references only policy document one while ignoring documents two and three. (Choose TWO)\n\nWhich TWO structural fixes are MOST likely to improve coverage across all three documents?",
+    "options": [
+      { "key": "A", "text": "Wrap each document in descriptively named XML tags — `<policy_1>`, `<policy_2>`, `<policy_3>` — to delineate their content boundaries." },
+      { "key": "B", "text": "Merge the three policy documents into a single combined document before uploading to reduce prompt complexity." },
+      { "key": "C", "text": "Instruct Claude to address each checklist item one by one, citing the relevant policy document for each finding." },
+      { "key": "D", "text": "Reorder the three documents so the most relevant one appears last in the prompt." },
+      { "key": "E", "text": "Ask Claude to confirm it has read all three policy documents before beginning the compliance review." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "Option A (XML tags per document) creates distinct boundaries so Claude treats each as a separate, named source rather than a single undifferentiated block where the first document dominates. Option C (checklist item by item with source citations) forces systematic coverage — each item must be addressed, and each must be traced to a specific policy document. Together they address both the document-coverage problem (A) and the checklist-coverage problem (C).",
+      "distractors": {
+        "B": "Merging three documents into one removes their distinct identities and makes it harder, not easier, to trace which policy source applies to each checklist item. Merging increases structural ambiguity.",
+        "D": "Reordering so the most relevant document is last uses the recency effect but does not address documents two and three being ignored, nor does it ensure systematic checklist coverage.",
+        "E": "Confirmation adds a verbal acknowledgement but does not change how Claude processes the documents. A confirmation step does not guarantee that attention is distributed across all three sources."
+      },
+      "concept": "**Multi-document prompts** benefit from two complementary structural devices:\n\n1. **Document tagging** — XML tags give each document a distinct identity and prevent content from one document overwhelming the others\n2. **Systematic task instruction** — specifying that each output item must cite a source forces Claude to draw from the full document set rather than defaulting to the most prominent document\n\nThese two devices address different failure modes: tagging prevents document blending; systematic instruction prevents selective coverage.",
+      "examTip": "Multi-document scenarios have two layers of coverage to ensure: document coverage (all documents are consulted) and task coverage (all checklist items are addressed). Look for one answer per layer. Merging documents (B) is a common wrong answer that sounds like simplification but removes necessary structure."
+    }
+  },
+  {
+    "id": "PTE-B-055",
+    "domain": "Prompting and Task Execution",
+    "topic": "Missing delimiters cause role confusion",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A technical consultant pastes a product specification document directly into a prompt followed by analysis instructions, with no separator between them. Claude's response edits sections of the specification rather than producing an analysis.\n\nWhat is the MOST direct cause?",
+    "options": [
+      { "key": "A", "text": "Without structural delimiters, Claude cannot reliably distinguish content to analyse from instructions to follow — the specification and instructions merge into an undifferentiated text block." },
+      { "key": "B", "text": "Product specification documents use a technical format that Claude cannot parse without a structured import mode." },
+      { "key": "C", "text": "Analysis tasks require a separate prompt from the document submission; they cannot be combined in one message." },
+      { "key": "D", "text": "The instructions should have been placed before the document for Claude to treat them as directives." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "When a document and instructions appear as continuous, undelimited text, Claude reads the block holistically. Without tags or separators to signal role differences, it may treat instruction text as part of the document (and therefore subject to analysis or editing) or treat document text as instructions. The symptom — editing the specification instead of analysing it — is the direct result of this role ambiguity.",
+      "distractors": {
+        "B": "Product specifications are standard text documents that Claude can process without special modes. Technical formatting (e.g., numbered sections, tables) does not require special import handling.",
+        "C": "Documents and analysis instructions can and should be combined in a single prompt — that is their normal usage pattern. The issue is structure within the combined prompt, not the fact of combination.",
+        "D": "Placing instructions before the document is a valid alternative, but the core issue is the absence of any delimiter, not the relative ordering. A separator or XML tags would resolve the ambiguity regardless of which section comes first."
+      },
+      "concept": "Role ambiguity between document content and task instructions is the most common prompt structure error for document-analysis tasks. Claude processes the entire prompt as a sequence of text and infers the role of each section from contextual signals.\n\nWithout delimiters:\n- Instructions at the end may be read as additional document content\n- Document content near instructions may be treated as directives\n\nWith `<document>...</document>` and `<instructions>...</instructions>`, the role of each section is unambiguous.",
+      "examTip": "This easy item has one correct answer and three distractors that invent constraints or misplace the cause. The cause is always structural ambiguity when document and instructions are undelimited. Option D is partially right about ordering but misses the central issue."
+    }
+  },
+  {
+    "id": "PTE-B-056",
+    "domain": "Prompting and Task Execution",
+    "topic": "Example quality — coverage of subtle patterns",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An analyst builds a few-shot prompt to detect financial reporting anomalies. The three examples all show high-severity, obvious anomalies. In production, the prompt misses subtle anomalies — small rounding discrepancies and unusual intercompany allocations — that auditors consider material.\n\nWhat is the MOST precise diagnosis?",
+    "options": [
+      { "key": "A", "text": "Three examples are too few for anomaly detection; a minimum of ten is recommended." },
+      { "key": "B", "text": "Obvious and subtle anomalies require different models because they require different levels of reasoning depth." },
+      { "key": "C", "text": "The examples did not include subtle or boundary-case anomalies, so Claude has no signal for what those patterns look like in this financial context." },
+      { "key": "D", "text": "Subtle anomalies cannot be detected through prompting and require custom fine-tuning on proprietary financial data." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The examples showed only high-severity, obvious patterns. Claude learned what obvious anomalies look like and applied that pattern. Subtle rounding discrepancies and unusual allocation patterns are distinct signals that require distinct examples. Without examples of those patterns, Claude has no basis for detecting them — not because it lacks the analytical capability, but because the prompting context never demonstrated what constitutes a subtle anomaly in this firm's reporting style.",
+      "distractors": {
+        "A": "Count is not the variable. Three high-severity examples would still produce the same blind spots even if expanded to ten, as long as none of the examples showed subtle patterns.",
+        "B": "Obvious and subtle anomaly detection differ in signal strength, not in the reasoning mechanism required. The same model can handle both with appropriate examples. No tier switch is warranted.",
+        "D": "Fine-tuning is not required for few-shot anomaly detection. The limitation here is example coverage, which is a prompt design problem. Fine-tuning is appropriate when the failure is a fundamental capability gap, not a signal gap."
+      },
+      "concept": "**Example coverage by severity tier** matters for detection tasks. When examples cover only high-severity cases:\n- Claude learns the high-severity pattern\n- Subtle signals that do not match the high-severity pattern are not flagged\n- The effective threshold for detection is implicitly set by the severity of the examples\n\nTo detect across the full severity range, include examples from each tier: obvious, subtle, and boundary cases where a reasonable analyst would have to look twice.",
+      "examTip": "Severity coverage is a specialised form of representativeness. When production misses a specific severity tier, the diagnosis is always missing examples for that tier. The count distractor (A) is standard misdirection; the fine-tuning distractor (D) conflates a prompting problem with a model training problem."
+    }
+  },
+  {
+    "id": "PTE-B-057",
+    "domain": "Prompting and Task Execution",
+    "topic": "Error compounding in automated chains",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A data team builds a four-stage prompt chain to generate patient cohort criteria: Stage 1 (inclusion criteria from guidelines), Stage 2 (structured query logic), Stage 3 (clinical validation), Stage 4 (patient consent language). All stages run automatically with no human review. Stage 2 introduces a logical negation error. Stage 3 validation runs against Stage 2's flawed output. Stage 4 consent language is generated from Stage 3's compromised validation.\n\nWhat is the MOST significant design flaw?",
+    "options": [
+      { "key": "A", "text": "The chain was too long; four stages should be collapsed to two for a clinical workflow." },
+      { "key": "B", "text": "Clinical logic translation should always use a specialised model trained on healthcare data." },
+      { "key": "C", "text": "Stage 3 was designed as a validation step but was executed by Claude without a human clinician reviewing the output, making it ineffective as a quality gate." },
+      { "key": "D", "text": "The automated pipeline removed human review checkpoints between stages, allowing a Stage 2 error to propagate silently through Stages 3 and 4 into patient-facing consent documentation." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "A four-stage clinical pipeline that runs without human review at any point is a patient-safety risk. Stage 3 was designed as a validation step — but when Claude runs Stage 3 automatically using Stage 2's flawed output, it validates the flawed logic, not the correct logic. The negation error then reaches Stage 4 and enters patient consent language. The most significant flaw is architectural: the automation eliminated the human oversight that should have caught the Stage 2 error before it reached a patient-facing document.",
+      "distractors": {
+        "A": "Stage count is not the flaw. A well-reviewed four-stage chain would be safer than a two-stage automated chain. The issue is absent review, not chain length.",
+        "B": "Specialised models may add value in clinical contexts, but the problem described — a logical negation error propagating into patient documentation — is a review-architecture failure, not a model-selection failure.",
+        "C": "Option C is partially correct: Claude-run validation is not equivalent to clinician review. But C frames the flaw as a Stage 3 design issue rather than the systemic absence of human oversight across all stages. D more completely captures the compounding nature of the failure."
+      },
+      "concept": "**Patient-facing pipeline design** requires mandatory human review at every stage that transforms clinical logic or generates content for patients. The pattern:\n\n- Clinical logic stages: require clinician review before proceeding\n- Query logic stages: require technical and clinical validation before use\n- Consent language stages: require regulatory and ethics review before finalisation\n\nAutomating all four stages treats a safety-critical pipeline as if it were a content generation task. The compounding failure — each stage building on an unreviewed error — is exactly the risk that human review gates are designed to prevent.",
+      "examTip": "This hard item tests a principle about high-stakes automated pipelines: the automation that removes human checkpoints is the flaw, not the stage count or model choice. In clinical, legal, or patient-facing contexts, \"fully automated\" is almost always wrong. Option C is a partial truth — it isolates Stage 3 when the problem spans all stages."
+    }
+  },
+  {
+    "id": "PTE-B-058",
+    "domain": "Prompting and Task Execution",
+    "topic": "CoT does not self-certify accuracy",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A regulatory affairs manager asks Claude to evaluate whether a product modification triggers re-registration requirements. She adds \"think step by step\" to make the reasoning visible. Claude produces a detailed four-step analysis concluding no re-registration is required. She submits without expert review. A regulatory consultant later finds that Step 3 applied the wrong product-category threshold.\n\nWhat lesson does this scenario MOST directly illustrate?",
+    "options": [
+      { "key": "A", "text": "Chain-of-thought should not be used for regulatory tasks because it produces complex output that is difficult to review." },
+      { "key": "B", "text": "The detailed reasoning output confirms the analysis was thorough before submission." },
+      { "key": "C", "text": "Claude should have been instructed to express uncertainty explicitly if it was unsure of any step." },
+      { "key": "D", "text": "Visible reasoning is auditable but not self-certifying — detailed steps can contain errors, and expert review remains required for high-stakes regulatory determinations." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Chain-of-thought externalises reasoning so it can be audited — it does not certify that the reasoning is correct. The manager saw a four-step analysis and inferred that thoroughness implied accuracy. The error in Step 3 was visible to anyone with the domain knowledge to spot it — but the manager lacked that knowledge and the detailed format gave a false impression of reliability. CoT makes errors easier to catch for experts; it does not eliminate the need for expert review.",
+      "distractors": {
+        "A": "CoT is appropriate for regulatory tasks and improves reviewability. The failure was not using CoT — it was submitting without expert review. Banning CoT for regulatory tasks would remove the very tool that could have allowed a consultant to catch the error.",
+        "B": "Detailed reasoning confirms effort, not accuracy. A four-step analysis can be thoroughly wrong. Equating thoroughness with correctness is the misconception this item is designed to surface.",
+        "C": "Calibrated uncertainty expressions are valuable but would not have prevented submission in this case — the manager was looking at confident-sounding reasoning and trusted it. The solution is not a different confidence expression but independent expert review."
+      },
+      "concept": "**Chain-of-thought as an auditing tool, not a certification tool.** Visible reasoning:\n- Makes errors easier to detect for someone with domain expertise\n- Does not reduce the probability of errors occurring\n- Does not substitute for independent expert review in high-stakes domains\n\nThe misconception: \"If I can see the steps, and the steps look logical, the answer must be correct.\" The reality: each step can be individually plausible-sounding while still applying the wrong standard, threshold, or interpretation.\n\nIn regulated domains — regulatory affairs, legal, clinical — CoT improves the efficiency of expert review; it does not replace it.",
+      "examTip": "This hard item tests whether you understand the **limits of CoT** as well as its value. CoT makes reasoning visible and auditable — it is a transparency tool. Option B is the trap: the detailed format creates an illusion of self-validation. The correct answer names the limitation precisely: auditable ≠ accurate, and visibility ≠ certification."
+    }
+  },
+  {
+    "id": "PTE-B-059",
+    "domain": "Prompting and Task Execution",
+    "topic": "Diagnosing a state gap in a prompt chain",
+    "difficulty": "medium",
+    "type": "nextstep",
+    "stem": "A supply chain analyst is debugging a three-stage prompt chain that produces a generic remediation plan in Stage 3. She has confirmed: Stage 1 correctly identified six supplier risk flags; Stage 2 produced a risk prioritisation matrix. She is now diagnosing why Stage 3 is generic.\n\nWhat should she check FIRST?",
+    "options": [
+      { "key": "A", "text": "Whether the Stage 3 prompt specifies the correct model tier for remediation planning." },
+      { "key": "B", "text": "Whether the Stage 1 and Stage 2 outputs are explicitly included in the Stage 3 prompt." },
+      { "key": "C", "text": "Whether the Stage 3 prompt is too short to produce a detailed remediation plan." },
+      { "key": "D", "text": "Whether the supplier risk categories in Stage 1 fall within Claude's domain knowledge." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Generic output that does not reference specific upstream findings is the signature symptom of a missing state handoff. Given that Stages 1 and 2 are confirmed to be working correctly, the first and most likely check is whether their outputs are actually present in the Stage 3 prompt. If they are not, Claude is drafting a remediation plan without any specific risks to remediate — producing generic content is the only possible outcome.",
+      "distractors": {
+        "A": "Model tier is not the first diagnostic check when the symptom is generic rather than wrong. Generic output indicates missing input, not insufficient model capability.",
+        "C": "Prompt length is a secondary concern. A short prompt with specific risk flags would produce a specific plan; a long prompt without them would still produce a generic one. The content, not the length, is what matters.",
+        "D": "Stage 1 has already been confirmed correct — it identified the risks. Claude's domain knowledge was sufficient for that step. The diagnosis should focus on the handoff between confirmed-working stages, not on capabilities already demonstrated."
+      },
+      "concept": "**Debugging a prompt chain** follows a systematic sequence:\n\n1. Confirm which stages are producing correct output (given)\n2. Identify the stage that is failing (Stage 3)\n3. Check the first and most likely cause: is the upstream output in Stage 3's context?\n4. If yes, check stage-specific factors (instructions, format, model)\n\nGeneric output when upstream stages worked = missing state. This is the first check because it is both the most common cause and the cheapest to verify.",
+      "examTip": "Nextstep items reward systematic diagnostic thinking. When upstream stages are confirmed correct and a downstream stage produces generic output, the first check is always state presence — \"is the upstream output in this stage's prompt?\" Model tier and prompt length are later checks; domain knowledge was already confirmed by Stage 1."
+    }
+  },
+  {
+    "id": "PTE-B-060",
+    "domain": "Prompting and Task Execution",
+    "topic": "Competing instructions anti-pattern",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A management consultant builds a prompt to analyse a client's 80-page strategic plan. The 800-word prompt contains the document, nine specific analysis questions, three formatting requirements, a persona instruction, a word limit, and a style guide reference. The output addresses four of the nine questions and ignores the style guide entirely. (Choose TWO)\n\nWhich TWO factors MOST likely caused these failures?",
+    "options": [
+      { "key": "A", "text": "The persona instruction overrides all other formatting requirements when included in the same prompt." },
+      { "key": "B", "text": "The model tier used was insufficient for an 80-page document." },
+      { "key": "C", "text": "Nine simultaneous analysis questions exceed what a single prompt can reliably address — some questions are deprioritised." },
+      { "key": "D", "text": "The prompt contained too many competing instructions, causing Claude to selectively execute the most prominent ones and treat peripheral constraints like the style guide as optional." },
+      { "key": "E", "text": "Style guide instructions must be provided as examples rather than cited by name to take effect." }
+    ],
+    "correct": ["C", "D"],
+    "explanation": {
+      "correct": "Option C identifies that nine simultaneous analysis questions in one prompt create a task that is too broad for reliable full coverage — Claude must allocate attention across all nine and may deprioritise questions that appear less prominent or later in the list. Option D describes the broader anti-pattern: an overloaded prompt with too many instruction types creates a competing-priorities problem where peripheral constraints (style guide) are treated as optional by a model doing its best to satisfy the most salient requirements.",
+      "distractors": {
+        "A": "Persona instructions do not universally override other formatting requirements. They operate alongside other constraints. No hierarchy rule makes persona instructions dominant.",
+        "B": "Model capability is not the bottleneck for an 80-page strategic plan analysis. The failure pattern — partial question coverage, ignored style guide — points to prompt design, not model depth.",
+        "E": "Style guide citations in a prompt are valid instructions. Claude does not require example-based style guides exclusively. A cited style guide reference can be effective when the prompt is not overloaded."
+      },
+      "concept": "The **competing-instructions anti-pattern** occurs when a prompt contains so many simultaneous requirements that Claude must implicitly prioritise among them. The result:\n- Prominent, specific instructions are executed\n- Peripheral or constraint-type instructions (style guide, formatting) are underweighted\n- Less prominent items in a long list receive less attention\n\nThe fix: decompose into fewer questions per prompt, and use XML structure to make each requirement an explicit, labelled directive rather than a buried element of a prose block.",
+      "examTip": "This hard item requires identifying two causes that operate at different levels: the question count (C) and the instruction overload (D). Both are necessary to fully explain both failures — incomplete question coverage and ignored style guide. Options A and E both invoke fabricated rules; B invokes model capability where the problem is design."
+    }
+  }
+]

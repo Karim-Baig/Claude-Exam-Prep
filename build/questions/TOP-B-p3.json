@@ -1,0 +1,506 @@
+[
+  {
+    "id": "TOP-B-041",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Continuation precision — preventing duplicates",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A senior editor at a publishing house asks Claude for a 20-item editorial checklist. She receives items 1–12 and truncation. She sends: \"Please continue with the remaining items.\" The follow-up response includes 3 items that overlap substantially with items already in the first 12.\n\nWhat addition to the continuation prompt would MOST reliably prevent duplication?",
+    "options": [
+      { "key": "A", "text": "Specify the exact starting number: \"Continue from item 13, completing items 13 through 20.\"" },
+      { "key": "B", "text": "Start a new conversation and request all 20 items with an explicit instruction to avoid repetition." },
+      { "key": "C", "text": "Ask Claude to regenerate all 20 items in a single response to ensure internal consistency." },
+      { "key": "D", "text": "Ask Claude to review items 1–12 again before continuing, so it knows what has already been covered." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Naming the exact starting item number eliminates ambiguity about where the complete content ends and the truncated content begins. When Claude knows to start at item 13, it does not need to infer the boundary from context and cannot inadvertently re-enter the completed range. The number is the anchor.",
+      "distractors": {
+        "B": "A fresh start discards the 12 already-completed items. The duplication problem in a fresh-start response is no smaller than in a continuation — the items generated first would likely overlap with items generated later in the same single response.",
+        "C": "Requesting regeneration of all 20 in one response risks hitting the same output limit that caused truncation initially. It also discards the first 12 items without reason.",
+        "D": "Asking Claude to review the prior items before continuing extends the prompt and can increase the risk of the continuation blending old and new items, not reduce it. The number anchor is simpler and more reliable."
+      },
+      "concept": "**Numbered continuation anchors** are the most reliable tool for list continuations:\n- Always specify: \"Continue from item [N+1]\" where N is the last item received.\n- Combine with the total: \"Complete items [N+1] through [total].\"\n- Optionally add: \"Do not repeat any item from the list above.\"\n\nThis three-part pattern — anchor, range, non-repetition instruction — eliminates all three sources of duplication error.",
+      "examTip": "Duplication in continuations is caused by boundary ambiguity. The fix is always a numeric anchor. D sounds systematic but actually adds noise; the review process can surface items to 'continue' rather than add. Keep it simple: number the restart point."
+    }
+  },
+  {
+    "id": "TOP-B-042",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Subtle conversation drift",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A policy analyst at a government ministry has been drafting a regulatory impact assessment across a 40-turn conversation. She notices in turn 38 that Claude has been using slightly different definitions for \"SME\" and \"regulated entity\" than the official definitions she included in turn 2. The drafts are internally consistent but diverge subtly from the official terms of reference.\n\nThis pattern is MOST accurately characterised as:",
+    "options": [
+      { "key": "A", "text": "A knowledge gap — Claude does not have reliable access to this government's official definitions." },
+      { "key": "B", "text": "Conversation drift causing subtle definitional substitution that is internally coherent but diverges from the original source instruction." },
+      { "key": "C", "text": "A prompt vagueness issue — the original definitions in turn 2 were not expressed with sufficient precision." },
+      { "key": "D", "text": "Acceptable variation — minor definitional drift is within normal operating parameters for extended drafting work." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The definitions were correctly established in turn 2 (the output was initially compliant) and diverged later as the thread grew long — the textbook signature of drift. The fact that the output is internally consistent is characteristic of subtle drift: Claude has settled on a working definition that is close to but not identical to the original, and applies it consistently within its own context.",
+      "distractors": {
+        "A": "A knowledge gap would manifest in the first draft and persist. The definitions were applied correctly initially, which rules out a knowledge problem. Claude encountered the official definitions in the prompt and used them correctly before drift set in.",
+        "C": "If the definition were vague, the output would be inconsistently handled from the start. The initial compliance followed by later drift points to a context management issue, not original vagueness.",
+        "D": "Definitional accuracy in a regulatory impact assessment is not a matter of approximation. An assessment that uses non-official definitions for key legal terms could be invalid. This is not acceptable variation."
+      },
+      "concept": "**Subtle drift** is harder to detect than obvious drift because the output remains coherent — the model has simply settled on a nearby alternative that is internally consistent. Detection strategies:\n- Compare specific key terms against the original instructions periodically.\n- For regulatory or legal documents, spot-check defined terms in every section.\n- Do not rely on overall fluency as a signal of definitional accuracy.\n\nSubtle drift is most dangerous in documents where precise terminology has legal or regulatory consequence.",
+      "examTip": "The internal consistency of the drifted output is what makes subtle drift hard to catch. The exam will test whether you recognise that consistency ≠ correctness. A fluent, coherent output that uses the wrong defined term is still wrong — and that wrong is attributable to context drift, not to knowledge gaps or vagueness."
+    }
+  },
+  {
+    "id": "TOP-B-043",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "When continuation strategy fails",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An HR technology manager at a global enterprise is generating implementation documentation for a new HR system — 30 sections in a single long conversation. After multiple continuation prompts, sections 1–18 are complete and consistent. From section 19 onward, the content begins losing consistency with prior sections and repeating guidance already covered in sections 5 and 12. The thread is now very long.\n\nWhat should she do NEXT?",
+    "options": [
+      { "key": "A", "text": "Send a continuation prompt listing all guidance that must not be repeated in the remaining sections." },
+      { "key": "B", "text": "Add a summary table of completed sections to the next prompt and continue in the same thread." },
+      { "key": "C", "text": "Compile sections 1–18 into a structured summary, start a fresh conversation, and complete sections 19–30 with that summary as context." },
+      { "key": "D", "text": "Switch to the highest-reasoning tier to improve cross-section consistency in very long threads." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The continuation strategy has run its course — the thread is now long enough that sections 1–18 are being diluted by context pressure, producing repetition and inconsistency. The structured fix is: extract sections 1–18 as authoritative context, start fresh, and complete 19–30 against that clean foundation. This resets the context without losing the completed work.",
+      "distractors": {
+        "A": "A \"do not repeat\" instruction in a very long thread competes with all the existing content in the window. If context dilution is already causing repetition, adding one more instruction to the end of a saturated thread is unlikely to fix it.",
+        "B": "A summary table adds tokens to an already overloaded context. It may help slightly but does not address the root cause: the thread is too long for reliable consistency. The fix is context reset, not context addition.",
+        "D": "Tier selection affects reasoning quality, not context management architecture. A higher-reasoning tier operating on a 25+ turn thread producing repetition will still be subject to context dilution."
+      },
+      "concept": "**Recognising when continuation strategy is exhausted:**\nContinuation works while the thread is manageable. Signs that it has stopped working:\n- Repetition of content from much earlier in the thread\n- Inconsistency with specifically stated rules from early turns\n- Multiple continuation prompts with diminishing returns\n\nAt this point, the correct action is to harvest what has been completed, synthesise it into a clean briefing, and continue from a fresh start — not to add more instructions to the saturated thread.",
+      "examTip": "The exam will test the transition point between 'continue in thread' and 'start fresh.' When repetition and cross-section inconsistency appear despite continuation prompts, continuation has failed. The correct response is fresh-start with summarised context, not more sophisticated continuation prompts."
+    }
+  },
+  {
+    "id": "TOP-B-044",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Cost optimisation — quality floor breach",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A mid-market accounting firm recently switched all Claude API tasks to the lightweight tier, reducing monthly costs by 60%. The tax team now reports that first-draft tax research summaries are missing case law references and producing shallow analysis. Partners are raising quality concerns.\n\nWhat is the MOST appropriate corrective action?",
+    "options": [
+      { "key": "A", "text": "Revert all tasks back to the highest-reasoning tier to fully restore quality across the board." },
+      { "key": "B", "text": "Add more detailed prompts to compensate for the lightweight tier's depth limitations on complex analysis." },
+      { "key": "C", "text": "Accept the quality reduction and address partner complaints by improving human review processes." },
+      { "key": "D", "text": "Return complex tax research analysis tasks to a higher tier while keeping simpler, well-defined tasks on the lightweight tier." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The lightweight tier is inadequate for complex tax research that requires reasoning across case law. However, this does not mean all tasks need a tier upgrade. The principled fix is task-to-tier realignment: complex analysis back to a capable tier, simple tasks (classification, data extraction, formatted summaries) staying on the lightweight tier. This preserves most of the cost saving while restoring quality where it matters.",
+      "distractors": {
+        "A": "Reverting everything to the highest-reasoning tier overcorrects. The 60% cost saving on simple tasks was legitimate; only the complex analysis tasks warranted a higher tier. Blanket reversion discards the valid optimisation.",
+        "B": "Prompt improvements can raise quality within a tier's operating range, but they cannot add reasoning capability that the lightweight tier does not have. Missing case law citations on complex tax questions is a capability gap, not a prompt gap.",
+        "C": "Accepting quality reduction for a tier that was selected without testing against quality criteria is a governance failure. The resolution is to restore the appropriate tier — not to shift the quality problem to human reviewers."
+      },
+      "concept": "**Tier optimisation should be task-by-task, not universal.** When a blanket tier reduction produces quality failures:\n1. Identify which tasks failed quality checks.\n2. Categorise those tasks by complexity.\n3. Return complex tasks to the appropriate tier.\n4. Retain the lower tier for tasks that passed quality checks.\n\nThe goal is minimum tier sufficient for the task — not minimum tier for all tasks.",
+      "examTip": "Blanket tier reductions (all to cheapest) and blanket reversions (all to highest) are both wrong. The correct approach always differentiates by task complexity. When the stem describes a quality failure after a blanket change, the answer is nuanced routing, not reversal."
+    }
+  },
+  {
+    "id": "TOP-B-045",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Buried content risk identification",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A contract specialist at a construction company must review a 120-page infrastructure contract for obligation and liability clauses. She is deciding between uploading the full document for a single comprehensive review and splitting it into three 40-page sections reviewed separately.\n\nWhich factor MOST supports choosing the sectional approach over the full-document upload?",
+    "options": [
+      { "key": "A", "text": "Clauses in the middle 40 pages may receive less model attention than those near the start and end of the full document." },
+      { "key": "B", "text": "Full document uploads take significantly longer to process and may time out before the review completes." },
+      { "key": "C", "text": "A 120-page document is likely to exceed Claude's maximum supported document size for analysis." },
+      { "key": "D", "text": "Claude cannot cross-reference obligation clauses across pages when reviewing a full document at once." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The lost-in-the-middle effect means content at the centre of a long document receives systematically less attention than content at the start or end. For a 120-page contract, a single full-document pass risks systematically underweighting clauses in the middle 40 pages. Sectional review ensures each segment receives the full attention of its own analysis pass.",
+      "distractors": {
+        "B": "Processing time scaling with document size is a real effect, but modern interfaces handle large documents without systematic timeout failure. This is not the primary risk factor driving the sectional recommendation.",
+        "C": "There is no universal 120-page ceiling on document analysis. Upload limits are interface-specific and the stem does not indicate this limit has been reached or approached.",
+        "D": "Claude can reference content from any part of a document when performing analysis. Cross-referencing across pages is well within its capability; the risk is not inability to cross-reference but reduced attention to mid-document content."
+      },
+      "concept": "**When to split a document for review:**\nThe lost-in-the-middle effect is the primary reason to split. Guidelines:\n- Documents over ~40–50 pages benefit from sectional analysis for high-stakes extraction.\n- Sections with known concentration of critical clauses (e.g., a specific chapter) can be submitted as standalone queries.\n- A targeted follow-up on the middle section is a lightweight alternative to full restructuring.\n\nFor contract review, erring toward sectional analysis is prudent when the cost of a missed clause is high.",
+      "examTip": "Easy poor-fit and buried-content items test whether you know the core principle without nuance. Here: long document = risk in the middle. The answer is always A-type (attention distribution), not B/C/D (technical limitations that don't exist or are secondary)."
+    }
+  },
+  {
+    "id": "TOP-B-046",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "What to capture before a fresh start",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A brand manager at a large FMCG company has a 50-turn Claude conversation developing a comprehensive brand refresh strategy. She is observing drift in the latest outputs. Before starting a fresh conversation, she must decide what to capture from the existing thread.\n\nWhat is the PRIMARY information she must document before starting fresh?",
+    "options": [
+      { "key": "A", "text": "The date and time of each significant turn, to reconstruct the decision timeline if needed." },
+      { "key": "B", "text": "The settled strategic decisions, brand principles, and constraints agreed upon throughout the thread." },
+      { "key": "C", "text": "The exact wording of Claude's best responses, to be reused verbatim in the new conversation." },
+      { "key": "D", "text": "Her original brief from turn 1, which can serve as the complete context for the new conversation." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The fresh conversation needs the distilled outcome of the work done — the decisions, principles, and constraints that must govern the next phase. This is the consultant-curated synthesis: not the raw history, not Claude's specific phrasing, but the human-validated conclusions. This document forms the opening context that gives the new conversation a high-quality starting point.",
+      "distractors": {
+        "A": "A decision timeline is useful for project documentation but is not the context that a new Claude conversation needs. Claude needs the substance of the decisions, not metadata about when they were made.",
+        "C": "Reusing verbatim response text carries the same risk as continuing in the drifted thread: the specific phrasing may reflect the drift. The brand manager should synthesise the decisions, not copy the outputs that were produced under drift conditions.",
+        "D": "The original brief represents the starting point, not the endpoint. Fifty turns of strategic development have produced decisions, refinements, and constraints that the original brief could not contain. The brief is the starting input; the settled strategy is what needs to be captured."
+      },
+      "concept": "**The fresh-start briefing document** should contain:\n1. **Settled decisions** — strategic choices that are no longer in discussion.\n2. **Active principles** — brand values, tone, positioning agreed upon.\n3. **Constraints** — what is out of scope, what has been ruled out.\n4. **Current state** — what phase the work is at, what remains.\n\nThis is human synthesis, not a transcript export. The quality of the fresh start is limited by the quality of this document.",
+      "examTip": "A common mistake is to think that providing the original brief (D) is sufficient. It is not — the brief is the problem statement; the briefing document for the fresh start is the progress-to-date. These are different artifacts. The exam will test whether you can distinguish between starting context (original brief) and continuity context (settled decisions)."
+    }
+  },
+  {
+    "id": "TOP-B-047",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "When escalation is warranted",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An operations manager at a pharmaceutical manufacturer has spent two weeks trying to extract structured data from batch manufacturing records using Claude. He has tested five prompt variations, added explicit few-shot examples, specified the output schema, and tested on multiple record types. Every attempt produces systematic errors in the same three fields. The documents are confirmed as text-parseable.\n\nWhat is the MOST appropriate next action?",
+    "options": [
+      { "key": "A", "text": "Try a different few-shot example strategy before escalating." },
+      { "key": "B", "text": "Accept that the three problematic fields cannot be extracted reliably and adjust the downstream workflow." },
+      { "key": "C", "text": "Escalate to IT or technical support, providing the prompt, sample records, and documented failure pattern for investigation." },
+      { "key": "D", "text": "Switch to the highest-reasoning tier, which has stronger structured extraction capability." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Two weeks of systematic testing across five prompt variations, few-shot examples, and explicit schemas — with consistent failure in the same three fields — constitutes thorough due diligence. Continuing to iterate on prompts with diminishing returns is not productive. The correct action is to escalate with a well-documented failure case: the prompt, sample records, the expected vs. actual output, and the failure pattern. This is what enables technical support to diagnose whether the issue is a structural limitation, a parsing quirk in the record format, or something else.",
+      "distractors": {
+        "A": "Five prompt variations with deliberate methodology have been tried. The sixth variation without new information or approach is likely to produce the same result. Continued iteration at this point is a time sink without a new hypothesis.",
+        "B": "Accepting the failure without investigation is premature after only a prompt-engineering effort. Technical support may identify a solution (format conversion, different input structure) that prompt engineering cannot. Adjusting the workflow should follow a proper diagnosis.",
+        "D": "If the failures were caused by insufficient reasoning depth, they would be variable or affect all fields — not consistently fail the same three fields. Consistent-field failure suggests a structural issue with how those fields are formatted or named in the source record, not a reasoning capability gap."
+      },
+      "concept": "**Escalation is warranted when:**\n1. Thorough prompt engineering has been applied (multiple approaches, examples, schema specification).\n2. Failures are systematic and reproducible (same fields, same errors).\n3. Basic configuration is confirmed clean (documents parse, no max_tokens issues).\n4. A new hypothesis for a prompt fix does not exist.\n\nEscalation package: the prompt, sample input, expected output, actual output, and a description of the failure pattern. This gives support the information to diagnose efficiently.",
+      "examTip": "The exam tests whether you know when to stop iterating. Two weeks and five variations with consistent-field failure is the 'stop' signal. A is tempting because you can always try one more thing — but the principle is: exhaust plausible prompt hypotheses, then escalate. The exhaustion condition has been met."
+    }
+  },
+  {
+    "id": "TOP-B-048",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Recognising over-iterated prompt degradation",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An investment analyst at an asset management firm has been iterating on a prompt for comparable company analysis for four weeks. Versions 2–4 improved incrementally over the failing version 1. Version 5 was the best result yet. Version 8, the latest, performs worse than version 5. Each iteration has added instructions to address gaps revealed by the prior version.\n\nWhat does this trajectory MOST likely indicate, and what should he do?",
+    "options": [
+      { "key": "A", "text": "He has reached the model's reasoning ceiling for this analysis type; he should switch to the highest-reasoning tier." },
+      { "key": "B", "text": "The recent additions have introduced conflicting instructions; he should remove the last three additions and test version 5 again." },
+      { "key": "C", "text": "Version 8 outperformed version 5 on dimensions he has not measured; he needs a more comprehensive evaluation rubric before reverting." },
+      { "key": "D", "text": "The prompt has become overloaded by cumulative additions; he should return to version 5 as his known baseline and make only one targeted change from there." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The inverted-U trajectory (improving then declining) is a classic sign of prompt overload: each successive addition to address one gap introduces friction that degrades other aspects. Version 5 is the empirically verified best baseline. The correct action is to return to it and apply the one-variable principle rigorously — one targeted change at a time, not continuing from version 8 which has multiple untested additions compounded.",
+      "distractors": {
+        "A": "If the ceiling were the issue, performance would plateau — not decline from a prior peak. Declining performance from version 5 to version 8 is caused by something the additions introduced, not by capability limits.",
+        "B": "B and D are close, but D is more precise: reverting to version 5 (the known best) is better than version 5 minus the last three additions, because version 5 has been empirically validated. D also names the forward-looking discipline: one change from the best known baseline.",
+        "C": "Suspecting that version 8 wins on unmeasured dimensions is a rationalization for not reverting. If the analyst cannot measure the improvement, it cannot inform decisions. Unmeasured improvements are not operational improvements."
+      },
+      "concept": "**Prompt over-iteration** produces the inverted-U curve:\n- Early iterations: rapid improvement as obvious gaps are addressed.\n- Middle iterations: slower improvement, occasional regressions.\n- Late iterations: cumulative instruction weight creates new gaps faster than additions close them.\n\nThe correct response to a declining trend:\n1. Return to the empirically verified best version.\n2. Identify the single most impactful remaining gap.\n3. Address that gap with one targeted change.\n4. Evaluate before any additional change.\n\nDo not continue iterating forward from a degraded version.",
+      "examTip": "This is a hard item because B sounds similar to D. The discriminator: B says remove the last three additions from version 8 (which may still have problems from earlier additions). D says return to version 5 (the verified best) and start from there. D is cleaner because version 5's quality is known; version 8 minus three is not a known baseline."
+    }
+  },
+  {
+    "id": "TOP-B-049",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Project instruction overspecification",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A university library has set up a Claude Project with 12 custom instructions covering tone, citation formats, response length, audience calibration, five terminology restrictions, and subject boundaries. Library staff report that Claude frequently produces incomplete or hedged responses on simple reference queries, as if unable to proceed.\n\nWhat is the MOST likely cause?",
+    "options": [
+      { "key": "A", "text": "Overspecified Project instructions contain conflicting constraints that Claude cannot simultaneously satisfy." },
+      { "key": "B", "text": "Claude requires all custom instructions to be written in a priority order to resolve conflicts between them." },
+      { "key": "C", "text": "The 12 instructions exceed the maximum number of custom instructions allowed per Project." },
+      { "key": "D", "text": "Library staff are submitting requests outside the subject boundaries specified in the instructions." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "When instructions conflict — for example, \"be concise\" alongside \"always provide full bibliographic detail\" and \"address all user skill levels simultaneously\" — Claude cannot satisfy all constraints at once. It produces hedged, incomplete, or short-circuited responses as it tries to reconcile irreconcilable rules. Over-specification is a common failure mode when instructions are added incrementally without reviewing their combined effect.",
+      "distractors": {
+        "B": "Priority ordering is a valid design practice for instructions that may conflict, but it is not a mandatory structural requirement. Absence of priority ordering does not cause Claude to produce incomplete responses — conflicts do.",
+        "C": "There is no specific limit of n instructions per Project that would trigger this behaviour. The issue is the semantic content of the instructions, not their count.",
+        "D": "Out-of-scope requests would produce an explicit refusal or redirect, not the pattern of hedged, incomplete responses across simple queries. The pattern described suggests instruction conflict, not boundary enforcement."
+      },
+      "concept": "**Project instruction health check:**\nInstructions added incrementally often develop conflicts:\n- \"Always be brief\" + \"Always provide full context\" = conflict\n- \"Target expert readers\" + \"Target non-specialist patrons\" = conflict\n- \"Restrict to X topic\" + \"Answer any reference question\" = conflict\n\nFix: audit all instructions together, identify conflicts, and resolve them — either by choosing one over the other or by scoping when each applies. Fewer, coherent instructions outperform many detailed but conflicting ones.",
+      "examTip": "When a Project produces unexpectedly poor results despite thorough instruction coverage, the problem is often the instructions themselves creating conflicts. Paradoxically, more instructions can produce worse performance. The fix is not adding a priority order — it is identifying and resolving the conflicts."
+    }
+  },
+  {
+    "id": "TOP-B-050",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Poor-fit boundary — human review as the qualifier",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A logistics planner at a freight company currently uses Claude to draft delay communications — a writing task that is clearly appropriate. Operations leadership now proposes extending Claude's role to generate recommended rerouting plans for delayed shipments, based on current route data and availability matrices the planner would paste in.\n\nWhat factor would MOST determine whether this extended use is appropriate?",
+    "options": [
+      { "key": "A", "text": "Whether the company has an enterprise subscription with higher API throughput for operational tasks." },
+      { "key": "B", "text": "Whether a qualified logistics expert reviews Claude's recommendations before they are acted upon." },
+      { "key": "C", "text": "Whether the model tier selected has sufficient capacity for logistics optimisation complexity." },
+      { "key": "D", "text": "Whether Claude's training data covers freight routing patterns similar to this company's network." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Rerouting recommendations affect shipment commitments, customer SLAs, and cost. Provided a qualified logistics expert reviews and validates the recommendations before action, Claude acting as a first-draft recommender is entirely appropriate — the expert provides the accountability and validation layer. Without that review, the same task becomes problematic. Human review is the qualifying condition.",
+      "distractors": {
+        "A": "API throughput is a capacity and speed consideration, not a task-appropriateness consideration. It is relevant to integration design, not to whether the task is an appropriate use.",
+        "C": "Logistics rerouting based on structured input data is within the capability of standard model tiers. Tier selection is an optimisation decision, not a go/no-go qualifier for the task.",
+        "D": "Claude generates recommendations from the data provided in context. The quality of the recommendation depends on the quality and completeness of the pasted data, not on whether the training corpus matched this specific network."
+      },
+      "concept": "**The human review qualifier** transforms many borderline tasks into appropriate uses:\n- Draft recommendation (Claude) → expert review → decision (human) = appropriate\n- Automated recommendation → direct action = may be inappropriate\n\nFor operational decisions with commercial or safety consequences, the presence of a human validation step is the most important appropriateness factor. Claude is a powerful first-drafter and option-generator; the expert provides accountability.",
+      "examTip": "When an item asks about extending Claude's role from safe to borderline territory, the answer almost always involves the human review layer. This is the most transferable principle in governance: if a human validates before action is taken, most tasks become appropriate. If automation bypasses that review, the same task becomes high-risk."
+    }
+  },
+  {
+    "id": "TOP-B-051",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Prompt caching — stale context risk",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A clinical trial manager at a medical device company is building a workflow where Claude reviews incoming adverse event reports and flags potential device-related events. To reduce latency, the engineering team proposes caching the system prompt, which contains the device's current contraindication list. The list is updated approximately once per quarter by the safety team.\n\nWhat is the PRIMARY risk of this caching strategy?",
+    "options": [
+      { "key": "A", "text": "Cached prompts increase per-token cost compared to uncached prompts of the same length." },
+      { "key": "B", "text": "Prompt caching creates a dependency on network connectivity that could cause unpredictable system downtime." },
+      { "key": "C", "text": "If the contraindication list is updated between cache refreshes, Claude will screen adverse events against an outdated list until the cache is explicitly reset." },
+      { "key": "D", "text": "Cached system prompts prevent Claude from adapting to new adverse event terminology introduced in recent reports." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Prompt caching serves a static version of the system prompt. If the safety team updates the contraindication list but the cache is not reset, Claude will continue to apply the old list. For a pharmacovigilance workflow, screening against an outdated contraindication list could cause safety-relevant events to be missed. The caching strategy requires a synchronised invalidation process whenever the contraindication list changes.",
+      "distractors": {
+        "A": "Prompt caching typically reduces cost — repeated context does not need to be processed from scratch on every call. Cost is the argument for caching, not against it.",
+        "B": "Network connectivity is a general infrastructure concern for any API-based system, not a specific risk introduced by caching. Caching does not create additional connectivity dependencies.",
+        "D": "New adverse event terminology in the incoming reports affects the input, not the cached system prompt. The system prompt contains the contraindication list, not a dictionary of expected terminology. Cached prompts do not restrict Claude's ability to process novel input language."
+      },
+      "concept": "**Prompt caching and content freshness:**\nCaching is highly effective for stable content: legal boilerplate, product catalogues that change monthly, stable taxonomies. It becomes risky when:\n- The cached content includes safety-critical data that is updated on an unpredictable schedule.\n- The downstream consequence of stale content is a safety or regulatory failure.\n\nMitigation: implement cache invalidation as a step in the safety team's update process — any change to the contraindication list triggers a cache reset before the next adverse event review run.",
+      "examTip": "This item tests whether you understand that caching introduces a freshness risk proportional to the volatility of the cached content and the consequence of serving stale data. A monthly product catalogue is low-risk to cache. A safety-critical contraindication list with unpredictable updates is high-risk. The answer turns on this risk proportionality."
+    }
+  },
+  {
+    "id": "TOP-B-052",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Cost of delayed fresh start",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A treasury analyst at an energy company has maintained a single Claude conversation for five months to develop cash flow models across multiple scenarios. He has never documented the governing assumptions, formulas, or model constraints outside the conversation. The thread is now hundreds of turns long and output quality has severely degraded. He now decides to start fresh.\n\nWhat is the MOST significant consequence of waiting this long?",
+    "options": [
+      { "key": "A", "text": "The conversation history will be permanently deleted when he opens a new chat." },
+      { "key": "B", "text": "Five months of context drift may have introduced errors into his output documents that now require a full accuracy review." },
+      { "key": "C", "text": "The new conversation will not have access to the same model version that was available when the original conversation started." },
+      { "key": "D", "text": "The governing assumptions and model logic were never captured externally, so he cannot provide adequate context for the fresh start." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The fresh conversation needs the governing assumptions, formulas, and constraints to produce valid outputs — the same context the old conversation developed over five months. Because this was never documented outside the conversation, the fresh start begins with almost no useful context. The analyst must now reconstruct five months of modelling decisions from memory or by painstakingly reviewing the degraded thread — a significant rework cost that could have been avoided by ongoing documentation.",
+      "distractors": {
+        "A": "Old conversations are not deleted when a new conversation is opened. Both persist in the account's history and are accessible. There is no automatic deletion.",
+        "B": "Output document accuracy is a real concern after drift, but it is a separate problem to resolve independently. It is not the 'most significant consequence' of waiting — the inaccessibility of the governing logic (D) is more fundamental because it prevents building a valid continuation.",
+        "C": "Model versions do not change within an account during a conversation. Even if a new model version were available, the relevant capability question is whether the fresh conversation can start with adequate context — not which model version it uses."
+      },
+      "concept": "**Progressive documentation** prevents the fresh-start knowledge loss:\n- At the end of each session (or weekly), capture: governing assumptions, validated formulas, settled decisions, active constraints.\n- This takes 15–20 minutes but reduces fresh-start rework from days to minutes.\n- A Project knowledge document is the ideal home: it loads with every conversation and is always available.\n\nThe cost of not documenting is proportional to the complexity of what was developed. For a five-month treasury modelling effort, the undocumented knowledge may be unrecoverable.",
+      "examTip": "D is the correct answer because it identifies an irreversible consequence — information not captured is gone. B (output errors) is reversible through review. A and C describe events that do not happen. The exam rewards identifying the irreversible harm."
+    }
+  },
+  {
+    "id": "TOP-B-053",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "When multi-variable change is justified",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A UX researcher at an e-commerce platform has tried three different single-variable prompt changes for thematic analysis of interview transcripts. All three iterations produce similar poor results: themes are too broad and sub-themes are consistently missed. She is considering making multiple changes simultaneously in the next attempt.\n\nIn what circumstance would testing multiple changes simultaneously be MOST justified?",
+    "options": [
+      { "key": "A", "text": "When multiple single-variable iterations have converged on the same failure, suggesting the entire approach needs rethinking rather than incremental adjustment." },
+      { "key": "B", "text": "When the project deadline is approaching and there is no time for sequential iteration." },
+      { "key": "C", "text": "When each individual change is small and unlikely to have a measurable independent effect." },
+      { "key": "D", "text": "When the practitioner is experienced enough with the tool to reliably predict which combination will succeed." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Three single-variable attempts producing the same failure pattern is evidence that the current approach has a structural problem that marginal changes cannot fix. At this point, abandoning the approach entirely and trying a fundamentally different strategy — which may require changing multiple elements simultaneously — is justified. The one-variable principle applies within an approach; when the approach itself is wrong, a more substantial reset is warranted.",
+      "distractors": {
+        "B": "Deadline pressure does not justify poor methodology. Simultaneously changing multiple variables under time pressure produces an output you cannot diagnose if it fails — and you still have no time to fix it. Deadline pressure is the worst reason to abandon rigour.",
+        "C": "Small changes are precisely the ones that should be tested individually, because their effects are easy to measure and easy to revert. Small changes are not exempt from the one-variable principle — they are its best application domain.",
+        "D": "Expert intuition is not a reliable substitute for empirical testing. Even experienced practitioners misjudge prompt interactions. Experience justifies faster iteration cycles, not the abandonment of sequential testing."
+      },
+      "concept": "**The one-variable principle has an override condition:** When multiple single-variable iterations produce the same result, the failure is in the approach, not in a specific variable. At this point:\n1. Step back and question the approach itself.\n2. Form a new hypothesis about why the approach is failing.\n3. Design a significantly different prompt that embodies the new hypothesis.\n4. From that new baseline, resume one-variable iteration.\n\nThis is not an exception to the principle — it is a higher-level application of it: identify the approach as a variable and change it.",
+      "examTip": "The exam distinguishes between iterating within an approach (always one variable) and changing the approach (a justified multi-change reset). The signal for approach change is convergent failure: multiple different single-variable iterations all producing the same symptom. Three failed iterations is a reasonable threshold for this signal."
+    }
+  },
+  {
+    "id": "TOP-B-054",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Poor fit vs. prompt problem — regulatory domain",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A brand manager at a pharmaceutical company asks Claude to analyse whether three of the company's pipeline compounds would qualify for FDA Fast Track designation. The output is shallow and contains factually inaccurate statements about key designation criteria. The brand manager's regulatory affairs colleagues dismiss the analysis.\n\nIs this MOST likely a poor-fit issue or a prompt problem?",
+    "options": [
+      { "key": "A", "text": "Poor fit — Claude lacks sufficient knowledge of FDA Fast Track designation criteria to produce reliable analysis." },
+      { "key": "B", "text": "Likely a prompt problem — the analysis needs the designation criteria and compound-specific data explicitly provided; a structured prompt with that context would likely produce substantially better output." },
+      { "key": "C", "text": "Poor fit — FDA regulatory analysis requires formal legal opinion by a licensed regulatory attorney, outside Claude's scope." },
+      { "key": "D", "text": "Likely a prompt problem — switching to the highest-reasoning tier would produce more accurate regulatory analysis." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Claude has substantive knowledge of FDA designation pathways including Fast Track. The shallow, inaccurate output most likely reflects a prompt that asked for analysis without supplying the criteria against which to analyse. Providing the official Fast Track designation criteria, the compound's clinical data, and the analysis framework to apply would give Claude the grounding to produce reliable analysis — it would not be generating criteria from parametric memory but applying supplied criteria to supplied data.",
+      "distractors": {
+        "A": "FDA Fast Track designation is well-documented public regulatory policy. This is not an obscure area where knowledge gaps would be expected. The failure is more likely grounding (no criteria supplied) than knowledge absence.",
+        "C": "Regulatory analysis for internal planning purposes does not require a licensed attorney — that threshold applies to formal legal opinions in regulatory submissions. Drafting analytical summaries to inform strategy is well within appropriate use.",
+        "D": "Tier selection addresses reasoning depth. The problem here is absence of grounding data (the criteria, the compound characteristics) — a higher-reasoning tier without that grounding would produce a deeper but still unsupported analysis."
+      },
+      "concept": "**Grounding-dependent domains** like regulatory analysis require the relevant framework to be supplied in the prompt:\n- Paste or reference the applicable criteria.\n- Provide the specific facts about the subject (compound characteristics, clinical stage, indication).\n- Ask Claude to apply the criteria to the facts.\n\nThis approach transforms a parametric recall task (which is error-prone) into an application task (which is much more reliable). The fix is almost always to supply the governing framework, not to switch models or escalate.",
+      "examTip": "A is tempting because it sounds realistic — regulatory knowledge seems specialised. The key test: is the knowledge publicly available and well-documented? FDA designation criteria are published guidance. If yes, the failure is more likely grounding than knowledge. Ask 'what context would make this output better?' — if the answer is 'supply the criteria,' it's a prompt problem."
+    }
+  },
+  {
+    "id": "TOP-B-055",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Recognising when to accept a limitation",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A knowledge manager at a management consultancy has spent three weeks trying to get Claude to produce reliably consistent topic tagging across 5,000 consulting reports (one at a time). Despite explicit taxonomies, few-shot examples, chain-of-thought prompting, and testing across lightweight, mid, and high-reasoning tiers, approximately 18% of tags are inconsistently applied in unpredictable ways. No prompt pattern predicts where errors will occur.\n\nWhat does this pattern MOST likely indicate?",
+    "options": [
+      { "key": "A", "text": "The prompt taxonomy has an internal ambiguity that causes inconsistent application regardless of tier or prompt quality." },
+      { "key": "B", "text": "The corpus of 5,000 reports is too large for Claude to handle with reliable single-pass consistency." },
+      { "key": "C", "text": "This use case warrants deterministic tagging logic or a purpose-built classification tool, not continued prompt iteration." },
+      { "key": "D", "text": "Batch processing the reports would resolve the consistency issue by standardising inference conditions." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "When a task requires near-deterministic consistency at scale and three weeks of thorough testing across all tiers and prompt strategies yields unpredictable failure at 18%, the problem is not the prompt — it is the task's fit for a probabilistic language model. Consistent, reproducible classification of large document corpora is a better match for rule-based or fine-tuned classifiers with deterministic outputs. Recognising this is the mature judgment: stop prompt-iterating and switch tools.",
+      "distractors": {
+        "A": "A taxonomy ambiguity would produce predictable error patterns — the same ambiguous categories would fail consistently. Unpredictable failure across categories (no prompt pattern predicts the errors) rules out taxonomy ambiguity as the primary cause.",
+        "B": "Reports are processed one at a time, so corpus size is not a factor. Each call is an independent inference task. The issue is per-call consistency, which does not scale with corpus size.",
+        "D": "Batch processing standardises timing and throughput — it does not eliminate the probabilistic variability of a language model on ambiguous classification decisions. Consistency failures at the level described are not caused by inference conditions."
+      },
+      "concept": "**Task fit for probabilistic vs. deterministic tools:**\n- Language models are probabilistic: identical inputs may produce slightly different outputs. For most tasks, this is acceptable.\n- When 100% consistency is a hard requirement (auditable taxonomy, regulatory classification, legal categorisation), a probabilistic tool is structurally the wrong fit.\n- Recognising this and recommending a rule-based or purpose-built classification system is the expert judgment — not a failure of prompt engineering.\n\nThis is one of the most mature signals in the troubleshooting domain: knowing when to stop and recommend a different tool.",
+      "examTip": "Three weeks of thorough testing at 18% unpredictable failure across all tiers is the exhaustion signal. The hard discriminator between A and C: A says 'fixable via taxonomy improvement'; C says 'change the tool.' The unpredictability of the errors (no prompt pattern predicts them) rules out A — if the taxonomy were ambiguous, the failures would be predictable by category."
+    }
+  },
+  {
+    "id": "TOP-B-056",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Long-thread failure modes",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A policy director at a public health agency has maintained a single Claude conversation for three months developing a national immunisation framework. Two problems have appeared: (1) recent outputs reference scientific consensus framing from early in the thread rather than more recent evidence she added in later turns; and (2) formatting has diverged from the structured section headings she specified at the start. (Choose TWO statements that MOST accurately explain these failure modes.)",
+    "options": [
+      { "key": "A", "text": "The early scientific framing is more prominent in the model's attention than the later evidence additions because early content established the narrative frame, and in a very long thread, that frame persists even when later evidence should update it." },
+      { "key": "B", "text": "Claude is actively learning from which references the policy director engaged with most, creating a reinforcement bias toward early-thread sources." },
+      { "key": "C", "text": "Format instructions are lost because Claude's session memory does not retain structural specifications beyond a configurable turn limit." },
+      { "key": "D", "text": "The heading specifications from the beginning of the thread are diluted by hundreds of subsequent turns, reducing their influence on current formatting decisions." },
+      { "key": "E", "text": "Both failures indicate the scientific content has exceeded Claude's domain knowledge in immunisation policy." }
+    ],
+    "correct": ["A", "D"],
+    "explanation": {
+      "correct": "A explains the evidence problem: early-thread narrative framing tends to be compositionally dominant because it established the baseline interpretation. Later additions compete with this established frame and, in a very long thread, may not fully displace it. D explains the formatting problem: structural specifications from early turns are diluted as the context fills with subsequent content. Both are manifestations of context weight distribution in a long thread.",
+      "distractors": {
+        "B": "Claude does not learn from user engagement within a session. There is no reinforcement mechanism — only the text in the context window. This describes a capability that does not exist.",
+        "C": "There is no configurable turn limit after which format instructions are dropped. Instructions persist in the context window as written; they are diluted by length, not erased by a turn counter.",
+        "E": "Domain knowledge limitations would produce errors from the first turn. The pattern — correct early, degraded later — is the signature of context management failure, not knowledge inadequacy."
+      },
+      "concept": "**Two long-thread failure modes distinguished:**\n\n**Evidence recency failure (A):** When a long established frame competes with later additions, the frame often wins. Fix: explicitly state \"The following evidence supersedes the earlier discussion of [topic]\" when adding updates.\n\n**Formatting drift (D):** Format instructions lose salience as context fills. Fix: repeat critical format specifications periodically, or move them to Project instructions where they load fresh with every turn.",
+      "examTip": "Multi items often test whether you can pair a cause to each symptom. A explains the evidence problem; D explains the format problem. They are not interchangeable. The exam may try to blend them (one explanation for both) — resist that. Two distinct symptoms have two distinct mechanisms."
+    }
+  },
+  {
+    "id": "TOP-B-057",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Prompt library — documentation and access",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A content team at a media streaming company has saved its best Claude prompts in a shared Google Doc. Three months in, two problems emerge: (A) prompts that worked well are now producing lower-quality results as content needs evolve; (B) new team members cannot determine which prompt version is current or which produced the best results for which content type. (Choose TWO actions that would MOST effectively address BOTH problems.)",
+    "options": [
+      { "key": "A", "text": "Archive old prompt versions in a separate folder to reduce clutter in the shared document." },
+      { "key": "B", "text": "Establish a versioned prompt library with documented performance results, success criteria, and content-type mapping for each prompt." },
+      { "key": "C", "text": "Ask Claude to recommend improvements to each template based on current content needs at regular intervals." },
+      { "key": "D", "text": "Assign a named prompt owner for each content type who is responsible for keeping their prompt current." },
+      { "key": "E", "text": "Move the prompt templates into a Claude Project as custom instructions with version notes embedded, so current prompts load automatically for the relevant content type." }
+    ],
+    "correct": ["B", "E"],
+    "explanation": {
+      "correct": "B solves both problems systematically: versioning shows the history (addressing B's 'which version is current'), documented performance and content-type mapping tells new team members exactly which prompt to use for which task (addressing B's 'which produced best results'). E solves both operationally: prompts in a Project load automatically (eliminating navigation confusion) and the embedded version notes document history and decisions. Together they provide knowledge management and operational convenience.",
+      "distractors": {
+        "A": "Archiving reduces clutter but does not add version metadata or content-type mapping. New team members still cannot determine which prompt is best for their task — they just have fewer of them to be confused by.",
+        "C": "Asking Claude to recommend prompt improvements at intervals produces suggestions that still require testing and human validation. It generates work rather than solving the access and documentation problem.",
+        "D": "Assigning owners is a governance step that helps with maintenance but does not solve the problem new team members face in finding and understanding current prompts — unless the ownership comes with a documented, accessible library (which is B)."
+      },
+      "concept": "**Prompt library maturity levels:**\n1. Shared document — accessible but unstructured.\n2. Versioned library with performance metadata — structured and navigable.\n3. Project-embedded templates with version notes — automated and self-documenting.\n\nLevels 2 and 3 together address both the knowledge management problem (which prompt, when, for what) and the operational problem (prompts load automatically without manual lookup).",
+      "examTip": "This item tests whether you distinguish between governance (D: assign owners) and systems (B+E: build the library and embed it). Governance without systems means the owner maintains a library that is still hard for new members to navigate. B+E provide the system; D is useful but insufficient alone."
+    }
+  },
+  {
+    "id": "TOP-B-058",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Cost optimisation — over-optimisation failure",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "An analytics head at a retail bank has implemented three cost optimisations: all tasks on the lightweight tier (65% cost saving), system prompts trimmed to 200 tokens (20% input saving), and maximum output capped at 500 tokens across all calls. Analysts report credit risk summaries are too brief for decision support, complex structured product analysis is unreliable, and some regulatory report sections are cut off mid-paragraph. (Choose TWO root causes that MOST explain these problems collectively.)",
+    "options": [
+      { "key": "A", "text": "The universal lightweight-tier routing has removed the reasoning depth required for complex credit risk and structured product analysis." },
+      { "key": "B", "text": "A 200-token system prompt is too short to express full task instructions, causing Claude to fill gaps with assumptions." },
+      { "key": "C", "text": "The 500-token output cap is insufficient for the length required by credit risk summaries and regulatory sections, causing premature truncation." },
+      { "key": "D", "text": "A 65% cost reduction indicates over-optimisation; costs should not be reduced by more than 40% to preserve quality." },
+      { "key": "E", "text": "The lightweight tier cannot process structured financial data; quantitative analysis requires a higher-reasoning tier." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "A explains the quality and reliability failures: complex credit risk analysis and structured product reasoning require depth that the lightweight tier does not provide. Routing everything to the cheapest tier without testing complex tasks first was the error. C explains the brevity and truncation failures: a 500-token output cap on summaries that need 800–1,200 tokens produces incomplete output. Both are direct consequences of blanket over-optimisation without quality testing.",
+      "distractors": {
+        "B": "200 tokens is sufficient for focused, well-written instructions for most tasks. Prompt instruction quality matters more than length. While very short prompts can be limiting, this is not the primary driver of the described failures.",
+        "D": "There is no percentage threshold beyond which cost reduction automatically becomes over-optimisation. The correctness of the reduction depends on whether quality was tested before applying it. A 65% saving is fine if simple tasks pass quality tests.",
+        "E": "The lightweight tier can process structured financial data — it can read and extract from tables, summarise numerical content, and produce structured outputs. The failure is in reasoning depth (A), not data type handling."
+      },
+      "concept": "**Over-optimisation produces correlated failures:**\n- Tier over-optimisation → reasoning depth failures on complex tasks.\n- Output cap over-optimisation → truncation on outputs that require length.\n- Prompt length over-optimisation → instruction clarity failures (secondary here).\n\nThe correct sequence: optimise one variable, test quality, then optimise the next. Applying all three optimisations simultaneously made attribution impossible — and caused all three failure types simultaneously.",
+      "examTip": "This hard multi item tests whether you can match each symptom to its cause. Reasoning/reliability failures → tier (A). Brevity/truncation failures → output cap (C). B is a distractor that sounds plausible but is not the primary cause of the described symptoms. D is a made-up rule. E is factually incorrect about lightweight tier capabilities."
+    }
+  },
+  {
+    "id": "TOP-B-059",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Context isolation with shared framework",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A claims adjuster at a general insurance company correctly opens a new Claude conversation for each claim to maintain context isolation. However, two friction points emerge: she must re-paste the standard claims assessment framework into every new conversation; and she cannot easily compare how Claude assessed similar loss events across different conversations. (Choose TWO structural improvements that address BOTH friction points most effectively.)",
+    "options": [
+      { "key": "A", "text": "Merge all claim conversations into a single running thread to enable direct cross-claim comparison." },
+      { "key": "B", "text": "Move the standard claims assessment framework to a Project instruction so it loads automatically in every new conversation." },
+      { "key": "C", "text": "Copy the prior claim's analysis into the opening message of each new conversation as a style and context anchor." },
+      { "key": "D", "text": "Use a structured claim summary template to record key findings from each conversation in a shared document, enabling cross-claim comparison outside of Claude." },
+      { "key": "E", "text": "Ask Claude at the end of each conversation to generate a comparison-ready summary formatted for cross-claim analysis." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "B eliminates the re-pasting friction: the claims framework in Project instructions loads automatically at the start of every conversation, preserving context isolation while removing the manual step. D solves the comparison problem cleanly: a structured external document captures each claim's key findings in a consistent format, enabling cross-claim comparison without merging conversations (which would create the contamination problem she is already wisely avoiding).",
+      "distractors": {
+        "A": "Merging claims into one thread re-introduces the context contamination problem the adjuster is correctly avoiding. Prior claim terms and circumstances would influence subsequent analyses.",
+        "C": "Copying a prior claim's analysis into the new conversation's opening provides style context but imports the specifics of the prior claim — increasing contamination risk rather than reducing it.",
+        "E": "E captures a useful artifact at the end of each conversation, but it requires the adjuster to manually manage the comparison outside of Claude. D is more structured: it specifies a shared document with a consistent template, which is more durable and accessible to the team."
+      },
+      "concept": "**Context isolation with shared infrastructure:**\nThe solution to friction from per-conversation isolation is not to merge contexts — it is to move shared elements to shared infrastructure:\n- Shared frameworks → Project instructions (loads automatically, does not contaminate).\n- Cross-conversation comparison → external structured document (persists outside Claude, accessible to team).\n\nThis pattern — Project for shared rules, external document for cross-case comparison — cleanly separates what belongs in Claude's context from what belongs in the team's knowledge management system.",
+      "examTip": "The exam tests whether you can solve the isolation-versus-reuse tension without sacrificing isolation. A and C both add prior-claim content to the new conversation — they solve the comparison problem by re-introducing the contamination problem. B and D each solve one friction point through a different channel, preserving isolation throughout."
+    }
+  },
+  {
+    "id": "TOP-B-060",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Redesigning workflow after systematic failure",
+    "difficulty": "hard",
+    "type": "nextstep",
+    "stem": "A compliance technology lead at a wealth management firm has spent six weeks deploying Claude for automated draft review of investment suitability letters. After extensive prompt engineering across all tiers, two failures persist: (1) approximately 5% of letters have product risk profiles inverted (high-risk described as conservative); (2) the errors are semantically plausible and grammatically correct, making them undetectable without independent verification. IT has confirmed no technical issues.\n\nWhat should he do NEXT?",
+    "options": [
+      { "key": "A", "text": "Set a lower temperature on API calls to reduce probabilistic variation in risk profile assignments." },
+      { "key": "B", "text": "Add a self-validation step asking Claude to cross-check its own risk profile assignments against a supplied reference list." },
+      { "key": "C", "text": "File a detailed defect report with Anthropic documenting the systematic inversion pattern for investigation." },
+      { "key": "D", "text": "Redesign the workflow so a human reviewer validates risk profile assignments before each letter is finalised, and treat Claude as a drafting assistant rather than an autonomous reviewer for this element." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The combination of a regulated context (investment suitability), a 5% undetectable error rate in a safety-critical field, and six weeks of exhausted prompt engineering defines a case where the appropriate response is workflow redesign — not more iteration. Claude drafts, a human validates risk profiles, the letter is finalised. This preserves Claude's productivity value while introducing the accountability and detection layer that the automated approach cannot provide.",
+      "distractors": {
+        "A": "Lower temperature reduces variability but does not address systematic directional errors. If the model is inverting risk profiles in a patterned way, reducing temperature may make the errors more consistent — not fewer.",
+        "B": "Self-validation (asking Claude to check its own output) does not provide independent verification. The same model that generated the inversion is performing the check; it may reproduce the error in both the output and the validation. Self-check is not a substitute for human review on safety-critical fields.",
+        "C": "The pattern is consistent with probabilistic model behaviour on subtle judgments, not a software defect. Filing a bug report is not the appropriate next step when the cause is an architectural characteristic of language models rather than a technical fault."
+      },
+      "concept": "**Workflow redesign vs. prompt iteration:** When these conditions are met simultaneously, workflow redesign is warranted:\n1. The task has consequential errors that are undetectable from the output alone.\n2. Multiple rounds of exhaustive prompt engineering have not resolved the error.\n3. The task is in a regulated domain with accountability requirements.\n\nThe redesigned workflow: Claude drafts → human validates the critical element → output is finalised. This is not a failure of the implementation — it is a correct reading of where the human-in-the-loop boundary belongs for this task.",
+      "examTip": "B is the most dangerous distractor: self-validation sounds rigorous but provides no independent check — the error persists through both steps. The exam tests whether you can distinguish genuine independent review (D, human reviews) from apparent review (B, model reviews itself). For undetectable errors in regulated outputs, independent human review is the only adequate control."
+    }
+  }
+]

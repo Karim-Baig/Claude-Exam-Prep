@@ -1,0 +1,506 @@
+[
+  {
+    "id": "TOP-B-001",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Truncated output recognition",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A data analyst at a logistics firm asks Claude to generate a complete list of 50 KPI definitions for a dashboard refresh. The response ends mid-sentence after the 31st definition, with no closing remark.\n\nWhat is the MOST likely explanation?",
+    "options": [
+      { "key": "A", "text": "Claude reached its per-response output length limit before completing the list." },
+      { "key": "B", "text": "The prompt did not supply enough context about the dashboard requirements." },
+      { "key": "C", "text": "Claude detected that 31 KPIs already exceeded the analyst's practical needs." },
+      { "key": "D", "text": "Claude's training data lacks definitions for the remaining 19 KPI types." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "When a response ends abruptly mid-sentence with no closing, the model hit its maximum output length for that turn. This is the defining symptom of output truncation — not a knowledge gap or a prompt adequacy problem. The fix is a continuation request in the same thread, not a prompt rewrite.",
+      "distractors": {
+        "B": "Insufficient context causes shallow, generic, or misaligned output — not mid-sentence cut-offs. If context were the problem, Claude would still produce 50 definitions, just poor ones.",
+        "C": "Claude does not autonomously curtail output because it judges the quantity excessive. It will produce as many items as the prompt requests unless the output limit intervenes.",
+        "D": "Truncation happens at a character/token boundary, not at the edge of Claude's knowledge. Claude would flag uncertainty about specific definitions rather than silently stopping mid-sentence."
+      },
+      "concept": "**Output truncation** occurs when the text Claude generates reaches the maximum number of tokens the API or interface allows per response. The symptom is a response that ends mid-sentence or mid-list with no summary or closing phrase.\n\nKey facts:\n- This is a hard limit on a single response, not on the conversation.\n- The conversation history (and the partial output already shown) remains in context.\n- The standard fix is to reply: \"Please continue from where you left off\" or \"Continue with items 32–50.\"\n- Truncation is distinct from refusal (which includes an explanation) and from knowledge limits (which produce partial or hedged content, not mid-word breaks).",
+      "examTip": "Look for the mid-sentence ending as the diagnostic clue. Truncation, knowledge limits, and context failures each cause incomplete output but have different signatures. The exam will test whether you can distinguish them. Truncation = abrupt stop; knowledge gap = hedge or \"I don't have reliable information on…\"; context failure = output present but wrong."
+    }
+  },
+  {
+    "id": "TOP-B-002",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Continuation strategy",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A grant writer at a non-profit receives a truncated Claude response. She asked for an 8-section funding proposal narrative; Claude covered sections 1–3 and stopped mid-sentence in section 3. The conversation is still open.\n\nWhat is the BEST immediate action?",
+    "options": [
+      { "key": "A", "text": "Start a new chat and resubmit the full prompt with a note asking for all 8 sections." },
+      { "key": "B", "text": "Send a follow-up in the same conversation asking Claude to continue from the point it stopped." },
+      { "key": "C", "text": "Divide the request into 8 separate chats, one per section, to avoid hitting limits." },
+      { "key": "D", "text": "Switch to a higher-tier model to obtain a longer single response." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Continuing in the same conversation preserves all context — the partial draft, the instructions, the tone established so far. A well-phrased continuation prompt (\"Please continue from section 3, picking up at [last sentence]\") costs minimal tokens and produces the remainder in consistent style. No model switch or chat restart is needed.",
+      "distractors": {
+        "A": "A new chat discards the partial draft and forces Claude to regenerate sections 1–3, wasting effort and risking inconsistency. It also does not address the root cause — long output is still long output.",
+        "C": "Eight separate chats break continuity. Each section loses awareness of the others, producing fragmented narrative with likely inconsistencies in terminology and flow. Structurally this creates more work, not less.",
+        "D": "The tier choice affects reasoning depth and cost, not the maximum length of a single response. Switching tiers does not remove the per-response output limit."
+      },
+      "concept": "**Continuation** is the standard recovery from output truncation. Because the partial output is already in the conversation context, Claude can pick up from the stopping point without re-reading the full brief.\n\nEffective continuation prompts:\n- Anchor to the exact stop: \"Continue from 'The third section covers community impact…'\"\n- Specify what remains: \"Please complete sections 4 through 8.\"\n- Maintain style: \"Use the same heading format and paragraph length as sections 1–3.\"\n\nAvoid vague continuations like \"Keep going\" — they risk repetition of already-covered content or style drift.",
+      "examTip": "The exam contrasts continuation in the same thread (correct) with restarting (wasteful) and tier-switching (irrelevant to length limits). The discriminator: continuation preserves context and partial work; restarting discards both. Only restart when the existing context is the problem, not the output length."
+    }
+  },
+  {
+    "id": "TOP-B-003",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Conversation drift",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A procurement specialist at a mid-market manufacturer has been evaluating suppliers in the same chat for over an hour — 45 turns covering pricing, quality, and logistics. His earliest messages specified that all shortlisted suppliers must offer 90-day payment terms. Claude's latest response recommends two suppliers offering only 30-day terms, with no mention of the constraint.\n\nWhat is the MOST likely cause?",
+    "options": [
+      { "key": "A", "text": "Claude is deliberately surfacing alternatives the specialist had not considered." },
+      { "key": "B", "text": "The supplier evaluation task exceeds the model's competence in commercial negotiation." },
+      { "key": "C", "text": "The 90-day payment terms constraint, set early in the thread, now carries less weight relative to recent content." },
+      { "key": "D", "text": "The most recent prompt was too vague to reference the payment terms condition." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "In a long conversation, the model's attention is distributed across the entire context, with recent turns typically receiving more weight than older ones. A hard constraint set in turn 3 becomes progressively diluted by 40+ subsequent turns of new content. This is conversation drift — not a competence failure, not a deliberate choice, not a prompt vagueness issue.",
+      "distractors": {
+        "A": "Claude does not autonomously override stated constraints to introduce alternatives. It follows instructions; if a constraint is being ignored, the cause is architectural (context dilution), not intentional helpfulness.",
+        "B": "Competence limits cause hedged or inaccurate analysis — not selective disregard of a clearly stated constraint. The symptom points to context pressure, not knowledge gap.",
+        "D": "Vague prompts cause vague output. The symptom here is a specific failure to honour a specific earlier constraint — a pattern consistent with long-thread context drift, not prompt vagueness in the current turn."
+      },
+      "concept": "**Conversation drift** describes the phenomenon where constraints and preferences stated early in a long thread are effectively forgotten as later content fills the context window.\n\nWhy it happens:\n- Attention across a long context is not uniform — recent content is more salient.\n- In a 45-turn conversation, turn 1 competes for model attention with 44 later turns.\n\nPrevention and recovery:\n- Re-state critical constraints periodically, especially after topic shifts.\n- When quality degrades, summarise the governing rules and move to a fresh chat.\n- Keep hard constraints in a Project's custom instructions so they are always near the top of context.",
+      "examTip": "Drift and prompt vagueness look similar (wrong output) but differ in cause and fix. Drift = constraint stated correctly once but diluted by context length — fix by re-stating or refreshing. Vagueness = constraint never expressed clearly — fix by improving the prompt. The question tells you the constraint was explicit; that rules out D."
+    }
+  },
+  {
+    "id": "TOP-B-004",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "When to start fresh chat",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A copywriter at a boutique agency has been iterating on a brand voice guide in a single conversation for two days — now over 80 turns. Suggestions are growing inconsistent with tone decisions made in the first 20 turns. She needs to produce a final, coherent document.\n\nWhat is the FIRST action she should take?",
+    "options": [
+      { "key": "A", "text": "Ask Claude to scroll back through the full history and reproduce a complete brand voice guide from scratch." },
+      { "key": "B", "text": "Escalate the inconsistency to her agency's IT team for investigation." },
+      { "key": "C", "text": "Switch from the mid-tier to the highest-reasoning model to improve long-context retention." },
+      { "key": "D", "text": "Summarise the confirmed tone decisions and start a fresh chat with that summary as the opening context." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The root cause is context overload: 80 turns of competing iterations have diluted the original tone decisions. The fix is to extract the settled decisions into a compact summary and start fresh — the new chat's context is clean, the summary ensures continuity, and Claude produces coherent output with no competition from stale iterations.",
+      "distractors": {
+        "A": "Asking Claude to re-read 80 turns and reconstruct the guide exposes the final document to the same drift it is trying to correct. The inconsistencies are in the history; asking Claude to synthesise from that history risks perpetuating them.",
+        "B": "Conversation drift is a known property of long threads, not a platform malfunction. IT support cannot resolve a context-length problem; it has no fix to apply.",
+        "C": "Tier selection affects reasoning depth and cost. A higher-reasoning model operating on a bloated 80-turn context is still subject to context drift — the underlying problem is the length of the history, not the model's reasoning power."
+      },
+      "concept": "**Starting a fresh chat** is the recommended recovery when a long thread has accumulated enough drift or contradictory iterations that continuing is counterproductive.\n\nThe clean-start workflow:\n1. Before closing the old thread, extract the decisions you want to carry forward into a brief summary (key rules, confirmed choices, constraints).\n2. Open a new conversation and paste the summary as the first message or Project instruction.\n3. Proceed from the clean context.\n\nThis is cheaper and more reliable than asking Claude to self-synthesise from a degraded history.",
+      "examTip": "The exam frequently presents model-switching (C) as a tempting distractor when a workflow problem is actually context management. Ask: does the problem stem from the model's capability, or from the state of the conversation? If it is the latter, fixing the context — via a fresh chat — is the correct lever."
+    }
+  },
+  {
+    "id": "TOP-B-005",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Long-thread degradation",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A senior underwriter at a commercial insurer has used the same Claude conversation for three weeks to draft policy endorsement language. The thread spans hundreds of turns. He now observes that responses are shorter, miss standard clause structures present in his early templates, and occasionally contradict prior drafts.\n\nWhich factor BEST explains this quality degradation?",
+    "options": [
+      { "key": "A", "text": "Accumulating context causes early critical instructions and templates to receive less attention relative to recent turns." },
+      { "key": "B", "text": "Claude learns from in-session feedback and gradually drifts toward patterns the underwriter most recently approved." },
+      { "key": "C", "text": "Claude automatically compresses old messages to manage memory, stripping out structural formatting metadata." },
+      { "key": "D", "text": "Very long conversations trigger a conservative output mode designed to reduce context overload risk." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "As a conversation grows, the early messages — including templates and clause structures shared in the first few turns — occupy a smaller and smaller proportion of the total context. Recent content dominates attention. The templates are still technically in context but no longer receive the same weight they did when the thread was short. This is the primary driver of long-thread quality degradation.",
+      "distractors": {
+        "B": "Claude does not update its weights or fine-tune within a conversation. In-session feedback affects the current conversation's context but the model itself is not changing. This describes learning, not context pressure.",
+        "C": "There is no automatic message compression that strips formatting metadata. Messages persist in the context window as written; the issue is attention distribution, not data loss.",
+        "D": "There is no conservative output mode triggered by conversation length. Shorter, less structured responses in long threads reflect context dilution, not a deliberate throttle."
+      },
+      "concept": "**Long-thread degradation** is a predictable consequence of how attention works across a large context: the model's attention is distributed across all tokens, and early content competes with an ever-growing body of later content.\n\nSymptoms in order of severity:\n- Missed constraints from early instructions\n- Inconsistent formatting or clause structure\n- Contradictions with earlier drafts\n- Shorter, more generic responses\n\nMitigation:\n- Re-state key templates and rules periodically as the thread grows.\n- For sustained multi-session work, use a Project with custom instructions holding the governing rules.\n- When symptoms appear, extract decisions and start fresh rather than fighting the drift.",
+      "examTip": "Options B, C, and D all describe plausible-sounding mechanisms that don't exist. The exam uses invented mechanisms as hard distractors. Always route back to the actual architecture: Claude does not learn within a session, does not compress messages, and has no special long-thread modes. Only A describes a real phenomenon."
+    }
+  },
+  {
+    "id": "TOP-B-006",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Cost optimisation — tier selection",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A RevOps team at a 400-person SaaS company runs 3,000 Claude API calls per day to auto-tag incoming support tickets into one of 12 categories. The logic is well-defined, responses must arrive within two seconds, and monthly costs are now a concern.\n\nWhat change would MOST reduce cost without degrading task quality?",
+    "options": [
+      { "key": "A", "text": "Add few-shot examples to the system prompt so Claude categorises correctly on the first attempt." },
+      { "key": "B", "text": "Switch from the high-reasoning tier to the fastest lightweight tier for this classification task." },
+      { "key": "C", "text": "Reduce the number of ticket categories from 12 to 6 to shorten the prompt." },
+      { "key": "D", "text": "Run the API calls in batches overnight to take advantage of off-peak pricing." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Routing to the lightweight (Haiku) tier dramatically reduces per-token cost and latency. For a well-defined 12-way classification task, the lightweight tier is fully capable. Paying for the high-reasoning tier adds cost without adding accuracy for a task that does not require deep reasoning. This is the canonical cost optimisation move: match tier to task complexity.",
+      "distractors": {
+        "A": "Few-shot examples improve accuracy on ambiguous tasks but increase prompt length, which increases token cost per call. They address quality, not cost, and may actually raise the bill slightly.",
+        "C": "Changing the category taxonomy is a business decision with downstream impact on reporting and workflows. Reducing categories to lower token cost is disproportionate and disrupts the product, when simply switching tier achieves the same saving without touching the logic.",
+        "D": "Batch processing changes the delivery model and would break the real-time ticket tagging workflow. The 3,000 calls must be synchronous. Off-peak pricing is a distractor; it does not apply to standard API pricing in the way the option implies."
+      },
+      "concept": "**Tier-to-task matching** is the primary cost lever in high-volume Claude deployments.\n\nThe tiers by complexity fit:\n- **Lightweight (Haiku):** Classification, extraction, summarisation of structured content, routing decisions, simple Q&A.\n- **Mid-tier (Sonnet):** Drafting, analysis, reasoning over moderately complex content, most professional tasks.\n- **High-reasoning (Opus):** Multi-step reasoning, nuanced judgment, synthesis across complex documents.\n\nUsing Opus for ticket classification is like driving to pick up a letter — the capability is real but wildly over-specified. Match the tier to the task, not to a quality aspiration.",
+      "examTip": "When the stem describes high-volume, well-defined, low-complexity tasks with a cost concern, tier downgrading is almost always the primary lever. Watch for distractors that address quality (few-shot examples) rather than cost, or that change business logic (fewer categories) rather than the infrastructure."
+    }
+  },
+  {
+    "id": "TOP-B-007",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Latency optimisation",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A customer service manager at a telecoms provider has integrated Claude into a live chat tool. Agents report 8–10 second response times. Investigation reveals that every API call includes a 1,200-token copy of the full product catalogue appended to the system prompt, even when the customer's question concerns only billing.\n\nWhat change would MOST reduce latency?",
+    "options": [
+      { "key": "A", "text": "Shorten the system prompt by removing the agent persona description to cut token count." },
+      { "key": "B", "text": "Switch from the mid-tier to the lightweight model and accept slightly lower response quality." },
+      { "key": "C", "text": "Replace the full catalogue with only the products relevant to each query, retrieved dynamically." },
+      { "key": "D", "text": "Increase the maximum output token limit so Claude produces more complete answers per call." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Latency scales with total input token count. Sending 1,200 tokens of irrelevant catalogue on every call — including billing queries — is the dominant driver of slowness. Dynamically retrieving only the relevant product section reduces input size substantially, cutting time-to-first-token without sacrificing quality. This is targeted prompt pruning rather than a blunt model downgrade.",
+      "distractors": {
+        "A": "A persona description is typically 50–150 tokens. Removing it saves negligible time compared to eliminating 1,200 tokens of catalogue content. The effort is disproportionate to the gain.",
+        "B": "A tier switch reduces cost and can reduce latency, but is a blunt instrument when the root cause is avoidable input bloat. Quality concerns may outweigh the latency gain. Fixing the root cause first is the better engineering practice.",
+        "D": "Increasing the maximum output token allowance gives Claude permission to produce more tokens — it does not reduce the time the model spends processing a large input. Longer permitted outputs would if anything increase latency."
+      },
+      "concept": "**Latency in Claude API calls** is driven by two components: time to process the input (scales with input token count) and time to generate the output (scales with output token count).\n\nThe most impactful latency fixes, in order:\n1. **Reduce input size** — cut boilerplate, irrelevant knowledge, or over-long system prompts.\n2. **Retrieve dynamically** — replace a static full-knowledge-base system prompt with query-time retrieval of only the relevant slice.\n3. **Reduce output size** — constrain response length in the prompt.\n4. **Switch tier** — move to a faster model if quality permits.\n\nFix the root cause before changing the model.",
+      "examTip": "This item tests input-side vs. output-side latency and the principle of fixing root causes before switching models. The tell is the specific diagnosis in the stem: 1,200 tokens of unnecessary content. The correct answer directly addresses that diagnosis. B is a valid action but is premature before the easier fix."
+    }
+  },
+  {
+    "id": "TOP-B-008",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Isolate one variable",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An internal auditor at a regional bank is trying to improve Claude's output quality on regulatory gap assessments. After a disappointing result, she simultaneously rewrites the system prompt, adds four few-shot examples, switches from the mid-tier to the highest-reasoning model, and doubles the requested output length.\n\nWhat is the PRIMARY risk of making all four changes at once?",
+    "options": [
+      { "key": "A", "text": "The four changes will cancel each other out, producing output identical in quality to the original." },
+      { "key": "B", "text": "Claude will treat simultaneous changes as conflicting instructions and refuse to process the prompt." },
+      { "key": "C", "text": "The cost increase from switching tiers will not be justified by the quality improvement achieved." },
+      { "key": "D", "text": "If quality improves, she cannot determine which change was responsible; if it worsens, she cannot isolate the cause." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Changing multiple variables simultaneously breaks the ability to attribute outcomes. If quality improves, the auditor has no evidence about which change drove it and cannot reproduce the gain reliably. If quality worsens, she cannot diagnose the cause. The scientific method for prompt optimisation is: change one variable, observe, decide, then change the next.",
+      "distractors": {
+        "A": "Changes do not automatically cancel each other out. Some may reinforce each other; some may conflict. The outcome is unpredictable, not guaranteed to be neutral.",
+        "B": "Claude does not refuse prompts because multiple components changed simultaneously. It processes the prompt as presented. The problem is the auditor's inability to interpret the results, not Claude's ability to respond.",
+        "C": "Cost is a real concern, but it is secondary to the methodological risk described in D. Even if cost were justified, making all four changes together still prevents causal attribution — which is the primary problem."
+      },
+      "concept": "**One-variable-at-a-time** is the core discipline of prompt debugging and optimisation.\n\nThe principle: each change should be independently evaluable. If you cannot attribute an outcome to a specific change, you have not learned anything — you have only made the prompt more opaque.\n\nPractical workflow:\n1. Record the baseline output and any quality metrics.\n2. Make one change.\n3. Compare the new output to the baseline.\n4. Decide: keep, revert, or refine.\n5. Move to the next variable.\n\nThis applies to: system prompt rewrites, few-shot example additions, tier switches, output-length changes, and temperature adjustments.",
+      "examTip": "This principle is tested in TOP-B because it is an ordering/method question disguised as a risk question. The exam expects you to recognise that simultaneous changes are a debugging anti-pattern — not because they cause a technical failure, but because they destroy your ability to learn from the experiment."
+    }
+  },
+  {
+    "id": "TOP-B-009",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Conversation drift — subtle injection",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A clinical operations coordinator at a pharma company is refining a regulatory submission timeline in a long chat. Mid-conversation, she asks Claude to draft a brief project status email mentioning a \"two-week contingency buffer.\" She then returns to timeline work. Two turns later, Claude's timeline now includes a two-week buffer not present in any prior timeline discussion, citing it as \"consistent with the approach discussed earlier.\"\n\nWhat has MOST likely occurred?",
+    "options": [
+      { "key": "A", "text": "The email task injected framing that Claude is now applying to the timeline — a sign of in-thread context contamination." },
+      { "key": "B", "text": "Claude fabricated the buffer from pharmaceutical project norms in its training data." },
+      { "key": "C", "text": "The return-to-timeline prompt was ambiguous and Claude defaulted to a conservative interpretation." },
+      { "key": "D", "text": "Claude correctly inferred the buffer from the email and carried the decision forward as intended." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The email was drafted within the same conversation, so its framing — specifically the two-week contingency buffer — became part of the active context. When Claude subsequently worked on the timeline, it treated the buffer from the email as an established decision and applied it. This is a subtle form of drift: a side-task's framing bleeds into the main task because both share the same context window.",
+      "distractors": {
+        "B": "Fabrication from training data would not produce a figure that matches exactly the number stated in the coordinator's own email draft. The precision of the match points to within-conversation context, not parametric recall.",
+        "C": "A conservative default under ambiguity would produce a hedge or a clarifying question — not a confident claim that the buffer is \"consistent with the approach discussed earlier,\" which indicates Claude is citing an actual in-thread precedent.",
+        "D": "The coordinator asked for a status email containing the buffer; she did not instruct Claude to incorporate that buffer into the timeline. The inference was unsolicited, making it drift rather than correct carry-forward."
+      },
+      "concept": "**Context contamination** is a specific form of conversation drift where a side-task introduces framing, values, or constraints that were not intended for the main task, but that Claude treats as established context.\n\nRisk factors:\n- Inserting an unrelated task mid-thread (email drafts, quick lookups)\n- Using concrete numbers or decisions in the side task that could generalise\n- A model that actively tries to maintain internal consistency across a conversation\n\nMitigation:\n- Keep unrelated tasks in separate chats.\n- If you must mix tasks, explicitly signal the scope: \"This email is just a communication draft; it does not reflect a decision on the timeline.\"",
+      "examTip": "This is a hard item because D is genuinely tempting — if the coordinator mentioned the buffer, did she not implicitly decide it? The discriminator is intent: she asked Claude to draft an email *containing* the buffer, not to *adopt* the buffer as a timeline decision. Claude should not generalise from a drafting task to a planning decision without explicit instruction."
+    }
+  },
+  {
+    "id": "TOP-B-010",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Fresh chat for unrelated tasks",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A financial analyst at a pension fund has a rich 55-turn conversation covering a complex market scenario analysis. He now needs to ask an unrelated question: how to write a specific nested Excel formula. He worries that asking it in the existing thread could muddy the analysis context.\n\nWhat is the BEST approach?",
+    "options": [
+      { "key": "A", "text": "Ask the Excel question inside the existing thread, prefaced with \"Ignore all prior context for this question.\"" },
+      { "key": "B", "text": "Open a new chat for the unrelated question and leave the market analysis thread intact." },
+      { "key": "C", "text": "Formally close the market analysis conversation before opening a new one." },
+      { "key": "D", "text": "Add the market analysis documents to a Project so both questions can coexist in the same conversation safely." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Opening a separate chat for the Excel question is the clean, low-friction solution. The market analysis thread remains intact for future use; the Excel question gets a clean context. There is no cost to having two concurrent chats, and the instruction to \"ignore prior context\" is unreliable.",
+      "distractors": {
+        "A": "Instructions to \"ignore prior context\" are not reliably honoured and add ambiguity. The prior context remains in the window and may still influence the response. This approach relies on the model respecting an instruction it cannot fully comply with architecturally.",
+        "C": "There is no need to formally close a conversation before starting another. Conversations persist until the user deletes them. Closing the analysis thread would deprive the analyst of a resource he may still need.",
+        "D": "Using a Project to house the analysis documents is a reasonable long-term structure, but it does not solve the immediate problem of separating an unrelated question. It is also disproportionate effort for a quick Excel question."
+      },
+      "concept": "**Conversation hygiene** is the practice of keeping unrelated tasks in separate threads. Core rule: one thread, one task domain.\n\nWhy it matters:\n- Unrelated content in a thread can contaminate context and cause drift.\n- Keeping threads topically focused makes them easier to return to later.\n- It costs nothing to open a new chat.\n\nWhen is mixing acceptable?\n- Genuinely related follow-ups within the same workflow.\n- A quick clarification that does not introduce new framing.\n\nWhen to always separate:\n- A different topic entirely (Excel formula vs. market analysis).\n- A task that involves concrete numbers or decisions that could bleed back.",
+      "examTip": "The \"ignore prior context\" instruction is a persistent exam trap. It sounds like a solution but is architecturally unreliable — the context is still there. The clean solution is always a new chat. The exam will test this pattern in multiple guises."
+    }
+  },
+  {
+    "id": "TOP-B-011",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Capturing what worked",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A bid manager at a professional services firm discovers a specific prompt structure that consistently produces excellent executive summaries for RFP responses. She uses it six times this week. The following week, she opens a new chat and cannot reconstruct the exact prompt from memory.\n\nWhat practice would MOST effectively prevent this problem in future?",
+    "options": [
+      { "key": "A", "text": "Maintain one long-running conversation so the successful prompt is always accessible in the history." },
+      { "key": "B", "text": "Ask Claude at the end of each session to reproduce the exact prompt it just executed." },
+      { "key": "C", "text": "Save the high-performing prompt in a shared document or as a Project instruction accessible to the team." },
+      { "key": "D", "text": "Note the approximate structure and rely on Claude to reconstruct the full prompt from a description of the outcome." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Saving the prompt in a shared document or Project instruction makes it durable, repeatable, and accessible to the whole team — not just the individual who discovered it. This is the operationalisation step: turning a personal discovery into a reusable team asset. It survives session boundaries and personnel changes.",
+      "distractors": {
+        "A": "Chat history is not a reliable prompt library. It is hard to search, browser-dependent, and easily lost when the account is cleared or the session expires. It also does not scale to team sharing.",
+        "B": "Claude can reproduce text from its context window in the same session, but this only works while the conversation is open. It does not persist across sessions and requires the user to remember to ask.",
+        "D": "Reconstructing a prompt from a description of the outcome introduces variation. The value of the original prompt was its specific phrasing; approximating it from memory risks losing the exact elements that made it work."
+      },
+      "concept": "**Prompt capture and reuse** is the practice of treating effective prompts as durable assets rather than ephemeral inputs.\n\nCapture options in ascending durability:\n1. **Mental note** — lost when memory fades.\n2. **Chat history** — accessible but unsearchable and fragile.\n3. **Personal notes document** — durable but not shared.\n4. **Shared team document or wiki** — durable and accessible to the team.\n5. **Project instruction or template** — embedded in the workflow, always loaded.\n\nThe last two are the target for any prompt that has demonstrated value. Treat a high-performing prompt like a reusable template, not a one-off win.",
+      "examTip": "This topic tests whether you distinguish between finding a good prompt (an individual discovery) and institutionalising it (a team asset). The exam will reward answers that create durable, shareable artifacts over answers that rely on memory, session history, or model reconstruction."
+    }
+  },
+  {
+    "id": "TOP-B-012",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Buried content mid-document",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A legal operations analyst uploads a 90-page vendor contract to Claude and asks it to identify all indemnification clauses. Claude returns detailed analysis of clauses in sections 1–15 and sections 22–28, but omits a clearly worded indemnification clause at section 17. The clause uses unambiguous language and is present in the uploaded file.\n\nWhat is the MOST likely reason the clause was missed?",
+    "options": [
+      { "key": "A", "text": "Claude's document analysis is restricted to sections explicitly named in the prompt." },
+      { "key": "B", "text": "The clause language is too technical for Claude's legal domain knowledge to classify reliably." },
+      { "key": "C", "text": "The document's formatting caused section 17 to render as a non-text image layer." },
+      { "key": "D", "text": "Content in the middle of a long document receives less model attention than content near the beginning or end." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Attention across a long document is not uniform. Content in the middle of a large document — sometimes called the 'lost in the middle' effect — receives systematically less attention than content near the start or end. An indemnification clause that is unambiguous in isolation can still be underweighted when it sits in the middle of a 90-page document. This is a known limitation requiring verification strategies.",
+      "distractors": {
+        "A": "Claude does not restrict document analysis to sections named in the prompt. When asked to identify all instances of something, it processes the full document. The failure was not scope restriction.",
+        "B": "The clause uses unambiguous language, as stated in the stem. A knowledge gap would manifest as misclassification or hedging — not outright omission of a clearly worded clause.",
+        "C": "If section 17 rendered as a non-text image, the clause would be inaccessible across all queries — but the stem specifies only this clause was missed while adjacent sections were analysed correctly. A rendering failure would not produce selective results."
+      },
+      "concept": "**The lost-in-the-middle effect** refers to the empirically observed tendency for models to give less attention to content positioned in the middle of a long input compared to content at the beginning (recency-primed) or end (recency-primed).\n\nImplications for document review tasks:\n- A single-pass prompt over a long document may systematically miss mid-document content.\n- Critical extraction tasks should be verified independently, especially for items that may sit anywhere in the document.\n\nMitigation strategies:\n- Split the document into sections and run extraction on each section.\n- Follow up with a targeted prompt: \"Review sections 14–20 specifically for indemnification clauses.\"\n- Use a human spot-check for high-stakes extraction tasks.",
+      "examTip": "This item tests a non-obvious architectural limitation. The trap is C — it sounds technical and specific. But the stem rules out C by noting that adjacent sections were analysed correctly. If rendering failed, the pattern would be different. When a specific, clearly worded item is missed amid otherwise good analysis, the lost-in-the-middle effect is the leading candidate."
+    }
+  },
+  {
+    "id": "TOP-B-013",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Continuation prompt precision",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A technical writer at a software company receives a truncated API reference draft — Claude stopped mid-table after documenting 18 of 30 endpoints. She sends the follow-up message: \"OK keep going.\"\n\nWhat is the PRIMARY risk of this continuation prompt?",
+    "options": [
+      { "key": "A", "text": "Without anchoring to the stopping point, Claude may repeat already-documented endpoints or skip some entirely." },
+      { "key": "B", "text": "Claude will interpret the casual phrasing as permission to reduce documentation quality." },
+      { "key": "C", "text": "The continuation will adopt a noticeably different writing style than the initial response." },
+      { "key": "D", "text": "Claude will ignore the instruction and restart the entire reference from endpoint 1." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "An ambiguous continuation prompt does not specify where the partial output stopped. Claude must infer the boundary from context, which introduces risk: it may re-cover endpoints near the truncation point (partial repetition), skip some in the uncertain zone, or begin from a different point entirely. A precise anchor — \"Continue from endpoint 19, maintaining the same table format\" — eliminates this ambiguity.",
+      "distractors": {
+        "B": "Writing quality is governed by the original instructions, which remain in context. Casual wording in a follow-up does not signal or permit a quality reduction. Claude does not penalise the user for informal phrasing.",
+        "C": "Style consistency is driven by the existing context — the prior 18 entries act as strong style anchors. A brief casual follow-up does not override those anchors. Style drift is a risk in fresh chats, not in well-anchored continuations.",
+        "D": "Claude does not restart a task when asked to continue. It treats the follow-up as a continuation request and operates from the existing context. A full restart would require an explicit instruction to start over."
+      },
+      "concept": "**Continuation prompt craft** matters because vague continuations leave boundary detection to the model. The model must infer where the complete content ends and the truncated content begins — a judgment that can go wrong.\n\nBest practice for continuation prompts:\n- **Name the anchor point:** \"Continue from endpoint 19.\"\n- **Confirm the format:** \"Use the same four-column table as above.\"\n- **Specify the range:** \"Complete endpoints 19 through 30.\"\n\nThe worst continuation prompts: \"keep going,\" \"continue,\" \"and the rest\" — these leave all three ambiguities unresolved.",
+      "examTip": "Continuation prompts are their own craft. The exam tests whether you know that an imprecise continuation prompt shifts the boundary-detection burden onto the model, creating repetition and gaps. Precision is always better than brevity in continuation messages."
+    }
+  },
+  {
+    "id": "TOP-B-014",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Test before scaling",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A product manager at a fintech startup is designing a pipeline that sends each user's monthly transaction summary (~600 tokens) to Claude and returns a personalised spending insight (~80 tokens). The pipeline will run for 50,000 users per month. The team debates whether to use the lightweight tier or the mid-tier model before launch.\n\nWhich factor should MOST influence the tier decision?",
+    "options": [
+      { "key": "A", "text": "The mid-tier model's higher per-token cost is automatically justified by the personalisation requirement." },
+      { "key": "B", "text": "Whether the lightweight tier produces acceptable insight quality on a representative test sample, evaluated before scaling." },
+      { "key": "C", "text": "The total cost differential between tiers calculated at full volume, assessed before any quality testing." },
+      { "key": "D", "text": "The average response latency of each tier, given that users receive insights in their monthly app notification." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The correct sequence is: test quality first, then decide on tier based on evidence. Assuming the mid-tier is required because the task is 'personalised' skips the empirical step. The lightweight tier handles short, structured extraction tasks very well. Running a representative sample through both tiers and comparing quality outcomes gives a principled basis for the decision — not a prior assumption.",
+      "distractors": {
+        "A": "Personalisation does not automatically require high-reasoning capability. Generating a short, structured insight from a structured input (transaction data) may be well within the lightweight tier's capability. The assumption short-circuits the quality test.",
+        "C": "Computing the cost differential before testing quality inverts the decision sequence. If the lightweight tier fails quality tests, the cost comparison is irrelevant. Quality gates before cost optimisation.",
+        "D": "Latency matters for real-time interactions. Monthly notifications are batch-processed and asynchronous — a few seconds of latency difference between tiers has no user impact here. This factor is real in other contexts but irrelevant to this scenario."
+      },
+      "concept": "**Tier selection for a new pipeline** should follow the sequence: quality → cost → latency.\n\n1. **Determine minimum acceptable quality** on a representative sample (ideally 50–100 items across the input distribution).\n2. **Test the cheapest tier first.** If it meets quality criteria, use it.\n3. **Escalate only when the lower tier fails** the quality bar.\n4. **Consider latency** only when quality is resolved — and only if the use case is latency-sensitive.\n\nAt 50,000 calls/month, a tier decision has significant cost implications — but those implications only matter if the chosen tier is qualified on quality.",
+      "examTip": "A and C are both tempting because they are partially true: personalisation is real, and cost matters at scale. The discriminator is ordering: quality must be tested before cost is optimised. Assume-then-scale is the anti-pattern; test-then-scale is the correct pattern. This is a discipline question, not a capability question."
+    }
+  },
+  {
+    "id": "TOP-B-015",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Multi-step prompt structure",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A market researcher at a retail chain asks Claude to perform five sequential analysis steps on a dataset summary and return all five outputs in a single response. The response covers steps 1–3 fully and trails off during step 4.\n\nWhat structural change to the prompting approach would MOST reliably prevent this in future?",
+    "options": [
+      { "key": "A", "text": "Request only the single most critical step and discard the others." },
+      { "key": "B", "text": "Switch to a higher-reasoning tier model that supports longer output responses." },
+      { "key": "C", "text": "Request each step in a separate turn, using the prior step's output as input context for the next." },
+      { "key": "D", "text": "Add an explicit instruction: \"Do not stop until all five steps are complete.\"" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Splitting a five-step analysis into five sequential turns keeps each output within the per-response limit and uses the prior output as grounding for the next step — which also improves coherence. Each turn is a manageable, complete task. The researcher gets the same five outputs without risking truncation of the middle steps.",
+      "distractors": {
+        "A": "Abandoning four of five analysis steps sacrifices the research goal entirely. This treats the symptom by eliminating the task rather than solving the structural problem.",
+        "B": "Tier selection affects reasoning depth, not the maximum output length per response. A higher-reasoning model on the same five-step single prompt would still hit the output limit in the same place.",
+        "D": "Explicit length instructions influence output completeness within the model's normal operating range but cannot override the hard per-response output limit. When the limit is the binding constraint, this instruction does not help."
+      },
+      "concept": "**Prompt chaining** is the structured approach to multi-step tasks: run step 1, capture the output, use it as context for step 2, and so on. This approach:\n- Keeps each call within output limits.\n- Allows verification and correction between steps.\n- Produces each step's output as a distinct artifact the user can inspect.\n- Uses each prior result to ground the next step, improving coherence.\n\nContrast with a single-prompt approach: when five steps must fit in one response, only some will receive full attention and the last steps are most likely to be truncated.",
+      "examTip": "The exam tests whether you reach for prompt chaining when a multi-step task exceeds a single response. Tier switching (B) is the classic wrong answer here — it sounds like a capability upgrade but does not change the output-length constraint. Chaining is the structural solution."
+    }
+  },
+  {
+    "id": "TOP-B-016",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Conversation drift causes",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An HR business partner at a global bank has maintained a single Claude conversation for four months to assist with job description drafts. Recent drafts are omitting competency requirements from the firm's competency framework and adopting a more informal tone than the firm's style guide requires. Both documents were shared early in the thread. (Choose TWO factors that MOST likely explain both problems.)",
+    "options": [
+      { "key": "A", "text": "The competency framework and style guide, shared early in the thread, are now far back in context and carry less weight relative to recent turns." },
+      { "key": "B", "text": "Claude's language model continuously updates its preferences based on user feedback expressed within a session." },
+      { "key": "C", "text": "Multi-month conversations trigger an automatic quality-reduction mode to manage compute." },
+      { "key": "D", "text": "Recent turns, including the most recent job description drafts, now dominate the model's focus, overriding earlier reference documents." },
+      { "key": "E", "text": "Conversational task types cause Claude to default to informal registers regardless of prior style instructions." }
+    ],
+    "correct": ["A", "D"],
+    "explanation": {
+      "correct": "A explains the structural cause: early reference documents (the competency framework, the style guide) are now hundreds of turns back in context, where they receive less attention. D explains the mechanism: the recent job description drafts — which are the most salient, most recent content — set an implicit precedent that overshadows the earlier reference documents. Together, they describe how a four-month thread systematically displaces early anchors.",
+      "distractors": {
+        "B": "Claude does not update its weights or preferences within a session. In-session feedback affects the context window, not the model parameters. This describes fine-tuning, not conversation dynamics.",
+        "C": "There is no quality-reduction mode triggered by conversation duration. Quality degradation in long threads is a consequence of context pressure, not a compute-management feature.",
+        "E": "Claude follows style instructions when they are present and salient. Style drift occurs when the style guide is no longer prominent in context, not because conversational tasks override instructions by default."
+      },
+      "concept": "**Long-thread drift** in document-production workflows has two interlocking causes:\n1. **Reference dilution** — the authoritative documents (style guide, templates) slide back in context as new turns accumulate.\n2. **Implicit example dominance** — recent output examples become the de facto standard the model follows, even if they themselves drifted from the originals.\n\nThis creates a compounding problem: each drifted draft reinforces the drift in subsequent drafts.\n\nFix: extract the essential rules from the reference documents into a Project instruction so they load at the top of every conversation, never diluted by history.",
+      "examTip": "Multi-select items in this topic often pair a structural cause (A) with a mechanistic cause (D). Both must be true. B, C, and E all describe invented mechanisms — they sound plausible but describe things Claude does not do. When in doubt, reject options that require Claude to actively change its own behaviour or trigger special operating modes."
+    }
+  },
+  {
+    "id": "TOP-B-017",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Cost optimisation strategies",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An engineering team at a manufacturing company is reviewing their Claude API spend, which tripled in 90 days as adoption grew. They want to cut costs without restricting usage. (Choose TWO changes that would MOST directly reduce token cost without degrading output quality for well-defined tasks.)",
+    "options": [
+      { "key": "A", "text": "Ask Claude to explain its reasoning in every response to improve accuracy and reduce costly retries." },
+      { "key": "B", "text": "Remove boilerplate from system prompts that repeats on every API call but adds no task-relevant instruction." },
+      { "key": "C", "text": "Use the lightweight model tier for high-volume routine tasks that do not require deep reasoning." },
+      { "key": "D", "text": "Increase the maximum output token limit so Claude produces longer, more complete responses and reduces re-runs." },
+      { "key": "E", "text": "Move all tasks to asynchronous batch processing regardless of whether the use case requires real-time responses." }
+    ],
+    "correct": ["B", "C"],
+    "explanation": {
+      "correct": "B targets the input-side cost directly: every unnecessary token in a system prompt multiplied by 3,000 daily calls is significant spend. Removing boilerplate cuts that overhead without touching task quality. C targets the model-tier cost: routine, well-defined tasks (classification, extraction, structured generation) do not need the mid or high tier. Matching tier to task complexity is the single highest-leverage cost lever.",
+      "distractors": {
+        "A": "Requesting reasoning explanations on every response increases output tokens, which raises cost. It may reduce retries on ambiguous tasks, but for well-defined tasks it adds unnecessary output volume.",
+        "D": "A larger maximum output token allowance gives the model permission to produce more tokens — it does not reduce cost. If anything, it may increase average output length and therefore cost.",
+        "E": "Batch processing changes the delivery model and introduces latency. Not all tasks can be batched without disrupting the workflow. This option ignores the constraint that some tasks require real-time responses."
+      },
+      "concept": "**Token cost reduction** has two dimensions:\n- **Input-side:** Reduce unnecessary tokens in system prompts, few-shot examples, and context. Prune boilerplate.\n- **Model-tier side:** Route low-complexity, high-volume tasks to the lightweight tier.\n\nDo NOT try to reduce cost by:\n- Requesting shorter system outputs — this may reduce quality below acceptable levels.\n- Adding reasoning steps — this increases output tokens.\n- Increasing output token limits — this has no cost benefit and may increase spend.\n\nCost optimisation is about removing waste, not degrading quality.",
+      "examTip": "A and D are tempting because they reference accuracy (A) and completeness (D) — positive-sounding goals. The exam tests whether you can see that both actually *increase* token consumption. Cost optimisation means fewer tokens, not better tokens. B and C each directly reduce token count or per-token rate."
+    }
+  },
+  {
+    "id": "TOP-B-018",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Fresh chat for high-stakes output",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A strategy consultant at a 90,000-person professional services firm is completing a two-week engagement. She has used a single Claude conversation throughout — 120+ turns covering market sizing, competitor profiles, and risk assessment. She must now write the executive summary, the highest-stakes output of the engagement. (Choose TWO actions that would MOST improve the executive summary's quality.)",
+    "options": [
+      { "key": "A", "text": "Distil the key findings, decisions, and constraints from the full thread into a concise briefing document before writing." },
+      { "key": "B", "text": "Ask Claude to review all 120 turns and produce a self-summary, then use that as context for the executive summary." },
+      { "key": "C", "text": "Start a fresh conversation using the briefing document as the sole context for the executive summary task." },
+      { "key": "D", "text": "Switch to a higher-reasoning model tier while remaining in the same 120-turn thread to boost quality." },
+      { "key": "E", "text": "Tag the ten most important turns in the conversation so Claude weights them more heavily in the summary." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "A produces a consultant-curated briefing: the highest-quality distillation of 120 turns, written by someone who knows which findings are primary. C creates a clean context in which that briefing is the only input — no competing drift, no diluted early instructions, no accidental injection from side tasks. The executive summary is generated from a clean, authoritative foundation rather than a degraded 120-turn context.",
+      "distractors": {
+        "B": "Asking Claude to self-summarise 120 turns is risky: it is subject to the same lost-in-the-middle effect as any long-document processing. The model may weight recent turns heavily, underrepresent findings from early in the engagement, and produce a summary that reflects the drift of the thread rather than the consultant's actual conclusions.",
+        "D": "Switching to a higher-reasoning tier adds reasoning depth but does not fix the root problem: 120 turns of context drift. A more capable model operating on a degraded context still produces degraded output.",
+        "E": "There is no mechanism in Claude.ai or the API that allows users to tag specific turns for elevated weight. This describes a capability that does not exist."
+      },
+      "concept": "**High-stakes outputs warrant a clean context.** The principle: the quality of a final deliverable is limited by the quality of the context it is generated from.\n\nFor long engagements:\n1. **Curate a briefing document** — not a raw transcript export, but a structured summary of key findings, decisions made, constraints, and remaining risks. This is the consultant's intellectual synthesis.\n2. **Start fresh** — open a new chat, load the briefing, and produce the deliverable. No drift, no competing content, no context dilution.\n\nThis pattern applies anywhere a final output must be the best possible: executive summaries, regulatory filings, board memos, published reports.",
+      "examTip": "The hard part here is rejecting B. It sounds methodical — have Claude read the full history and summarise. But it puts the synthesis burden on Claude across a 120-turn degraded context, where the model is most likely to miss important early findings. A (human curation) + C (clean context) is the superior approach because it combines domain expertise with a clean starting point."
+    }
+  },
+  {
+    "id": "TOP-B-019",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Continuation strategies",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A legal analyst at an insurance company asks Claude to draft a 15-clause exclusions schedule for a new product policy. The response covers clauses 1–9 and stops. The analyst needs all 15 clauses in consistent numbering format and style. (Choose TWO approaches that would MOST reliably produce the remaining clauses in matching style.)",
+    "options": [
+      { "key": "A", "text": "Start a new chat and request all 15 clauses again from scratch, emphasising consistency." },
+      { "key": "B", "text": "In the same chat, ask: \"Please draft clauses 10–15, maintaining the same numbering format and clause style as clauses 1–9 above.\"" },
+      { "key": "C", "text": "Ask Claude to regenerate clauses 1–9 in a shorter format to create room for all remaining clauses in one response." },
+      { "key": "D", "text": "Upload the partial draft as a new file attachment and request completion in a fresh chat session." },
+      { "key": "E", "text": "Paste clauses 8 and 9 as style anchors in the follow-up prompt, then request clauses 10–15 explicitly." }
+    ],
+    "correct": ["B", "E"],
+    "explanation": {
+      "correct": "B continues in the same thread, where clauses 1–9 are already in context as live style anchors. Naming the exact range (10–15) and explicitly referencing the existing style eliminates ambiguity about what is needed. E reinforces style consistency by re-presenting the last two clauses as immediate style examples — a useful technique when you want the continuation to match precisely without relying on the model to locate the style from earlier in a long context.",
+      "distractors": {
+        "A": "Starting fresh risks style inconsistency — the new chat produces all 15 from scratch with no live anchor from the existing draft. The analyst then has two partial drafts to reconcile.",
+        "C": "Shortening the existing clauses to fit more in one response reduces clause quality. Clause length in a legal schedule is determined by legal requirements, not by output-window convenience.",
+        "D": "Uploading the partial draft as a file in a new session technically works but is unnecessary overhead. The partial draft is already in the current conversation's context. This approach also loses the formatting consistency of a live continuation."
+      },
+      "concept": "**Style-consistent continuation** requires giving the model both an anchor and an explicit range.\n\nAnchor strategies:\n- **Live context:** clauses already in the conversation window act as anchors automatically.\n- **Explicit re-presentation:** pasting the last one or two items as immediate examples in the follow-up prompt — especially useful in longer threads where earlier items may be diluted.\n\nRange specification:\n- Always name the exact starting and ending points: \"clauses 10 through 15.\"\n- Avoid \"the rest\" or \"continue\" without a number — both leave boundary detection to the model.",
+      "examTip": "The exam tests both continuation strategies together: staying in the same thread (B) and explicit style anchoring (E). Both are correct. A is the most tempting wrong answer because a fresh start sounds safer, but it sacrifices the live style context that is already in the window — the most reliable anchor available."
+    }
+  },
+  {
+    "id": "TOP-B-020",
+    "domain": "Troubleshooting and Optimisation",
+    "topic": "Debugging long-thread degradation",
+    "difficulty": "hard",
+    "type": "nextstep",
+    "stem": "A compliance manager at a fintech firm has used a single Claude conversation for 75 turns to draft policy sections. Quality was strong in turns 1–30. Since turn 50, responses have been missing mandatory regulatory references that were included in her early instructions, and formatting has become inconsistent. She is about to intervene.\n\nWhat should she do NEXT?",
+    "options": [
+      { "key": "A", "text": "Upgrade to the highest-reasoning model tier to compensate for the quality decline in the long thread." },
+      { "key": "B", "text": "Delete the last 20 turns from the conversation history to restore the earlier context weighting." },
+      { "key": "C", "text": "Extract the key instructions, regulatory references, and completed decisions into a summary document, then open a fresh conversation with that summary as the opening context." },
+      { "key": "D", "text": "Repeat the regulatory references verbatim at the start of each new prompt for the remaining policy sections." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The correct next step is to diagnose the root cause (context drift from a 75-turn history), extract the durable rules and decisions into a clean briefing, and start fresh. This resets the context to a high-quality foundation. It is not a workaround — it is the direct structural fix. Repeating references (D) treats the symptom; upgrading tiers (A) does not fix the context problem; deleting turns (B) is not possible in standard interfaces and risks losing useful completed sections.",
+      "distractors": {
+        "A": "Model tier affects reasoning depth, not context management. A higher-reasoning model operating on a 75-turn drifted context will still be subject to context dilution. The root cause is the history length, not the model's capability.",
+        "B": "Standard Claude interfaces do not support selective deletion of conversation turns. Even if they did, removing the last 20 turns would discard completed policy sections the manager needs. This option describes a capability that does not exist and would cause data loss if it did.",
+        "D": "Repeating regulatory references in each prompt is a symptomatic workaround, not a structural fix. It increases every prompt's token cost, requires the user to maintain a manual process, and does not address the formatting inconsistency or any other drift symptom."
+      },
+      "concept": "**Nextstep discipline for long-thread degradation:**\n1. **Diagnose first** — confirm the cause is context drift (symptoms: early instructions ignored, formatting inconsistency, constraint violations) not a model capability failure.\n2. **Extract before abandoning** — pull the completed policy sections and the governing instructions into a clean document. Do not throw away work.\n3. **Reset context cleanly** — open a fresh conversation with the summary as the first message. This is cheaper and more reliable than any in-thread workaround.\n4. **Institutionalise** — move the governing instructions into a Project so they are always at the top of context in future sessions.",
+      "examTip": "Nextstep items test ordering discipline. D is the most tempting distractor because it addresses the immediate symptom. But the correct sequence is fix-the-structure before applying per-prompt patches. Patching every prompt is a high-maintenance workaround; resetting the context is a durable solution. The NEXT step question asks for the best structural intervention, not the quickest band-aid."
+    }
+  }
+]

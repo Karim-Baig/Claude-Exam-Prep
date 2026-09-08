@@ -1,0 +1,506 @@
+[
+  {
+    "id": "GRR-A-021",
+    "domain": "Governance, Risk, and Responsible Use",
+    "topic": "PII vs PHI distinction",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A pharmacy technician at an independent chemist uses her personal Claude.ai account to draft patient counselling notes. She pastes the patient's first name, prescription drug name, dosage, and refill schedule into the prompt. A colleague says this is fine because the patient's surname, address, and date of birth were not included.\n\nWhat is the MOST accurate assessment of the colleague's claim?",
+    "options": [
+      { "key": "A", "text": "The colleague is correct — without a surname and date of birth, the record does not meet the threshold for protected health information" },
+      { "key": "B", "text": "The colleague is wrong — a first name combined with a prescription drug and dosage links an individual to health information, constituting PHI regardless of whether a surname is present" },
+      { "key": "C", "text": "The colleague is correct because pharmacy data is classified as financial data under PCI rules, not health data under HIPAA-style frameworks" },
+      { "key": "D", "text": "The colleague is wrong because prescription data is always PCI-regulated regardless of how much identifying information accompanies it" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "PHI requires a link between any individual identifier and health information. A first name is an identifier — it need not be a full name with address and date of birth. Combined with a specific prescription drug and dosage, the first name links a real person to their medication regimen. The number of identifiers present affects re-identification risk but does not change whether PHI has been created; the threshold is a link between identity and health information, however minimal.",
+      "distractors": {
+        "A": "There is no minimum identifier count required to create PHI. Any identifier — first name, patient ID, even a unique enough characteristic — combined with health information meets the definition. The absence of a surname does not remove the PHI classification.",
+        "C": "Prescription data is health information, not payment card data. PCI-DSS regulates payment card transactions, not pharmaceutical records. The two regulatory regimes are entirely distinct.",
+        "D": "Prescription data is not PCI-regulated. PCI-DSS is specific to payment card numbers and associated cardholder data. Prescription records fall under health-information privacy frameworks."
+      },
+      "concept": "**PII vs PHI: the key distinction**\n\n- **PII** (Personally Identifiable Information): any data that identifies or could identify an individual — names, email addresses, ID numbers. Regulated by general privacy frameworks.\n- **PHI** (Protected Health Information): PII that has been linked to health information — diagnoses, prescriptions, treatment records, test results. Regulated by health-specific frameworks (HIPAA-style) with additional obligations.\n\nAll PHI is PII, but not all PII is PHI. The additional element that creates PHI is the health information component.\n\n**Practical test:** strip the identifier — does useful health information remain? If the prescription record becomes meaningless without the name (because it could be any patient), the name is the identifier that creates PHI.\n\nFor AI tools: PHI triggers BAA requirements, specific data-handling obligations, and breach-notification requirements that standard PII does not.",
+      "examTip": "PII-vs-PHI questions test whether you know that **PHI = any identifier + health information**, not a *complete* set of identifiers. A first name is enough if combined with a health record. Distractors often claim that partial identifier removal makes data non-PHI — that is incorrect. Partial removal reduces risk; it does not change the classification."
+    }
+  },
+  {
+    "id": "GRR-A-022",
+    "domain": "Governance, Risk, and Responsible Use",
+    "topic": "Anonymisation vs pseudonymisation",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A clinical research associate at a pharmaceutical company prepares a patient dataset for a Claude-assisted analysis. She replaces every patient name and medical record number with a unique study code (e.g., PT-0047) and stores the code-to-identity mapping table in a separate encrypted database accessible only to the principal investigator.\n\nHow should this dataset be classified?",
+    "options": [
+      { "key": "A", "text": "Pseudonymised — the codes can be re-linked to identities using the mapping table, so individuals remain identifiable to those with access to the key" },
+      { "key": "B", "text": "Anonymous — once names and record numbers are replaced with codes, no personal data remains in the dataset" },
+      { "key": "C", "text": "Encrypted — applying a reversible transformation to identifiers is the definition of encryption, not pseudonymisation" },
+      { "key": "D", "text": "De-identified by safe harbour — replacing names and record numbers satisfies all requirements for formal de-identification" }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Pseudonymisation replaces direct identifiers with codes or pseudonyms while retaining a key that allows re-linkage. The dataset is not anonymous because the principal investigator can reverse the substitution using the mapping table. The data remains personal data — it is simply more controlled. This is the defining characteristic of pseudonymisation: re-identification is possible, just restricted. True anonymisation requires that re-identification be technically impossible, not merely difficult.",
+      "distractors": {
+        "B": "Anonymous data requires that re-identification be impossible, not just impractical. A mapping table that can reverse the substitution makes the dataset pseudonymised, not anonymous. The existence of any linkage key means personal data is still technically present, one step removed.",
+        "C": "Encryption converts data to an unreadable format using a cryptographic key. Pseudonymisation substitutes identifiers with placeholder values while preserving the data's structure. They are different techniques, though both are reversible. Replacing names with study codes is pseudonymisation.",
+        "D": "Safe-harbour de-identification requires removing a specific enumerated list of identifier types and asserting no residual re-identification risk. Replacing only names and record numbers while retaining other fields, and keeping a mapping table, does not satisfy the safe-harbour requirements for formal de-identification."
+      },
+      "concept": "**Anonymisation vs pseudonymisation** is one of the most tested distinctions in data privacy:\n\n| Property | Anonymisation | Pseudonymisation |\n|---|---|---|\n| Re-linkage possible? | No | Yes (via key) |\n| Still personal data? | No | Yes |\n| Regulatory obligations? | Reduced/removed | Mostly remain |\n| Example | Aggregated statistics | Study codes with mapping table |\n\n**Key principle:** pseudonymisation is a risk-reduction measure, not an exemption from data-protection obligations. Pseudonymised data is still personal data under GDPR-style frameworks because it *can* be re-identified.\n\nFor AI workflows: even processing pseudonymised data requires data-handling controls, because the pseudonym can be reversed. The controls may be lighter than for direct identifiers, but they do not disappear.",
+      "examTip": "Anonymisation vs pseudonymisation questions always turn on **reversibility**. If a mapping key exists anywhere, the data is pseudonymised. Candidates frequently confuse 'identifiers have been removed' with 'data is anonymous' — they are not the same. Ask: 'could anyone with the key re-identify this individual?' If yes, it is pseudonymised."
+    }
+  },
+  {
+    "id": "GRR-A-023",
+    "domain": "Governance, Risk, and Responsible Use",
+    "topic": "Purpose limitation",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An HR analytics team at a 20,000-person retailer collected detailed employee onboarding survey data — including commute distance, household income band, and dependent care arrangements — to improve the onboarding experience. The marketing analytics team has now requested access to the same dataset to segment employees for an internal product-testing panel.\n\nWhich data governance principle does the proposed repurposing MOST directly implicate?",
+    "options": [
+      { "key": "A", "text": "Data accuracy — the onboarding survey data may have become stale and inaccurate since collection" },
+      { "key": "B", "text": "Data minimisation — the marketing team should only receive the fields relevant to product testing" },
+      { "key": "C", "text": "Purpose limitation — data collected under one stated purpose cannot be repurposed for a materially different use without a new legal basis" },
+      { "key": "D", "text": "Retention — the onboarding survey data may have exceeded its permissible retention period" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Purpose limitation requires that personal data be collected for a specified, explicit, and legitimate purpose and not processed in a manner incompatible with that purpose. Employees provided sensitive personal information (income, dependents, commute) for onboarding improvement — a welfare and HR purpose. Repurposing that data for marketing segmentation is a materially different purpose. Using it for the new purpose requires a fresh legal basis: either the original purpose is compatible (unlikely here), employees consent to the new use, or another legitimate basis applies.",
+      "distractors": {
+        "A": "Data accuracy addresses whether records correctly reflect current reality. It is a real concern but is not the principle triggered by the repurposing proposal. The violation here is about lawfulness of the new use, not the correctness of the data.",
+        "B": "Data minimisation would apply once the repurposing is authorised — minimise what is shared with the marketing team. But minimisation cannot substitute for establishing a lawful basis for the new purpose. The threshold question is whether the new purpose is permissible at all.",
+        "D": "Retention obligations relate to how long data is kept, not to how it is used. Retention may be a secondary concern if the data is old, but the core issue here is the legality of using it for a new purpose — a purpose-limitation question."
+      },
+      "concept": "**Purpose limitation** is a foundational privacy principle: personal data collected for purpose A cannot be freely used for purpose B.\n\nCompatibility test — factors that determine whether a new purpose is compatible:\n- Link between the original and new purpose\n- Nature of the personal data (sensitive data → higher bar)\n- Consequences for the individuals\n- Existence of appropriate safeguards\n\nFor the scenario: household income and dependent care are sensitive fields collected in a trust-based HR context. Repurposing them for marketing profiling fails the compatibility test on multiple factors.\n\n**Contrast with minimisation:** minimisation asks 'how much data?' — purpose limitation asks 'for what purpose?' They address different dimensions and apply simultaneously.\n\n**For AI workflows:** if a team wants to use an existing dataset in a Claude workflow, the first question is whether the new AI-enabled use is compatible with the purpose under which the data was originally collected.",
+      "examTip": "Purpose limitation vs minimisation discrimination is a frequent exam trap. **Purpose limitation = wrong use; minimisation = too much data for a given use.** When the scenario involves using existing data in a new way, the answer is almost always purpose limitation. When the scenario involves including more data than needed for an established use, the answer is minimisation."
+    }
+  },
+  {
+    "id": "GRR-A-024",
+    "domain": "Governance, Risk, and Responsible Use",
+    "topic": "Tokenisation vs redaction",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A legal operations team at an insurer is processing 500 claim files through Claude to identify coverage patterns across claimants who have made multiple claims over three years. Each file contains a claimant's full name and a unique claim reference number. The analysis requires tracking which files belong to the same individual across multiple claims.\n\nWhich technique BEST balances the competing needs of minimising personal data exposure and preserving the ability to cross-reference files?",
+    "options": [
+      { "key": "A", "text": "Anonymise all files by removing both the claimant name and the claim reference number before submission" },
+      { "key": "B", "text": "Submit the full files including names so Claude can generate accurate cross-claimant pattern analysis" },
+      { "key": "C", "text": "Redact the claimant name and submit only the claim reference number, which provides sufficient cross-file linkage" },
+      { "key": "D", "text": "Replace claimant names with a consistent pseudonym token (e.g., CLM-10047) applied identically across all files belonging to the same individual, preserving cross-file linkage without exposing real identities" }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Tokenisation assigns a consistent, reusable pseudonym to each individual. When the same token (CLM-10047) appears across multiple claim files, Claude can identify and analyse patterns for that individual without ever seeing the real name. This satisfies both requirements: the real identity is protected (the name never enters the prompt), and cross-file analysis remains intact. Redaction of names alone (option C) would work only if the claim reference number is unique per individual — which may not be the case across a multi-year dataset with new claims generating new reference numbers.",
+      "distractors": {
+        "A": "Removing both names and reference numbers eliminates all cross-file linkage, making multi-claim pattern analysis impossible. The analysis requires identifying the same individual across files — full anonymisation defeats the purpose.",
+        "B": "Submitting real names exposes direct personal identifiers unnecessarily. Tokenisation achieves equivalent analytical capability with lower exposure. Including names violates the minimisation principle when a less-invasive alternative is available.",
+        "C": "Claim reference numbers are assigned per claim, not per individual — the same person may have three different reference numbers across three years of claims. Relying on reference numbers for cross-individual linkage may not work and does not address the name-exposure risk in the original files."
+      },
+      "concept": "**Redaction vs tokenisation:** two different approaches to identifier protection with different capabilities:\n\n| Technique | What it does | Linkage preserved? |\n|---|---|---|\n| Redaction | Permanently removes the identifier | No |\n| Tokenisation | Replaces with a consistent pseudonym | Yes (within the token namespace) |\n| Encryption | Replaces with unreadable ciphertext | Yes (with key) |\n\n**When to choose tokenisation over redaction:**\n- Analysis requires tracking the same individual across multiple records\n- Downstream teams need to link results back to real identities (using a separate key)\n- The identifier adds no analytical value but the linkage does\n\n**When redaction is sufficient:**\n- Each record is analysed in isolation\n- No cross-record tracking is needed\n- Permanent removal is required by retention obligations\n\nFor AI workflows: design the tokenisation scheme *before* data enters the prompt, maintaining the token-to-identity mapping separately and securely.",
+      "examTip": "Redaction vs tokenisation items present a scenario where **cross-referencing is needed**. The trap is picking redaction (which sounds more private) when the analysis requirement makes it non-functional. The discriminator is: does the task require linking records belonging to the same person? If yes, tokenise. If not, redact."
+    }
+  },
+  {
+    "id": "GRR-A-025",
+    "domain": "Governance, Risk, and Responsible Use",
+    "topic": "Mixed account tier risks",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A health-tech startup has a five-person team. Three team members access Claude via an enterprise API account with a signed DPA. Two team members use personal Claude.ai subscriptions because their enterprise seats have not been provisioned yet. The team is building a patient-intake summarisation workflow and has begun testing with real patient records.\n\nWhich TWO risks arise MOST directly from the mixed consumer-and-enterprise account configuration? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Patient data submitted through the personal accounts enters a consumer data pipeline without contractual data-handling protections, undermining the DPA the enterprise account provides" },
+      { "key": "B", "text": "The personal-account users will receive lower-quality model outputs, degrading the overall workflow results" },
+      { "key": "C", "text": "The enterprise account's DPA retroactively covers data processed by the personal accounts since the startup holds a single corporate relationship with the vendor" },
+      { "key": "D", "text": "Regulatory auditors examining the workflow may find it impossible to demonstrate consistent data-handling controls across all team members, creating a documentation and accountability gap" },
+      { "key": "E", "text": "Personal accounts have smaller context windows, preventing the personal-account users from processing full patient records" }
+    ],
+    "correct": ["A", "D"],
+    "explanation": {
+      "correct": "Patient data submitted via consumer accounts (A) is processed under consumer terms of service, which may permit inputs to be reviewed or used for model improvement. The enterprise DPA applies only to API calls made through the enterprise account; it does not extend to separate personal subscriptions. This creates a direct regulatory exposure for PHI handling. The documentation gap (D) is equally significant: a healthcare workflow processing PHI must demonstrate consistent, auditable data-handling controls across all operators. Mixed account types make this demonstration impossible, since different operators have different contractual frameworks.",
+      "distractors": {
+        "B": "Model capability is not determined by account tier in a way that affects output quality for standard tasks. Enterprise and consumer accounts access the same underlying model; the difference is contractual data handling, not model performance.",
+        "C": "A DPA is a contract between specific parties and applies to specific data flows. It does not extend to data submitted through different accounts operated under different terms. Each account has its own independent contractual relationship.",
+        "E": "Context-window capacity is not differentiated between consumer and enterprise accounts in a way that prevents processing standard patient intake records. This is a technical characteristic that has no bearing on the data-governance risk."
+      },
+      "concept": "**Mixed account tiers in a team workflow** create an inconsistent data-handling posture:\n\n- An enterprise DPA governs data flows through the enterprise account only.\n- Data submitted through personal accounts is governed by consumer terms — separate, less restrictive contractual obligations.\n- From a regulatory standpoint, the *weakest link* in the chain determines the overall compliance posture for any data that flows through that link.\n\n**For regulated data (PHI, PII, financial):** all team members processing regulated data must operate under equivalent contractual protections. One personal-account user handling patient data creates a compliance gap for the entire workflow.\n\n**Documentation requirement:** healthcare and financial services regulations typically require demonstrating that data-handling controls apply uniformly across all operators of a workflow. Mixed account tiers prevent this demonstration.",
+      "examTip": "Multi-select mixed-account items typically have a correct **regulatory risk** answer and a correct **auditability** answer, alongside a distractor about **output quality** (never the answer on governance questions) and one about the DPA magically extending (it does not). Look for answers that address *who owns the data contractually* and *whether controls can be demonstrated consistently*."
+    }
+  },
+  {
+    "id": "GRR-A-026",
+    "domain": "Governance, Risk, and Responsible Use",
+    "topic": "Quasi-identifier combinations",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An HR analytics lead at a 500-person manufacturing firm is preparing an employee dataset for a Claude-assisted engagement survey analysis. After removing employee names and ID numbers, the remaining fields are age (exact year), job title, department, and salary to the nearest £1,000. A colleague notes that one employee in the Procurement department holds a unique combination of job title and salary band that makes her the only person matching that description in the company.\n\nWhat data privacy concept does this scenario illustrate?",
+    "options": [
+      { "key": "A", "text": "Direct identifier exposure — salary to the nearest £1,000 is a direct personal identifier equivalent to a name" },
+      { "key": "B", "text": "Re-identification via quasi-identifiers — a combination of non-identifying fields can uniquely describe an individual even after direct identifiers are removed" },
+      { "key": "C", "text": "Purpose limitation — the salary data was collected for payroll purposes and cannot be used in survey analysis" },
+      { "key": "D", "text": "Data accuracy risk — approximate salary figures introduce errors that compromise the analysis" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Quasi-identifiers are fields that are not personally identifying on their own but that, in combination, can uniquely describe an individual in a population. Age, job title, department, and salary band are each low-risk in isolation. Together, in a small enough population, they can narrow down to a single person. This is the quasi-identifier re-identification risk — it survives the removal of direct identifiers.",
+      "distractors": {
+        "A": "A salary approximation is not a direct personal identifier. Direct identifiers include names, ID numbers, email addresses, and phone numbers — data that identifies an individual without requiring combination with other fields. Salary to £1,000 is an indirect quasi-identifier.",
+        "C": "Purpose limitation addresses whether data can be repurposed from its original collection use. The scenario describes a combination of fields creating a re-identification risk, not a question about whether the salary data was lawfully collected for this analysis.",
+        "D": "Data accuracy relates to whether records correctly represent reality. Approximate salary figures are a precision choice, not a re-identification concern. The problem identified is privacy risk from uniqueness, not analytical error from approximation."
+      },
+      "concept": "**Quasi-identifiers** are data fields that individually appear benign but in combination can uniquely identify individuals within a dataset:\n\n- Age + ZIP code + gender: classic combination that can identify 87% of the US population (Sweeney, 2002)\n- Job title + department + salary band: in small companies, uniquely describes individuals\n- Diagnosis category + age band + geographic region: in rare disease cohorts, may narrow to one person\n\n**K-anonymity** is the standard defence: ensure every record is identical to at least k-1 other records on all quasi-identifier fields. If only one person has a unique combination, k=1 — they are identifiable.\n\n**For AI workflows:** removing direct identifiers is necessary but not sufficient for anonymisation. Review whether remaining field combinations create small enough groups that individuals could be identified.",
+      "examTip": "Easy quasi-identifier items present a scenario where names/IDs are removed but something unique remains. The answer is always about **combination creating re-identification risk**. Don't be distracted by options about purpose limitation or accuracy — those are irrelevant when the scenario is about identifying someone from a field combination."
+    }
+  },
+  {
+    "id": "GRR-A-027",
+    "domain": "Governance, Risk, and Responsible Use",
+    "topic": "PCI scope boundaries",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A customer service manager at a regional bank is reviewing which data categories analysts may use with the bank's enterprise Claude account. The team regularly works with: customer account balances, transaction histories, loan application statuses, and — occasionally — customer-provided credit card numbers when resolving payment disputes.\n\nWhich data element requires the MOST distinct handling regime beyond the bank's standard enterprise financial-data controls?",
+    "options": [
+      { "key": "A", "text": "Customer-provided credit card numbers, because they fall under PCI-DSS — a separate payment-card standard with certification, tokenisation, and logging requirements that go beyond general financial privacy controls" },
+      { "key": "B", "text": "Loan application statuses, because they constitute credit decision data regulated more strictly than transaction history" },
+      { "key": "C", "text": "Account balances, because balance data is more sensitive than transaction history under financial privacy frameworks" },
+      { "key": "D", "text": "Transaction histories, because they reveal spending patterns and are classified as special-category data under GDPR-style frameworks" }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Full primary account numbers (PANs) from payment cards fall under PCI-DSS, a contractual standard enforced through card-network agreements. PCI-DSS requires specific technical controls — tokenisation, encryption, access restriction, quarterly scans, annual assessments — that are independent of and additional to financial privacy obligations. The other data types (balances, transactions, loan statuses) are governed by financial privacy rules; card numbers are governed by those rules *plus* PCI-DSS, making them the most distinctly regulated element.",
+      "distractors": {
+        "B": "Loan application statuses involve credit data regulated under consumer credit laws, but they are not subject to a separate technical certification regime analogous to PCI-DSS. They warrant care but do not trigger an independent compliance standard beyond financial privacy.",
+        "C": "Account balances and transaction histories carry similar regulatory treatment under financial privacy frameworks. Neither is distinguished from the other by a separate technical standard the way payment card numbers are distinguished by PCI-DSS.",
+        "D": "Transaction histories are personal financial data — sensitive but not classified as special-category data under GDPR-style frameworks. Special-category data covers health, biometric, racial/ethnic origin, and similar attributes. Financial transaction patterns do not fall into the enumerated special categories."
+      },
+      "concept": "**PCI-DSS scope** is determined by whether a system processes, stores, or transmits payment card data specifically — not financial data generally.\n\nIn scope under PCI-DSS:\n- Primary Account Number (full 16-digit card number)\n- Combined with any of: cardholder name, expiry date, service code, CVV/CVC\n\nNOT in scope under PCI-DSS (but under financial privacy rules):\n- Bank account numbers (governed by ACH/NACHA rules and GLBA-style frameworks)\n- Account balances and transaction history\n- Loan and credit application data\n- Investment account data\n\nPractical implication: a bank's enterprise AI account may be appropriate for financial data generally but still require a separate PCI-compliant architecture for workflows that touch card numbers.",
+      "examTip": "PCI scope boundary items test whether you can identify card data as a **separate regulatory island** within the broader financial data landscape. The trap is assuming all financial data is equally regulated — it is not. Card numbers trigger PCI-DSS; other financial data does not. When PCI-DSS appears in the options, verify whether the scenario involves an actual Primary Account Number."
+    }
+  },
+  {
+    "id": "GRR-A-028",
+    "domain": "Governance, Risk, and Responsible Use",
+    "topic": "Anonymisation threshold",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A medical researcher at a teaching hospital has a dataset of 400 patients diagnosed with a rare neurological condition. After removing names, dates of birth, addresses, and medical record numbers, the remaining fields are: disease subtype (one of 4 possible variants), year of diagnosis, treatment protocol (one of 3 options), and outcome (5-point scale). A colleague argues the dataset now meets the standard for anonymised research data since all direct identifiers have been removed.\n\nWhat is the MOST significant flaw in the colleague's claim?",
+    "options": [
+      { "key": "A", "text": "The outcome scale includes five points, which makes the data too granular to qualify as anonymised under safe-harbour rules" },
+      { "key": "B", "text": "Removing four categories of identifier satisfies only partial de-identification; at least eight categories must be removed for formal anonymisation" },
+      { "key": "C", "text": "Medical research datasets require expert statistical certification of anonymisation, not just identifier removal, regardless of what fields are present" },
+      { "key": "D", "text": "In a small rare-disease cohort, the combination of subtype, diagnosis year, and treatment protocol may uniquely describe individuals — formal anonymisation requires demonstrating that no combination of remaining fields identifies any individual" }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "With only 400 patients across 4 subtypes, 3 treatment protocols, and multiple diagnosis years, some combinations of these quasi-identifiers will describe very few — possibly only one — patient. A subtype-year-protocol combination that applies to only two patients in the cohort is not anonymous; it is nearly identifying. True anonymisation requires demonstrating, through statistical analysis or enumeration, that no remaining field combination allows any individual to be singled out — not merely that direct identifiers have been removed.",
+      "distractors": {
+        "A": "The number of scale points (five for outcomes) does not determine whether data is anonymous. Anonymisation is about the ability to identify individuals from the remaining fields, not the granularity of any single field's values.",
+        "B": "There is no universal rule that a specific number of identifier categories must be removed. Safe-harbour frameworks enumerate specific identifier types to remove, but the relevant question is always whether re-identification risk has been reduced to an acceptable level — which requires analysis, not a count of removed fields.",
+        "C": "Expert statistical determination is one method for establishing anonymisation under HIPAA-style frameworks, but it is not the *only* method. The safe-harbour approach (removing enumerated identifiers) is an alternative. The flaw in the colleague's claim is not about the method chosen — it is about the inadequacy of identifier removal alone given the small cohort size."
+      },
+      "concept": "**Anonymisation in small or specialised cohorts** is significantly harder than in large general populations:\n\n- In a dataset of 10 million, removing names and IDs leaves individuals effectively anonymous.\n- In a dataset of 400 rare-disease patients, the combination of clinical quasi-identifiers may narrow to one or two individuals.\n\n**The correct test for anonymisation:** can any individual be singled out (directly or by combination), linked to another dataset, or inferred from remaining fields? If any answer is yes, the dataset is not anonymous.\n\n**K-anonymity as a minimum bar:** ensure each record is indistinguishable from at least k-1 others. In a 400-patient rare-disease cohort, this may require suppressing or generalising several clinical fields.\n\n**Safe harbour ≠ anonymisation for small populations.** The safe-harbour approach is designed for large datasets where removing enumerated identifiers is statistically sufficient. For rare disease research, formal expert determination with population-specific analysis is the appropriate method.",
+      "examTip": "Hard anonymisation items present a small or specialised population where identifier removal looks sufficient but isn't. The discriminator is: **cohort size × field combinations = re-identification risk.** When a stem specifies a rare disease, a specific occupational group, or any small population, flag quasi-identifier combination risk as the issue, not the number of identifiers removed."
+    }
+  },
+  {
+    "id": "GRR-A-029",
+    "domain": "Governance, Risk, and Responsible Use",
+    "topic": "Professional confidentiality vs DPA",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A commercial solicitor at a 30-partner law firm uses the firm's enterprise Claude account — covered by a signed DPA — to draft contractual advice for a client's acquisition. The DPA confirms Anthropic will not train on inputs and will not share client data with third parties. A trainee asks whether the DPA means the matter is fully covered from a confidentiality standpoint.\n\nWhat is the MOST accurate response to the trainee's question?",
+    "options": [
+      { "key": "A", "text": "Yes — the DPA establishes all necessary confidentiality protections since it prohibits both training and third-party disclosure" },
+      { "key": "B", "text": "No — the DPA governs the vendor's data-handling obligations, but solicitor-client confidentiality is a separate professional obligation the solicitor must independently assess before sharing client matter details with any third-party system" },
+      { "key": "C", "text": "Yes — solicitor-client confidentiality automatically extends to AI vendors under the DPA's third-party disclosure restriction" },
+      { "key": "D", "text": "No — law firms cannot use AI tools for client work under any circumstances without explicit client consent to AI involvement" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "A DPA governs what the vendor will and will not do with data entrusted to it. Solicitor-client confidentiality is a separate professional obligation — a duty of confidence the solicitor owes the client, independent of any vendor contract. The DPA restricts the vendor; professional confidentiality restricts the solicitor. The solicitor must independently assess whether sharing client matter details with a third-party AI system is consistent with their professional obligations — for example, whether the client's retainer permits it and whether the matter's sensitivity warrants additional controls.",
+      "distractors": {
+        "A": "A DPA is a data-handling contract between the firm and the vendor. It does not replace professional confidentiality obligations, which are owed by the solicitor to the client directly. Vendor compliance with the DPA does not automatically satisfy the solicitor's professional duties.",
+        "C": "Solicitor-client confidentiality is a duty of the solicitor, not a property that attaches contractually to third parties via a DPA. The DPA restricts the vendor by contract; it does not extend the legal privilege relationship to the vendor.",
+        "D": "Law firms can and do use AI tools for client work under appropriate controls. The constraint is not an absolute prohibition but a requirement to apply professional judgement about confidentiality obligations before doing so. Explicit client consent may be required in some circumstances but is not universally mandated for all AI use."
+      },
+      "concept": "**Two independent confidentiality frameworks apply simultaneously in legal AI use:**\n\n1. **Data-protection obligation (DPA):** restricts the vendor's use of data — no training, no third-party disclosure, breach notification. Governs what the *vendor* does.\n2. **Professional confidentiality (solicitor-client, attorney-client privilege):** restricts what the *professional* discloses to any third party, including AI vendors. Governs what the *solicitor* does.\n\nNeither substitutes for the other. A solicitor with a perfectly drafted DPA may still breach professional obligations by sharing certain privileged communications with an AI system.\n\nSimilar dual-framework dynamics apply in:\n- Medicine (clinical privacy + professional medical ethics)\n- Accountancy (financial privacy + professional confidentiality)\n- Investment banking (financial privacy + fiduciary duty)\n\nFor AI governance: assess **both** the contractual data-protection framework and the applicable professional confidentiality obligations before deploying AI in a client-facing professional context.",
+      "examTip": "Professional-confidentiality items test whether you can separate **vendor obligations (DPA)** from **professional obligations (duty of confidence)**. They operate on different legal bases, owe duties to different parties, and are satisfied by different actions. The trap is assuming a strong DPA fully covers the professional's confidentiality obligations — it does not."
+    }
+  },
+  {
+    "id": "GRR-A-030",
+    "domain": "Governance, Risk, and Responsible Use",
+    "topic": "Data classification before AI deployment",
+    "difficulty": "medium",
+    "type": "nextstep",
+    "stem": "A data analyst at a regional government health authority has been handed a new dataset by the IT team for use in a Claude-assisted population health analysis. The dataset was compiled from three source systems. The IT team confirms the API connection and enterprise account are properly configured. The analyst has a general idea of the analysis she wants to conduct but has not yet examined the dataset's contents or schema.\n\nWhat should the analyst do FIRST before writing any prompts or submitting any data to Claude?",
+    "options": [
+      { "key": "A", "text": "Draft the analysis prompts so they are ready to test as soon as the data classification is complete" },
+      { "key": "B", "text": "Submit a small sample of the dataset to Claude to confirm the API connection handles the file format correctly" },
+      { "key": "C", "text": "Examine the dataset schema and a representative sample to classify what data types are present, so appropriate minimisation and handling controls can be determined before any data is submitted" },
+      { "key": "D", "text": "Request that IT upgrade the dataset to an encrypted format before any analysis begins" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Before any data enters a Claude prompt, the analyst must know what types of data it contains — whether it includes PII, PHI, or commercially sensitive fields — so she can determine which fields require minimisation or redaction and whether the current account configuration is adequate for the data's sensitivity level. Submitting an unexamined dataset to Claude, even via an enterprise account, risks processing data categories that require additional controls the analyst hasn't yet established.",
+      "distractors": {
+        "A": "Drafting prompts before data classification inverts the correct sequence. Prompts should be designed around the minimised, classified dataset — not written first with the assumption that whatever data exists will be submitted as-is.",
+        "B": "Testing API connectivity with a sample of unexamined data risks exposing sensitive fields before controls are in place. Test connectivity should use synthetic or clearly non-sensitive data, not an unclassified extract from the real dataset.",
+        "D": "Encryption is a transit and storage control. It does not substitute for data classification, which determines what the data contains and how it should be handled. Encrypting an unexamined dataset and then decrypting it for Claude does not reduce the exposure of any sensitive fields it may contain."
+      },
+      "concept": "**Data classification as a prerequisite** for AI workflow design:\n\nThe sequence for any new dataset entering an AI workflow:\n1. **Classify:** what data types are present? PII, PHI, PCI, commercially confidential, public?\n2. **Assess:** does the current infrastructure (account type, DPAs, BAAs) support those data types?\n3. **Minimise:** which fields are not needed for the analysis and should be removed?\n4. **Design:** build prompts against the minimised, appropriate-tier-confirmed dataset.\n5. **Test:** use synthetic data or a controlled sample for technical validation.\n\nSkipping classification means all subsequent decisions are made without knowing what is actually in the data. This is how PHI enters an account without a BAA, or how commercially sensitive data ends up on a personal account.",
+      "examTip": "Nextstep data-workflow items almost always have the same correct answer structure: **understand before you act**. Specifically: classify data before submitting it, regardless of how good the infrastructure is. A properly configured enterprise account + unclassified dataset = unknown risk. The 'test connectivity first' distractor is plausible engineering practice but fails governance."
+    }
+  },
+  {
+    "id": "GRR-A-031",
+    "domain": "Governance, Risk, and Responsible Use",
+    "topic": "Cross-border transfer mechanisms",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A people analytics lead at a multinational technology company is expanding a Claude-powered workforce analysis workflow from UK employees to include EU-based staff. The legal team confirms that Standard Contractual Clauses are in place between the company and the AI vendor for the cross-border transfer of employee data from the EU to the vendor's US processing infrastructure.\n\nWhich additional step do SCCs require of the data exporter that an adequacy decision would NOT?",
+    "options": [
+      { "key": "A", "text": "The data exporter must conduct a Transfer Impact Assessment to evaluate whether the destination country's laws undermine the protections guaranteed by the SCCs" },
+      { "key": "B", "text": "The data exporter must obtain explicit consent from each EU employee before their data is transferred under the SCCs" },
+      { "key": "C", "text": "The data exporter must apply end-to-end encryption that the destination-country government cannot legally compel the vendor to decrypt" },
+      { "key": "D", "text": "The data exporter must register the transfer with the EU supervisory authority before processing begins" }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Standard Contractual Clauses create contractual protections between the exporter and importer but do not guarantee that the destination country's domestic law won't override those protections — for example, through government access to data. Following the Schrems II ruling, exporters relying on SCCs must carry out a Transfer Impact Assessment: an evaluation of the destination country's laws to determine whether the SCCs' protections are effective in practice. An adequacy decision, by contrast, represents a regulatory finding that the destination country's laws already provide equivalent protection — no further assessment is required.",
+      "distractors": {
+        "B": "SCCs do not require individual employee consent. They are a contract-based transfer mechanism, not a consent-based one. Consent is a separate legal basis for processing and is not triggered by choosing SCCs as a transfer tool.",
+        "C": "SCCs do not mandate a specific encryption standard. Technical safeguards are recommended as supplementary measures when a Transfer Impact Assessment reveals a gap, but there is no universal requirement for government-proof encryption as a condition of SCC use.",
+        "D": "There is no universal requirement to register SCC-based transfers with a supervisory authority before they begin. Some national DPAs have reporting obligations, but this is not a general SCC condition distinct from adequacy decisions."
+      },
+      "concept": "**Cross-border transfer mechanisms compared:**\n\n| Mechanism | What it does | Additional burden on exporter |\n|---|---|---|\n| Adequacy decision | Regulator has certified the destination country as equivalent | None beyond standard DPA obligations |\n| Standard Contractual Clauses | Contractual commitments between exporter and importer | Transfer Impact Assessment required |\n| Binding Corporate Rules | Group-level policy for intra-group transfers | Regulatory approval of the BCR |\n\n**Transfer Impact Assessment (TIA):** the exporter evaluates whether the destination country's laws (surveillance, government access) would prevent the SCC obligations from being met in practice. If a significant gap is found, supplementary technical or contractual measures are needed.\n\nFor AI services: SCCs are the most common mechanism for EU-to-US data transfers. A TIA is not optional — it is a required step of the SCC process post-Schrems II.",
+      "examTip": "SCC vs adequacy-decision items test a specific **additional burden**: SCCs require a Transfer Impact Assessment; adequacy decisions do not. This is the discriminating fact. Don't confuse the TIA with consent (different legal basis) or with encryption requirements (supplementary measure, not a universal condition)."
+    }
+  },
+  {
+    "id": "GRR-A-032",
+    "domain": "Governance, Risk, and Responsible Use",
+    "topic": "Retention obligation execution",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "An audit manager at a professional services firm is closing a three-year client engagement. The engagement's Claude Project knowledge base contains three document types: (1) client-provided financial statements (the firm's engagement letter specifies a 7-year retention requirement), (2) AI-generated working-paper drafts created by the team (firm policy: delete upon engagement close), (3) regulatory filings submitted during the engagement (statutory 6-year retention applies). She must execute the correct retention actions immediately.\n\nWhich TWO actions should she take NOW upon engagement close? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Delete the AI-generated working-paper drafts from the Project in accordance with the firm's deletion-on-close policy" },
+      { "key": "B", "text": "Delete the client financial statements immediately since the engagement has concluded and client data should not be retained" },
+      { "key": "C", "text": "Transfer the client financial statements and regulatory filings out of the Claude Project and into the firm's document management system under their respective retention tags" },
+      { "key": "D", "text": "Archive the entire Project to read-only status and reassess all documents at the annual retention review" },
+      { "key": "E", "text": "Request client approval before transferring any engagement documents to the firm's document management system" }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "Deleting the working-paper drafts (A) fulfils the firm's own policy, which requires destruction upon close — allowing them to linger in the Project creates policy non-compliance and potential discovery risk. Transferring financial statements and regulatory filings to the document management system (C) ensures they are retained under the correct schedules (7 years and 6 years respectively) with appropriate access controls, rather than remaining in an active AI tool not designed for long-term records management. Both actions are required immediately; doing one without the other leaves either the deletion or the retention obligation unfulfilled.",
+      "distractors": {
+        "B": "Client financial statements must be retained for 7 years under the engagement letter — immediate deletion violates that contractual obligation. Engagement close triggers retention management, not universal deletion.",
+        "D": "Archiving the entire Project to read-only defers all retention decisions without fulfilling any of them. The deletion obligation for working-paper drafts is immediate upon close; read-only archiving does not satisfy it. The retention obligations for regulated documents require transfer to a compliant records system, not Project archival.",
+        "E": "Retention obligations are generally defined by the engagement letter and regulatory requirements, not by client consent at close. The firm has independent obligations to retain certain documents regardless of whether the client requests it. Client approval is not a standard prerequisite for executing the firm's own retention schedule."
+      },
+      "concept": "**Engagement close triggers differentiated retention actions** — not a single blanket decision:\n\n| Document type | Obligation | Correct action at close |\n|---|---|---|\n| AI-generated working drafts | Delete per policy | Delete immediately |\n| Client financial statements | Retain 7 years | Transfer to records management |\n| Regulatory filings | Retain 6 years | Transfer to records management |\n\nA Claude Project is an active work tool, not a records management system. Documents that must be retained should be transferred to a system with appropriate access controls, audit trails, and scheduled review — a Project knowledge base has none of these properties for long-term retention.\n\nDocuments subject to deletion obligations must be deleted — archiving to read-only is not equivalent to deletion.\n\n**The principle:** retention schedules define the action for each document type. Implement each schedule's required action individually; don't treat engagement close as a single uniform event.",
+      "examTip": "Hard retention multi-select items present **multiple document types with different obligations** and test whether you can apply differentiated treatment rather than a blanket action. The traps are: deleting everything (ignores retention obligations), archiving everything (ignores deletion obligations), and deferring all decisions (violates policy timing). Match each document type to its specific required action."
+    }
+  },
+  {
+    "id": "GRR-A-033",
+    "domain": "Governance, Risk, and Responsible Use",
+    "topic": "IP vs PII classification",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A CTO at a 30-person fintech startup is reviewing which types of information the team should not submit to Claude via personal accounts. She lists: customer transaction records, source code for the firm's core risk model, employee salary data, and public API documentation. She tells the team that only source code is 'intellectual property, not personal data, so it is fine on a personal account.'\n\nWhat is the MOST significant error in the CTO's reasoning?",
+    "options": [
+      { "key": "A", "text": "Source code is also personal data under GDPR because it may contain developer names in comments" },
+      { "key": "B", "text": "Public API documentation is commercially confidential and should not be submitted to any Claude account" },
+      { "key": "C", "text": "The confidentiality obligation for commercially sensitive IP (source code) is independent of whether it is personal data — a personal account's consumer terms create risk for trade secrets as well as for PII" },
+      { "key": "D", "text": "The CTO is correct that source code is not personal data and therefore has no restrictions on which Claude account tier can process it" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The CTO correctly identifies that source code is not personal data — but incorrectly concludes that this makes it safe on a personal account. Consumer accounts may use inputs to improve the model, which could expose trade secrets, proprietary algorithms, and competitive differentiators. The risk is not data protection regulatory exposure but trade secret and IP loss. A personal account lacks the contractual protections (DPA, confidentiality commitments) that prevent inputs from entering an uncontrolled training pipeline.",
+      "distractors": {
+        "A": "Developer names in code comments might technically be PII if identifiable, but this is a minor and speculative concern. The primary issue is the trade-secret exposure risk, not whether the code incidentally contains someone's name.",
+        "B": "Public API documentation is, by definition, public — it carries no confidentiality obligation and is appropriate to submit to any account tier. Identifying it as confidential is incorrect.",
+        "D": "This option endorses the CTO's flawed reasoning. The absence of personal data does not remove the confidentiality concern for commercially sensitive material. Consumer terms create IP exposure risk for any sensitive input, not only for PII."
+      },
+      "concept": "**Two distinct reasons to use an enterprise account:**\n\n1. **Personal data / privacy compliance:** PII, PHI, PCI — regulatory obligations require a DPA.\n2. **Commercial confidentiality:** trade secrets, proprietary code, M&A strategy, pricing models — business obligations require contractual protections against training-use and disclosure.\n\nThese are independent reasons. Source code may not be PII at all, yet still requires an enterprise account because:\n- Consumer terms may permit training on inputs.\n- Loss of a trade secret through model training is an IP risk, not a privacy risk.\n- The firm's confidentiality obligations extend to IP, not only to personal data.\n\nPractical rule: **if you would treat the document as confidential in an email to a competitor, it requires an enterprise account — regardless of whether it contains personal data.**",
+      "examTip": "IP-vs-PII classification items test whether you understand that enterprise account requirements apply to **two independent reasons**: privacy compliance AND commercial confidentiality. The trap is equating 'not PII' with 'no account tier restriction.' Source code without any personal data still warrants enterprise-tier handling because of trade-secret risk."
+    }
+  },
+  {
+    "id": "GRR-A-034",
+    "domain": "Governance, Risk, and Responsible Use",
+    "topic": "Re-identification via data combination",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A head of analytics at a large retail loyalty program is considering whether a customer dataset can be treated as low-sensitivity for a Claude workflow. The dataset has had names, emails, and phone numbers removed. It retains: age in years, gender, postcode sector, purchase frequency, and top three product categories. The team plans to combine this dataset with a third-party demographic enrichment file to improve segmentation.\n\nWhat risk does the planned combination MOST directly create?",
+    "options": [
+      { "key": "A", "text": "Combining the datasets will increase the file size beyond what the enterprise account can process efficiently" },
+      { "key": "B", "text": "The third-party enrichment file may not be covered by the existing DPA, creating a contractual gap for the combined dataset" },
+      { "key": "C", "text": "Product category data is a special category under GDPR because it may reveal health-related purchase patterns" },
+      { "key": "D", "text": "Joining the pseudonymised retail dataset with a third-party demographic file may re-identify individuals by creating a richer quasi-identifier combination that narrows records to specific people" }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The retail dataset was pseudonymised by removing direct identifiers. The remaining fields (age, gender, postcode sector, purchase frequency, product categories) are quasi-identifiers. The third-party demographic enrichment file likely contains additional personal characteristics. Joining the two datasets creates a richer combination that may uniquely describe individuals even though neither dataset on its own is strongly identifying. This is the textbook re-identification risk from data combination — each dataset is pseudonymised in isolation, but their join product is not.",
+      "distractors": {
+        "A": "File size and processing efficiency are technical concerns, not privacy risks. They have no bearing on whether individuals can be re-identified from the combined dataset.",
+        "B": "A contractual DPA gap for the third-party data is a real governance concern in many scenarios, but the question asks about the risk the *combination* creates — which is re-identification. The DPA concern relates to the provenance of the data, not the re-identification risk from joining it.",
+        "C": "Product categories are not an enumerated special-category attribute under GDPR. While a health-food purchase pattern might be inferentially sensitive, 'top three product categories' is not classified as health data or any other special category. This is an over-extension of the special-category concept."
+      },
+      "concept": "**Re-identification through data combination** is the most common failure mode in enterprise data governance:\n\n- Dataset A: age + gender + postcode + purchase frequency (pseudonymised)\n- Dataset B: third-party demographics — detailed household data, lifestyle segment, income band\n- Dataset A ∪ B: rich quasi-identifier set that may uniquely identify individuals\n\n**Mosaic effect:** individually non-identifying data pieces combine to form an identifying picture. Each tile of the mosaic is harmless; together they reveal an individual.\n\n**Governance principle:** any time a pseudonymised dataset is joined with additional data, the combined dataset's re-identification risk must be assessed from scratch — not inferred from either component's assessment individually.\n\nFor AI workflows: the data that enters Claude's context window is the *combined* dataset, not its components. Assess the re-identification risk of what is actually submitted.",
+      "examTip": "Hard re-identification items involve **data combination**, not just a single dataset with weak anonymisation. The discriminator is: when two datasets are joined, assess the re-identification risk of the *joined result*, not the inputs. The trap options offer a contractual concern (DPA gap) or a special-category claim — both are plausible but miss the central re-identification mechanism."
+    }
+  },
+  {
+    "id": "GRR-A-035",
+    "domain": "Governance, Risk, and Responsible Use",
+    "topic": "Consent as a processing basis",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A digital product manager at a health-tech company is designing a workflow in which Claude processes users' self-reported mental health diary entries to generate personalised wellbeing tips. The legal team asks the product manager to confirm the legal basis for processing this special-category health data. The PM argues that users tick a box when they sign up, so consent is established.\n\nWhat additional requirement does valid consent for processing special-category data impose that the PM's tick-box approach may not satisfy?",
+    "options": [
+      { "key": "A", "text": "Consent for special-category data must be renewed annually to remain valid" },
+      { "key": "B", "text": "Special-category data can only be processed under a statutory public-interest basis — consent is never a valid legal ground for health data" },
+      { "key": "C", "text": "Consent for special-category data must be explicit — the user must clearly affirm agreement to the specific processing of sensitive data, not merely accept general terms" },
+      { "key": "D", "text": "Special-category data consent requires a countersignature from a qualified clinician confirming the user understands the implications" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Standard consent (implicit or assumed from general terms acceptance) is insufficient for special-category data including health information. GDPR-style frameworks require *explicit* consent: the user must actively, clearly, and specifically affirm their agreement to the processing of their sensitive data. A generic sign-up tick-box that bundles consent with general terms does not meet the explicitness requirement. The user must know what sensitive data is being processed and affirmatively agree to that specific processing.",
+      "distractors": {
+        "A": "There is no general annual renewal requirement for consent validity. Consent may need to be refreshed if the purposes or scope of processing change materially, but an annual renewal is not a standard condition of valid consent.",
+        "B": "Consent is explicitly recognised as a valid legal basis for processing special-category data under GDPR-style frameworks. It is one of several grounds; it must be explicit rather than general, but it is not categorically excluded for health data.",
+        "D": "There is no clinician countersignature requirement in privacy frameworks. This is an invented requirement. Valid consent requires informed, specific, free, and explicit user agreement — not professional witness or certification."
+      },
+      "concept": "**Consent requirements — two tiers:**\n\n| Data type | Consent standard |\n|---|---|\n| Standard personal data | Freely given, specific, informed, unambiguous — opt-in preferred |\n| Special-category data | All of the above, PLUS **explicit** — actively and clearly stated |\n\n**What 'explicit' means in practice:**\n- A dedicated consent request specific to the sensitive processing, separate from general terms\n- Language that names the sensitive data category and describes how it will be used\n- Active affirmation (a tick-box for the specific sensitive processing) — not pre-ticked, not bundled with general T&Cs\n\n**Freely given** — consent must not be a condition of accessing the service. If users must consent to mental-health data processing to use the product, the consent may not be 'freely given.'\n\nFor AI workflows: when processing user health, biometric, or other special-category data, the consent mechanism must be specifically designed for that data type, not inherited from a general sign-up flow.",
+      "examTip": "Consent items for special-category data test one fact: **standard consent ≠ explicit consent**. The word 'explicit' is the legal requirement and the exam discriminator. Any scenario describing a general tick-box, bundled T&Cs, or assumed consent for sensitive data processing will be wrong. The correct practice is a specific, separate, clear affirmation of the sensitive data processing."
+    }
+  },
+  {
+    "id": "GRR-A-036",
+    "domain": "Governance, Risk, and Responsible Use",
+    "topic": "Redaction adequacy",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An HR director at a 5,000-person global company is preparing employee grievance files for a Claude-assisted pattern analysis. Each file contains employee name, ID, department, grievance category, HR manager's notes, and the decision outcome. A data protection officer reviews the proposed redaction approach, which removes employee ID numbers and replaces manager names with initials. The DPO concludes the redaction is insufficient.\n\nWhich TWO elements of the proposed redaction approach are MOST likely driving the DPO's concern? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Removing employee ID numbers alone does not protect the employees' identities since employee names remain in the files" },
+      { "key": "B", "text": "The grievance category and decision outcome may constitute sensitive employment data requiring removal rather than retention" },
+      { "key": "C", "text": "Replacing manager names with initials does not anonymise managers who are the sole holder of a unique initial pair in the department" },
+      { "key": "D", "text": "Grievance files cannot legally be used for pattern analysis under employment law, regardless of the redaction approach" },
+      { "key": "E", "text": "HR manager notes should be converted to numerical codes before submission to reduce their token count" }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "Employee names (A) remain in the files despite ID removal — names are direct personal identifiers and are the primary privacy risk in these records. Removing IDs while leaving names achieves very little. Manager initials (C) are inadequate pseudonymisation: in a department with one HR manager whose initials are unique (e.g., ZQ), those initials are as identifying as a full name. Redaction must reduce re-identification risk, not merely change the format of identifiers.",
+      "distractors": {
+        "B": "Grievance categories and decision outcomes are relevant data for the pattern analysis — they are the analytical content the workflow is designed to process. The DPO's concern is about identifiability of individuals, not about the analytical content itself.",
+        "D": "Employment law does not categorically prohibit using grievance data for internal HR pattern analysis. Such analysis is a recognised legitimate business activity. Appropriate controls are required, but it is not inherently unlawful.",
+        "E": "Converting HR notes to numerical codes is not a meaningful redaction technique — the notes' content would be lost, defeating the purpose of the analysis. Token count reduction is a performance consideration, not a privacy control."
+      },
+      "concept": "**Redaction adequacy** requires that the remaining data cannot be used to identify individuals, either directly or through combination:\n\nCommon redaction failures:\n1. **Removing ID but keeping name** — name is a stronger identifier than ID; removing the secondary identifier while leaving the primary one achieves almost nothing.\n2. **Replacing names with initials** — initials are unique in small or specialised populations; they identify individuals whose initial combination is rare.\n3. **Tokenising one field and leaving correlated fields** — e.g., removing a name but leaving a unique job title that only one person holds.\n4. **Consistent pseudonymisation without uniqueness check** — the pseudonym may itself be unique.\n\n**The adequacy test:** after redaction, can you identify a specific individual from what remains? If yes, the redaction is insufficient for any field that enables that identification.",
+      "examTip": "Redaction adequacy multi-select items usually pair a **name left in place** finding with a **weak pseudonymisation** finding. Look for combinations of: direct identifier not removed + indirect identifier that is too unique in context. Distractors will include content-based concerns (grievance categories) or legal prohibition claims — neither is a redaction adequacy issue."
+    }
+  },
+  {
+    "id": "GRR-A-037",
+    "domain": "Governance, Risk, and Responsible Use",
+    "topic": "BAA without technical safeguards",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An infrastructure architect at a community hospital is deploying a Claude API integration for clinical documentation. The vendor has signed a Business Associate Agreement, and the integration has been approved by the compliance team. However, the development team skipped implementing audit logging on the API calls because the sprint timeline was tight. They argue the BAA already covers HIPAA compliance.\n\nWhat is the MOST accurate assessment of the compliance gap?",
+    "options": [
+      { "key": "A", "text": "The BAA is sufficient — once the vendor has signed it, the hospital's obligations for this workflow are satisfied" },
+      { "key": "B", "text": "The development team is correct that the BAA covers HIPAA obligations, but a separate GDPR-compliance gap exists for EU patient data" },
+      { "key": "C", "text": "The compliance team's approval was premature; no BAA is legally valid without audit logging already implemented at the time of signing" },
+      { "key": "D", "text": "A BAA governs the vendor's obligations, not the hospital's technical safeguard requirements — audit logging is a covered-entity control the hospital must implement independently of the BAA" }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "A BAA creates obligations for the business associate (the vendor) — not for the covered entity (the hospital). The hospital's own technical safeguard requirements — access controls, audit controls, integrity controls, and transmission security — are independent obligations that apply regardless of what the vendor's BAA says. Audit logging of PHI access is a covered-entity technical safeguard requirement. The BAA does not satisfy it; it governs a different party's obligations entirely.",
+      "distractors": {
+        "A": "A BAA satisfies one component of a multi-part compliance framework — the vendor relationship. The covered entity retains independent technical, administrative, and physical safeguard obligations that the BAA does not address.",
+        "B": "Introducing a GDPR angle is a plausible distractor, but the primary gap identified in the scenario is the hospital's own HIPAA technical safeguard — audit logging — which is missing. The BAA does not cover this gap regardless of whether GDPR is relevant.",
+        "C": "There is no requirement that audit logging be implemented before a BAA is signed. A BAA can be signed as part of pre-deployment contracting before technical implementation is complete. The gap is that the hospital ultimately failed to implement a required technical safeguard — the sequencing with the BAA signing is irrelevant."
+      },
+      "concept": "**HIPAA compliance has four pillars, each independently required:**\n\n1. **Privacy Rule:** governs uses and disclosures of PHI — BAA addresses the vendor's obligations here.\n2. **Security Rule — Administrative safeguards:** policies, training, risk analysis — covered entity's responsibility.\n3. **Security Rule — Physical safeguards:** access controls to facilities and workstations — covered entity's responsibility.\n4. **Security Rule — Technical safeguards:** access controls, audit controls, integrity controls, transmission security — covered entity's responsibility.\n\nAudit logging falls under Technical Safeguards (audit controls). The BAA governs the vendor's Security Rule obligations; the covered entity must implement its own.\n\n**The key insight:** a perfectly executed BAA + no technical safeguards = non-compliant covered entity. Both are required; neither substitutes for the other.",
+      "examTip": "BAA-vs-technical-safeguards items test whether you understand that **the BAA and the covered entity's own safeguards are parallel obligations**. The BAA governs the business associate; the Security Rule governs the covered entity. No single control satisfies both. Candidates who think a signed BAA completes HIPAA compliance are a primary target for this question type."
+    }
+  },
+  {
+    "id": "GRR-A-038",
+    "domain": "Governance, Risk, and Responsible Use",
+    "topic": "PHI boundary for employer wellness data",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A benefits manager at a 3,000-person manufacturing employer runs a voluntary employee wellness program. Participants submit weekly mood and energy self-assessments through an app. The data is held by the employer, not a health plan or healthcare provider. The benefits team wants to use Claude to analyse aggregate trends in the wellness data.\n\nWhat is the PRIMARY data handling consideration the benefits manager should assess BEFORE proceeding?",
+    "options": [
+      { "key": "A", "text": "Whether individual employees can be identified from the wellness data, given that individually identified health-related data held by an employer may trigger privacy obligations even outside a formal healthcare context" },
+      { "key": "B", "text": "Whether the wellness app's terms of service permit the employer to export data for analytics purposes" },
+      { "key": "C", "text": "Whether the enterprise Claude account has sufficient context window capacity to process 3,000 employees' weekly submissions" },
+      { "key": "D", "text": "Whether the mood and energy data qualifies as biometric data, which would require a separate biometric data processing agreement" }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Wellness program data — even when held by an employer rather than a healthcare provider — may constitute individually identifiable health information triggering privacy obligations. HIPAA applies specifically to covered entities; employer-held wellness data may fall outside HIPAA but within other frameworks (ADA, state health privacy laws, GDPR's health-data rules for EU employees). The first question is whether individuals can be identified from the data: if yes, heightened handling obligations likely apply regardless of the specific statutory framework.",
+      "distractors": {
+        "B": "App terms of service govern the contractual relationship between the employer and the app vendor. While relevant for data export rights, it is not the primary privacy consideration — the question asks about data handling for the AI workflow, not contractual data export rights.",
+        "C": "Context window capacity is a technical parameter with no bearing on whether the wellness data can be lawfully processed. Even if the capacity is sufficient, processing individually identifiable health data without appropriate controls would be a compliance failure.",
+        "D": "Mood and energy self-assessments are subjective self-reported data, not biometric data. Biometric data refers to physiological characteristics measured technically (fingerprints, facial geometry, iris scans). Conflating self-report wellness data with biometric data is a category error."
+      },
+      "concept": "**Employer-held health data** occupies complex regulatory territory:\n\n- **Covered by HIPAA:** health information held by a covered entity (health plan, healthcare provider, clearinghouse) or their business associates.\n- **Not covered by HIPAA (but regulated elsewhere):** employer-held wellness data outside a formal health plan — may be regulated by:\n  - **ADA** (Americans with Disabilities Act) — limits employer use of employee medical information\n  - **State privacy laws** — many states have health-data protections beyond HIPAA\n  - **GDPR** (for EU employees) — health data is special-category data regardless of the holder's industry\n\n**For AI workflows:** the regulatory framework determines the specific obligations, but the threshold question is always the same: is this individually identifiable health information? If yes, heightened controls apply.",
+      "examTip": "Employer wellness data items test whether you know that **health data privacy obligations are not limited to clinical contexts**. The HIPAA-or-not distinction is a common distractor — even outside HIPAA, individually identifiable health information held by employers triggers other frameworks. Start with identifiability, then determine which framework applies."
+    }
+  },
+  {
+    "id": "GRR-A-039",
+    "domain": "Governance, Risk, and Responsible Use",
+    "topic": "Minimisation in ML feature selection",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A data scientist at a financial services firm is building a Claude-assisted anomalous expense claim detection workflow. Source records include: employee ID, expense category, amount, date, merchant name, employee's home country, employee's performance rating, and employee's salary band. Privacy counsel identifies two fields that should be removed under data minimisation before the records are submitted to Claude.\n\nWhich TWO fields should be removed? (Choose TWO)",
+    "options": [
+      { "key": "A", "text": "Expense amount, because it is a financial data point that creates PCI-DSS obligations" },
+      { "key": "B", "text": "Employee performance rating, because it has no analytical relevance to expense anomaly detection and introduces unnecessary sensitive employment data" },
+      { "key": "C", "text": "Employee salary band, because it is not required to identify anomalous expense claims and constitutes sensitive personal financial data" },
+      { "key": "D", "text": "Employee home country, because it may be needed to contextualise local expense norms and currency thresholds" },
+      { "key": "E", "text": "Merchant name, because it identifies a commercial entity rather than a person and should be excluded from personal data processing" }
+    ],
+    "correct": ["B", "C"],
+    "explanation": {
+      "correct": "Performance rating (B) has no analytical relevance to whether an expense claim is anomalous — it measures job performance, not spending behaviour. Its inclusion introduces unnecessary sensitive employment data into the workflow. Salary band (C) is similarly irrelevant: anomaly detection compares expense patterns against benchmarks, not against individual compensation. Including salary band exposes sensitive personal financial data without contributing to the analytical purpose. Both fields fail the minimisation test: they are not necessary for the defined task.",
+      "distractors": {
+        "A": "Expense amounts are the core data for anomaly detection — a claim cannot be assessed as anomalous without knowing its amount. PCI-DSS regulates payment card numbers, not expense amounts recorded in corporate expense systems. Removing amounts would make the workflow non-functional.",
+        "D": "Home country is relevant: expense norms, per-diem rates, and cost-of-living benchmarks vary by geography. An expense claim reasonable in one country may be anomalous in another. Home country serves an analytical function and passes the minimisation test.",
+        "E": "Merchant name is relevant to anomaly patterns — unusual merchants, out-of-category vendors, or flagged entities are key signals in expense fraud detection. It identifies a commercial entity, not a natural person, and does not constitute personal data in this context."
+      },
+      "concept": "**Data minimisation in analytical workflows** requires asking, for each field: *is this field necessary for the defined analytical task?*\n\nNecessity test for expense anomaly detection:\n- Expense amount ✓ — core analytical variable\n- Merchant name ✓ — fraud signal\n- Date ✓ — temporal pattern analysis\n- Expense category ✓ — category-norm comparison\n- Employee home country ✓ — geographic norm contextualisation\n- Employee ID ✓ — individual pattern tracking\n- **Performance rating ✗** — measures job performance, irrelevant to expense behaviour\n- **Salary band ✗** — measures compensation, not a predictor of legitimate expense patterns\n\nMinimisation applies even when all fields are technically available and the account has appropriate controls. The question is always: does this field contribute to the task? Not: can we include it?\n\n**Secondary effect:** performance rating and salary band are sensitive employment data. Including them amplifies the privacy impact of any data incident without adding analytical value — a double reason to remove them.",
+      "examTip": "Hard minimisation multi-select items require you to apply the **necessity test to each field individually**. The trap is removing fields that sound sensitive (home country, merchant name) but are actually analytically required. The correct fields to remove are those that are **sensitive AND analytically irrelevant**. Build a mental model of what the task actually needs, then identify fields that don't contribute."
+    }
+  },
+  {
+    "id": "GRR-A-040",
+    "domain": "Governance, Risk, and Responsible Use",
+    "topic": "Retention period triggers",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A project manager at a legal technology firm has been using a Claude Project to manage documentation for a software development contract with a large law firm client. The contract signed two years ago specifies a 5-year retention period for all project records. The development work was completed and formally signed off eight months ago, though invoicing continued until three months ago.\n\nFrom which event does the 5-year retention period MOST likely begin under standard contract and professional records principles?",
+    "options": [
+      { "key": "A", "text": "From the date the contract was signed two years ago" },
+      { "key": "B", "text": "From the date the project was formally signed off as complete eight months ago" },
+      { "key": "C", "text": "From the date the final invoice was settled three months ago, as this represents the conclusion of all financial obligations under the contract" },
+      { "key": "D", "text": "From today's date, since the retention clock starts when the organisation first reviews its retention obligations" }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Under standard contract and professional records principles, the retention period for project records typically runs from the date the contractual engagement concludes — the formal sign-off of deliverables. The sign-off date (eight months ago) is the point at which the primary contractual obligations were discharged. While invoicing continued, ongoing billing is an administrative extension of the relationship, not a continuation of the substantive project. Legal limitation periods typically run from the date obligations were performed, not the date administrative follow-up concluded.",
+      "distractors": {
+        "A": "Running the retention period from the contract signature date would mean records are deleted while the project is still active. Retention periods run from the event that starts the limitation clock — completion, not initiation.",
+        "C": "Final invoice settlement is a defensible alternative in some commercial frameworks, particularly where billing disputes are the primary risk. However, formal project sign-off — the conclusion of substantive deliverables — is the more standard trigger for professional service records. The answer choice B is more broadly applicable.",
+        "D": "The retention clock is not a floating date determined by when the organisation reviews its policies. It is anchored to a specific event in the contract lifecycle. An organisation cannot extend retention indefinitely by deferring its review."
+      },
+      "concept": "**Retention period start triggers** — common options and when each applies:\n\n| Trigger | Typical use case |\n|---|---|\n| Contract signature date | Regulatory prescriptions that run from agreement execution (rare) |\n| Project completion / sign-off | Professional services, development contracts |\n| Final invoice / payment | Commercial dispute risk-focused retention |\n| Last interaction with the data subject | GDPR-style personal data retention |\n| Regulatory event (filing date, audit close) | Regulated industries |\n\n**For AI tool records management:** documents in a Claude Project should be tied to the retention schedule of the underlying engagement, not the date they were uploaded to the Project. The Project is a work tool; the retention obligation follows the record, not the tool.\n\n**Practical implication:** an 8-month-old project sign-off + a 5-year retention period means records should be retained until approximately 4 years and 4 months from now — not until 5 years from today.",
+      "examTip": "Retention trigger items test whether you know that retention periods run from a **defined event in the record lifecycle**, not from today or from when the obligation is first noticed. The most common correct trigger for professional service records is **project completion / sign-off**. Billing continuation is a plausible but usually secondary alternative trigger."
+    }
+  }
+]
