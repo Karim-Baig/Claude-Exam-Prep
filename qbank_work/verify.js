@@ -1,7 +1,7 @@
 // Full-bank integrity + quality report. Run from qbank_work: node verify.js
 const fs = require('fs');
 const path = require('path');
-const HTML = path.join(__dirname, '..', 'claude-foundations-exam.html');
+const HTML = path.join(__dirname, '..', 'Claude Certified Developer - Foundations.html');
 const html = fs.readFileSync(HTML, 'utf8');
 const QB = [];
 eval([...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1])

@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 const WORK = __dirname;
-const HTML = path.join(WORK, '..', 'claude-foundations-exam.html');
+const HTML = path.join(WORK, '..', 'Claude Certified Developer - Foundations.html');
 const DRY = process.argv.includes('--dry');
 const LTR = ['A', 'B', 'C', 'D'];
 
@@ -170,4 +170,4 @@ const merged = html.replace('<!--@BATCH@-->', () => insert + '<!--@BATCH@-->');
 const shells = (merged.match(/<!DOCTYPE html>/gi) || []).length;
 if (shells !== 1) { console.log(`ABORT: ${shells} DOCTYPE occurrences after merge — corruption.`); process.exit(1); }
 fs.writeFileSync(HTML, merged);
-console.log(`\nMerged ${Object.keys(batches).length} batch(es). Backup at claude-foundations-exam.html.bak`);
+console.log(`\nMerged ${Object.keys(batches).length} batch(es). Backup at Claude Certified Developer - Foundations.html.bak`);

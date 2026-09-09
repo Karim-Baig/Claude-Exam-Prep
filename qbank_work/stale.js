@@ -2,7 +2,7 @@
 // use of a stale term as a distractor or as an explicitly-corrected point.
 const fs = require('fs');
 const path = require('path');
-const html = fs.readFileSync(path.join(__dirname, '..', 'claude-foundations-exam.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'Claude Certified Developer - Foundations.html'), 'utf8');
 const QB = [];
 eval([...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1])
       .filter(s => s.includes('QB.push')).join('\n'));

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 cd "$(dirname "$0")"
-OUT="../../CCAR-F_Architect_Question_Bank.html"
+OUT="../../Claude Certified Architect - Foundations.html"
 
 cat part2_meta.js qb_head.js qb_b*.js cards_head.js cards_b*.js part5_app.js part6_exam.js > .syn.js
 node --check .syn.js && echo "JS syntax  : OK"

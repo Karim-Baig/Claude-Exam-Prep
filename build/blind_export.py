@@ -4,7 +4,7 @@ Export every shipped question as a BLIND review batch — key and explanation re
 
 Usage:  python build/blind_export.py [items_per_batch]
 
-Reads the questions actually embedded in CCAO-F_Question_Bank.html (so we verify
+Reads the questions actually embedded in Claude Certified Associate - Foundations.html (so we verify
 exactly what ships, not what is sitting in the source folder) and writes
 build/review/blind_NN.json.
 
@@ -17,7 +17,7 @@ import hashlib, json, re, sys, unicodedata
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-BANK = ROOT / "CCAO-F_Question_Bank.html"
+BANK = ROOT / "Claude Certified Associate - Foundations.html"
 RDIR = ROOT / "build" / "review"
 KEYF = ROOT / "build" / "_answer_key.json"
 

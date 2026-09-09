@@ -5,7 +5,7 @@ A self-contained practice bank for the **Claude Certified Associate – Foundati
 
 ## The deliverable
 
-**`CCAO-F_Question_Bank.html`** — one file. Double-click it. No install, no
+**`Claude Certified Associate - Foundations.html`** — one file. Double-click it. No install, no
 server, no network calls. Progress is saved in that browser's local storage.
 
 Because everything is embedded in a single file, it is a few megabytes and takes
@@ -170,7 +170,7 @@ build/
   flashcards/*.json             one file per flashcard batch
   template.html                 the app: UI, CSS, quiz engine
   assemble.py                   validator + bundler
-CCAO-F_Question_Bank.html       ← the output
+Claude Certified Associate - Foundations.html       ← the output
 ```
 
 To add questions, drop another JSON file into `build/questions/` following

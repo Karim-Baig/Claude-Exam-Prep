@@ -15,9 +15,9 @@ your browser's local storage.
 
 | Exam | File | Questions | Flashcards | Docs |
 |---|---|---:|---:|---|
-| **CCAO-F** — Claude Certified Associate, Foundations | [`CCAO-F_Question_Bank.html`](CCAO-F_Question_Bank.html) | 2,366 | 479 | [details](docs/CCAO-F.md) |
-| **CCAR-F** — Claude Certified Architect, Foundations | [`CCAR-F_Architect_Question_Bank.html`](CCAR-F_Architect_Question_Bank.html) | 1,501 | 130 | [details](docs/CCAR-F.md) |
-| **CCDV-F** — Claude Certified Developer, Foundations | [`claude-foundations-exam.html`](claude-foundations-exam.html) | 400 | — | — |
+| **CCAO-F** — Claude Certified Associate, Foundations | [`Claude Certified Associate - Foundations.html`](<Claude Certified Associate - Foundations.html>) | 2,366 | 479 | [details](docs/CCAO-F.md) |
+| **CCAR-F** — Claude Certified Architect, Foundations | [`Claude Certified Architect - Foundations.html`](<Claude Certified Architect - Foundations.html>) | 1,501 | 130 | [details](docs/CCAR-F.md) |
+| **CCDV-F** — Claude Certified Developer, Foundations | [`Claude Certified Developer - Foundations.html`](<Claude Certified Developer - Foundations.html>) | 400 | — | — |
 
 **4,267 practice questions** in total.
 
@@ -152,9 +152,9 @@ than a complete course.
 
 ```
 .
-├── CCAO-F_Question_Bank.html            # Associate bank  — open this
-├── CCAR-F_Architect_Question_Bank.html  # Architect bank  — open this
-├── claude-foundations-exam.html         # Developer bank  — open this
+├── Claude Certified Associate - Foundations.html   # Associate bank  — open this
+├── Claude Certified Architect - Foundations.html   # Architect bank  — open this
+├── Claude Certified Developer - Foundations.html   # Developer bank  — open this
 ├── docs/
 │   ├── CCAO-F.md      # Associate: methodology & verification
 │   └── CCAR-F.md      # Architect: methodology & verification
@@ -181,7 +181,7 @@ The Architect bank is assembled from the sources in `build/ccarf/`:
 
 This validates JS syntax, checks data integrity (duplicate IDs, malformed items,
 missing explanations), rebalances the answer key with a fixed seed, and writes
-`CCAR-F_Architect_Question_Bank.html`. Requires Node.js.
+`Claude Certified Architect - Foundations.html`. Requires Node.js.
 
 ## Provenance and limitations
 

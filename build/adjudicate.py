@@ -28,7 +28,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 RDIR = ROOT / "build" / "review"
 KEYF = ROOT / "build" / "_answer_key.json"
-BANK = ROOT / "CCAO-F_Question_Bank.html"
+BANK = ROOT / "Claude Certified Associate - Foundations.html"
 OUT  = ROOT / "build" / "review" / "DISAGREEMENTS.md"
 
 DETAIL = "--detail" in sys.argv

@@ -1,7 +1,7 @@
 # CCAR-F — Claude Certified Architect, Foundations
 
 Methodology, coverage and verification record for
-[`CCAR-F_Architect_Question_Bank.html`](../CCAR-F_Architect_Question_Bank.html).
+[`Claude Certified Architect - Foundations.html`](../Claude Certified Architect - Foundations.html).
 
 **1,501 questions · 130 flashcards · 2.1 MB · single file, no dependencies**
 

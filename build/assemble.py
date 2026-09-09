@@ -3,7 +3,7 @@
 Assemble every build/questions/*.json batch into one standalone HTML question bank.
 
 Usage:  python build/assemble.py
-Output: CCAO-F_Question_Bank.html   (single file, no external dependencies)
+Output: Claude Certified Associate - Foundations.html   (single file, no external dependencies)
 
 Hard-invalid items are dropped and reported. Soft issues are warned about but kept.
 """
@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 QDIR = ROOT / "build" / "questions"
 CDIR = ROOT / "build" / "flashcards"
 TPL  = ROOT / "build" / "template.html"
-OUT  = ROOT / "CCAO-F_Question_Bank.html"
+OUT  = ROOT / "Claude Certified Associate - Foundations.html"
 
 DOMAINS = {
     "Output Evaluation and Validation",
