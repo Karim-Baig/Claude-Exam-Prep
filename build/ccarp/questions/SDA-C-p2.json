@@ -1,0 +1,455 @@
+[
+  {
+    "id": "SDA-C-019",
+    "domain": "Solution Design & Architecture",
+    "topic": "Cost component most often omitted from a volume model",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "When an architect builds a cost-at-volume model for a Claude-based feature, which component is most commonly omitted altogether?",
+    "options": [
+      { "key": "A", "text": "Tokens consumed by work that never reaches a user: retries, timed-out calls, and outputs rejected by validation." },
+      { "key": "B", "text": "Input tokens, which are frequently counted only for the user's message and never for the retrieved context passages." },
+      { "key": "C", "text": "The system prompt and few-shot examples, which are re-sent in full on every single request." },
+      { "key": "D", "text": "The hosting and index-refresh cost of the vector database backing document retrieval." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Cost models are usually built from the happy path, because that is the path the design document describes. Production spends real money on work that produces nothing: a call that times out at the client but completes at the provider, an output that fails schema validation and is regenerated, a parallel branch whose result loses the merge. At a 5% retry rate with a 3% validation-rejection rate the effect is small; in a system with a strict schema and an aggressive timeout it can be a fifth of the bill, and it grows precisely when the system is under stress.",
+      "distractors": {
+        "B": "Under-counting retrieved context is a common error, but it is an error of measurement within a component the model already contains. It gets caught the first time the model is reconciled against an invoice.",
+        "C": "System prompt tokens are usually the first thing an architect counts, because they are visible in the request template and obviously repeated. They are rarely the omission.",
+        "D": "Infrastructure cost is normally in the model because it appears on a separate, very visible invoice. It also does not scale with the failure behaviour of the system the way wasted tokens do."
+      },
+      "concept": "Model cost over the full request lifecycle, not the successful path. Every retry, timeout, validation rejection and discarded speculative branch consumes tokens. Instrument spend by outcome — succeeded, retried, rejected, abandoned — so the waste line is visible and can be managed rather than discovered on an invoice.",
+      "tip": "In cost-model questions, look for the option that names work the system does but the user never sees. That category is where the surprises live."
+    }
+  },
+  {
+    "id": "SDA-C-020",
+    "domain": "Solution Design & Architecture",
+    "topic": "Moving non-blocking enrichment off the interactive path",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A telecommunications operator runs an agent-assist system in its contact centre. When an advisor sends a message, the platform must return a suggested reply within a 900 ms p95 budget or advisors stop using it. The product team also wants each interaction enriched with sentiment scoring, a coaching note for the advisor's supervisor and a taxonomy label for reporting. None of those three outputs is shown to the advisor during the call; they appear in a supervisor dashboard and in next-day reporting. Prototypes put the enrichment at 1,400 ms. What is the right architecture?",
+    "options": [
+      { "key": "A", "text": "Run the enrichment concurrently with the suggested-reply call and return once both complete, so the two do not add serially." },
+      { "key": "B", "text": "Publish the interaction to an event stream keyed by conversation id and run the three enrichments as downstream consumers; the interactive path returns only the reply." },
+      { "key": "C", "text": "Move the enrichment to the cheapest tier and cap its output tightly so all three outputs fit inside the 900 ms budget alongside the reply." },
+      { "key": "D", "text": "Return the suggested reply immediately and have the advisor's client poll a second endpoint for the enrichment results as they land." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The decisive fact is that no advisor is waiting for any of the three enrichment outputs — one feeds a supervisor dashboard, two feed next-day reporting. Work with no synchronous consumer does not belong in a synchronous request path at all, however fast you make it. Publishing the interaction and letting independent consumers enrich it decouples the latency budgets entirely, lets the enrichment run on whatever tier and schedule suits it, and means an enrichment outage degrades reporting rather than the advisor experience.",
+      "distractors": {
+        "A": "Concurrent execution bounds the request by the slower branch, which is the 1,400 ms enrichment. The interactive path would then miss its 900 ms budget on every request, and enrichment failures would surface as advisor-facing errors.",
+        "C": "This spends real engineering effort compressing work that need not be in the path at all, and it accepts a permanent tax on the budget that advisors are most sensitive to. It also constrains the enrichment's quality for no user-visible benefit.",
+        "D": "Polling keeps the coupling and adds an endpoint, a client state machine and a retry policy — all so a browser can fetch data destined for a different dashboard and a next-day report. The consumer of the data is not the client."
+      },
+      "concept": "Split the request path by who is waiting. Anything with a synchronous consumer belongs inside the latency budget; anything consumed by a dashboard, a report or a later process belongs on an asynchronous path with its own budget. This is the cheapest latency win available in most LLM systems and it also isolates failure.",
+      "tip": "Read the stem for who consumes each output. \"Appears in a supervisor dashboard\" and \"next-day reporting\" are the clauses that decide this item; the millisecond figures are there to pull you toward optimising instead of relocating."
+    }
+  },
+  {
+    "id": "SDA-C-021",
+    "domain": "Solution Design & Architecture",
+    "topic": "Throughput ceiling imposed by a fixed concurrency cap",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A pharmaceutical distributor runs an order-exception assistant sized for 25 requests per second. The calling tier has a hard concurrency cap of 120 in-flight requests, and at design load mean end-to-end latency is 4 seconds. During a supplier recall, order histories grew much longer, and mean latency rose to 10 seconds. Completed throughput fell to roughly 12 requests per second and the backlog grew continuously. The account's provisioned throughput allocation was at 45% utilisation throughout, and worker CPU never exceeded 30%. What explains the collapse?",
+    "options": [
+      { "key": "A", "text": "The upstream throughput allocation became the binding constraint once payload sizes grew, throttling token delivery and holding completions to roughly half the design rate for the whole recall." },
+      { "key": "B", "text": "With concurrency capped at 120, completed throughput is the cap divided by mean latency — 30 per second at 4 seconds, 12 per second at 10 seconds — so the pool itself became the limiter." },
+      { "key": "C", "text": "Retries of backlogged requests amplified offered load beyond what the system could absorb, and that amplification alone accounts for the drop in completions." },
+      { "key": "D", "text": "The design used mean latency where it should have used p95; correcting the sizing calculation to the p95 figure explains the observed 12 per second." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Little's Law read the other way round is the whole story: with a fixed number of in-flight slots, throughput equals slots divided by residence time. The original sizing left 20% margin at 4 seconds (120 / 4 = 30 against a target of 25), which quietly evaporated when residence time rose — 120 / 10 = 12. Nothing else in the system was saturated, and the two figures given for allocation and CPU are there precisely to rule the other explanations out. This is why a concurrency cap chosen for a latency assumption must be revisited whenever that assumption changes, and why in-flight count is the metric to alert on.",
+      "distractors": {
+        "A": "The stem puts the allocation at 45% utilisation for the whole window. A resource at less than half its capacity is not throttling anything, and this is the reflex explanation the numbers are designed to eliminate.",
+        "C": "Retries would raise offered load and lengthen the backlog, but they cannot reduce completions below the cap-divided-by-latency ceiling, and the observed 12 per second lands exactly on that ceiling without needing any retry term.",
+        "D": "Sizing on p95 rather than mean is a defensible conservatism, but Little's Law uses mean residence time. The observed number is explained by the mean, and swapping in p95 would give a different figure altogether."
+      },
+      "concept": "A concurrency cap converts a latency regression into a throughput regression: maximum throughput = concurrency limit / mean latency. Any change that lengthens requests — bigger payloads, an extra chain stage, a slower tier — silently reduces the ceiling. Size the cap with explicit headroom against a stated latency assumption and alert when in-flight count approaches it.",
+      "tip": "When a stem gives you a concurrency cap, a latency figure and an observed throughput, divide before you read the options. If cap divided by latency equals the observed throughput, the answer is the pool."
+    }
+  },
+  {
+    "id": "SDA-C-022",
+    "domain": "Solution Design & Architecture",
+    "topic": "Hazards of a semantic cache in front of advisory content",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A veterinary telehealth platform is evaluating a semantic cache in front of its triage-advice assistant, matching an incoming question against stored question embeddings and returning the stored answer above a similarity threshold. Traffic is high volume, the advice is derived from a clinical guidance corpus that is revised several times a year, and the assistant already passes its accuracy evaluation. Which THREE statements about this design are correct? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "The similarity threshold is a direct trade of hit rate against the risk of answering a materially different question, so it must be tuned on an evaluation set of near-miss pairs." },
+      { "key": "B", "text": "Cache entries must be invalidated when the clinical guidance corpus is revised, or the cache will continue serving superseded advice indefinitely after the source has changed." },
+      { "key": "C", "text": "Negations and small numeric differences — a dose for a 4 kg cat versus a 40 kg dog — can sit close together in embedding space while being clinically opposite, so proximity is not equivalence." },
+      { "key": "D", "text": "A semantic cache removes the need to evaluate cached responses, because every stored answer passed the accuracy evaluation at the moment it was first generated." },
+      { "key": "E", "text": "Because embedding generation is deterministic and the threshold is fixed, a semantic cache introduces no failure modes beyond those already present in an exact-match cache." }
+    ],
+    "correct": ["A", "B", "C"],
+    "explanation": {
+      "correct": "A semantic cache is an approximate retrieval system placed on the answer path, and all three keys follow from that. The threshold is the approximation's tuning knob and has to be validated against the pairs it will get wrong, not against the hit rate it produces. The stored answers are derived artefacts of a corpus that changes, so they inherit an invalidation obligation the corpus revision cycle must trigger. And embedding similarity captures topical closeness, not semantic equivalence — negation, quantity and species distinctions are exactly the differences embeddings compress away, and exactly the differences that matter clinically.",
+      "distractors": {
+        "D": "An answer validated for the question that produced it is not validated for a different question that merely embeds nearby. The cache changes which question each answer is serving, which is the thing evaluation has to cover.",
+        "E": "Determinism of the embedding function says nothing about correctness of the match. An exact-match cache can only return the answer to the identical question; a semantic cache can return the answer to a different one, which is a genuinely new failure mode."
+      },
+      "concept": "A semantic cache converts a caching decision into a retrieval decision, with retrieval's error modes attached. Treat the threshold as a model parameter requiring its own evaluation set, tie invalidation to the lifecycle of whatever source the answers derive from, and never assume embedding proximity implies answer interchangeability.",
+      "tip": "For semantic-cache items, the true statements are about approximation error and staleness; the false ones are usually reassurances that determinism or prior validation makes the cache safe."
+    }
+  },
+  {
+    "id": "SDA-C-023",
+    "domain": "Solution Design & Architecture",
+    "topic": "Stage accuracies compounding across a serial chain",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An agricultural commodities trader runs a five-stage extraction chain over shipping and quality documents: parse, normalise units, match to contract, compute tolerance breaches, and draft the counterparty notice. Each stage is evaluated in isolation against its own reference set and each scores 97%. The team's design document reports the system as \"97% accurate\". An end-to-end evaluation on 1,200 complete cases returns 86%. What is the correct interpretation?",
+    "options": [
+      { "key": "A", "text": "The end-to-end reference set is materially harder than the per-stage sets, and the two figures should be reconciled by re-sampling the end-to-end set to match the stage distributions." },
+      { "key": "B", "text": "One stage is likely regressing under real inputs; the 11-point gap should be localised by comparing per-stage scores on the end-to-end set before any design change is made." },
+      { "key": "C", "text": "In a serial chain where a stage's error is not recoverable downstream, stage accuracies multiply: 0.97 to the fifth power is about 86%, which matches the measurement." },
+      { "key": "D", "text": "Errors partially cancel across stages, so end-to-end accuracy should exceed the weakest stage; 86% indicates a defect in how the end-to-end evaluation grades partial credit." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Five independent stages at 97% each, with no stage able to recover an upstream error, give 0.97^5 = 0.859 — within a point of the 86% measured. Nothing is broken; the design document's claim was arithmetically wrong from the start. The consequence for architecture is the useful part: to reach 95% end-to-end over five stages, each stage needs roughly 99%, which is usually unreachable. So the levers are structural — collapse stages, add a validation or reconciliation step that can catch and repair an upstream error, or accept a lower target with deferral on the cases that fail.",
+      "distractors": {
+        "A": "Difficulty mismatch is a real hazard in evaluation design, but here the compounding arithmetic already accounts for the entire gap. Re-sampling would spend weeks and land back on the same number.",
+        "B": "Localising a regression is the right instinct when the gap is unexplained. This one is fully explained by the chain length, and per-stage scores on the end-to-end set will simply confirm 97% each.",
+        "D": "Errors in a serial chain compound; they do not cancel. Cancellation requires independent estimates of the same quantity being combined, which is what voting does — not what a pipeline does."
+      },
+      "concept": "For a serial chain of N stages with independent, unrecoverable errors, end-to-end accuracy is the product of stage accuracies. Chain length is therefore an accuracy decision, not just a latency and cost decision. Derive the per-stage requirement from the end-to-end target before designing the chain, and add recovery points where the per-stage requirement becomes implausible.",
+      "tip": "When a stem gives you N stages at the same accuracy and an end-to-end figure, raise the stage score to the Nth power. If it lands on the measurement, the system is fine and the reporting is wrong."
+    }
+  },
+  {
+    "id": "SDA-C-024",
+    "domain": "Solution Design & Architecture",
+    "topic": "Trading one long generation for parallel short generations",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A design can either produce a 2,000-token report in one call, or split it into five independent 400-token sections generated concurrently and joined by a short assembly call. Which is the better latency bet and why?",
+    "options": [
+      { "key": "A", "text": "The single call, because five concurrent calls multiply connection setup and per-request overhead beyond any saving from shorter generation." },
+      { "key": "B", "text": "They are equivalent, because the same total number of output tokens must be produced either way, so the same generation time is spent." },
+      { "key": "C", "text": "The single call, because the assembly step must wait for all five sections to finish before it can start, and therefore reintroduces the full serial cost." },
+      { "key": "D", "text": "The parallel design, because generation is sequential per call, so wall time tracks the longest single output — about 400 tokens plus assembly — not all 2,000." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Output tokens are produced serially within a call but the calls themselves run in parallel, so sectioning converts a 2,000-token serial generation into a roughly 400-token one plus a short join. The trade is explicit and worth stating: each of the five calls carries the shared instructions and context, so input token spend rises, and the sections must be genuinely independent or the join will produce a report that repeats itself and contradicts its own sections. Latency improves; cost and coherence are what you pay with.",
+      "distractors": {
+        "A": "Per-request overhead is measured in tens of milliseconds while generating 1,600 fewer sequential tokens saves far more. Overhead only dominates when the outputs are very short.",
+        "B": "Total tokens produced is a cost quantity, not a latency quantity. Latency depends on how many of them any single call must produce in sequence.",
+        "C": "The assembly step waits for the slowest section, not for the sum of all five. Waiting on a maximum is not the same as paying a sum, and the assembly output itself is short."
+      },
+      "concept": "Sectioning trades input tokens and coherence risk for latency, because concurrent calls turn a sum of generation times into a maximum. Use it when the output decomposes into genuinely independent parts and the latency budget is the binding constraint; avoid it when sections must reference each other.",
+      "tip": "Latency of a fan-out is the slowest branch plus the join, never the sum. Any option that treats parallel work as additive is wrong on its face."
+    }
+  },
+  {
+    "id": "SDA-C-025",
+    "domain": "Solution Design & Architecture",
+    "topic": "In-memory session state blocking horizontal scale-out",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A recruitment SaaS company runs a multi-turn interview-preparation agent. Each session's transcript and tool results are held in the serving pod's memory and keyed by session id. Two problems have appeared: load across pods is badly uneven because long sessions pin users to one pod, and every scale-in event or pod restart destroys the sessions on that pod, which users experience as the agent forgetting everything. Traffic is growing 20% a month. Which change addresses both problems?",
+    "options": [
+      { "key": "A", "text": "Externalise session state to a shared store keyed by session id, so any pod can serve any turn." },
+      { "key": "B", "text": "Introduce consistent-hash sticky routing on session id so every turn reliably reaches the pod holding that session." },
+      { "key": "C", "text": "Extend the pod termination grace period so in-flight sessions can complete before a pod is removed during scale-in." },
+      { "key": "D", "text": "Disable scale-in during business hours and scale only upward until the evening traffic trough arrives." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Both symptoms are the same defect: the request handler is stateful, so a session is bound to a machine. Moving the transcript and tool results to a shared store keyed by session id breaks that binding — any pod can pick up any turn, the load balancer can distribute evenly again, and a pod dying becomes a non-event rather than a lost conversation. It also makes the growth curve manageable, because capacity is added by adding identical replicas rather than by hoping the hash distributes long sessions evenly.",
+      "distractors": {
+        "B": "Sticky routing makes the affinity deliberate rather than accidental, which fixes nothing here. The uneven load is *caused* by affinity, and a pod loss still destroys every session hashed to it.",
+        "C": "A longer grace period narrows the window in which sessions are lost but does not close it, and multi-turn sessions can outlast any reasonable grace period. It also does nothing about load distribution.",
+        "D": "Refusing to scale in is a standing cost increase that treats one symptom and leaves restarts, deployments and node failures to destroy sessions anyway. It also caps how the system can respond to the growth described."
+      },
+      "concept": "Horizontal scaling requires interchangeable replicas. Any per-session state held in process memory reintroduces affinity, which produces uneven load, fragile deployments and lost work. Externalise conversational state to a shared store and keep the serving tier stateless — this is the precondition for scaling an agentic system at all.",
+      "tip": "Two symptoms with one root cause is a common construction. When a stem lists uneven load *and* lost sessions, look for the single option that removes affinity rather than the ones that manage it."
+    }
+  },
+  {
+    "id": "SDA-C-026",
+    "domain": "Solution Design & Architecture",
+    "topic": "Payback and sensitivity in a build-versus-buy case",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "An energy utility is deciding between licensing a document-intelligence platform and building the equivalent in-house. The vendor quote is $480,000 per year, excluding inference spend. The internal estimate is $600,000 one-off to reach feature parity, then $250,000 per year to run, also excluding inference spend, which the finance team confirms is the same under either option. A director has circulated a note saying the build \"pays for itself in fifteen months\". Which TWO observations should most influence the decision? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Payback is closer to 2.6 years: the build saves $230,000 a year against the licence, and $600,000 divided by $230,000 is about 2.6 — long relative to how fast the tooling shifts." },
+      { "key": "B", "text": "The $250,000 annual run estimate warrants more scrutiny than the $600,000 build estimate, because payback is far more sensitive to an error in the recurring figure than in the one-off." },
+      { "key": "C", "text": "Because the build is cheaper from year three onward, the decision resolves itself as soon as the planning horizon is set beyond three years, and no further analysis is needed." },
+      { "key": "D", "text": "Exit cost from the vendor should be excluded from the comparison, since it is incurred only if the buy decision is later reversed and is not a year-one cash item." },
+      { "key": "E", "text": "The director's fifteen-month figure is defensible, since the annual licence of $480,000 covers most of the $600,000 build cost within about fifteen months of avoided fees." }
+    ],
+    "correct": ["A", "B"],
+    "explanation": {
+      "correct": "The correct payback uses the difference in recurring cost, not the licence in isolation: $480,000 minus $250,000 is $230,000 saved per year, so $600,000 of build cost takes about 2.6 years to recover. The sensitivity point matters just as much. Raising the run estimate 20% to $300,000 cuts the annual saving to $180,000 and pushes payback to 3.3 years — a 28% move — while raising the build estimate 20% to $720,000 pushes payback to 3.1 years, a 20% move. The recurring number therefore deserves the harder challenge, and it is the one internal estimates most reliably understate.",
+      "distractors": {
+        "C": "This treats a break-even year as if it settled the question, ignoring risk, opportunity cost of the engineers, and the possibility that the requirement or the technology has moved by then. A three-year horizon in this space is an assumption, not a fact.",
+        "D": "Exit cost is precisely what determines whether the buy decision is reversible, and it is negotiable only before signature. Excluding it converts a two-way door into a one-way door without anyone noticing.",
+        "E": "This divides the build cost by the licence rather than by the saving, ignoring that the build still costs $250,000 a year to run. It is the specific error in the director's note."
+      },
+      "concept": "Build-versus-buy payback is one-off build cost divided by the difference in recurring cost, never by the vendor licence alone. Run the sensitivity on the recurring term first, and treat exit cost as an in-scope, negotiable term of the buy option rather than a contingency.",
+      "tip": "Whenever a stem quotes someone's payback figure, recompute it. The planted error is almost always a comparison that drops the recurring cost of the build."
+    }
+  },
+  {
+    "id": "SDA-C-027",
+    "domain": "Solution Design & Architecture",
+    "topic": "Capacity check before committing to a new feature",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A sports media company runs live match commentary summarisation. At the Saturday afternoon peak, consumption sits at 88% of the account's provisioned throughput allocation. The product director has just committed publicly to shipping a fan-sentiment panel for the start of next season, which will call the model once per minute per live match on the same allocation. Engineering has not yet estimated its demand. As architect, what should you do next?",
+    "options": [
+      { "key": "A", "text": "Provision additional worker pods and raise the autoscaler ceiling now, so the new panel has somewhere to run the moment the season opens." },
+      { "key": "B", "text": "Move the existing summarisation traffic to a cheaper tier to create allocation room for the new sentiment panel before the season opens." },
+      { "key": "C", "text": "Estimate the new feature's token demand at peak concurrent match count, compare it against the remaining 12% of headroom, and take that to the allocation decision." },
+      { "key": "D", "text": "Defer the capacity question until consumption actually reaches the allocation ceiling, since meaningful headroom still exists at today's peak." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Everything about this situation is knowable before it becomes an incident: peak concurrent matches is a schedulable fact, one call per minute per match is a stated rate, and average tokens per call can be measured from a prototype. That gives a demand number to compare against 12% of headroom, and it gives a defensible input to the two decisions actually on the table — request a larger allocation, or change the feature so it does not run on the interactive peak. Doing this before the launch date hardens is the only point at which the answer can still change the plan.",
+      "distractors": {
+        "A": "Worker pods and throughput allocation are different resources. Adding pods when the constrained resource is the allocation buys capacity the system is not short of, and it can make the saturation arrive faster.",
+        "B": "Tier choice governs cost per call, not throughput consumption in a way that is safe to assume, and downgrading production traffic to make room for a new panel trades a live quality property for an unmeasured demand. The stem describes a capacity problem, not a budget problem.",
+        "D": "Waiting until the allocation is exhausted means discovering it during a Saturday peak with a committed launch date behind it. Allocation increases take lead time; headroom that is 12% and shrinking is the signal to act, not to wait."
+      },
+      "concept": "Treat provisioned throughput headroom as a first-class design input and re-run the capacity model whenever a feature is committed, not when it is built. Convert the feature's behaviour into a demand rate at peak, compare against remaining headroom, and surface the gap while the scope and date are still negotiable.",
+      "tip": "A stem that gives you a utilisation percentage and an uncommitted estimate is asking you to do the estimate. Options that add a different resource, or that wait, are both avoiding the arithmetic."
+    }
+  },
+  {
+    "id": "SDA-C-028",
+    "domain": "Solution Design & Architecture",
+    "topic": "Cache key completeness in a multi-tenant response cache",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A property-management SaaS provider serves 1,200 landlord tenants from one deployment. A response cache in front of its lease-question assistant is keyed on a hash of the normalised question text plus the model version. A support engineer has confirmed a case where one tenant received an answer quoting another tenant's bespoke lease addendum, because both had asked a similarly worded question and the retrieval scope differs per tenant. What is the correct fix?",
+    "options": [
+      { "key": "A", "text": "Shorten the cache entry lifetime to a few minutes so cross-tenant entries expire quickly and the exposure window stays small." },
+      { "key": "B", "text": "Extend the cache key to include every input that changes the output — tenant identifier and retrieval scope — and accept the lower hit rate." },
+      { "key": "C", "text": "Encrypt cache entries at rest with a per-tenant key from the key vault, so entries cannot be read across tenant boundaries." },
+      { "key": "D", "text": "Add a post-retrieval filter that strips any content in a cached response that does not belong to the requesting tenant before it is returned." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "A cache key is a claim that two requests with the same key must produce the same output. Here that claim is false, because the retrieval scope — and therefore the answer — depends on which tenant is asking, and the key does not contain the tenant. The fix is to make the key complete. The hit-rate consequence is real and should be stated plainly to whoever justified the cache: a per-tenant key partitions the cache 1,200 ways, so the reachable hit rate falls sharply, and that is the honest cost of correctness in a multi-tenant design.",
+      "distractors": {
+        "A": "A shorter lifetime reduces how long a wrong answer persists but not whether it is served. The first request after each write still crosses the boundary, and the defect is in the key, not in the retention.",
+        "C": "Per-tenant encryption protects entries from being read out of the store by an attacker. It does nothing here, because the application decrypts and serves the entry legitimately — it simply matched the wrong key.",
+        "D": "Filtering a cached response is an attempt to repair an answer that was generated against the wrong evidence. Even a perfect filter leaves an answer whose reasoning was based on documents the tenant cannot see."
+      },
+      "concept": "A cache key must include every input that can change the output, including identity and authorisation scope when those determine which data the request can see. If completing the key destroys the hit rate, the workload was not cacheable at that layer — move the cache to a layer where the artefact genuinely is shared.",
+      "tip": "For cache-correctness items, ask what varies the output that is missing from the key. Options offering encryption, expiry or post-filtering are all treating a keying bug as something else."
+    }
+  },
+  {
+    "id": "SDA-C-029",
+    "domain": "Solution Design & Architecture",
+    "topic": "Replacing a branch tree with declarative routing configuration",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An academic publisher processes 14 content types — journal articles, conference abstracts, book chapters and others — each with its own model tier, prompt variant, retrieval scope and output schema. All of it lives in a 2,000-line dispatch function of nested conditionals that has grown over two years. Adding a fifteenth content type is estimated at four days, and two of the last three additions caused production incidents by changing behaviour for an existing type. The team has capacity for one substantial refactor this quarter. What should it be?",
+    "options": [
+      { "key": "A", "text": "Split the dispatch function into 14 handler classes, one per content type, each owning its tier, prompt and schema behind a common interface." },
+      { "key": "B", "text": "Add characterisation unit tests around the existing dispatch function so behaviour changes to existing types are caught before release." },
+      { "key": "C", "text": "Replace the conditionals with a declarative per-type configuration validated at load, plus a table-driven evaluation that runs every type on every change." },
+      { "key": "D", "text": "Have a small model classify the incoming document at ingest and select tier, prompt and schema dynamically, removing the need to maintain a mapping at all." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The incidents are the diagnostic: adding a type changes behaviour for an existing type, which only happens when the types share mutable control flow. Turning the mapping into data removes that sharing entirely — a new type is a new row, and it cannot reach into another row's behaviour. The table-driven evaluation is the other half, because it makes the regression detectable by construction: every type is exercised on every change, at a cost proportional to the table rather than to hand-written test cases. Together they convert a four-day change with incident risk into a data change with a test row.",
+      "distractors": {
+        "A": "Per-type classes reduce the size of any one file and are a real improvement, but they duplicate the shared pipeline logic 14 ways and leave nothing that guarantees a new type is exercised. The next addition is safer; the one after that has 15 copies to keep aligned.",
+        "B": "Characterisation tests would catch the regressions, which is worth doing, but they preserve the structure that generates them and grow in cost with every type. This is the right move when you cannot change the design; here the team has a quarter of capacity.",
+        "D": "This substitutes a probabilistic decision for a deterministic mapping that is already known and correct. It adds a new failure mode — misrouted documents — to solve a maintainability problem, and it makes the behaviour harder to reason about, not easier."
+      },
+      "concept": "When variation across cases is data, express it as data. A validated configuration table plus a test harness that iterates the table makes the cost of a new case constant and bounds the blast radius to one row. Reserve code branches for genuine differences in control flow, not for differences in parameters.",
+      "tip": "\"Adding case N broke case M\" is the signature of shared mutable control flow. The fix is to remove the sharing, not to test around it — and never to replace a known deterministic mapping with an inferred one."
+    }
+  },
+  {
+    "id": "SDA-C-030",
+    "domain": "Solution Design & Architecture",
+    "topic": "Accuracy target above the label agreement ceiling",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A waste-management group is automating the coding of supplier invoices to internal cost categories. The sponsor has set a 99% accuracy acceptance criterion. Baseline measurement shows the incumbent clerical process codes 93% of invoices to the category a senior reviewer would choose, and that two senior reviewers independently disagree with each other on 4% of invoices. The team's system currently measures 91%. What should the architect propose?",
+    "options": [
+      { "key": "A", "text": "Accept the 99% criterion as written and route every invoice through human review before posting, so the number is met from day one." },
+      { "key": "B", "text": "Re-anchor the criterion on the measured baseline: define ground truth by adjudicated labels and target parity with the 93% incumbent at materially lower unit cost." },
+      { "key": "C", "text": "Tighten the coding rubric until senior reviewers agree with each other consistently, then re-measure the incumbent process and set the target from the improved figure." },
+      { "key": "D", "text": "Decline the use case, since 91% measured against a 99% requirement is too large a gap to close within the current model's capability." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "A 4% inter-reviewer disagreement rate puts a ceiling on what \"accuracy\" can even mean here: on roughly one invoice in 25, there is no single answer two experts will agree on, so a 99% criterion is not merely hard, it is unmeasurable against this ground truth. The professional move is to make that visible and renegotiate the criterion onto something the process can be held to — adjudicated labels for the measurement, the incumbent's 93% as the bar, and unit cost as the thing that must improve. That also reframes the business case correctly: the value is cost and throughput at equal quality, not superhuman accuracy.",
+      "distractors": {
+        "A": "Reviewing every invoice meets the number by removing the automation, which eliminates the business case entirely. Full review is the right answer only when the cost of an error dwarfs the cost of the review, which is not the situation for cost-category coding.",
+        "C": "Improving the rubric is genuinely valuable and will reduce disagreement, but it is a months-long labelling programme presented here as a precondition. It also does not address the fact that 99% was set without reference to any baseline.",
+        "D": "Declining discards a use case where parity with a 93% incumbent at lower cost is plainly achievable. The problem is the criterion, not the feasibility, and an architect's job is to say so rather than to walk away."
+      },
+      "concept": "An accuracy target above the inter-annotator agreement of the task is not achievable or even measurable, because the ground truth itself is uncertain at that level. Always measure the human baseline and the label agreement rate before accepting a target, and express acceptance as parity-or-better against the incumbent plus an explicit cost or throughput gain.",
+      "tip": "An inter-rater disagreement figure in a stem is never decoration. It sets the ceiling on any accuracy claim, and the target above it is the thing to challenge."
+    }
+  },
+  {
+    "id": "SDA-C-031",
+    "domain": "Solution Design & Architecture",
+    "topic": "Head-of-line blocking from mixed request sizes in one pool",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A mining services firm runs two workloads through one worker pool with a shared concurrency limit: interactive geology queries averaging 1.1 seconds, and full drill-report analyses that take three to six minutes each. Interactive queries show a p95 of 14 seconds even though the queries themselves are consistently fast. The upstream throughput allocation is already the binding constraint at peak, so the shared concurrency limit cannot be raised. What is the correct design change?",
+    "options": [
+      { "key": "A", "text": "Chunk the drill reports into smaller sections so each unit of work occupies a concurrency slot for seconds rather than minutes." },
+      { "key": "B", "text": "Move the drill-report analyses to a faster tier so they finish sooner and release their concurrency slots earlier." },
+      { "key": "C", "text": "Partition the concurrency limit into a reserved interactive share and a bounded long-job share, so short queries never queue behind a long analysis." },
+      { "key": "D", "text": "Raise the interactive queries' priority in the existing queue so they are dequeued ahead of the analyses whenever a slot frees." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The 14-second p95 on a 1.1-second query is queue wait, and it is caused by slot occupancy: a handful of multi-minute analyses hold slots for two to three orders of magnitude longer than a query needs, so a query arriving when the pool is full waits for one of them to finish. Because the total concurrency cannot grow, the only remaining lever is how it is divided. Reserving a share for interactive work guarantees a slot is available regardless of what the long jobs are doing, and bounding the long-job share stops them from expanding to fill the pool. The batch workload's completion time degrades instead, which is the correct thing to trade.",
+      "distractors": {
+        "A": "Chunking shortens each unit of work but the analysis still needs the same total slot-seconds, and it now needs many more slot acquisitions. Interactive queries would wait less per event and more often; the tail improves only marginally.",
+        "B": "A faster tier shortens the analyses somewhat, but a job that drops from four minutes to two still blocks a 1.1-second query for an eternity in queueing terms. It also changes the analysis quality characteristics to fix a scheduling problem.",
+        "D": "Priority dequeuing only helps at the moment a slot frees; it cannot create a slot. With every slot held by a multi-minute job, the highest-priority query in the queue still waits minutes. Reservation, not ordering, is what bounds the wait."
+      },
+      "concept": "Mixing request sizes in one concurrency pool makes short-request latency a function of long-request duration. When total concurrency is fixed, partition it: reserve capacity for the latency-sensitive class and cap the class that can occupy slots indefinitely. Priority ordering helps only when slots turn over quickly.",
+      "tip": "Distinguish \"which request goes next\" from \"is there a slot at all\". If every slot is held for minutes, ordering options are decoys and only reservation or separation works."
+    }
+  },
+  {
+    "id": "SDA-C-032",
+    "domain": "Solution Design & Architecture",
+    "topic": "Largest structural lever on a chained pipeline's tail latency",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A pipeline runs four model calls in strict sequence. Which structural change most reliably improves its end-to-end tail latency?",
+    "options": [
+      { "key": "A", "text": "Removing a stage, or running two stages that do not depend on each other concurrently." },
+      { "key": "B", "text": "Raising the concurrency limit of the worker pool that executes the four pipeline calls." },
+      { "key": "C", "text": "Enabling response streaming on each of the four calls so tokens arrive at the caller earlier." },
+      { "key": "D", "text": "Adding a retry with exponential backoff at each stage so slow responses are replaced by fast ones." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Each serial stage contributes its own tail, and the end-to-end tail is dominated by the chance that any one of them is slow. Removing a stage removes a whole tail; parallelising two independent stages replaces their sum with their maximum. Both are structural — they change how many independent slow events a request is exposed to — which is why they work regardless of what the stages do. Everything else on the list either addresses a different bottleneck or leaves the number of serial tails unchanged.",
+      "distractors": {
+        "B": "Pool concurrency governs how many requests run at once, which affects queueing under load, not the duration of one request's four sequential calls. A pipeline running alone on an idle pool is unaffected.",
+        "C": "Streaming an intermediate stage does not help, because the next stage generally needs the complete output before it can start. Streaming the final stage improves perceived latency for a human reader but not end-to-end completion.",
+        "D": "Retrying a slow-but-succeeding call adds its elapsed time to the total. Hedged requests — issuing a duplicate after a delay and taking the first to finish — can cut a tail, but a retry after failure cannot."
+      },
+      "concept": "End-to-end tail latency scales with the number of serial stages, because each contributes an independent opportunity to be slow. The strongest latency levers in a chained design are architectural: fewer stages, more parallelism between independent stages, and shorter outputs per stage.",
+      "tip": "Count the serial hops. If an option does not reduce that count or overlap them, it is not addressing the tail of a chain."
+    }
+  },
+  {
+    "id": "SDA-C-033",
+    "domain": "Solution Design & Architecture",
+    "topic": "Why requests per second is an incomplete capacity unit",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An architect is challenged on why the capacity plan for a Claude-based service is not expressed simply in requests per second. What is the strongest justification?",
+    "options": [
+      { "key": "A", "text": "Requests per second is a client-side metric and cannot be measured reliably at the service boundary, so the plan would rest on unverifiable numbers." },
+      { "key": "B", "text": "Two workloads at the same request rate can consume order-of-magnitude different capacity, because tokens and slot occupancy govern consumption." },
+      { "key": "C", "text": "Requests per second ignores failed and retried requests, so the plan would systematically under-count the real offered load." },
+      { "key": "D", "text": "Request rates vary by region, so a single figure cannot represent a multi-region deployment with different peak hours." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "A request is not a unit of work in an LLM system. One request carrying a 300-token prompt and returning 100 tokens and another carrying 80,000 tokens of retrieved context and returning 3,000 are both \"one request\", and they differ by orders of magnitude in both throughput consumed and slot-seconds occupied. A capacity plan therefore needs two units: tokens per unit time against the provisioned allocation, and concurrent in-flight requests against the pool. Request rate is useful only as a demand signal that gets multiplied by a per-request token and duration profile.",
+      "distractors": {
+        "A": "Request rate is measurable at every tier, and observability is not the issue. This objection would apply equally to any metric.",
+        "C": "Failed requests do consume capacity and should be counted, but that is an argument for counting attempts rather than successes — not an argument against the unit itself.",
+        "D": "Regional variation is handled by planning per region. It complicates the arithmetic without making requests per second the wrong unit."
+      },
+      "concept": "Plan LLM capacity in two units: tokens per minute against the provisioned throughput allocation, and concurrent in-flight requests against the calling tier. Derive both from a demand rate multiplied by a measured per-request token and duration profile, segmented by request class, because classes differ enormously.",
+      "tip": "Capacity questions with a single rate figure are usually incomplete on purpose. The right answer names what the rate has to be multiplied by."
+    }
+  },
+  {
+    "id": "SDA-C-034",
+    "domain": "Solution Design & Architecture",
+    "topic": "Practices that reduce the cost of behavioural change",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A metropolitan transport authority has run a journey-disruption assistant for 14 months. Adding a new disruption category — a change that touches wording and one output field — now takes three weeks and two rounds of manual spot-checking, and the team cannot say in advance which existing behaviours a wording change will disturb. Which TWO practices would most reduce the cost of behavioural change in this system? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "An executable evaluation suite run on every prompt change, so the effect of a wording edit on existing behaviours is measured rather than argued about." },
+      { "key": "B", "text": "Writing longer and more exhaustive prompts up front, so that future disruption categories are already covered by the existing instructions." },
+      { "key": "C", "text": "A single canonical output-schema definition that generates both the prompt's format instruction and the consumer's parser, so a field change is one edit." },
+      { "key": "D", "text": "Moving every stage to the highest-capability tier, since stronger instruction-following reduces how often the prompts need editing at all." },
+      { "key": "E", "text": "Storing prompts as free text in a database so operations staff can adjust wording between releases without waiting for a deploy." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "The three weeks is bought almost entirely by uncertainty and duplication. An executable evaluation suite replaces two rounds of manual spot-checking with a run that either passes or names the regression, which is what turns \"we think this is safe\" into a fact and collapses the review cycle. Generating the format instruction and the parser from one schema definition removes the second cost: a change to one output field currently has to be made in the prompt and in the consumer and kept consistent by hand, and every such duplication is a place a three-week change hides.",
+      "distractors": {
+        "B": "Longer speculative prompts add instructions that were never tested against real cases, increase the chance of internal conflict, and make every future edit harder to reason about. Anticipatory prompt bloat raises change cost rather than lowering it.",
+        "D": "A stronger tier may follow a given instruction more reliably, but the work here is authoring and verifying new behaviour, which the tier does not do. It also raises cost per request permanently to address a delivery-speed problem.",
+        "E": "Editable-in-production prompts remove the release, and with it the review, the version history and any evaluation gate. It makes changes faster and considerably less safe, which is the opposite of reducing change cost."
+      },
+      "concept": "Change cost in a prompt-driven system is dominated by verification and duplication. Reduce it with an executable evaluation suite that makes regression detection automatic, and by keeping single sources of truth for anything expressed in more than one place — schemas, category lists, format rules. Speed without verification is not lower change cost.",
+      "tip": "When counting true options here, test each against the specific pain in the stem: three weeks of elapsed time and unknown blast radius. Options that make edits faster without making them verifiable do not qualify."
+    }
+  },
+  {
+    "id": "SDA-C-035",
+    "domain": "Solution Design & Architecture",
+    "topic": "Recall target constrained by downstream review capacity",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "An appliance manufacturer is designing a warranty-fraud pre-screen. It receives about 9,000 warranty claims a week. The fraud team can investigate at most 400 referrals a week and will not be expanded. The compliance sponsor requires that the pre-screen surface at least 95% of fraudulent claims. Which TWO conclusions follow from these constraints? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Referral capacity fixes the number of positives the system may emit, so the model must be tuned as precision at a fixed referral volume rather than optimised for overall accuracy." },
+      { "key": "B", "text": "The two requirements are only jointly satisfiable if measured fraud prevalence is below roughly 4.7%, since capturing 95% of fraud within 400 referrals implies 0.95 x 9,000 x prevalence cannot exceed 400." },
+      { "key": "C", "text": "Overall accuracy is the correct headline metric here, because it weighs missed fraud and false referrals in a single number the sponsor can track each week." },
+      { "key": "D", "text": "Because recall is the binding compliance requirement, the design should maximise recall and let the weekly referral volume find its own level." },
+      { "key": "E", "text": "Moving the pre-screen to a higher-capability tier satisfies both constraints regardless of prevalence, because a stronger model separates fraud cleanly enough to fit the capacity." }
+    ],
+    "correct": ["A", "B"],
+    "explanation": {
+      "correct": "A fixed investigation capacity is a hard cap on positives, which turns the design problem into \"maximise fraud captured within 400 referrals\" — precision at a fixed budget, a different objective from accuracy and one that drives ranking and thresholding rather than classification. It also imposes an arithmetic feasibility test that should be run before any modelling: 95% of fraud must fit inside 400 referrals, so 0.95 x 9,000 x prevalence must be at most 400, giving prevalence at most about 4.7%. If measured prevalence exceeds that, no model satisfies both constraints and the sponsor must move one of them.",
+      "distractors": {
+        "C": "With a low base rate, a classifier that refers nothing scores extremely well on overall accuracy. It is the metric least able to distinguish a useful pre-screen from a useless one in exactly this setting.",
+        "D": "Letting referral volume float ignores the constraint that makes the system deployable. A pre-screen that refers 2,000 claims a week to a team that can handle 400 has not automated anything; it has created a 1,600-claim backlog.",
+        "E": "Tier capability affects how well the ranking separates fraud from non-fraud, but it cannot change the arithmetic. If 95% of fraud does not fit inside 400 referrals, no model of any capability satisfies both requirements."
+      },
+      "concept": "When downstream human capacity is fixed, it caps the positive rate and converts the objective to precision-at-a-fixed-budget. Always run the feasibility arithmetic — required recall x volume x prevalence against capacity — before design begins; incompatible requirements are cheaper to discover on paper than after a model is built.",
+      "tip": "Any stem giving a volume, a review capacity and a recall requirement is asking for a feasibility check. Multiply the three before evaluating options; it usually eliminates half of them."
+    }
+  },
+  {
+    "id": "SDA-C-036",
+    "domain": "Solution Design & Architecture",
+    "topic": "Where the highest tier belongs in a mixed-tier pipeline",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In a pipeline that deliberately mixes model tiers to control cost, which stage most justifies the highest-capability tier?",
+    "options": [
+      { "key": "A", "text": "The stage handling the largest share of request volume, since improving the common case matters most in aggregate." },
+      { "key": "B", "text": "The first stage, so that every later stage receives the cleanest possible input to work with." },
+      { "key": "C", "text": "The stage whose errors cannot be detected or corrected by any later stage in the pipeline." },
+      { "key": "D", "text": "The stage with the longest prompt, since context length is what most strains a smaller tier's attention." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Capability is spent where a mistake becomes permanent. If a later stage validates, reconciles or overrides a stage's output, an error there is recoverable and the cheaper tier is an acceptable bet. If nothing downstream can catch it — a final adjudication, a judgement written straight to a system of record — the error propagates to the user or the ledger, and that is where the marginal capability buys the most. The complementary half of the rule is that the highest-volume stage is usually the best candidate for the cheapest tier, because that is where unit cost multiplies hardest.",
+      "distractors": {
+        "A": "High volume is the argument for the *cheapest* adequate tier, not the most capable one, because cost per call multiplies across the volume. Put capability where errors are expensive, not where calls are numerous.",
+        "B": "Position in the pipeline is a proxy, not a principle. An early stage warrants the top tier only when its errors are unrecoverable downstream — which is sometimes true and sometimes not, and is the property the rule should reference directly.",
+        "D": "Prompt length affects cost and, at extremes, retrieval quality within the context, but it is not a reliable indicator of task difficulty. Long, simple extraction tasks are common and run well on a small tier."
+      },
+      "concept": "Allocate tiers by error recoverability and volume, not by pipeline position or prompt size. Cheapest adequate tier on high-volume, recoverable stages; highest tier on low-volume stages whose output nothing downstream can check. This is what makes a mixed-tier design a saving rather than a risk transfer.",
+      "tip": "Two properties decide tier placement: can the error be caught later, and how many calls does the stage make. Options citing position or prompt length are naming proxies for neither."
+    }
+  }
+]

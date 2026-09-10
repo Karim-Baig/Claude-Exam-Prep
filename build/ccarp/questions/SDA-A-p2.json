@@ -1,0 +1,455 @@
+[
+  {
+    "id": "SDA-A-019",
+    "domain": "Solution Design & Architecture",
+    "topic": "Preconditions for routing to help",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Routing classifies an input and dispatches it to a specialised downstream handler. What condition must hold for routing to improve a system rather than degrade it?",
+    "options": [
+      { "key": "A", "text": "The categories must be few enough — four or five at most — that one well-written prompt could have covered them all anyway." },
+      { "key": "B", "text": "Inputs fall into categories that are better handled separately, and classification is accurate enough to get them there." },
+      { "key": "C", "text": "Every downstream path must run on the same model tier, so that routing changes the cost profile without changing quality." },
+      { "key": "D", "text": "The router must see the full conversation history rather than a single message, because message-level classification is unreliable." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Routing pays off when a task has real internal structure — categories whose handling genuinely differs in prompt, retrieval, tier or tooling — and when a classifier can identify them reliably. Both halves matter. Distinct categories without accurate classification means the specialised path is applied to the wrong inputs, which is worse than one generic handler. Accurate classification without genuinely different handling means you have added a call and a failure mode to reach four prompts that all say roughly the same thing.",
+      "distractors": {
+        "A": "This inverts the criterion. If one prompt handles every category well, routing is pure overhead. Routing is justified precisely when a single prompt cannot serve all categories without instructions for one degrading another.",
+        "C": "Uniform tiering is neither required nor typical — mixing tiers across paths is one of routing's main benefits. Nothing about routing forces quality to be constant across destinations.",
+        "D": "How much context the classifier needs is an implementation detail that varies by task; plenty of production routers classify on the opening message alone. Stated as a universal requirement it is simply false."
+      },
+      "concept": "Route when the input space is genuinely heterogeneous and the classification is reliable. Both conditions are load-bearing: heterogeneity is what makes specialised handlers worth building, and classifier reliability is what determines whether inputs reach them. Absent either, a single well-engineered prompt is the better architecture.",
+      "tip": "Recall items on routing usually offer one option about category structure and one about classifier reliability separately. The correct answer names both, because routing fails if either is missing."
+    }
+  },
+  {
+    "id": "SDA-A-020",
+    "domain": "Solution Design & Architecture",
+    "topic": "Orchestrator synthesis on the critical path",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A logistics operator answers dispatcher questions about a 1,200-vehicle fleet, such as 'which of tomorrow's northbound loads are at risk?'. Questions vary widely and only some need driver-hours or weather data, so an orchestrator plans which workers to dispatch; each worker queries one system (telematics, driver hours, weather, customer SLAs) and returns a prose summary. p95 is 22 seconds against a 10-second target. Instrumentation shows the workers run concurrently and take about 5 seconds, retrieval and network account for about 4, the planning call about 3, and the final synthesis call about 10 because its prompt carries every worker's full summary. What is the most effective change?",
+    "options": [
+      { "key": "A", "text": "Replace the orchestrator with a fixed parallel fan-out to all four systems on every question, which removes the planning call." },
+      { "key": "B", "text": "Move the four worker calls to Haiku so that each system query returns faster and the concurrent stage shortens." },
+      { "key": "C", "text": "Have workers return compact structured records rather than prose summaries, so the synthesis call reads and writes far less." },
+      { "key": "D", "text": "Run the synthesis call on Opus so that it digests the four worker summaries more accurately and emits fewer output tokens." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The instrumentation localises the problem: synthesis alone is 10 of 22 seconds, and the stated cause is the volume of prose crossing the worker-to-orchestrator boundary. Orchestrator–workers concentrates cost at exactly that boundary, because the orchestrator must read everything the workers produced. Constraining workers to compact structured records — findings, identifiers, severities — shrinks both the synthesis input and, usually, its output. Nothing else on the list attacks the dominant term, and this is the one change that does so without removing the runtime planning the varied questions require.",
+      "distractors": {
+        "A": "This saves about 3 seconds and leaves the pipeline at roughly 19, still far outside the target. It also queries systems the question did not need, and the stem states that which systems are relevant genuinely varies — which is the reason an orchestrator is there.",
+        "B": "The workers run concurrently and contribute about 5 seconds in total; even eliminating them entirely leaves the pipeline over budget. Tier changes on a concurrent, non-dominant stage are the classic optimisation of the wrong term.",
+        "D": "A stronger tier does not reduce how much text the synthesis prompt must ingest, and higher tiers are typically slower per token, not faster. The input size is set by what the workers emit, which is upstream of the tier choice."
+      },
+      "concept": "In orchestrator–workers, the orchestrator sees everything and therefore becomes the system's cost and latency concentrator. Design the worker return contract deliberately: workers should hand back the smallest structured artefact that supports synthesis, not their full reasoning. The interface between workers and orchestrator is an architectural decision, not an afterthought.",
+      "tip": "When a stem itemises where the seconds go, add them up and find the dominant term before reading the options. Three of the four will optimise something that cannot close the gap even if reduced to zero."
+    }
+  },
+  {
+    "id": "SDA-A-021",
+    "domain": "Solution Design & Architecture",
+    "topic": "Placing a bounded agentic stage inside a workflow",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A construction contractor processes requests for information (RFIs) on large projects. The end-to-end process is fixed by the main contract: log the RFI, classify it against the contract's response-time tiers, gather the relevant drawings and specifications, draft a response, route it to the responsible discipline lead for sign-off, and issue it. Only the gathering stage is unpredictable — one RFI may need a single drawing while another needs a dozen documents across revisions, and which ones are needed depends on what earlier documents cross-reference. Where should autonomy sit in this design?",
+    "options": [
+      { "key": "A", "text": "Keep the process as a workflow and make only the gathering stage a bounded agentic loop, handing its evidence set to the next fixed step." },
+      { "key": "B", "text": "Make the whole process an agent, since one stage already requires autonomy and mixing paradigms doubles the maintenance surface." },
+      { "key": "C", "text": "Keep the process a workflow and handle gathering with a fixed parallel fan-out across the drawing, specification and revision-history repositories." },
+      { "key": "D", "text": "Keep the process a workflow and leave gathering to a human, since the variability of that stage makes it unsuitable for automation." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Autonomy is not a property of a system; it is a property of a stage. The contract fixes five of the six stages, so a model has nothing to decide there and any autonomy over them is unbacked risk. Gathering is the one stage whose step count and identity depend on what earlier retrievals reveal — reference-chasing across revisions is the textbook case for a loop — and it has a natural feedback signal, since a referenced document either resolves or does not. Wrapping it in a budget keeps the stage's variability from leaking into the fixed pipeline's latency and cost profile.",
+      "distractors": {
+        "B": "Uniformity of paradigm is a weak reason to hand a model discretion over contractually fixed steps. It also makes the whole process inherit the agentic stage's variable latency and cost, and makes sign-off routing — a compliance-relevant step — a model decision.",
+        "C": "Fan-out fixes the decomposition in advance, which is exactly what reference-chasing defeats: a fan-out cannot open a specification that only became relevant because a drawing referred to it. It helps when the document set is known before the RFI is read.",
+        "D": "This concedes the one stage where automation has genuine leverage, and it is the stage consuming most of the engineer's time. Variability is the argument for a bounded loop, not the argument against automation."
+      },
+      "concept": "Workflow and agent are not competing architectures for a whole system; they are choices per stage. Compose a deterministic spine from the stages whose sequence is externally fixed, and grant bounded autonomy only where the step count genuinely depends on what is discovered. Hybrid designs are the common production shape, not a compromise.",
+      "tip": "When a stem says the process is fixed except for one stage, it has already partitioned the answer for you. Options that apply one paradigm to everything are ignoring a distinction the scenario handed over explicitly."
+    }
+  },
+  {
+    "id": "SDA-A-022",
+    "domain": "Solution Design & Architecture",
+    "topic": "Validation gate versus evaluator-optimiser loop",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "Both a prompt chain with a validation gate and an evaluator–optimiser loop can send an output back for another attempt. What is the substantive difference between them?",
+    "options": [
+      { "key": "A", "text": "The gate retries against the same model, whereas the loop escalates each successive retry to a higher capability tier." },
+      { "key": "B", "text": "A gate's retries can be issued in parallel across candidates, whereas an evaluator–optimiser loop is necessarily serial." },
+      { "key": "C", "text": "A gate is applied once at the end of the chain, whereas the loop's evaluator runs after every step in the pipeline it wraps." },
+      { "key": "D", "text": "A gate applies a programmatic pass/fail test at a fixed point; the loop uses model judgement and iterates to a limit." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The distinction is who decides and against what. A gate encodes a criterion the developer can state exactly — schema valid, code exists in the register, total reconciles — and it either passes or it does not, at a boundary chosen at design time. An evaluator–optimiser loop delegates the judgement to a model against a rubric, which is what you need when the criterion involves quality rather than correctness. That difference drives everything else: cost, determinism, whether the failure is explainable, and whether the loop needs a termination bound.",
+      "distractors": {
+        "A": "Tier escalation is an independent choice available to either design, and it is not part of what defines them. A gate can retry on a stronger model, and a critique loop can run entirely on one tier.",
+        "B": "Neither claim holds. A gate's retry is serial by nature — you cannot retry before the check fails — and an evaluator can be run concurrently over several candidate outputs, which is a common configuration.",
+        "C": "Gate placement is a design choice and gates are frequently placed between every pair of steps, while an evaluator typically judges a finished artefact rather than each intermediate step. This states both placements backwards."
+      },
+      "concept": "Prefer a deterministic gate whenever the acceptance criterion can be written as code; it is cheaper, faster, explainable and cannot itself hallucinate. Reserve the evaluator–optimiser loop for criteria that need judgement, and accept that it brings variable cost, the need for a round limit, and the obligation to validate the evaluator.",
+      "tip": "Ask what the retry trigger is. If a parser, a lookup or an arithmetic check could fire it, you want a gate; if only a reader's opinion could, you want an evaluator."
+    }
+  },
+  {
+    "id": "SDA-A-023",
+    "domain": "Solution Design & Architecture",
+    "topic": "Production evidence that justifies adding a router",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A public transport authority serves its rider assistant from a single Claude prompt. The team proposes splitting it into a router plus four specialised handlers. Which production observations would justify that change? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "The single prompt has grown past 4,000 words, and reviewers now struggle to tell which instruction governs a given answer type." },
+      { "key": "B", "text": "Overall answer accuracy is 91% against the team's 95% target, with no single intent standing out in the error breakdown." },
+      { "key": "C", "text": "Instructions added to improve timetable answers measurably degraded accessibility answers, and the reverse held as well." },
+      { "key": "D", "text": "Peak-hour traffic runs at three times off-peak volume, and the team wants to smooth the load across its rate limits." },
+      { "key": "E", "text": "Two of the four intents are answerable from a structured timetable API and never need retrieval, while the others always do." }
+    ],
+    "correct": ["C", "E"],
+    "explanation": {
+      "correct": "Routing is justified by evidence of two things: that categories interfere with each other under one prompt, and that they need materially different handling. Mutual degradation between timetable and accessibility instructions is a direct measurement of the first — the single prompt has run out of room to satisfy both, and no amount of rewording resolves a genuine instruction conflict. Two intents needing no retrieval while two always do is the second: their pipelines differ in cost, latency and failure modes, so specialising them is worth the classification risk.",
+      "distractors": {
+        "A": "Prompt length is a maintainability concern with a cheaper remedy — modular templates, shared sections, better structure — none of which requires a runtime classifier. Splitting a prompt for readability adds a router's failure mode for no functional gain.",
+        "B": "An aggregate accuracy gap says nothing about whether the errors have category structure. If the misses are spread evenly, four specialised handlers will each miss the same way and the router will add error of its own.",
+        "D": "Load shaping is a concurrency, queuing and capacity problem. Intent routing dispatches on what a request is about, not on when it arrives, and adds a call per request rather than removing one."
+      },
+      "concept": "Introduce a router when production evidence shows category-specific interference in one prompt or category-specific handling requirements downstream. Prompt size, aggregate accuracy targets and infrastructure load are all real concerns with remedies that do not involve inserting a classifier into the critical path.",
+      "tip": "For 'should we route' items, look for either a measured instruction conflict or a structural difference in what each category needs. Everything else in the option set is usually a true fact about the system that routing would not fix."
+    }
+  },
+  {
+    "id": "SDA-A-024",
+    "domain": "Solution Design & Architecture",
+    "topic": "Correlated errors defeat a self-consistency ensemble",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A clinical coding vendor assigns diagnosis codes from physician notes. To raise confidence it runs the same prompt three times at non-zero temperature and accepts a code only on unanimous agreement. Audit finds the unanimous outputs are wrong on the same 4% of notes the single call was wrong on before — almost all cases where the physician's shorthand is ambiguous between two codes and the model consistently selects the more common one. Coder review load has not fallen. What does this tell the architect?",
+    "options": [
+      { "key": "A", "text": "Three samples is too few; nine samples at the same temperature would surface the minority code often enough to break unanimity." },
+      { "key": "B", "text": "Repeated sampling of one prompt cannot detect an error the prompt itself causes; these notes need diversity or an explicit disambiguation step." },
+      { "key": "C", "text": "Unanimity is the wrong aggregation rule here; majority voting would surface the minority code and flag the note for coder review." },
+      { "key": "D", "text": "Temperature should be reduced to zero, since non-zero sampling is what lets the ensemble drift onto the wrong code at all." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Voting converts independent error into detectable disagreement. When the error is systematic — the same prompt, the same prior, the same pull toward the more common code — the samples are not independent, so agreement carries no information and the ensemble is a threefold cost with an unchanged error set. The audit shows this precisely: the failing 4% is the same 4%. Fixing it requires decorrelation (a differently framed prompt, different evidence, a different model) or, better here, recognising that shorthand ambiguity is a lookup-and-disambiguate problem rather than a confidence problem.",
+      "distractors": {
+        "A": "Drawing more samples from the same distribution estimates that distribution more precisely; it does not move it. If the model's mass sits on the wrong code, a larger sample makes unanimity more likely, not less, while tripling the cost again.",
+        "C": "Majority is strictly more permissive than unanimity: any case that passes unanimously also passes a majority. Loosening the rule cannot surface an error that unanimous agreement already hid, and it would admit additional errors.",
+        "D": "Zero temperature removes the only variation the ensemble had, turning three identical calls into a more expensive single call. The stem also shows the samples already agree, so sampling noise is not what produced the failure."
+      },
+      "concept": "An ensemble only buys information when its members fail independently. Self-consistency sampling of one prompt detects instability, not bias. Where errors are systematic, diversity must be engineered — different prompts, different context, different models — or the failure mode must be handled by a mechanism that has ground truth, such as a lookup or an explicit disambiguation step.",
+      "tip": "The giveaway is 'wrong on the same cases as before'. Identical error sets before and after an ensemble means the members are correlated, and no aggregation rule can fix correlation."
+    }
+  },
+  {
+    "id": "SDA-A-025",
+    "domain": "Solution Design & Architecture",
+    "topic": "Reconciling contradictions across sectioned outputs",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A food manufacturer produces label-compliance reports with parallel sectioning: five concurrent calls each assess one regulatory area (allergens, nutrition claims, origin labelling, additives, packaging) over the same product dossier, and a sixth call merges them into one report. QA has found reports where the allergen section states that a 'may contain' warning is required while the packaging section states the current label is compliant. The merge call produced readable prose and flagged nothing. What should the team do next?",
+    "options": [
+      { "key": "A", "text": "Re-run the five section assessments on Opus, so that their verdicts agree with one another more often across the dossier." },
+      { "key": "B", "text": "Chain the five sections sequentially in regulatory order so each one can see the findings of the sections before it." },
+      { "key": "C", "text": "Have each section emit a structured verdict with severity and cited clause, and have the merge apply a precedence rule for conflicts." },
+      { "key": "D", "text": "Add an evaluator–optimiser loop over the merged report that critiques it for internal consistency and sends it back for revision until it passes." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Sectioning deliberately denies each call sight of the others, which is what makes it fast and focused — and which means contradiction is a structural possibility that the merge step exists to handle. Asking a merger to write prose over five prose inputs gives it no way to detect a conflict and every incentive to smooth it. Making sections emit comparable structured verdicts turns 'warning required' versus 'label compliant' into a machine-detectable clash, and a precedence rule in code resolves it the same way every time, which is what a compliance artefact needs.",
+      "distractors": {
+        "A": "The sections are not disagreeing through weakness; they are assessing different regulatory areas correctly and arriving at findings that happen to conflict. A stronger tier produces better sections and the same unreconciled merge.",
+        "B": "Serialising discards the entire latency benefit of sectioning and introduces anchoring, where later sections defer to earlier findings rather than assessing independently. Independence is the property you want here; the merge is where it must be resolved.",
+        "D": "This spends a critique call on a contradiction that a comparison of two structured fields detects for free, and the critic only sees the smoothed prose report — the same lossy artefact that hid the conflict in the first place."
+      },
+      "concept": "Parallel sectioning is only complete when the aggregation contract is designed. Define what each section returns, in a shape that makes conflicts comparable, and put the resolution rule in code where it is deterministic and auditable. A merge step asked to produce prose from prose will hide exactly the disagreements the fan-out was supposed to expose.",
+      "tip": "When the failure is that a merger failed to notice something, look at what the merger was given. Prose in, prose out means nothing was ever comparable."
+    }
+  },
+  {
+    "id": "SDA-A-026",
+    "domain": "Solution Design & Architecture",
+    "topic": "Where an agentic loop's extra cost comes from",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Compared with a fixed workflow performing the same task, where does the bulk of an agentic loop's additional token cost come from?",
+    "options": [
+      { "key": "A", "text": "Re-sending an accumulating context on every iteration, so consumption grows with the number of steps a run takes." },
+      { "key": "B", "text": "The higher per-token price of the Opus-class tiers that agentic designs require in order to plan their next step reliably." },
+      { "key": "C", "text": "The orchestration code needed to manage the loop, its retries and its stopping rule, which dwarfs a workflow's." },
+      { "key": "D", "text": "The trajectory evaluation and monitoring infrastructure agents need, which is where most of the incremental spend lands." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "An agent re-presents its history — prior tool calls and their results — on every turn so the model can decide the next move. Consumption therefore scales with trajectory length, and because trajectory length varies per input, so does cost, which is why agentic spend has a long right tail rather than a stable per-request figure. A workflow's cost is the sum of a fixed set of prompts and is forecastable from traffic alone. This difference in cost *shape*, not just magnitude, is what makes agents hard to budget.",
+      "distractors": {
+        "B": "Tier is an independent decision. Agents are frequently built on mid-tier models and workflows sometimes use the highest tier for a hard step. Nothing in the pattern requires a particular tier.",
+        "C": "Agents usually need less orchestration code than workflows, because the branching lives in the model rather than in the pipeline. Engineering effort also is not token cost, which is what the question asks about.",
+        "D": "Observability for agents is genuinely more demanding, and worth budgeting for, but it is a fixed platform cost rather than the per-request term that dominates the difference between the two patterns at volume."
+      },
+      "concept": "Workflow cost is roughly linear in requests; agent cost is linear in steps, and steps vary per request. Budget agents on the distribution of trajectory lengths — particularly the tail — rather than on an average, and design bounds that make the tail finite before the feature reaches meaningful traffic.",
+      "tip": "When asked why agents cost more, answer in terms of context re-transmission across turns. Options that blame tier, tooling or infrastructure are describing choices, not the pattern."
+    }
+  },
+  {
+    "id": "SDA-A-027",
+    "domain": "Solution Design & Architecture",
+    "topic": "Isolating a failing sub-capability for measurement",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A university admissions office summarises applicant files with a single Claude call that reads transcripts, personal statements and references and produces a structured reviewer brief. Reviewers say the briefs are broadly good, but grade conversions from international transcripts are wrong often enough that they re-check every one, which erases the time saved. The office has 3,000 historical files with reviewer-corrected briefs. Which changes would let the team target the failing part specifically? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Split grade conversion into its own step so it can be prompted, evaluated and gated independently of the narrative summary." },
+      { "key": "B", "text": "Move the whole call to the Opus tier and re-measure whether reviewers regain trust in the briefs they are given." },
+      { "key": "C", "text": "Add an evaluator–optimiser loop over the whole brief, with a rubric derived from the 3,000 reviewer corrections." },
+      { "key": "D", "text": "Build an eval set from the 3,000 corrected briefs, restricted to the grade-conversion fields so that step can be measured alone." },
+      { "key": "E", "text": "Ask reviewers to stop re-checking conversions and to flag errors after the fact instead, so the time saving is realised now." }
+    ],
+    "correct": ["A", "D"],
+    "explanation": {
+      "correct": "One narrow capability is failing inside an otherwise adequate output, and neither of the two things needed to fix it is available while the capability is fused into a single call. Splitting it out gives it its own prompt, its own reference data and a place to attach a gate. Restricting an eval set to the conversion fields gives a number that moves only when the conversion improves, instead of an aggregate brief score that a narrative improvement can mask. Decomposition and targeted measurement are the same move seen from two sides.",
+      "distractors": {
+        "B": "A tier change applies undifferentiated effort to a differentiated problem, and 'reviewers regain trust' is not a measurement. If it helped, the team still would not know whether it helped conversions or narrative quality.",
+        "C": "A whole-brief loop is the opposite of targeting: it spends critique tokens on the parts that already work and gives a model judgement over conversions, which are arithmetic against a published equivalence table rather than a matter of opinion.",
+        "E": "This removes the control that is currently catching the defect and lets wrong conversions reach admissions decisions. Realising a time saving by deleting a check converts a productivity problem into a correctness one."
+      },
+      "concept": "When one sub-capability drags a composite output, decompose along that capability first — not because more steps are better, but because a fused call cannot be measured, prompted or gated at the level where it fails. Targeted evals and targeted decomposition arrive together; neither is much use alone.",
+      "tip": "A stem that hands you a corpus of corrected outputs is pointing at a measurement answer. A stem that names one failing field inside a good output is pointing at a decomposition answer. When it does both, both are keys."
+    }
+  },
+  {
+    "id": "SDA-A-028",
+    "domain": "Solution Design & Architecture",
+    "topic": "Autonomy over reversible steps only",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A third-party logistics provider wants Claude to resolve inventory discrepancies in its warehouse management system. The proposed agent inspects scan history, cycle-count records and order data, then writes an adjustment directly to the WMS. Adjustments propagate within seconds to customer-facing stock levels and to the billing engine, and there is no bulk undo — reversing one requires a manual counter-adjustment plus a credit note. In a shadow run the agent resolved 84% of discrepancies correctly. What is the right design?",
+    "options": [
+      { "key": "A", "text": "Deploy the agent with write access and monitor the daily adjustment error rate, reversing any wrong adjustment once it is detected." },
+      { "key": "B", "text": "Deploy the agent with write access but restrict it to one low-volume warehouse until its measured accuracy exceeds 95%." },
+      { "key": "C", "text": "Abandon the agentic design and implement a fixed workflow that assembles the evidence and flags every discrepancy for human resolution." },
+      { "key": "D", "text": "Let the agent investigate freely but emit a proposed adjustment with evidence, gating the write behind a value and confidence policy." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Split the task at the reversibility boundary. Investigation is cheap to get wrong — a bad hypothesis costs tokens — so that is where autonomy earns its keep, and the agent's 84% shows it works there. The write is irreversible, propagates to customers and billing within seconds, and at 84% would generate a steady stream of incidents each needing a manual counter-adjustment and a credit note. A policy gate lets the organisation choose exactly how much irreversible action it is buying, and widen the envelope as evidence accumulates, without giving up the investigative capability.",
+      "distractors": {
+        "A": "Detect-and-reverse assumes reversal is cheap; the stem says it is a manual counter-adjustment plus a credit note, after the wrong figure has already reached customers and billing. Monitoring is not a control when the harm lands before the metric does.",
+        "B": "Blast-radius limiting is sound practice but it is being used here as a substitute for a gate rather than alongside one. A 95% threshold is also arbitrary against an irreversible action: the question is the cost of the residual 5%, not the number itself.",
+        "C": "This discards the 84% the shadow run demonstrated and sends every discrepancy to a person, which is the status quo the project exists to improve. Irreversibility argues for gating the action, not for abandoning the autonomy that produced the proposal."
+      },
+      "concept": "Grant autonomy over steps whose errors are recoverable, and put deterministic gates in front of steps whose errors are not. The useful decomposition of most agentic proposals is investigate-then-act: let the model roam over reading, searching and reasoning, and make every write pass a policy that the organisation, not the model, controls.",
+      "tip": "Look for the word 'undo', or its absence. When a stem spells out what reversing an action costs, it is telling you the gate belongs immediately before that action, not that the agent should be scrapped."
+    }
+  },
+  {
+    "id": "SDA-A-029",
+    "domain": "Solution Design & Architecture",
+    "topic": "Pruning an over-grown prompt chain",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A meal-kit company generates recipe cards from chefs' rough notes. The original implementation was one call. Over eighteen months it grew into an eleven-step chain: normalise units, extract ingredients, order the method, estimate times, write the introduction, check allergens, adjust for portion count, apply house style, generate the shopping list, check reading level, format. Median latency is 31 seconds against a 20-second target, nobody currently on the team can say what four of the steps are for, and quality on the team's eval set is three points better than the original single call. What should the architect propose?",
+    "options": [
+      { "key": "A", "text": "Keep all eleven steps but run the mutually independent ones concurrently to bring median latency inside the 20-second target." },
+      { "key": "B", "text": "Ablate each step against the eval set, keep those that move the score or enforce a check, and fold the rest into neighbours." },
+      { "key": "C", "text": "Revert to the original single call, since three points of quality do not justify eleven steps and 31 seconds of latency." },
+      { "key": "D", "text": "Rewrite the pipeline as an agent so the model decides which of the eleven operations a given chef's note actually needs." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The team has an eval set and a chain whose steps are individually removable, which makes ablation cheap and decisive: run the set with each step disabled and keep whatever moves the score or enforces a check the business requires, such as the allergen screen. That converts eleven unexplained steps into a defensible few, recovers most of the eleven seconds of overshoot, and — critically — produces a written reason for every remaining step, which is what stopped the last four from being explicable. Prune with measurement, not with taste.",
+      "distractors": {
+        "A": "Several of these steps are genuinely dependent — you cannot apply house style before the method is ordered — so the achievable concurrency is limited. It also preserves four steps nobody can justify, leaving the maintenance problem exactly where it is.",
+        "C": "Three points may be worth having, and the stem gives no basis for discarding it wholesale. Reverting also throws away the allergen check, which is a control rather than a quality tweak, and loses the information about which steps produced the gain.",
+        "D": "Adding autonomy over a set of operations whose value is unknown compounds the problem: the team would no longer be able to say what ran, and variable step counts make a latency target that is already missed less predictable rather than more."
+      },
+      "concept": "Chains accrete. Every step should be traceable to either a measured quality contribution or an explicit control; steps that are neither are pure latency, cost and maintenance. Periodic ablation against a stable eval set is the only reliable way to keep a decomposition honest once its original authors have moved on.",
+      "tip": "Two facts in this stem do the work: an eval set exists, and four steps are unexplained. Together they point to measurement-driven pruning rather than to either wholesale reversion or a new pattern."
+    }
+  },
+  {
+    "id": "SDA-A-030",
+    "domain": "Solution Design & Architecture",
+    "topic": "Production signals that justify moving to an agent",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A team is considering replacing a fixed workflow with an agentic loop. Which production observations genuinely support that change? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "Per-request cost has climbed steadily as the workflow's prompts and few-shot examples have grown longer." },
+      { "key": "B", "text": "A growing share of requests need steps in an order the workflow lacks, and the team keeps adding conditional branches." },
+      { "key": "C", "text": "The available tools return outcomes the model can act on, such as a query returning no rows or a validation failing." },
+      { "key": "D", "text": "The individual steps are accurate, but the final synthesis step produces output reviewers call weak and unfocused." },
+      { "key": "E", "text": "The number of steps a request needs varies widely and cannot be predicted from the request itself." }
+    ],
+    "correct": ["B", "C", "E"],
+    "explanation": {
+      "correct": "Three conditions have to hold together. Unpredictable step counts mean there is a decision worth delegating. Branch explosion is the same evidence expressed in code — a maintainer discovering that the control flow cannot be written down ahead of time is the strongest practical signal. And tools that return actionable outcomes give the loop something to correct against, without which autonomy produces expensive wandering. Any two without the third produce a familiar failure: a loop with nothing to decide, a loop that cannot decide, or a loop that never learns it was wrong.",
+      "distractors": {
+        "A": "Rising cost argues against an agent, which will cost more per request and with far higher variance. Prompt growth is addressed by context engineering, caching and pruning, none of which requires handing the model control of the sequence.",
+        "D": "Weak synthesis is a prompt and input-shaping problem at one step. An agentic loop does not improve synthesis; it changes who chooses the steps that precede it, leaving the same final call to do the same job."
+      },
+      "concept": "Move from workflow to agent when the sequence genuinely cannot be specified in advance and the environment gives the model feedback it can act on. Cost pressure, quality complaints about a single step, and general ambition are not signals for autonomy — they are signals for prompt, context or step-level work.",
+      "tip": "Three-key multi-selects on this topic almost always pair the two 'unpredictability' signals with the 'feedback available' signal. The distractors will be real production problems that a different intervention fixes."
+    }
+  },
+  {
+    "id": "SDA-A-031",
+    "domain": "Solution Design & Architecture",
+    "topic": "Rule-based routers versus model classifiers",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "In a routing design, when should a deterministic rule-based router be preferred to a model-based classifier?",
+    "options": [
+      { "key": "A", "text": "Whenever there are four or fewer destinations, since a classifier only earns its extra call and latency above that." },
+      { "key": "B", "text": "Whenever the routing call would consume more than a tenth of the end-to-end latency budget for the request." },
+      { "key": "C", "text": "When the routing signal is already present in structured metadata or an unambiguous surface feature of the request." },
+      { "key": "D", "text": "When the destinations run on different model tiers, since a classifier cannot be trusted to make cost-affecting decisions." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "A model classifier earns its place by resolving ambiguity that code cannot. Where the discriminating information is already explicit — a document type field, a channel, an API endpoint, a file extension, a customer segment on the record — a rule reads it correctly every time, costs nothing, adds no latency and cannot drift. Inserting a classifier there buys nothing and introduces a probabilistic step in front of everything else. The right question is never 'model or rule' in the abstract; it is whether the signal needs interpretation.",
+      "distractors": {
+        "A": "Destination count has no bearing on whether the signal is ambiguous. A two-way split can be genuinely hard to classify from free text, and a twenty-way split can be trivially determined from a metadata field.",
+        "B": "Latency is a reason to prefer a cheaper classifier or to fold routing into an existing call, but it does not establish that a rule can make the decision correctly. A fast wrong route is worse than a slow right one.",
+        "D": "Tier differences among destinations are irrelevant to how the routing decision is made. Cost-affecting routing is common and works well; what governs it is classification reliability plus the asymmetry policy, not the mechanism."
+      },
+      "concept": "Use the cheapest mechanism that can make the decision reliably. Deterministic rules where the signal is explicit; a small model classifier where it must be inferred from language; and a hybrid — rules first, model for what the rules cannot decide — where the traffic is mixed, which in production it usually is.",
+      "tip": "The test is not complexity of the taxonomy but ambiguity of the signal. If you can name the field that already contains the answer, the router is an if-statement."
+    }
+  },
+  {
+    "id": "SDA-A-032",
+    "domain": "Solution Design & Architecture",
+    "topic": "Evaluator-optimiser without articulable criteria",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A brand agency ships a Claude tool that drafts campaign taglines. It uses an evaluator–optimiser loop: generate ten taglines, critique them against 'brand fit and memorability', regenerate, repeat for three rounds. Creative directors report that the final round is consistently blander than the first and have started asking engineers for the round-one output. The rubric given to the critic each round is the same one-line brief. What is the correct read?",
+    "options": [
+      { "key": "A", "text": "The criteria are too vague to critique against, so each round pushes toward safer language; make the rubric checkable or drop the loop." },
+      { "key": "B", "text": "Three rounds is too many for creative work; a single critique round would remove the weak taglines while preserving the distinctive ones." },
+      { "key": "C", "text": "The critic needs few-shot examples of taglines the agency considers strong, which would let it judge memorability reliably enough for the loop." },
+      { "key": "D", "text": "The generator and the critic should run on different model tiers — Opus generating, Sonnet critiquing — so the critique is not self-referential." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The loop's precondition is a criterion someone can state well enough to judge against. 'Brand fit and memorability' is a preference, not a criterion, so the critic falls back on generic notions of quality and each round sands off whatever made a line distinctive — which is exactly the drift the creative directors describe, and the reason they now want round one. Either the brief becomes concrete and checkable, or the task is admitted to be one where human selection over a diverse candidate set is the right architecture and the loop is removed.",
+      "distractors": {
+        "B": "Reducing rounds slows the drift without changing its direction; round one would still be blander than a no-critique generation. Treating the round count as the variable assumes the critique is helping, which is the assumption the evidence contradicts.",
+        "C": "Examples improve a critic's consistency, but consistency is not the problem — the critic is consistently pushing toward the mean. Where the target is deliberate distinctiveness, examples of past winners tend to reinforce house convergence rather than reward novelty.",
+        "D": "Tier difference is not independence, and independence is not what is missing: the critic is already a separate concern with a separate prompt. The defect is the content of the rubric, which no tier arrangement changes."
+      },
+      "concept": "Evaluator–optimiser requires criteria a human could apply consistently and revision that demonstrably improves the artefact. Where the goal is subjective preference or deliberate novelty, iterative critique regresses output toward the mean. In those tasks, generate diversely and let a human select — the architecture is parallel generation plus human choice, not a refinement loop.",
+      "tip": "'The first draft was better' is diagnostic. It means the loop is optimising a proxy that diverges from what the reader actually wants, and no amount of round-count tuning reverses the direction of the drift."
+    }
+  },
+  {
+    "id": "SDA-A-033",
+    "domain": "Solution Design & Architecture",
+    "topic": "The cost of over-decomposition",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "What does a team pay when it decomposes a task into more steps than the task actually needs?",
+    "options": [
+      { "key": "A", "text": "Lower accuracy at each step, because a model given a narrow instruction performs worse than one given the whole task at once." },
+      { "key": "B", "text": "The ability to run steps concurrently, since a longer chain necessarily contains more dependencies between its steps." },
+      { "key": "C", "text": "Output diversity, because each additional step constrains the range of responses the pipeline is able to produce." },
+      { "key": "D", "text": "Serial latency and re-sent context at every hop, plus more prompts to version, monitor and debug for no added check." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Every boundary in a decomposition has a fixed price: a round trip on the critical path, instructions and intermediate results re-sent, another prompt to version, another span to trace, another place a schema can drift. That price is worth paying where the boundary buys something — a deterministic check, a genuinely separable subtask, a different tier or tool set. Where it buys nothing, the team has taken on all the cost of the pattern and none of the benefit, and the pipeline becomes progressively harder to change.",
+      "distractors": {
+        "A": "Narrowing an instruction generally improves per-step reliability, which is the reason chaining works at all. Over-decomposition's harm is aggregate — latency, cost and maintenance — not a drop in each individual step's accuracy.",
+        "B": "Step count does not create dependencies; the task's data flow does. A ten-step chain of independent subtasks parallelises perfectly, while a three-step chain where each step consumes the last cannot be parallelised at all.",
+        "C": "Diversity of output is governed by sampling settings and prompt design, not by how many calls the pipeline makes. Nothing about additional steps mechanically constrains the response space."
+      },
+      "concept": "Add a step only when the boundary earns its keep: it enables a check, isolates a separately measurable capability, allows a different model or tool, or breaks a genuine context conflict. Otherwise fold it into its neighbour. The right number of steps is the smallest number that supports the checks the system needs.",
+      "tip": "Judge a decomposition by counting the gates, not the steps. A chain with many steps and one check has bought latency; a chain with three steps and three checks has bought reliability."
+    }
+  },
+  {
+    "id": "SDA-A-034",
+    "domain": "Solution Design & Architecture",
+    "topic": "Concurrent screening instead of one combined prompt",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A children's learning app sends every pupil message to Claude for a tutoring reply, and must also screen each message for safeguarding concerns. The product manager proposes folding the safeguarding instructions into the tutoring system prompt so that one call does both. The app has a two-second response target. What is the better design?",
+    "options": [
+      { "key": "A", "text": "Fold the safeguarding instructions into the tutoring prompt as proposed, since one call is cheaper and avoids a second round trip." },
+      { "key": "B", "text": "Chain a safeguarding check after the tutoring call so the screen assesses the reply, blocking it before delivery if it fails." },
+      { "key": "C", "text": "Run the safeguarding classifier as a concurrent call with its own prompt, thresholds and eval set, so it stays independent." },
+      { "key": "D", "text": "Route on a safeguarding keyword list, so matches go to a screening pipeline and everything else goes straight to tutoring." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Sectioning a guardrail into its own concurrent call is the standard way to keep a safety control independent of the task it protects. The screen gets a prompt written for one job, its own threshold that can be tuned on safeguarding data alone, and its own eval set, none of which is possible when it shares attention and instruction budget with a tutoring persona. Because the calls run concurrently, the two-second target absorbs it. The screen also cannot be talked out of its job by a message that manipulates the tutoring instructions.",
+      "distractors": {
+        "A": "One prompt asked to tutor warmly and to classify safeguarding risk does both worse, and the two objectives cannot be tuned independently — every change to the tutoring persona is a change to the safety control, with no separate way to measure it.",
+        "B": "Screening the reply is a different and also useful control, but it is not the requirement stated, which is to screen the pupil's message. Adding it serially also puts a full round trip inside a two-second budget when concurrency was available.",
+        "D": "A keyword pre-filter decides which messages get screened, so anything phrased outside the list is never examined. Making a safety control conditional on the weakest component in the chain is the failure mode this design most needs to avoid."
+      },
+      "concept": "Run guardrails as separate concurrent calls rather than as clauses inside the task prompt. Independence gives each control its own prompt, threshold, eval set and change history, and parallel execution means the latency cost is the maximum of the two calls rather than their sum.",
+      "tip": "Any option that merges a safety control into a task prompt should be read sceptically. Ask whether the control could still be measured and tuned on its own after the merge; if not, it has stopped being a control."
+    }
+  },
+  {
+    "id": "SDA-A-035",
+    "domain": "Solution Design & Architecture",
+    "topic": "Decisions to remove from an agent's discretion",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An online travel agency is reviewing an agent that handles 'change my booking' requests. The agent currently makes all of the decisions below on its own. Which should be moved out of the model's discretion and into deterministic code? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Which of the traveller's three current bookings an ambiguously worded request refers to." },
+      { "key": "B", "text": "Whether the fare rules permit the requested change, and what change fee and fare difference apply." },
+      { "key": "C", "text": "How to word the confirmation message sent to the traveller once the change has been made." },
+      { "key": "D", "text": "Whether the requesting party is authorised to modify the booking they name." },
+      { "key": "E", "text": "Which airline policy documents to retrieve before formulating an answer for the traveller." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "Two of these have a single right answer defined outside the model. Fare-rule permissibility and change fees are computed from a rule set and a booking record; a model asked to judge them will sometimes produce a plausible fee that is wrong, and the traveller will be charged it. Authorisation is a security decision that must be evaluated against identity and booking ownership, never inferred from a conversation — a model that can be persuaded of authorisation is a confused deputy. The other three genuinely require language judgement, which is what the agent is for.",
+      "distractors": {
+        "A": "Resolving which booking an ambiguous message refers to is precisely a language-understanding task, and it is recoverable — the agent can ask a clarifying question or the traveller can correct it before anything is committed.",
+        "C": "Confirmation wording is a generation task with no single correct output. Templating it in code is possible but gains nothing and loses the ability to reflect the specifics of what actually changed.",
+        "E": "Choosing which policy documents to retrieve is a search decision the agent is well suited to make and can correct if the first retrieval returns nothing useful. Fixing the retrieval set in code re-creates the static-decomposition problem agents exist to solve."
+      },
+      "concept": "Decompose an agent's task by asking, per decision, whether it has an externally defined correct answer. Computations against a rule set and authorisation checks belong in code, where they are testable and auditable. Ambiguity resolution, search strategy and language production belong to the model. The boundary is defined-answer versus judgement, not important versus unimportant.",
+      "tip": "Both keys here share a property: an external system already knows the answer. When a scenario mentions fees, entitlements, permissions or limits, look for the authoritative source and put that decision in code."
+    }
+  },
+  {
+    "id": "SDA-A-036",
+    "domain": "Solution Design & Architecture",
+    "topic": "Responding to a stakeholder request for an agent",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A mining group's COO has asked for 'an agent' to handle purchase-requisition approvals, after reading a competitor's press release. The process is fully specified in the group's delegation-of-authority matrix: value bands, category rules and a fixed escalation ladder. The only judgement in it is deciding whether a free-text justification adequately supports the requested category, which a single Claude call does well in testing. The architect must respond this week. What should the architect do next?",
+    "options": [
+      { "key": "A", "text": "Map the process against the delegation-of-authority matrix, show that only the justification needs judgement, and propose a one-call workflow." },
+      { "key": "B", "text": "Build a small agent prototype this week so the COO can see it working, then compare it with a workflow at the next review." },
+      { "key": "C", "text": "Explain that agentic designs are unsuitable for regulated approval processes such as this one, and propose the workflow instead." },
+      { "key": "D", "text": "Build the workflow and describe it to the COO as an agent, since the distinction is internal engineering terminology anyway." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The delegation matrix has already made the architectural decision: the sequence, the thresholds and the escalation ladder are fixed by policy, leaving exactly one judgement in the whole process. Laying that mapping out converts an argument about technology fashion into an argument about the process, which the COO owns and can adjudicate. It also produces the artefact the team needs regardless of the outcome, and it shows what the COO probably actually wants — approvals that happen without a human keying them — is delivered by the simpler design.",
+      "distractors": {
+        "B": "This spends the week producing an artefact whose outcome is already predictable from the matrix, and a working demo anchors the stakeholder on the agent regardless of what the later comparison shows. Prototype to resolve uncertainty, not to stage a comparison you can already reason through.",
+        "C": "The conclusion is defensible but the reason is not: regulated processes run bounded agents all the time. Asserting a category rule invites a counterexample and skips the specific evidence — the matrix — that makes the case unanswerable here.",
+        "D": "Relabelling misrepresents the design to the person accountable for it, and the label will resurface in a board update or a vendor comparison where the team will be held to capabilities it did not build."
+      },
+      "concept": "Pattern selection is driven by how much of the task is already specified by the organisation. Where policy fixes the sequence, thresholds and escalations, there is no decision left to delegate and an agent is cost and risk with no matching benefit. Show the stakeholder the specification, not a preference between architectures.",
+      "tip": "When a stem describes a documented policy that fully determines the flow, the pattern question is settled before the technology question is asked. The remaining work is evidencing that to whoever is asking for autonomy."
+    }
+  }
+]

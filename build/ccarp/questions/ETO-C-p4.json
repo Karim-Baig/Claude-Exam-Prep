@@ -1,0 +1,724 @@
+[
+  {
+    "id": "ETO-C-055",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Graceful degradation against a hard monthly spend ceiling",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A university's student-services assistant runs on a fixed monthly departmental budget that finance will not increase mid-year. Usage is seasonal and unpredictable: clearing week and results week can quadruple volume without warning. Twice already the feature has hit its ceiling and been switched off entirely for the last four days of the month, which generated complaints and a formal escalation. What spend control should replace the hard cut-off?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Set a soft alert at 80% of budget so the team has early warning, and rely on manual intervention by the platform on-call, who can throttle or pause individual routes if consumption continues to climb toward the ceiling before month end."
+      },
+      {
+        "key": "B",
+        "text": "Define burn-rate thresholds that progressively degrade service — deferring latency-tolerant work to the batch path, then routing low-stakes intents to a cheaper tier — while preserving the highest-value paths to the end of the period."
+      },
+      {
+        "key": "C",
+        "text": "Introduce a per-student daily request quota sized so that the budget cannot be exhausted even at four times normal volume."
+      },
+      {
+        "key": "D",
+        "text": "Move the entire workload to the batch path for the whole month, which brings the ceiling comfortably out of reach at any plausible volume."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "A fixed ceiling with unpredictable demand needs a plan for what to give up, decided in advance and applied gradually. Staged burn-rate responses let the service shed the cheapest-to-lose work first — deferring anything nobody is waiting on, then downgrading intents where a weaker answer is acceptable — so the budget stretches and the paths that matter survive the whole period. The failure being fixed is not that the money ran out but that the system had no graduated response and fell straight to zero.",
+      "distractors": {
+        "A": "An alert with manual intervention is what the team effectively has now, and it produced two outages. During clearing week the people who would intervene are the least available, and no pre-agreed decision exists about what to sacrifice.",
+        "C": "A quota sized for the worst case throttles every student during the quiet three quarters of the year, when the budget is nowhere near threatened. It converts an occasional spend problem into a permanent service problem.",
+        "D": "The asynchronous path suits some of this workload but not an interactive assistant a student is waiting on. Solving the budget by making the entire feature non-interactive gives up the product to protect the line item."
+      },
+      "concept": "Where a spend ceiling is genuinely hard, design degradation stages before you need them: rank workloads by how much value is lost when they are deferred or downgraded, attach each stage to a burn-rate threshold, and automate the transitions. A control that only knows on and off will choose off at the worst moment.",
+      "tip": "When a stem describes a feature being switched off at a budget limit, the answer is a graduated response, not a better alert. Look for the option that ranks what gets sacrificed first."
+    }
+  },
+  {
+    "id": "ETO-C-056",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Production signal that a prompt change added verbosity",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Which production signal most directly indicates that a prompt change has made responses more verbose?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Mean and p95 output tokens per response rising, with request volume and task mix unchanged."
+      },
+      {
+        "key": "B",
+        "text": "Total monthly spend rising against the previous month's figure."
+      },
+      {
+        "key": "C",
+        "text": "End-to-end p95 latency rising while time to first token holds steady across the same reporting window."
+      },
+      {
+        "key": "D",
+        "text": "The proportion of responses that reach the max_tokens ceiling increasing week on week across all routes."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Verbosity is a statement about output length, so the direct measurement is the distribution of output tokens. Holding volume and task mix constant removes the two confounders that would otherwise explain a rise, and reporting both the mean and a tail percentile distinguishes a general lengthening from a few runaway responses. This is why output token distribution belongs on the dashboard as a series rather than being inferred from spend.",
+      "distractors": {
+        "B": "Aggregate spend moves with volume, prompt size, cache behaviour, tier and output length simultaneously. It will eventually reflect verbosity, but it cannot attribute the rise and it lags by however long the billing view takes to settle.",
+        "C": "This pattern is consistent with longer outputs and is useful corroboration, since generation time tracks output length. It is an inference from a downstream effect, though, and other causes — a slower tool call late in the chain — produce the same shape.",
+        "D": "Hitting the ceiling more often is a symptom of extreme verbosity, but it only detects responses that ran all the way to the cap. A change that lengthened every response by 40% while staying under the ceiling would not register at all."
+      },
+      "concept": "Instrument input and output token distributions as first-class production series, separately and with tail percentiles. They are the direct measurement behind most cost movements, and reasoning back to them from spend or latency wastes time and loses attribution.",
+      "tip": "Prefer the metric that measures the thing itself over one that measures a consequence. Spend and latency are downstream of token counts and are confounded by everything else."
+    }
+  },
+  {
+    "id": "ETO-C-057",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Monitoring series specific to an agentic workload",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A construction group is putting a Claude agent into production that tracks planning-permit applications across councils, calling several tools per task and looping until it can report a status. The team is adapting the dashboard it already uses for its single-call document-summarisation feature. Which THREE series must be added because the workload is agentic? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Steps per completed task, reported with its tail rather than only its mean."
+      },
+      {
+        "key": "B",
+        "text": "Mean tokens per individual model call, trended daily and split by model tier and route."
+      },
+      {
+        "key": "C",
+        "text": "Rate of tasks that terminate on the step or loop limit without producing a result."
+      },
+      {
+        "key": "D",
+        "text": "Count of tools registered in the agent's configuration."
+      },
+      {
+        "key": "E",
+        "text": "Tool-call error rate, broken down by individual tool."
+      }
+    ],
+    "correct": [
+      "A",
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "Each of the three measures something that only exists once a task can take a variable number of steps. Step count with its tail is the cost and latency driver and the early warning for tasks that wander. Termination on the limit is a failure that returns no result and is invisible to a status-code error rate. Per-tool error rates localise the cause, because one flaky council endpoint will lengthen trajectories and drive both of the other series without any model-side change.",
+      "distractors": {
+        "B": "Tokens per call is already on the single-call dashboard and is the wrong denominator for an agent, where the meaningful unit is the whole task. It can stay perfectly flat while tasks quietly grow from three steps to fifteen.",
+        "D": "Registered tool count is static configuration, not a production series. It changes when someone deploys, belongs in the configuration record, and tells nobody anything about how the agent is behaving today."
+      },
+      "concept": "Agentic workloads need task-denominated series that single-call features do not: trajectory length with its tail, non-completion on iteration limits, and per-tool reliability. Cost, latency and failure all become distributions over variable-length trajectories, and means over calls conceal every interesting movement in them.",
+      "tip": "For agent monitoring, ask what can go wrong that produces no error and no output. Silent termination at a loop limit is the classic answer and is missing from most dashboards."
+    }
+  },
+  {
+    "id": "ETO-C-058",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Quality alerting at low daily request volumes",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A boutique wealth manager's client-briefing assistant handles about 300 requests a month — roughly ten a day. Its quality alert compares each day's adviser edit rate against a fixed baseline of 0.18 and fires when the day's figure exceeds 0.25. It fires roughly twice a week, and every investigation so far has found nothing — the following day returns to normal. The team is losing confidence in the metric. What should change?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Raise the alert boundary from 0.25 to 0.35 so that ordinary day-to-day variation at this volume no longer crosses it."
+      },
+      {
+        "key": "B",
+        "text": "Alert on the absolute count of edited briefings per day rather than the rate, which removes the instability introduced by a small and variable daily denominator."
+      },
+      {
+        "key": "C",
+        "text": "Evaluate the proxy over a window long enough to accumulate a stable sample and use bounds that widen as the sample shrinks, rather than a fixed daily boundary."
+      },
+      {
+        "key": "D",
+        "text": "Stop alerting on the proxy and move it to the monthly operational review, where a whole month of traffic gives a reading reliable enough to act on with confidence."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "At ten requests a day an edit rate of 0.18 rests on fewer than two edited briefings, so the day's figure can only move in steps of ten points: two edits reads 0.20 and three reads 0.30. Crossing 0.25 therefore means nothing more than three edits in ten, which at a true rate of 0.18 happens on about 26% of days — a shade under two days in seven, which is exactly the observed firing rate with nothing wrong. A fixed boundary applied to an estimate this noisy will fire on noise indefinitely. Aggregating over a longer window and letting the bounds reflect how much data went into the estimate makes the alert fire on movements that the sample can actually support, which is the only way it becomes trustworthy at this volume.",
+      "distractors": {
+        "A": "A higher fixed boundary leaves the design untouched and only moves where it fails. At ten observations a day the rate can move only in tenths, so 0.35 means nothing more than 'four edits instead of three': four or more still arises by chance on about 9% of healthy days, while a rate that had genuinely deteriorated to 0.28 would clear it on only about 30% — the two distributions overlap so heavily that no fixed daily line separates noise from signal.",
+        "B": "Counts are more volume-sensitive than rates, not less. A busy Monday would trip the alert purely on throughput, and a quiet week would mask a real deterioration in the rate.",
+        "D": "Removing detection entirely is too far. Monthly review is where the trend belongs, but a low-volume service can still suffer a sudden real break, and waiting up to four weeks to notice it is a large regression in responsiveness."
+      },
+      "concept": "Alert thresholds must account for sample size. A rate computed from a small denominator carries wide natural variation, so either lengthen the window until the estimate is stable or use bounds that scale with the sample. Fixed boundaries on noisy estimates guarantee false alarms and eventual abandonment.",
+      "tip": "When a stem gives you both a daily volume and a rate, multiply them to see how many events the metric rests on. Small event counts mean the alert design, not the threshold value, is the defect."
+    }
+  },
+  {
+    "id": "ETO-C-059",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Attributing spend to a redundant upstream caller",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A health insurer's benefits-explanation service has grown to be the third-largest line in the platform budget. The team has already trimmed the prompt, enabled prefix caching and moved every eligible job to the batch path. Fresh instrumentation reveals that 38% of all requests originate from one internal claims-workflow integration that re-asks the same member's question every five minutes while a case is open, each time with a fresh correlation identifier embedded in the request text. Nobody on the platform team owns that integration. What is the correct move?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Attribute spend by calling client, take the 38% figure and its cost to the integration's owning team, and make removing the redundant polling their change to fund and deliver."
+      },
+      {
+        "key": "B",
+        "text": "Add a response cache that normalises out the correlation identifier so that the repeated questions are served from store without a further model call while the case remains open."
+      },
+      {
+        "key": "C",
+        "text": "Apply a per-client rate limit to that integration so it cannot issue more than one request per case per hour."
+      },
+      {
+        "key": "D",
+        "text": "Route that integration's traffic to the cheapest tier, since a repeated question about an already-open case does not need the strongest model to answer it acceptably."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Every supply-side lever has already been pulled, and what remains is demand that should not exist. The cheapest token is the one never requested, and the change belongs with the team whose code is generating the polling — they alone can replace it with something sensible, and they will only do so if the cost lands visibly on them. Per-client spend attribution is what makes that conversation possible; without it the platform team absorbs 38% of a budget for work no one asked for.",
+      "distractors": {
+        "B": "A normalising response cache genuinely would cut most of this spend and is a reasonable stopgap. It also permanently masks a defect in someone else's system, leaves the platform team maintaining a cache that exists to absorb a bug, and does nothing about the request volume, connection load and logging the polling still generates.",
+        "C": "A unilateral rate limit on another team's integration is likely to surface as a production incident on their side rather than as a cost conversation. It may well be the right enforcement mechanism eventually, but imposed without attribution and agreement it damages the relationship needed to fix the cause.",
+        "D": "Downgrading tier accepts the redundant demand and merely makes it cheaper, while taking on quality risk for a member-facing benefits explanation. It optimises the unit price of work that should not be happening."
+      },
+      "concept": "Once supply-side levers are exhausted, cost optimisation becomes a demand-side and accountability problem. Attribute spend to the caller that generates it; teams that cannot see the cost of their integrations have no reason to fix them, and platform teams that absorb it silently subsidise defects indefinitely.",
+      "tip": "When a stem lists the optimisations already done, it is telling you the answer is not another one of those. Look for who is generating the demand and whether they can see what it costs."
+    }
+  },
+  {
+    "id": "ETO-C-060",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "A regression suite that has stopped discriminating",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A container shipping line's booking-amendment assistant has passed 100% of its regression suite on every release for four months. Over the same period, production escalations to human booking agents have risen steadily and the adviser edit rate has worsened. What should the team conclude?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The suite is performing correctly and the production deterioration must originate outside the assistant, most likely in an upstream system."
+      },
+      {
+        "key": "B",
+        "text": "The release process is sound enough that the regression suite can be moved to a less frequent schedule, freeing capacity for feature work."
+      },
+      {
+        "key": "C",
+        "text": "The pass criteria are too lenient and should be tightened so that near-misses within the existing cases start registering as failures."
+      },
+      {
+        "key": "D",
+        "text": "The suite no longer represents the failures production is producing, and cases drawn from the current escalations need to be added to it."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "A suite that always passes has stopped carrying information, and the production signals establish that real failures are occurring somewhere the suite does not look. That is the definition of a stale test set: it encodes the failure modes of four months ago while traffic, phrasing and upstream data have moved on. The fix is to source cases from the escalations that are actually happening, which both restores the suite's discriminating power and connects the improvement loop back to production evidence.",
+      "distractors": {
+        "A": "This is possible but is the least likely reading and the most comfortable one. The suite passing proves only that the assistant handles the cases in the suite; it is not evidence about anything outside them, so it cannot exonerate the assistant.",
+        "B": "Reducing the frequency of a check because it never fails inverts the logic. A suite that always passes should be strengthened or retired deliberately, not run less often while production quality declines.",
+        "C": "Tightening the bar on existing cases makes the same narrow set harder without making it broader. If the emerging failures involve request shapes the suite contains no example of, no amount of stricter grading will reveal them."
+      },
+      "concept": "A test suite that never fails is either a finished system or an expired suite, and production metrics tell you which. Treat sustained 100% pass rates alongside worsening production signals as a prompt to refresh the case set from live failures, not as evidence of health.",
+      "tip": "Whenever a stem pairs a perfect internal score with a deteriorating external one, the internal measurement has lost coverage. This pattern recurs across evaluation, monitoring and gating items."
+    }
+  },
+  {
+    "id": "ETO-C-061",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "True statements about prompt caching economics",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "Which TWO statements about prompt caching economics are accurate? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Caching reduces the number of output tokens the model generates for a given request."
+      },
+      {
+        "key": "B",
+        "text": "Whether caching saves money depends on how often the identical prefix is re-read while an entry remains live."
+      },
+      {
+        "key": "C",
+        "text": "Caching can be applied to whichever portion of the prompt contributes most to cost, regardless of where that portion sits."
+      },
+      {
+        "key": "D",
+        "text": "Writing a cache entry costs more than sending the same tokens as ordinary input."
+      },
+      {
+        "key": "E",
+        "text": "A cached segment is excluded from the model's context on subsequent requests, so both its cost and its latency contribution fall to zero."
+      }
+    ],
+    "correct": [
+      "B",
+      "D"
+    ],
+    "explanation": {
+      "correct": "These two together are the whole economic model: you pay a premium to establish an entry, you pay less than normal to read it, and the arrangement is profitable only if enough reads occur before the entry lapses. Every practical caching decision — where to put the breakpoint, which prefixes are worth caching, whether a low-density tenant should be cached at all — follows from those two facts and the traffic pattern.",
+      "distractors": {
+        "A": "Caching operates entirely on the input side. Generation is unaffected, so output token counts and the generation portion of latency are exactly what they were.",
+        "C": "Matching is prefix-based, so position is the binding constraint, not cost contribution. An expensive block sitting after volatile content cannot be cached no matter how much of the bill it represents — which is why prompt ordering is a cost decision.",
+        "E": "The cached content is still fully part of the context the model conditions on; what is avoided is reprocessing it from scratch. Reads are cheaper and faster than fresh input, not free and not absent."
+      },
+      "concept": "Prompt caching is input-side amortisation over a prefix: premium on write, discount on read, value determined by reuse density within the entry's lifetime, and eligibility determined by position in the prompt. Nothing about it touches output generation.",
+      "tip": "Caching distractors usually overclaim — free reads, output savings, position independence. The accurate statements are always the modest ones about write premium and reuse."
+    }
+  },
+  {
+    "id": "ETO-C-062",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "A tier upgrade that leaves cost per task unchanged",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A public broadcaster's archive-clearance workflow decides whether footage can be reused. On the current tier the workflow averages 4.1 model calls per completed clearance, because rejected drafts are re-run. A trial on the stronger tier, whose per-call cost index is 3.2 times higher, brings this to 1.3 calls per completed clearance and cuts the clearance officers' review time per case by 60%. The head of platform is preparing to reject the upgrade because per-call cost tripled. What is the correct recommendation?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Reject the upgrade: per-call cost is the line the platform team is accountable for, and tripling it cannot be justified by benefits accruing to another department."
+      },
+      {
+        "key": "B",
+        "text": "Accept the upgrade: at 4.1 calls against 1.3 calls, API spend per completed clearance is essentially flat, and the 60% reduction in officer review time is the real saving."
+      },
+      {
+        "key": "C",
+        "text": "Accept the upgrade on the grounds that fewer calls per clearance means substantially lower end-to-end latency for each case."
+      },
+      {
+        "key": "D",
+        "text": "Reject the comparison as invalid: per-call cost indices from different tiers cannot be combined with call counts to produce a meaningful per-task figure."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Multiplying through, the current design spends 4.1 cost units per clearance and the stronger tier spends 1.3 times 3.2, which is 4.16 — the same to within rounding. The upgrade is therefore cost-neutral on the API line and delivers a 60% cut in expert human time, which for clearance officers is by far the larger number. Rejecting it protects a metric whose denominator is wrong; the decision only looks bad if you stop the calculation at the per-call price.",
+      "distractors": {
+        "A": "Departmental accountability boundaries are a real organisational constraint, but they are not a reason to decline a change that is neutral on the platform line and strongly positive overall. This is precisely the situation an architect is expected to escalate rather than accept.",
+        "C": "Latency may improve, but the stem gives no per-call duration for either tier, and a stronger model is not reliably faster. Justifying the decision on an unmeasured benefit is weak even when the conclusion happens to be right.",
+        "D": "The combination is not only valid, it is the standard way to compute cost per completed task. Cost per call multiplied by calls per task is exactly the arithmetic the head of platform failed to perform."
+      },
+      "concept": "A more expensive model can be cheaper per unit of completed work when it reduces retries, chain depth or human rework. Always multiply per-call cost by calls per completed task, and set the boundary wide enough to include the expert time the system consumes.",
+      "tip": "When a stem gives a cost multiplier and a change in calls per task, do the multiplication before reading the options. It usually collapses the choice to one."
+    }
+  },
+  {
+    "id": "ETO-C-063",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Investigating a sudden rise in quality-gate rejections",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A pet insurer runs claim triage on the cheap tier behind an inline quality gate that escalates failing responses to the stronger tier. The gate's rejection rate has jumped from 6% to 31% overnight. Escalation costs have risen accordingly, and the team's working assumption is that the cheap tier has degraded. What is the next step?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Escalate all triage traffic to the stronger tier until the cheap tier's behaviour has been characterised, accepting the additional cost for the duration of the investigation."
+      },
+      {
+        "key": "B",
+        "text": "Sample the rejected responses and score them against the labelled acceptance criteria to establish how many were genuinely bad."
+      },
+      {
+        "key": "C",
+        "text": "Check whether the gate itself changed — its prompt, its threshold, its model version or the schema it validates against — before investigating the cheap tier."
+      },
+      {
+        "key": "D",
+        "text": "Compare the current input distribution against the reference window, since a shift in claim types would explain a sudden rise in cheap-tier failures."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The rejection rate is a joint product of the generator and the judge, and an overnight step in a measurement is at least as likely to come from the measuring instrument as from the thing measured. Checking the gate's own configuration is faster than any analysis of the cheap tier, requires no sampling or labelling, and eliminates the cause that would make every subsequent investigation meaningless. Only once the gate is confirmed unchanged does it make sense to spend effort on the generator.",
+      "distractors": {
+        "A": "Blanket escalation is a mitigation, and it may be justified if claims are being mishandled — but it is expensive, it is being applied on an unverified assumption, and it removes the very signal needed to diagnose the problem.",
+        "B": "Scoring rejected samples is a good second step and would eventually reveal a gate that became over-strict. It costs labelling effort and hours, though, when a configuration diff answers the same question in minutes.",
+        "D": "Input drift is a legitimate hypothesis and would be worth testing, but drift rarely produces an overnight step and it does not explain why the change coincides with nothing on the generator side. It is a slower check for a less likely cause."
+      },
+      "concept": "When a measurement moves sharply, suspect the instrument before the system. Gates, judges, validators and detectors are deployed artefacts with their own versions and their own regressions, and treating their output as ground truth turns their bugs into phantom incidents.",
+      "tip": "Any stem that states the team's working assumption is usually inviting you to test it. A step change with no corresponding change on the suspected side points at the observer."
+    }
+  },
+  {
+    "id": "ETO-C-064",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Preventing prompt growth from eroding an optimisation",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A stadium operator's event-operations assistant has been through three cost-reduction efforts in two years. Each cut the prompt substantially; each time, within two quarters, the prompt had grown back past its previous size as engineers added clarifications, edge-case instructions and examples in response to individual defects. The architect wants the next reduction to hold. What mechanism achieves that?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Add a token-budget assertion to the pre-merge gate so a change that grows the prompt beyond its agreed budget fails the build unless the increase is explicitly approved with a measured justification."
+      },
+      {
+        "key": "B",
+        "text": "Schedule a prompt-cleanup sprint each quarter to remove accumulated additions before they compound."
+      },
+      {
+        "key": "C",
+        "text": "Record the token budget in the feature's runbook, publish it to the team, and cover prompt size as a standing item in the monthly operational review alongside cost per completed task."
+      },
+      {
+        "key": "D",
+        "text": "Require that any engineer adding to the prompt removes an equivalent number of tokens elsewhere in the same change, keeping the budget flat by construction and enforced at code review by the owning team."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The failure is structural: additions happen one small defect at a time, each individually defensible, and nothing in the workflow forces anyone to weigh the cumulative cost at the moment of the decision. Putting the budget in the gate moves the conversation to the point of change, makes exceeding it a deliberate and visible act rather than a drift, and requires the justification to be measured. Every alternative relies on someone noticing later, which is what has already failed three times.",
+      "distractors": {
+        "B": "A cleanup sprint accepts the growth and then pays to reverse it, repeatedly. It also removes instructions long after the context for adding them has been forgotten, so cleanups tend to reintroduce the defects that motivated the additions.",
+        "C": "Documenting a budget creates no enforcement, and monthly review detects growth after it has shipped. This is roughly the level of control the team already had across three failed attempts.",
+        "D": "A strict trade rule sounds disciplined but forces removals that may not be safe, since the tokens easiest to delete are not necessarily the ones doing least work. It also blocks legitimate expansions where the budget genuinely should rise."
+      },
+      "concept": "Optimisations that are not enforced in the change pipeline regress. Convert the outcome of a cost effort into a machine-checked budget at merge time, with a documented exception path, so that exceeding it becomes a decision someone makes rather than an accumulation nobody sees.",
+      "tip": "When a stem describes the same problem recurring after repeated manual fixes, the answer is automation in the pipeline. Review cadence and cleanup sprints are the options that have already been shown not to work."
+    }
+  },
+  {
+    "id": "ETO-C-065",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Measuring latency across retried attempts",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An ambulance service's clinical-triage adjunct summarises caller information for dispatchers. The team reports p95 latency at 1.2 seconds against a 2-second commitment and the SLO shows green every week. Dispatchers, however, consistently describe waits of four to six seconds during busy periods. The client wrapper retries on a 2-second timeout with up to two additional attempts, and each attempt is recorded as its own measurement in the latency series. What is wrong?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The p95 is being computed over too short an aggregation window, so busy-period behaviour is averaged away against quiet periods."
+      },
+      {
+        "key": "B",
+        "text": "The 2-second client timeout is set too close to the commitment, so requests that would have completed acceptably are being cut short and retried unnecessarily during busy periods, inflating both load and cost."
+      },
+      {
+        "key": "C",
+        "text": "Retries should be excluded from the latency series entirely, since a retried attempt is a failure rather than a latency observation."
+      },
+      {
+        "key": "D",
+        "text": "The series measures individual attempts rather than the dispatcher's wait; a request that times out twice and succeeds on the third contributes three fast-looking observations while the dispatcher waited for all of them."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Recording each attempt separately means the timed-out attempts enter the distribution as sub-2-second observations, and the successful third attempt enters as another. The metric is measuring the system's attempts while the dispatcher is experiencing their sum, so the busier it gets and the more retries occur, the more the reported percentile diverges from reality — and it diverges in the reassuring direction. The series must be keyed to the user-facing request and accumulate elapsed time across all attempts.",
+      "distractors": {
+        "A": "Window length affects how much a busy period is diluted, and lengthening or segmenting it is worth doing. But even a window covering only the busiest minute would still report attempt latencies rather than dispatcher waits, so the four-to-six-second experience would remain invisible.",
+        "B": "The timeout may well be badly tuned, and a wrapper that gives up at almost exactly the commitment will generate retries on requests that were about to succeed. That is a real defect worth fixing, but it explains why retries happen, not why the metric fails to show their cost.",
+        "C": "Excluding retries makes the reporting worse. The dispatcher's wait is composed almost entirely of retried attempts during busy periods, so dropping them would remove the very time being complained about."
+      },
+      "concept": "Latency must be measured on the user-facing unit of work, accumulating every attempt, queue wait and internal hop. Per-attempt instrumentation systematically understates the tail, and the understatement grows exactly when the system is under stress and the number matters most.",
+      "tip": "A green SLO alongside consistent user complaints almost always means the measurement boundary is wrong. Look for retries, queues or deferred work sitting outside the measured span."
+    }
+  },
+  {
+    "id": "ETO-C-066",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Validating a drift detector that has never fired",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A drift detector on a production Claude feature has not fired once in fourteen months. What should the team do before concluding that the input distribution has been stable?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Lower the divergence threshold until the detector begins producing occasional firings, then settle it just above that point."
+      },
+      {
+        "key": "B",
+        "text": "Verify that the detector can fire, by replaying traffic with a known injected shift and confirming it is detected end to end."
+      },
+      {
+        "key": "C",
+        "text": "Cross-check the conclusion against the quality proxy, which would have degraded if meaningful drift had occurred."
+      },
+      {
+        "key": "D",
+        "text": "Extend the reference window so the comparison spans a longer and therefore more reliable baseline period."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "A detector that has never fired is indistinguishable from a detector that cannot fire — a broken data feed, a comparison against a rolling window that always matches itself, a threshold set impossibly high, or an alert route to a dead channel all produce fourteen months of silence. The only way to tell the two apart is to give it something it must detect and confirm the signal completes the whole path. This is a routine control-verification exercise and should be scheduled, not left to the first real incident.",
+      "distractors": {
+        "A": "Tuning until something fires produces firings without establishing that they are the right ones. The detector could be responding to noise on an unrelated dimension while remaining blind to the shift that matters.",
+        "C": "The quality proxy is a lagging, indirect check, and one of the reasons for having a drift detector is to see input changes before quality moves. Using the slower signal to validate the faster one inverts the purpose.",
+        "D": "A longer baseline changes the comparison's sensitivity but says nothing about whether the mechanism works. If the pipeline is broken or the alert route is dead, every window length produces the same silence."
+      },
+      "concept": "Any control that fires rarely must be tested deliberately, because silence is ambiguous. Periodically inject a known condition and confirm detection end to end — through computation, thresholding, alerting and routing — the same discipline applied to backups and failover.",
+      "tip": "Long periods without an alert are a prompt to test the alert, not a reassurance. Options that tune the threshold are treating a possibly dead mechanism as a live one."
+    }
+  },
+  {
+    "id": "ETO-C-067",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Preconditions for moving a live workload to batch",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "Which THREE facts must be established before an existing synchronous production workload is moved to the asynchronous batch path? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "That no consumer — human or downstream service — is blocked waiting on any individual result."
+      },
+      {
+        "key": "B",
+        "text": "That the batch path yields better output quality, since generation on that path is not constrained by an interactive time budget or by client timeouts."
+      },
+      {
+        "key": "C",
+        "text": "That the job's completion deadline has slack beyond the turnaround the team has actually measured for its own batch jobs."
+      },
+      {
+        "key": "D",
+        "text": "That the prompts used are shorter than those sent on the synchronous path."
+      },
+      {
+        "key": "E",
+        "text": "That a fallback exists for results still outstanding when the deadline approaches, with a checkpoint early enough for it to complete."
+      }
+    ],
+    "correct": [
+      "A",
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "The three establish that nobody is waiting, that the schedule accommodates the observed turnaround rather than the hoped-for one, and that there is a bounded plan for the case where results are late. Together they convert an unbounded dependency into a managed one. Skipping any of them produces the same failure in different forms: a blocked consumer, a deadline missed by an unlucky run, or a run with no recovery once it is clear the results will not arrive.",
+      "distractors": {
+        "B": "Path selection has no bearing on output quality. The same model, prompt and parameters produce the same distribution of responses whichever way the request is submitted.",
+        "D": "Prompt length is irrelevant to eligibility. Long prompts, short prompts, and mixed workloads are all equally eligible provided the latency-tolerance condition holds."
+      },
+      "concept": "Batch migration is qualified by latency tolerance, measured turnaround against the deadline, and a bounded fallback. Treat the turnaround as an observed distribution from your own history rather than an assumed constant, and set the fallback checkpoint from the fallback's throughput.",
+      "tip": "Batch questions reward distinguishing eligibility conditions from incidental properties. Anything about prompt size or expected quality is decoration; anything about who is waiting and what happens if results are late is the substance."
+    }
+  },
+  {
+    "id": "ETO-C-068",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "A cost saving that exceeds the available latency headroom",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A pharmacy chain's prescription-interaction check runs inside the dispensing workflow under a 1.8-second p95 commitment negotiated with the clinical governance committee; current p95 is 1.55 seconds. A proposed change — consolidating three short model calls into one longer reasoning call — would cut spend on the workload by 30% but adds an estimated 400ms to p95. Roughly 40% of the workload is overnight repeat-dispensing checks with no pharmacist waiting. How should the architect proceed?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Ship the change and open a renegotiation with the clinical governance committee to move the commitment to 2 seconds, supported by the cost saving."
+      },
+      {
+        "key": "B",
+        "text": "Reject the change: a 400ms addition against 250ms of headroom breaches a clinical commitment, and no cost saving justifies that."
+      },
+      {
+        "key": "C",
+        "text": "Apply the change only to the overnight repeat-dispensing traffic, where the latency commitment does not bind, and keep the interactive path on the existing design."
+      },
+      {
+        "key": "D",
+        "text": "Ship the change to all traffic and recover the 400ms by removing the interaction-history retrieval step, which is the next largest contributor to the trace."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The workload is not homogeneous, and the stem says so: 40% of it has no waiting pharmacist and therefore no exposure to the 1.8-second commitment. Applying the change to that segment captures a large share of the saving with no risk to the clinical path, and it does so without touching a governance commitment or removing a clinical safeguard. This is the standard resolution when a change is favourable on one dimension and inadmissible on another — segment the traffic by which constraint actually binds.",
+      "distractors": {
+        "A": "Reopening a clinical safety commitment to fund a cost saving is a poor trade and a poor look. The committee agreed 1.8 seconds for reasons about dispensing workflow, and cost efficiency is not an argument that speaks to those reasons.",
+        "B": "Outright rejection is defensible on the interactive path and wrong for the workload as a whole. It leaves 30% of the spend on 40% of the volume untouched for the sake of a constraint that does not apply to that segment.",
+        "D": "Paying for a latency budget by deleting a clinical retrieval step trades a safety input for milliseconds. Removing interaction history from an interaction check is the most consequential possible way to find 400ms."
+      },
+      "concept": "When a change is favourable on cost but inadmissible against a binding constraint, check whether the constraint binds on all the traffic. Segmenting by which constraint applies frequently captures most of the benefit at none of the risk, and it is almost always preferable to renegotiating a safety commitment.",
+      "tip": "A stem that mentions a percentage of traffic with a different profile is handing you the segmentation. Do the headroom arithmetic first to eliminate the ship-everywhere options, then look for the segment."
+    }
+  },
+  {
+    "id": "ETO-C-069",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Properties every production alert must have",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "Which TWO properties must every alert on a production Claude feature have to be worth configuring? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "A threshold set at the 99th percentile of the values observed during the baselining period."
+      },
+      {
+        "key": "B",
+        "text": "A documented action the recipient can take, recorded in the runbook against that alert."
+      },
+      {
+        "key": "C",
+        "text": "Automatic suppression after three firings within an hour, to protect the recipient from repeated notification."
+      },
+      {
+        "key": "D",
+        "text": "A defined relationship to a user-visible SLO or to a budget the team has committed to."
+      },
+      {
+        "key": "E",
+        "text": "An escalation path that notifies the feature's product owner if the alert is not acknowledged within a set period."
+      }
+    ],
+    "correct": [
+      "B",
+      "D"
+    ],
+    "explanation": {
+      "correct": "An alert is a request for human intervention, so it must justify the interruption twice over: by pointing at something the organisation has actually promised, and by telling the recipient what to do about it. An alert with no committed SLO or budget behind it is measuring a number nobody agreed to, and an alert with no documented action leaves the recipient to improvise at the worst possible moment. Alerts failing either test should be demoted to a dashboard.",
+      "distractors": {
+        "A": "Percentile-derived thresholds are one reasonable technique among several, and they are wrong for anything with a hard external commitment, where the threshold must come from the promise rather than from history. This is a method, not a requirement.",
+        "C": "Suppression policies are useful configuration for noisy alerts, but a well-designed alert that fires three times in an hour is reporting a real and continuing problem. Automatic suppression as a universal rule hides sustained incidents.",
+        "E": "Acknowledgement escalation is a sensible operational practice for some alerts and unnecessary overhead for others. It describes how an unhandled notification is chased, not whether the alert should exist."
+      },
+      "concept": "Every alert needs a commitment behind it and an action in front of it. Traceability to an SLO or budget prevents alerting on numbers nobody owns; a documented response prevents the interruption from becoming an improvisation. Anything failing both belongs on a dashboard.",
+      "tip": "Apply the two tests to each candidate: what did we promise, and what do I do now. Options describing routing, suppression or threshold technique are operational details rather than requirements."
+    }
+  },
+  {
+    "id": "ETO-C-070",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Attributing a quality gain inside an expensive prompt change",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A recruitment-marketing agency shipped a single prompt change on Monday that did three things at once: added six worked examples, added a step-by-step reasoning instruction, and expanded the retrieved context from three documents to eight. Since then, cost per completed task is up 96% and the reviewer edit rate has improved from 0.31 to 0.22. The budget holder will fund the increase only if it is necessary. What is the next step?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Test the three modifications separately against the same case set to establish which of them produced the quality gain and at what individual cost."
+      },
+      {
+        "key": "B",
+        "text": "Revert the change and reintroduce it in the next cycle, once a full cost-benefit analysis has been prepared and signed off by the budget holder and the delivery lead."
+      },
+      {
+        "key": "C",
+        "text": "Keep the change and present the edit-rate improvement as the justification, since a nine-point movement on the quality proxy is a strong result by any standard."
+      },
+      {
+        "key": "D",
+        "text": "Keep the change and offset the cost by moving the workload to the cheapest tier that still holds the new edit rate at its improved level over a full week."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Three modifications shipped together produce one observation and no attribution, and the budget holder has asked a question the current data cannot answer. Separating them is cheap — the case set already exists and the variants are prompt edits — and the likely outcome is that one modification carries most of the quality gain while another carries most of the cost. Expanding retrieved context from three documents to eight, in particular, is the obvious suspect for the spend and not obviously the source of the improvement.",
+      "distractors": {
+        "B": "Reverting throws away a real quality improvement while the analysis is prepared, and the analysis it defers is the same experiment as separating the variables — so this is the right investigation with an unnecessary quality regression attached.",
+        "C": "Presenting the aggregate result answers a different question from the one asked. The budget holder said necessary, and the team currently cannot show that any particular part of the 96% was needed to obtain the nine points.",
+        "D": "Chasing the cost with a tier downgrade adds a second uncontrolled change on top of an unattributed first one. If it works the team still cannot say why, and if the edit rate slips nobody will know which change caused it."
+      },
+      "concept": "Bundled changes destroy attribution. When cost and quality both move after a multi-part change, decompose it before defending or funding it — the usual finding is that the cheap component delivered most of the benefit and the expensive one delivered most of the bill.",
+      "tip": "Count the modifications in the stem. Three changes and one measurement means the answer is almost always to separate them, whatever the headline numbers look like."
+    }
+  },
+  {
+    "id": "ETO-C-071",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Controlling the cost of a continuous quality proxy",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A fashion retailer scores every one of its 400,000 daily product-description generations with a second Claude call that rates the description against a rubric, producing a continuous quality proxy. Finance has pointed out that the scoring calls now cost more than the generation calls, because the scoring prompt includes the full rubric while the generation prompt does not. What should the team do?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Keep scoring every generation but move the scoring calls to the asynchronous batch path, since nothing downstream waits on an individual score and the trend is only consumed once a day."
+      },
+      {
+        "key": "B",
+        "text": "Stop the automated scoring and rely on the merchandising team's existing rejection rate as the quality proxy instead."
+      },
+      {
+        "key": "C",
+        "text": "Keep full coverage and move the scorer to the cheapest tier, holding the rubric and the rest of the scoring prompt identical to what runs today so the series is unaffected."
+      },
+      {
+        "key": "D",
+        "text": "Score a stratified sample — all flagged or unusual generations plus a few per cent of ordinary ones — since a trend needs enough observations to be stable, not complete coverage."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The proxy's purpose is to track how quality is moving, and a trend line built from a few thousand daily observations is essentially as informative as one built from 400,000 while costing a fraction as much. Stratifying keeps complete coverage of the cases most likely to be interesting and a representative slice of the rest, so both the trend and the anomaly detection survive. Full coverage would be worth its cost only if every individual score drove a per-item decision, and here none of them do.",
+      "distractors": {
+        "A": "Batch routing is a sensible additional saving and should probably be done regardless, but it addresses the rate rather than the volume. Paying a lower price for 400,000 scores nobody needs individually leaves most of the waste intact.",
+        "B": "Merchandising rejections are a legitimate proxy and cheap, but they are sparse, lagging and shaped by whatever the team happened to look at. Discarding the instrumented signal entirely swings from over-measurement to under-measurement.",
+        "C": "Changing the scoring model breaks continuity of the series, so scores before and after are not comparable and the trend the proxy exists to provide is severed. A cheaper judge may also grade differently, which has to be established rather than assumed."
+      },
+      "concept": "Measurement is a cost centre and should be sized to the decision it supports. Continuous quality proxies need enough observations for a stable trend plus full coverage of the abnormal — not full coverage of everything. Reserve complete scoring for cases where each individual score gates an action.",
+      "tip": "Ask what decision each individual measurement drives. If the answer is none, and only the aggregate matters, sampling is available and usually the intended answer."
+    }
+  },
+  {
+    "id": "ETO-C-072",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Triage under simultaneous volume, cost and quality pressure",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A disaster-relief NGO runs a Claude system that triages inbound field reports into severity bands and routes them to response teams. A major flooding event has pushed volume to twenty times normal and it will stay there for days. The monthly budget is fixed and donor-restricted with no possibility of increase. Severe reports need routing within seconds; low-severity reports can wait. Misclassifying a severe report as low is the failure that costs lives; the reverse merely wastes responder time. The system currently sends every report to the strong tier and, at twenty times volume, will exhaust the budget in four days. What should the architect do?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Move all triage to the cheapest tier for the duration of the event, accepting a uniformly higher error rate across every severity band in exchange for staying inside the fixed budget for the whole of the response operation rather than only its first four days."
+      },
+      {
+        "key": "B",
+        "text": "Run every report through the cheap tier first with an inline gate biased towards escalation, send anything the gate flags as possibly severe to the strong tier, and monitor the escalation rate and a sampled audit of unescalated reports throughout."
+      },
+      {
+        "key": "C",
+        "text": "Keep the strong tier for all reports and queue the overflow, processing in arrival order so that no report is triaged with a weaker model."
+      },
+      {
+        "key": "D",
+        "text": "Keep the strong tier and halve the prompt by removing the severity-band definitions and worked examples, which are the largest input blocks."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The three pressures resolve because the error costs are asymmetric and the stem says so. A cheap first pass handles the bulk at a rate the budget can sustain; a gate deliberately biased towards escalation converts uncertainty into the cheap error rather than the fatal one; and the strong tier is reserved for the reports where it changes an outcome. The two monitoring elements are not optional extras — the escalation rate governs whether the budget holds, and the sampled audit of unescalated reports is the only view of the failure that produces no signal.",
+      "distractors": {
+        "A": "A uniform downgrade applies the weaker model to exactly the reports where a mistake is fatal. It respects the budget by spending the quality reduction where it is least affordable, which inverts the priority the stem sets out.",
+        "C": "Queueing preserves per-report quality and destroys the property that matters: severe reports need routing within seconds, and at twenty times volume the queue delay will run to hours. It also does not solve the budget problem, only spreads it over more days.",
+        "D": "Removing the band definitions and examples strips the classifier of the criteria it uses to distinguish severe from low. This is a large input saving purchased directly out of the decision the system exists to make."
+      },
+      "concept": "When cost, latency and quality all bind at once, look for asymmetry in the cost of errors. Route cheaply by default, bias the gate towards the survivable error, reserve capability for the cases where it changes an outcome, and instrument the failure mode that produces no event.",
+      "tip": "Stems that state which direction of error is worse are handing you the design. Bias the gate towards the cheap error and audit the silent one — uniform treatments and pure queueing are the traps."
+    }
+  }
+]

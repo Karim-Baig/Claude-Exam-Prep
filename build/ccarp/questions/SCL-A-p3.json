@@ -1,0 +1,454 @@
+[
+  {
+    "id": "SCL-A-037",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Constrained scheduling belongs to a solver",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A field service operation asks for Claude to build each day's engineer schedule, minimising travel while respecting engineer skills, parts availability and customer appointment windows. Why does this fail qualification as a language model task?",
+    "options": [
+      { "key": "A", "text": "Schedules change through the day as jobs overrun and parts fail to arrive, so a model cannot be re-run often enough." },
+      { "key": "B", "text": "The model cannot emit output in the calendar format the dispatch system and the engineers' mobile app require." },
+      { "key": "C", "text": "It is a constrained optimisation; a solver returns a provably feasible assignment, or proves that none exists." },
+      { "key": "D", "text": "Scheduling needs live van stock and engineer location data that cannot be supplied to a model at request time." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Everything the problem needs is already formal: an objective to minimise, constraints that must hold, and a finite assignment space. Solvers are built for exactly this and give something a generated answer never can — a guarantee that the schedule satisfies every constraint, or a proof that no schedule does, which is the information a dispatcher needs when the day is oversubscribed. The language-shaped work sits beside it, turning free-text job notes and customer requests into the constraints the solver consumes.",
+      "distractors": {
+        "A": "Re-planning frequency is a throughput consideration and would apply to any approach. It does not explain why the class of problem is wrong for a model.",
+        "B": "Structured output is straightforward to produce. Even if formatting were awkward, that is an implementation issue, not a reason the use case is mis-typed.",
+        "D": "Live availability and skills data can be supplied. The objection is not that the model lacks the inputs; it is that it cannot guarantee the output satisfies them."
+      },
+      "concept": "When a task has a stated objective function and hard constraints over an enumerable space, it is an optimisation problem and belongs to a solver. Reach for a model at the boundary instead — turning unstructured requests into constraints, and explaining the resulting plan to the people who must follow it.",
+      "tip": "Words like 'minimise', 'subject to', 'respecting constraints' and 'assign' in a request are optimisation vocabulary. The give-away is that feasibility must be guaranteed, not merely likely."
+    }
+  },
+  {
+    "id": "SCL-A-038",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Record deduplication at scale mis-framed as a model task",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A hotel group asks for Claude to deduplicate 14 million guest profiles held across four property systems, merging records that refer to the same person. The fields available are name, email, phone, address, loyalty number and date of birth, and roughly 2% of records are believed to be duplicates. What should discovery conclude?",
+    "options": [
+      { "key": "A", "text": "Deterministic keys plus blocking and probabilistic linkage resolve most of it cheaply; reserve the model for the residual ambiguous pairs." },
+      { "key": "B", "text": "Use the model for every pairwise comparison, since it handles name variants, transliteration and address abbreviation better than string metrics." },
+      { "key": "C", "text": "Process all 14 million profiles in a small number of very large context windows so the model can see the whole population at once and cluster it." },
+      { "key": "D", "text": "Decline the request; deduplicating the guest master is a data governance activity for the chief data officer, outside the AI programme's remit." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Entity resolution is a solved engineering problem with mature tooling: exact keys such as loyalty number and verified email settle a large share immediately, blocking reduces the candidate space by orders of magnitude, and probabilistic linkage scores what remains with tunable thresholds and reproducible results. That leaves a small ambiguous band — same name and city, no shared identifier — where a model reading the full records adds real judgement. Designing that split during discovery is what makes the use case affordable and auditable.",
+      "distractors": {
+        "B": "Exhaustive pairwise comparison of 14 million records approaches a hundred trillion candidate pairs, which no per-call approach can absorb. Blocking is not optional at this scale, and once blocking is in place the remaining volume is small enough that the argument for model-only comparison disappears.",
+        "C": "Deduplication is inherently pairwise or cluster-wise; placing a large population in one window does not make the comparisons happen, and no context window holds 14 million profiles. This confuses seeing the data with resolving it.",
+        "D": "Over-rejection. There is a genuine, valuable model role in the ambiguous residual, and refusing the whole request abandons the part that only a model handles well."
+      },
+      "concept": "For matching and resolution tasks, size the problem before choosing the tool. Deterministic keys first, blocking second, probabilistic scoring third, and a model only on the residual that survives all three. Applying a per-call model to a population-scale join is the most common way an otherwise sound use case becomes uneconomic.",
+      "tip": "Whenever a stem gives a record count in the millions and asks about comparison, do the pair arithmetic in your head. If it is astronomically large, the answer involves reducing the candidate space before any model appears."
+    }
+  },
+  {
+    "id": "SCL-A-039",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Adding a zero-tolerance gate to an aggregate threshold",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A medical device manufacturer is defining acceptance for a Claude system that drafts sections of technical files submitted to notified bodies. The proposed criterion is that 95% of generated sections are judged acceptable by a reviewer. Discovery establishes that a named regulatory affairs specialist reviews and signs every section before submission, and that one error class — citing the wrong version of a harmonised standard — previously caused a submission rejection and a six-week delay. The standards register is an internal system with an exact list of current versions. What should be added to the criteria?",
+    "options": [
+      { "key": "A", "text": "Raise the aggregate threshold from 95% to 99% so that the residual error rate is small enough for a notified-body submission." },
+      { "key": "B", "text": "Replace reviewer judgement with a model-graded rubric over the drafted sections, so the acceptability measure is not subjective." },
+      { "key": "C", "text": "Measure acceptability separately per specialist and require agreement between two reviewers before a section is scored as acceptable." },
+      { "key": "D", "text": "Keep the aggregate threshold and add a zero-tolerance criterion for standard-version errors, checked against the standards register." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "One error class carries a consequence out of all proportion to its frequency, and an aggregate percentage cannot express that — a system can sit comfortably above any threshold while still emitting the error that costs six weeks. Because the standards register holds the exact current versions, this class does not need to be handled probabilistically at all: a lookup either matches or it does not, so it becomes a hard gate outside the accuracy measure. The aggregate threshold then covers everything the reviewer's judgement genuinely governs.",
+      "distractors": {
+        "A": "Tightening the number makes the target harder without making it discriminating. A 99% system can still be wrong about a standard version, and the residual 1% is not distributed conveniently across harmless error types.",
+        "B": "Automating the grader improves consistency of measurement and is worth considering separately, but it changes how acceptability is scored rather than protecting against the specific catastrophic class. The rubric would average over it exactly as the humans do.",
+        "C": "Inter-reviewer agreement addresses grader reliability, which is a real concern for judgement-based scoring. It does nothing about a factual error class that both reviewers could plausibly miss and that a register lookup catches with certainty."
+      },
+      "concept": "Where a failure mode has a deterministic check available, take it out of the probabilistic accuracy target and make it a hard gate. Acceptance criteria for production systems are usually a pair: an aggregate quality threshold for judgement-bearing output, plus named zero-tolerance classes each with their own mechanical verification.",
+      "tip": "The planted detail is the existence of an authoritative register. Whenever a stem mentions a system of record that can verify a specific claim, expect the answer to convert that claim from a quality target into a check."
+    }
+  },
+  {
+    "id": "SCL-A-040",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Why catastrophic failure classes sit outside the accuracy target",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "Why do mature acceptance criteria state an aggregate quality threshold and, separately, a named set of failure modes each with its own gate?",
+    "options": [
+      { "key": "A", "text": "Aggregate thresholds are unreliable because evaluation sets are always too small to support them statistically at the required confidence." },
+      { "key": "B", "text": "An aggregate averages over failures of very different cost, so a system can clear the threshold and still commit the costly errors." },
+      { "key": "C", "text": "Naming failure modes in a documented hazard log is required by most regulators before an automated system may be deployed." },
+      { "key": "D", "text": "Named failure modes are easier to remediate than diffuse aggregate quality problems, so listing them shortens the fix cycle." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Accuracy is a mean, and a mean is indifferent to which errors it contains. In almost every production system a small number of failure types — a confidently wrong dosage, an incorrect legal citation, a disclosed personal detail — carry orders of magnitude more cost than the typical miss, and they are rare enough that they barely move the aggregate. Naming them and gating each separately is the only structure in which an acceptance review can fail a system that scored well.",
+      "distractors": {
+        "A": "Sample size is a real design consideration for any threshold, and it argues for a larger set, not for abandoning aggregate measures. It says nothing about why particular failure modes need individual treatment.",
+        "C": "Some regimes require documented failure analysis for particular high-risk applications, but the practice is not driven by a general regulatory rule and would be correct even where no regulator was involved.",
+        "D": "Remediation convenience is a side benefit at best. The reason for the structure is that the aggregate cannot represent asymmetric cost, not that named modes are easier to fix."
+      },
+      "concept": "Define acceptance as an aggregate threshold plus an enumerated set of unacceptable outcomes, each with its own gate and, where possible, a deterministic check. Derive the enumeration from what the business genuinely cannot absorb, and set the aggregate over the remainder where errors are recoverable.",
+      "tip": "Reach for this structure whenever a stem mentions a specific past incident. A single named historical failure is the exam's way of telling you an aggregate criterion is insufficient."
+    }
+  },
+  {
+    "id": "SCL-A-041",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Exit criteria for the discovery phase",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "What should exist at the close of discovery for design work to begin on a sound footing?",
+    "options": [
+      { "key": "A", "text": "A signed statement of work, a resourced delivery team and an agreed sprint plan for the first three build sprints." },
+      { "key": "B", "text": "A working prototype demonstrated to the executive sponsor and received positively by the programme steering group." },
+      { "key": "C", "text": "A problem statement, a measured baseline, acceptance criteria with a frozen set, a named owner and data access." },
+      { "key": "D", "text": "A selected model tier, a versioned prompt library and an agreed integration diagram for the target application estate." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Each of these is something design cannot manufacture for itself. Without a measured baseline nobody can later show the system helped; without frozen acceptance criteria the bar moves under launch pressure; without a named owner there is nobody to adjudicate trade-offs or accept the change; and without confirmed data access the design may rest on inputs that governance will not release. A prototype and a plan are useful, but they are downstream of these five and worthless if any is missing.",
+      "distractors": {
+        "A": "Contracting and planning artefacts. They commit money and people to work whose target has not been defined, which is how programmes end up delivering to a specification written after the build started.",
+        "B": "A prototype demonstrates that something is possible, which is valuable in feasibility, but a positive demo is not a measured baseline, an accepted criterion or a data-access approval. Programmes routinely reach this state and then stall.",
+        "D": "Solution decisions belong to design, not to the gate that opens it. Fixing them at the end of discovery pre-commits the architecture before the constraints from data access and acceptance criteria are known."
+      },
+      "concept": "Discovery exits on artefacts that constrain the build and make the outcome provable: problem statement, baseline, acceptance criteria with a frozen set, an accountable owner, and confirmed access to the data. Anything that can be produced during design does not belong at the gate.",
+      "tip": "Test each candidate exit artefact by asking whether it can still be obtained later. Baselines and pre-change measurements cannot; prompt libraries and diagrams always can."
+    }
+  },
+  {
+    "id": "SCL-A-042",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Instrumenting an unmeasured process to obtain a baseline",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A utility's new-connections team processes supply applications. Nobody has ever measured how long a case takes. The case system records only a created and a closed timestamp, and cases routinely sit dormant for weeks waiting for customer documents, which inflates elapsed time. Discovery has ten working days. Which TWO approaches will produce a usable baseline of actual working time? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Have eight case handlers record start and stop times on a tally sheet for every case they touch across one week." },
+      { "key": "B", "text": "Take the median of closed-minus-created elapsed days across every case completed in the last twelve months in the case system." },
+      { "key": "C", "text": "Observe three handlers for two days each, timing cases directly and recording waiting time separately from working time." },
+      { "key": "D", "text": "Ask the team leader for an estimate of average handling time broken down by case type, and use it as the baseline." },
+      { "key": "E", "text": "Divide the team's annual fully-loaded payroll cost by the number of cases the team closed in the same period." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "Both methods measure hands-on time rather than elapsed time, which is the quantity the dormancy problem destroys. Self-recorded tallies give breadth — many cases, many handlers, a distribution rather than a point — at almost no cost. Direct observation gives depth and catches what tallies miss, including interruptions, rework and the boundary between waiting and working. Run together they cross-validate: if observed times are much lower than self-reported ones, the discrepancy itself is a finding worth reporting.",
+      "distractors": {
+        "B": "Elapsed duration is precisely the measure the stem tells you is contaminated. Weeks of dormancy waiting for customer documents sit inside closed-minus-created, so the median describes the customer's response speed more than the team's effort.",
+        "D": "Manager estimates of handling time are systematically unreliable and typically describe the standard path rather than the mix. Using an estimate as a baseline means the eventual improvement is measured against a guess.",
+        "E": "This yields fully-loaded cost per case, which is a legitimate and useful baseline for a cost claim, but it is not working time: it absorbs non-case work, supervision and idle capacity, and it cannot be decomposed by case type."
+      },
+      "concept": "Choose the baseline instrument to match the quantity in the claim, and check what contaminates the cheap proxy. Elapsed time includes waiting; cost per case includes non-case work. Where no instrumentation exists, a short combination of self-recording for breadth and observation for accuracy is usually enough, and the disagreement between the two is informative.",
+      "tip": "When a stem volunteers that cases sit dormant, it has told you the timestamp-difference option is a trap. Ask which measure the eventual claim will be made in, and whether the proxy contains anything else."
+    }
+  },
+  {
+    "id": "SCL-A-043",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Automating a tolerated practice that contradicts written policy",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A national retailer's published policy states no refund without a receipt. Discovery samples 500 refunds across twelve stores: 41% were issued without a receipt where the item could be traced to a loyalty account, applied consistently in every store sampled, and the retailer's own customer satisfaction reporting cites this flexibility as a strength. The assistant being scoped will decide refund eligibility directly. What is the best next step?",
+    "options": [
+      { "key": "A", "text": "Write the observed rule up as de facto policy with the sampling evidence, and take it to the policy owner for a decision to codify it or stop it." },
+      { "key": "B", "text": "Encode the written policy as it stands, since automating an unwritten exception exposes the retailer to inconsistency and discrimination claims." },
+      { "key": "C", "text": "Encode the observed loyalty-account practice, since it is the real operating rule and already matches what customers experience in every store." },
+      { "key": "D", "text": "Have the assistant decline and hand off to a store colleague whenever no receipt is present, preserving the discretion staff exercise today." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Store discretion exercised case by case and an automated rule applied to every customer are different things in kind, not degree: the second is a stated, uniform, evidenced commitment that finance, legal and audit have never agreed to. The architect cannot make that call, and neither can the sponsor alone. What the architect can do is convert an invisible practice into a documented decision with the 41% figure attached, which forces the policy owner to either adopt it — making the requirement clean — or stop it, which changes the value case honestly.",
+      "distractors": {
+        "B": "Automating the written policy refuses 41% of refunds the business currently grants, which will show up immediately as complaints and colleague override. Staff will route around the assistant, and the deployment fails on adoption rather than on accuracy.",
+        "C": "Right about where the operating rule lives, wrong about who may ratify it. Encoding it silently commits the retailer to a policy at scale on an architect's authority and removes the discretion that made the informal version defensible.",
+        "D": "Preserves discretion but sends 41% of refund interactions to a colleague, which removes most of the value and leaves the underlying policy conflict unresolved. It defers the decision rather than surfacing it."
+      },
+      "concept": "Automation converts informal practice into stated policy. Where observed behaviour and written policy diverge, the discovery deliverable is the evidenced divergence and a forced decision by the policy owner — never a silent choice by the delivery team. Quantifying the divergence is what makes the decision unavoidable.",
+      "tip": "When a stem contrasts written policy with a large, consistent, measured deviation, neither 'follow the document' nor 'follow the practice' is the answer. The answer is to make somebody with authority choose."
+    }
+  },
+  {
+    "id": "SCL-A-044",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Scoping language coverage against review capability",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A European insurer is scoping a policy-question assistant. The business asks for all eleven market languages. Discovery finds three languages account for 84% of contact volume and the remaining eight for 16%; internal staff capable of grading output exist for five languages; and one of the three highest-volume languages has no internal reviewer at all. What scoping decision should discovery recommend?",
+    "options": [
+      { "key": "A", "text": "Launch all eleven languages, since the model handles them, and add per-language evaluation once traffic accumulates in each market." },
+      { "key": "B", "text": "Scope phase one to languages with both meaningful volume and an internal reviewer, gating each later addition on a reviewer." },
+      { "key": "C", "text": "Scope by volume alone and launch the three languages that cover 84% of contacts, adding the remaining eight later." },
+      { "key": "D", "text": "Launch in English only and let customers switch to their own preferred language themselves in the chat window." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "You cannot accept, monitor or debug output in a language nobody in the organisation can read. Review capability is therefore a hard launch constraint, not a nice-to-have, and the stem sets up the conflict deliberately: one of the three biggest languages has no reviewer, so a volume-only rule ships something ungovernable. Making reviewer availability the gate also gives the business a clear, actionable path — recruiting or contracting a reviewer is what unlocks the next language, and that can start immediately.",
+      "distractors": {
+        "A": "Deferring evaluation until traffic accumulates means the first months of output in eight languages are unassessed, in a regulated domain where a wrong policy answer has contractual consequences. Traffic does not create graders.",
+        "C": "Uses the right instinct on the wrong constraint. It captures the volume but includes the language with no reviewer, which is exactly the case discovery surfaced. Volume tells you where the value is; review capability tells you where you can safely go.",
+        "D": "Discards the majority of the value and ignores the finding entirely. Customers in a non-English market who are told to switch language will simply call, so the deflection benefit does not materialise."
+      },
+      "concept": "Scope multilingual systems on the intersection of demand and assurance capability. Any language you cannot evaluate is a language you cannot operate, because monitoring, incident triage and regression testing all require someone who can read the output. Treat reviewer availability as a phase gate with an owner and a date.",
+      "tip": "Multilingual scoping items usually plant a mismatch between the volume ranking and the review-capability list. Find the language that appears in one and not the other."
+    }
+  },
+  {
+    "id": "SCL-A-045",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Purpose of an influence and interest stakeholder map",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A stakeholder map plots each party by their influence over the outcome and their interest in it. What is the map primarily for?",
+    "options": [
+      { "key": "A", "text": "Determining the distribution list for the weekly project status report and the monthly steering pack." },
+      { "key": "B", "text": "Establishing the formal approval chain to be followed at the go-live decision point and at each stage gate." },
+      { "key": "C", "text": "Selecting which stakeholders should be invited to the discovery workshops and the requirement sessions." },
+      { "key": "D", "text": "Setting a differentiated engagement plan and, above all, surfacing high-influence, low-interest parties early." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The quadrant that matters is the uncomfortable one: parties with real power who are not currently paying attention. Security architecture, works councils, data protection, internal audit and clinical governance rarely volunteer for a discovery workshop, and they surface at the point of deployment with objections that force redesign. The map's value is that it makes you go and find them while the design is still cheap to change, and it tells you the engagement mode — consult, involve, or merely inform — for each of the rest.",
+      "distractors": {
+        "A": "Reporting distribution is an output of the map, and the least consequential one. Reducing the exercise to a mailing list is exactly how the high-influence low-interest quadrant gets missed.",
+        "B": "Approval chains are a governance artefact that overlaps with the map but is not its purpose. Several parties who can effectively stop a project hold no formal approval right, and the map is meant to catch them.",
+        "C": "Workshop invitations are one use, but they naturally draw from the high-interest side. The parties most worth mapping are precisely the ones who would decline the invitation."
+      },
+      "concept": "Stakeholder mapping earns its cost through the low-interest, high-influence quadrant. Anyone who can withhold approval, block on policy grounds, or refuse to operate the system holds influence regardless of their enthusiasm. Engage them early enough that their constraints become design inputs rather than late objections.",
+      "tip": "In stakeholder items, the correct answer usually concerns the party who is not yet in the conversation. Options about reporting, invitations and sign-off chains describe people already engaged."
+    }
+  },
+  {
+    "id": "SCL-A-046",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Required explanation absent from every accessible system",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A construction group wants Claude to answer 'why did this project's margin move this month?' across 200 live projects. Discovery finds the ERP holds cost and revenue by cost code, but the reason for a variance is discussed in weekly site meetings and recorded, if at all, in a free-text comment field populated on 11% of cost lines, mostly with entries such as 'see email'. The architect sampled 30 of those references and could locate the corresponding email thread for four of them. What should discovery conclude?",
+    "options": [
+      { "key": "A", "text": "Feasible as asked; the model can infer the cause of each margin movement from the pattern of cost-code movements in the ERP itself, month on month." },
+      { "key": "B", "text": "Feasible once the group's email archive is indexed and retrieved alongside the ERP cost lines at answer time, resolving the 'see email' pointers." },
+      { "key": "C", "text": "The explanation is recorded nowhere, so the first deliverable is a capture mechanism: a reason code and note taken when the variance is discussed." },
+      { "key": "D", "text": "Reject the use case; causal explanation of financial variance across 200 live projects is beyond what a language model can be asked to do." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "No retrieval strategy can find information that was never written down. The numbers record what changed; whether it was a supplier claim, rework, weather or a re-forecast is a human judgement made in a meeting and, on the evidence, captured almost never and traceable almost never. The honest and genuinely useful discovery output is to change what the organisation records — a small structured capture at the moment of discussion — which is cheap, immediately valuable to the finance team on its own, and makes the assistant buildable later.",
+      "distractors": {
+        "A": "Cost-code movements are indistinguishable across very different causes: a materials overspend looks the same whether it was a supplier price rise, a design change or rework. Inferring a cause from them produces confident narrative with no evidential basis, which is worse than no answer.",
+        "B": "The sampling result rules this out. Four traceable threads in thirty means the pointer itself is broken, so an indexed archive returns mostly nothing or the wrong thing — and indexing a corporate mail store to chase an 11%-populated field is a large governance undertaking for a low yield.",
+        "D": "Too absolute. Narrating causes from recorded reasons is well within reach; the obstacle is that the reasons are not recorded. Rejecting the use case forgoes a capture change that is worth making anyway."
+      },
+      "concept": "Before designing retrieval, verify the answer exists in a retrievable form. Where the required knowledge is produced in conversation and never captured, the correct discovery output is a capture requirement with an owner and a lead time, and a use case sequenced behind it. Retrieval cannot recover information that was never recorded.",
+      "tip": "A field populated on a small fraction of rows, with pointers that mostly go nowhere, is the exam telling you the data does not exist. Check whether an option quietly assumes it does."
+    }
+  },
+  {
+    "id": "SCL-A-047",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Headcount reduction proposed as the success criterion",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A shared services centre's finance director states the success criterion for a Claude invoice-query assistant as 'remove eight full-time roles from the accounts payable team by year end'. The team has 34 people, and the same people perform the second-line check that would catch the assistant's errors. Annual attrition on the team is about 12%. How should the architect handle this in discovery?",
+    "options": [
+      { "key": "A", "text": "Restate acceptance in terms the system controls — automation rate and cost per resolved query — and flag that cutting the team removes review capacity." },
+      { "key": "B", "text": "Decline to accept headcount as a success criterion at all, on the grounds that AI programmes should never be justified by role reduction of any kind." },
+      { "key": "C", "text": "Accept the criterion as stated, since eight roles out of thirty-four is unambiguous, measurable and auditable from the payroll system." },
+      { "key": "D", "text": "Propose delivering the reduction through the team's natural attrition rather than redundancy, leaving the criterion otherwise unchanged." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Headcount is an organisational decision influenced by volume, hiring freezes, restructuring and politics; the system contributes to it but does not determine it, so as an acceptance criterion it can fail for reasons unrelated to the build and succeed for reasons unrelated to it too. Restating in controllable terms keeps the finance director's objective intact while making the criterion testable. The second observation is the sharper one: the reviewing capacity and the reduction target come from the same 34 people, so the criterion as written quietly removes the control the system depends on.",
+      "distractors": {
+        "B": "A moral position rather than an architectural one, and it puts the architect in conflict with the sponsor over something outside the architect's remit. Cost reduction through reduced effort is a legitimate objective; the problem is measurability and the review dependency.",
+        "C": "Auditable is not the same as attributable. Eight roles could leave for reasons having nothing to do with the assistant, and the assistant could work perfectly while a hiring decision elsewhere keeps the headcount flat.",
+        "D": "A sensible change-management suggestion that leaves both real problems untouched: the criterion is still one the system does not control, and attrition removes reviewing capacity just as effectively as redundancy does."
+      },
+      "concept": "Acceptance criteria must be things the system determines. Where a sponsor states a business outcome the system only influences, keep it as the programme objective and derive controllable criteria beneath it. Then check whether delivering the stated outcome would remove a control the design depends on.",
+      "tip": "When a stem tells you who performs the review, look for whether the success criterion would eliminate those people. That dependency is usually the point of the item."
+    }
+  },
+  {
+    "id": "SCL-A-048",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Why elicitation must collect rejected examples",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "During requirement elicitation, why is it important to collect examples of outputs the business would consider unacceptable, not only examples it considers good?",
+    "options": [
+      { "key": "A", "text": "Unacceptable examples are required as negative training pairs for any subsequent fine-tuning or preference-tuning work." },
+      { "key": "B", "text": "Good examples sit inside the acceptable region; only rejected ones show where its edge is, which guardrails must encode." },
+      { "key": "C", "text": "Rejected examples are the documented failure evidence a model risk committee requires before it will approve a system." },
+      { "key": "D", "text": "Collecting both kinds roughly halves the number of worked examples needed before the task can be considered specified." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Acceptable examples are consistent with many different rules, so a set of them under-determines the requirement — every one of them could be satisfied by a system that also does something the business would never permit. Rejections locate the boundary, and they tend to cluster around exactly the properties nobody thought to state: tone in bad news, over-confidence on thin evidence, disclosing something to the wrong party. Those become the rubric lines and the guardrails.",
+      "distractors": {
+        "A": "Ties the practice to fine-tuning, which is neither implied nor usually necessary. The value is in specifying the requirement, and it is realised whether or not any training ever happens.",
+        "C": "Model risk governance may ask for evidence of failure analysis, but that is a downstream use. The practice would be correct in an organisation with no such committee.",
+        "D": "There is no such arithmetic. Collecting both kinds usually increases the total number of examples gathered; it improves what they tell you rather than reducing how many you need."
+      },
+      "concept": "Requirements are defined by their boundary. Ask for the last few outputs the team rejected, the escalations, the complaints and the reworked cases, and derive the rule from where acceptance stops. Positive examples alone specify a region with no edge, and the edge is where systems fail.",
+      "tip": "In elicitation questions, favour whichever option explains a practice in terms of what it reveals about the requirement, rather than in terms of training data or compliance evidence."
+    }
+  },
+  {
+    "id": "SCL-A-049",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Under-specified requirements versus genuine capability limits",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A prototype that summarises objections to planning applications is rejected by council planning officers on roughly a third of cases. Which THREE findings indicate that the problem is under-specified requirements rather than model capability? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "The summary omits objections that arrived only as scanned handwritten letters attached to the application file in the case system." },
+      { "key": "B", "text": "Officers disagree with one another about which objections are material in about 30% of the cases reviewed." },
+      { "key": "C", "text": "There is no written rule on whether objections raising non-material planning considerations should be included or excluded." },
+      { "key": "D", "text": "The summary occasionally attributes an objection to the wrong address when two neighbouring objectors share a surname and street." },
+      { "key": "E", "text": "Officers expect each summary to state the number of distinct objectors, which was never captured as a requirement." }
+    ],
+    "correct": ["B", "C", "E"],
+    "explanation": {
+      "correct": "All three describe a target that was never defined. Officers disagreeing among themselves means there is no single correct output to build toward, so the rejection rate measures the absence of an agreed standard. An unwritten inclusion rule means the prototype was guessing at a policy question. And a missing element nobody stated is a specification gap that no amount of prompt work discovers. Each is fixed by going back to the officers and writing the requirement down, and each would recur with any implementation.",
+      "distractors": {
+        "A": "An ingestion gap: the content never reached the model. This is a pipeline problem with a concrete fix — capture and process the scanned attachments — and it is not a matter of unclear requirements.",
+        "D": "A genuine precision failure on a disambiguation task the model was asked to perform and got wrong. The requirement here is clear; the execution is not, so this belongs in the capability and evaluation bucket."
+      },
+      "concept": "When a prototype is rejected at a high rate, classify each rejection before touching the prompt. Rejections caused by absent inputs are pipeline defects, rejections caused by wrong execution of a clear task are capability defects, and rejections caused by unstated or contested expectations are requirement defects — which are the most common and the only kind that reappears identically after a rebuild.",
+      "tip": "The reliable test: would this failure persist if a careful human did the task from the same inputs? If yes, it is a requirements or data problem, not a model problem."
+    }
+  },
+  {
+    "id": "SCL-A-050",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Adding a delivery channel that breaks the identity assumption",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "In week five of an eight-week discovery, a ticketing company's commercial director asks that the web-chat refund assistant also be offered over WhatsApp, 'since it is the same assistant'. Discovery has already established that web chat is authenticated — the customer is signed in and the relevant booking is known — whereas a WhatsApp contact arrives with a phone number only, and 22% of bookings are made by someone other than the traveller. How should the architect respond?",
+    "options": [
+      { "key": "A", "text": "Add the channel; the delivery surface is a presentation concern and the assistant's refund eligibility logic is entirely unchanged." },
+      { "key": "B", "text": "Add the channel, but have the assistant ask the WhatsApp contact to state their booking reference, which it then looks up in the reservation system." },
+      { "key": "C", "text": "Decline the request as scope creep arriving too late in the eight-week discovery timetable for the team to absorb it." },
+      { "key": "D", "text": "Show the channel breaks the identity assumption the design rests on, so it needs a verification requirement and its own costing." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The existing design gets identity for free from the authenticated session, and every downstream decision — which booking, whose money, what may be disclosed — rests on it. WhatsApp supplies a phone number, and the 22% third-party booking figure means the number frequently belongs to someone other than the traveller, so the assumption fails at material volume. That is a new requirement with its own risk, not a new front end. Framing it as a costed scope item lets the commercial director make the trade-off with the facts in front of him.",
+      "distractors": {
+        "A": "Treats identity as part of the interface rather than part of the security model. The assistant's logic is only unchanged if it can still establish who it is talking to, which on this channel it cannot.",
+        "B": "A booking reference is an identifier, not an authenticator: it appears on the confirmation email, the ticket and often a forwarded message. Using it as proof of identity in a channel with no session is precisely the weak control the third-party booking statistic exposes.",
+        "C": "Refusing on process grounds loses the argument and the relationship. The request is reasonable on its face; what the architect owes the director is the consequence and the cost, not a procedural objection."
+      },
+      "concept": "A channel change is a requirements change whenever it alters what the system can assume about the user's identity, context or intent. Test any proposed channel against the assumptions the design already depends on, and re-cost rather than absorb. Identity is the assumption that most often silently disappears.",
+      "tip": "When a stakeholder says 'it is the same system, just a different channel', look for what the current channel supplies implicitly. Authentication and context are the usual answers."
+    }
+  },
+  {
+    "id": "SCL-A-051",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "An unmapped review board discovered late in discovery",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "Nine weeks into discovery at a logistics software provider, the architect learns in conversation that the firm runs a security architecture review board which meets monthly, and that any product change moving customer data outside the existing service boundary must pass it. The next two meeting agendas are full. Design sign-off is planned in three weeks, the sponsor has never mentioned the board, and the assistant's value depends on answering from each customer's own shipment records. What is the best next step?",
+    "options": [
+      { "key": "A", "text": "Proceed to design sign-off in three weeks and submit to the board afterwards, since the board reviews product changes rather than architecture designs." },
+      { "key": "B", "text": "Ask the sponsor to press the board's chair into convening an extraordinary session for this design ahead of the sign-off date." },
+      { "key": "C", "text": "Book the earliest board slot now and reshape remaining discovery to produce what the board assesses — data flows, retention and the boundary change." },
+      { "key": "D", "text": "Re-scope the assistant so it never moves customer data outside the existing service boundary, taking the board out of the critical path." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The board's queue is the long pole and it is already running, so the only lever the architect has is to start it now and use the waiting time. Booking the slot converts an unknown delay into a fixed date the plan can be built around, and re-pointing the remaining three weeks at the board's actual assessment criteria means the submission is strong on the first attempt — a rejection costs another month. It also puts the sponsor on notice about a dependency he did not know he had.",
+      "distractors": {
+        "A": "Inverts the sequence. A board with authority over the data boundary can require design changes, so signing off first produces a design that may have to be redone, and it wastes the queue time that could have been running concurrently.",
+        "B": "Spends the sponsor's political capital to bypass a control before any submission exists. Extraordinary sessions are for genuine emergencies, and asking for one on a project the board has not yet heard of tends to produce a hostile first review.",
+        "D": "The stem states the value depends on answering from the customer's own shipment records, so avoiding the boundary change removes the use case. Scoping around a control body to save calendar time is also the wrong reflex when the control exists for a reason."
+      },
+      "concept": "Governance bodies with fixed meeting cycles are schedule dependencies with lead times, and the mitigation is to enter the queue early and shape your deliverables to what that body assesses. Discovery should identify every such gate during stakeholder mapping precisely so it never has to be discovered in a corridor at week nine.",
+      "tip": "When a stem gives you a meeting cadence and a full agenda, it is describing a critical-path constraint. The answer almost always involves starting the queue now rather than optimising the work that feeds it."
+    }
+  },
+  {
+    "id": "SCL-A-052",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Success criteria when the benefit is an avoided rare event",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A gas network operator wants Claude to review contractor method statements against its safety standards before work is authorised. The benefit is avoiding a class of safety incident that occurs about three times a year across roughly 9,000 authorisations. The sponsor asks the architect to propose the success criterion. What should it be?",
+    "options": [
+      { "key": "A", "text": "Detection rate on a curated set of method statements with known deficiencies, plus the false-flag rate on compliant ones." },
+      { "key": "B", "text": "A measured year-on-year reduction in incidents of that class across the network over the first year of operation." },
+      { "key": "C", "text": "The number and proportion of method statements the system reviews, since coverage is the benefit the operator directly obtains." },
+      { "key": "D", "text": "Reviewer minutes saved per method statement, because safety benefit at this event frequency cannot be measured at all." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Three events a year is far too sparse to support an outcome measure: a year with two incidents is entirely consistent with the system having done nothing, and a year with four is consistent with it working well. Acceptance therefore has to move upstream to something measurable at reasonable volume — whether the system finds deficiencies that are known to be present, and how much noise it generates on clean submissions. Both are testable before launch on a curated set, and the false-flag rate matters as much as detection, because a reviewer who stops trusting the flags removes the benefit entirely.",
+      "distractors": {
+        "B": "Intuitively the right measure and statistically unusable. Detecting a change against a base rate of three per year would take many years of operation, so the criterion cannot be evaluated within any decision-relevant window and the programme would be judged on noise.",
+        "C": "An activity measure. Reviewing every statement badly satisfies it completely, so it certifies deployment rather than benefit and creates pressure toward coverage over quality.",
+        "D": "Redefines the system's purpose from safety to efficiency, which changes what the operator is buying. Time saved is a legitimate secondary measure, but adopting it as the criterion concedes that the safety objective will never be assessed."
+      },
+      "concept": "Where the benefit is a rare avoided event, the outcome measure is statistically inert within the evaluation window. Move acceptance to the controllable intermediate — detection on seeded or historical known-deficient cases, plus the false-positive burden — and keep the rare outcome as a long-run monitored indicator rather than a gate.",
+      "tip": "Whenever a stem supplies a small annual event count against a large denominator, it is telling you the outcome metric lacks the power to decide anything. Look for the option that measures the mechanism instead."
+    }
+  },
+  {
+    "id": "SCL-A-053",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "What an acceptance sign-off must be recorded against",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "Discovery closes with agreement on who signs the eventual acceptance decision. Which TWO things must that sign-off be recorded against for it to remain meaningful afterwards? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "The specific version of the evaluation set, and the grading method used to produce the score." },
+      { "key": "B", "text": "The provider's published capability documentation and benchmark card for the model family in use." },
+      { "key": "C", "text": "The number of prompt iterations and evaluation runs the team needed to reach the accepted score." },
+      { "key": "D", "text": "The prompt, retrieval configuration and model version the score was obtained with, so it stays identifiable." },
+      { "key": "E", "text": "The sponsor's verbal confirmation at the steering committee, captured in the minutes and circulated to attendees." }
+    ],
+    "correct": ["A", "D"],
+    "explanation": {
+      "correct": "An acceptance decision is a statement that a particular system scored a particular way on a particular test. Both halves must be pinned or the record decays into an opinion. Naming the evaluation set version and the grading method makes the score reproducible and stops a later, easier set being quietly substituted. Naming the prompt, retrieval configuration and model version identifies what was actually accepted, which is what makes a subsequent change detectable as a change rather than as ordinary drift.",
+      "distractors": {
+        "B": "Provider documentation describes a model family in general and says nothing about how this system performed on this task. It cannot substitute for a measurement taken on the organisation's own evaluation set.",
+        "C": "Iteration count is a project statistic with no bearing on whether the accepted configuration meets the bar. A score reached on the first attempt and one reached on the fortieth are equally valid if the set was held out.",
+        "E": "A minuted verbal confirmation records that someone agreed, not what they agreed to. Without the set and the configuration attached, nobody can later determine whether the running system is the one that was accepted."
+      },
+      "concept": "Acceptance is a triple: a configuration, a test, and a result. Record all three or the sign-off cannot be re-examined. This is also what makes later change control possible, because a modification is only assessable against a precisely identified accepted state.",
+      "tip": "Ask what a reviewer two years later would need in order to repeat the test and confirm the running system is the accepted one. Anything not needed for that is project trivia."
+    }
+  },
+  {
+    "id": "SCL-A-054",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Deriving asymmetric error tolerance from downstream consequence",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An agricultural cooperative wants Claude to extract nitrogen application rates from supplier product labels into an advisory tool used by 4,000 member farms. The product owner proposes 95% extraction accuracy as the requirement. Discovery establishes that an overstated rate leads the farm into a regulatory breach carrying a fine, while an understated rate slightly reduces yield and is usually noticed by the farmer. How should the accuracy requirement be set?",
+    "options": [
+      { "key": "A", "text": "At 95% overall accuracy as proposed, which is the defensible default for document extraction tasks of this kind across the industry." },
+      { "key": "B", "text": "Asymmetrically: a high bar on overstatement, a looser tolerance on understatement, and a refusal path where the label cannot be read." },
+      { "key": "C", "text": "At whatever accuracy measurement shows the current manual reading of labels achieves, so the tool is demonstrably no worse than today." },
+      { "key": "D", "text": "At 95% with an agronomist reviewing every extraction, which removes the need to distinguish between the two error directions." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The two error directions have entirely different consequences — a fine and a compliance record on one side, a small yield loss the farmer detects on the other — so a single symmetric number prices them identically and is the wrong instrument. Directional criteria let the system be tuned to fail safe, and the refusal path matters because at 4,000 farms an unverifiable rate silently guessed becomes a systematic exposure. Discovery's contribution is establishing the asymmetry before anyone commits to a headline percentage.",
+      "distractors": {
+        "A": "Adopts a round number with no derivation. It permits the remaining 5% to fall entirely on the overstatement side, which is the outcome the cooperative cannot absorb, and it gives the build team no guidance on how to trade the two directions.",
+        "C": "Matching the human baseline is a reasonable floor and worth measuring, but it inherits whatever directional bias the manual process has and still expresses the requirement as one symmetric figure. It also scales the current error rate to 4,000 farms simultaneously.",
+        "D": "Reviewing every extraction removes the efficiency the tool exists to deliver at this volume, and it does not remove the need for directional criteria — a reviewer also needs to know which direction of error to look for hardest."
+      },
+      "concept": "Derive error tolerance from what happens downstream of each direction of error, not from a headline accuracy figure. Where consequences are asymmetric, write directional criteria and add an explicit abstain path for inputs the system cannot verify, so unverifiable cases become visible rather than becoming quiet guesses.",
+      "tip": "Whenever a stem describes what happens when the answer is too high and, separately, what happens when it is too low, it is asking for asymmetric criteria. A single overall percentage will always be a distractor."
+    }
+  }
+]

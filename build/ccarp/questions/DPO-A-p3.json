@@ -1,0 +1,455 @@
+[
+  {
+    "id": "DPO-A-037",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Content that earns its place in a project memory file",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A shipping software team is pruning a project memory file that has grown to 900 lines and is measurably crowding out working context. Which TWO items should stay? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "A restatement of general engineering good practice — write tests, keep functions small, handle errors — so that the assistant works to a professional standard in this repository." },
+      { "key": "B", "text": "The exact invocation for the repository's non-standard test runner, which no amount of inspecting the tree reliably reveals." },
+      { "key": "C", "text": "A prohibition on reading the customer data fixtures, which the compliance team requires to hold even if an engineer edits this file." },
+      { "key": "D", "text": "A three-page summary of the system architecture, duplicating a design document that a separate group already maintains and reviews quarterly." },
+      { "key": "E", "text": "A list of the directories in this repository that hold generated artefacts and must never be hand-edited." }
+    ],
+    "correct": ["B", "E"],
+    "explanation": {
+      "correct": "Memory earns its permanent context cost when it carries repository-specific facts the session cannot derive on its own and will otherwise get wrong. A non-obvious test invocation is exactly that: the failure without it is silent and repeated. So is knowing which directories are generated, because the mistake it prevents — hand-editing something a build will overwrite — is expensive and not visible from the file contents. Both are local truths, cheap to state, and wrong to guess.",
+      "distractors": {
+        "A": "Generic good practice is already part of how the model behaves and does not distinguish this repository from any other. Paying for it on every session buys nothing, and it dilutes the specific instructions that do matter by surrounding them with unremarkable ones.",
+        "C": "The requirement is right; the location is wrong. Something that must hold even when an engineer edits the file cannot live in a file the engineer edits. Compliance prohibitions belong in permission rules backed by managed policy, not in prose.",
+        "D": "Duplicating a maintained document guarantees the two will drift, and it spends a large amount of always-loaded context on background the session can read on demand. If the design document is worth having in context, reference it rather than copying it."
+      },
+      "concept": "Keep in memory only what is specific to this repository, cheap to express, and costly to get wrong. Generic advice, duplicated documents, and security mandates all belong somewhere else — nowhere, in the reference, or in enforced policy respectively.",
+      "tip": "For every candidate line, ask what breaks if it is removed. If the answer is nothing observable, or if the answer is a compliance breach, it does not belong in a memory file for opposite reasons."
+    }
+  },
+  {
+    "id": "DPO-A-038",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "What a hook matcher selects for a tool event",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In a hook configured for a tool-related event, what does the matcher select?",
+    "options": [
+      { "key": "A", "text": "Which tool calls the hook applies to, identified by tool name." },
+      { "key": "B", "text": "Which files on disk the hook is permitted to modify once it runs." },
+      { "key": "C", "text": "Which team members' sessions the hook applies to, so a hook can be scoped to a subset of the organisation." },
+      { "key": "D", "text": "Which model the hook applies to, so a policy can differ between capability tiers." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "For tool events the matcher narrows the hook to particular tools by name, so a formatting hook fires only on the editing tools and a command-inspection hook fires only on shell execution. Scoping matters for more than tidiness: an unmatched hook runs on every call, and the per-call cost of an unnecessary hook is paid by every session in the repository all day.",
+      "distractors": {
+        "B": "Hooks are ordinary commands running with the session user's privileges; nothing in the hook configuration constrains what the hook itself may touch. That is why hook scripts need the same review scrutiny as any other code in the repository.",
+        "C": "There is no per-user matcher. Scoping to a subset of people is expressed by where the hook is configured — a personal settings file, a repository, or organisational policy — rather than by the matcher.",
+        "D": "Matchers on tool events select tools, not models. Differentiating behaviour by model tier is not what this mechanism is for, and a control that only applied to some tiers would be unreliable by design."
+      },
+      "concept": "Matchers scope a hook to the subset of events it cares about. Tight matchers keep hooks cheap and make their intent legible; a hook with no matcher becomes a tax on every tool call in every session.",
+      "tip": "If a hook item mentions sessions slowing down, look first at the matcher. The usual defect is a hook that runs on everything in order to act on one thing."
+    }
+  },
+  {
+    "id": "DPO-A-039",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Permission mode for a read-only audit engagement",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An external auditor will spend two weeks examining a rail operator's signalling codebase. They need to read widely, search, and run read-only analysis commands such as static analysis and dependency listing. They must not modify source, and the engagement letter states that modification must be structurally impossible rather than merely discouraged. The operator wants the auditor productive on day one without a bespoke build of the tooling.",
+    "options": [
+      { "key": "A", "text": "Give the auditor a checkout on a read-only filesystem mount, so that write attempts fail at the operating system level regardless of what the session tries to do." },
+      { "key": "B", "text": "Have the auditor work in the default permission mode and rely on the approval prompt for every write, since a prompt gives them an explicit chance to decline each modification." },
+      { "key": "C", "text": "Have the auditor work in the mode that automatically accepts edits, and take a git snapshot at the start so any modification can be reverted at the end of the engagement." },
+      { "key": "D", "text": "Provision the auditor's sessions in the exploratory permission mode, which permits reading and read-only commands, and add deny rules covering the file-writing tools." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Two mechanisms are being combined for two different reasons. The exploratory mode gives the correct default posture out of the box — reading and read-only work proceed, source modification does not — which is what makes the auditor productive immediately. The deny rules are what make the property structural rather than a mode setting: a mode can be changed mid-session, whereas a deny rule is evaluated ahead of every allow and does not depend on which mode is active.",
+      "distractors": {
+        "A": "A read-only mount blocks writes but also blocks the analysis tools the auditor needs, since static analysis and dependency tooling routinely write caches, lock files, and reports. It converts a permission requirement into a workflow obstruction on day one.",
+        "B": "Prompting makes modification possible and merely visible. The engagement letter asks for impossibility, and a control that depends on the auditor declining every prompt correctly for two weeks is exactly the arrangement the letter is written to avoid.",
+        "C": "Auto-accepting edits and reverting afterwards inverts the requirement: modifications happen, and the safeguard is a cleanup step. On a signalling codebase, a window in which unreviewed edits exist is not something a snapshot makes acceptable."
+      },
+      "concept": "Permission modes set a session's default posture and can be changed; deny rules are unconditional and evaluated first. When a requirement says impossible rather than discouraged, the mode gives ergonomics and the deny rules give the guarantee.",
+      "tip": "Distinguish a default from a boundary. Items that use the words structurally impossible are ruling out anything reversible, promptable, or mode-dependent on its own."
+    }
+  },
+  {
+    "id": "DPO-A-040",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Output format for a long-running automated invocation",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A logistics company runs a nightly Claude Code job that can take 20 minutes. Twice it has hung and the orchestrator only discovered this at the job timeout, an hour later. The team wants their wrapper to surface progress while the run is in flight, detect a stall early, and still record a structured final result.",
+    "options": [
+      { "key": "A", "text": "Keep plain text output and have the wrapper tail the stream, treating any two-minute gap in emitted characters as a stall signal." },
+      { "key": "B", "text": "Use the streaming structured output format, so the wrapper consumes events as they occur, times out on the absence of events, and reads the final result from the closing event." },
+      { "key": "C", "text": "Split the work into eight short invocations chained by the orchestrator, so progress is visible as each one completes and a stall is bounded by a single step's duration." },
+      { "key": "D", "text": "Keep the single structured result but have the job write heartbeat lines to a side file, which the orchestrator polls to distinguish a slow run from a stalled one." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The requirement combines in-flight visibility with a structured final result, and a streaming structured format delivers both from one channel. The wrapper gets discrete events as work happens, so absence of events for a defined interval is an unambiguous stall signal rather than an inference from character output, and the terminating event carries the machine-readable result the team already wanted. No side channels, no restructuring of the job.",
+      "distractors": {
+        "A": "Character-level gap detection is a heuristic over prose. It produces false stalls whenever the model thinks for a while and false healthy signals whenever it emits filler, and it leaves the team parsing free text for the final result.",
+        "C": "Chaining short invocations bounds stall detection but fragments the work: each invocation starts without the previous one's context, so the orchestrator has to reconstruct state between steps. That is a large redesign to obtain a progress signal that the output format already provides.",
+        "D": "A heartbeat file is a parallel liveness channel that can itself be healthy while the actual work is stuck, because the two are not causally linked. It also adds filesystem coordination between the job and the orchestrator for no benefit over consuming the events directly."
+      },
+      "concept": "Choose the headless output format from what the caller must do with it. A single structured result suits short jobs; streaming structured events suit long jobs where progress, liveness, and incremental handling matter.",
+      "tip": "When a stem asks for both progress during the run and a structured result at the end, one option usually satisfies both from one stream. Options adding side channels are solving half the problem twice."
+    }
+  },
+  {
+    "id": "DPO-A-041",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Scope and composition rules of memory files",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "Which TWO statements about how Claude Code memory files are scoped and composed are correct? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Memory files located above the working directory in the directory tree are also considered for the session." },
+      { "key": "B", "text": "A memory file placed in a subdirectory replaces the repository root's memory file for any work done under that subdirectory." },
+      { "key": "C", "text": "Memory content is read once when the CLI is installed and cached until it is upgraded, so edits require a reinstall to take effect." },
+      { "key": "D", "text": "A memory file can pull in the contents of another file by reference, so shared guidance need not be duplicated." },
+      { "key": "E", "text": "A repository's memory file causes the engineer's personal memory file to be ignored for sessions opened in that repository." }
+    ],
+    "correct": ["A", "D"],
+    "explanation": {
+      "correct": "Memory resolution walks the directory tree, so a session opened deep inside a checkout still picks up guidance from directories above it — which is what makes a monorepo root file effective for every service beneath it. Memory files can also reference other files, letting a team point at a document that already has an owner and a review cadence instead of copying its contents. Together these two properties are what let guidance be placed once, at the right scope, and reused.",
+      "distractors": {
+        "B": "Composition is additive, not substitutive. A subdirectory file adds service-specific guidance on top of the repository-wide guidance rather than displacing it, which is exactly why splitting a large root file along directory boundaries works.",
+        "C": "Memory is read from the filesystem for the session, not baked in at install time. If it were cached across upgrades, editing a memory file would be a useless act and the whole mechanism would be unmaintainable.",
+        "E": "Personal and project memory coexist. Suppressing an engineer's own conventions whenever a repository supplies a file would make personal memory unusable in exactly the repositories where people do most of their work."
+      },
+      "concept": "Memory composes upward through the directory tree and outward through references. Design the layout so each instruction sits at the narrowest scope that covers everything it governs, and reference rather than duplicate anything that already has a maintained home.",
+      "tip": "The recurring wrong idea in memory items is override semantics borrowed from settings. Settings resolve to one winning value; memory accumulates."
+    }
+  },
+  {
+    "id": "DPO-A-042",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Injecting live operational state at prompt submission",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A telco's on-call engineers use Claude Code in the platform repository during incidents. Two facts must accompany every request: the current incident identifier and whether a deploy freeze is active. Both come from an internal API and both can change during a single long session — a freeze can be declared mid-incident. Today engineers paste them manually and forget roughly a third of the time.",
+    "options": [
+      { "key": "A", "text": "Record both facts in the repository memory file and update the file whenever the incident or the freeze status changes." },
+      { "key": "B", "text": "Add a slash command that fetches both values and states them, and ask engineers to run it whenever they believe the situation has changed." },
+      { "key": "C", "text": "Add a hook on the prompt-submission event that queries the internal API and attaches both current values as context to each request." },
+      { "key": "D", "text": "Add a hook on the session-start event that queries the API once and attaches both values, so every session begins with the correct state." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The distinguishing constraint is that the values change during a session, so the context has to be refreshed at the granularity of the request rather than the session. The prompt-submission event is the point where additional context can be attached to what the engineer just asked, which makes the freshness automatic and removes the human step that is failing a third of the time. It also degrades sensibly: a stale or unavailable value is a visible attachment rather than a silent omission.",
+      "distractors": {
+        "A": "A memory file holds static guidance and would have to be edited by a human every time the state changes — during an incident, which is the worst possible moment to require a commit. It reintroduces the manual step in a slower form.",
+        "B": "This keeps a human in the loop for deciding when the state has changed, which is the same failure mode as pasting. Engineers cannot reliably know that a freeze was declared two minutes ago; that is precisely why the value should be fetched rather than remembered.",
+        "D": "Session start captures the state once. For an incident session running for hours, a freeze declared after the session opened would never be seen, and the engineer would have positive but wrong context, which is worse than none."
+      },
+      "concept": "Attach context at the lifecycle point that matches how fast the context changes. Session start suits values fixed for the session; per-request injection is required when the value can change while the session is open.",
+      "tip": "Look for a sentence saying the value can change mid-session. It is there to eliminate the session-start option, which otherwise reads as the tidier answer."
+    }
+  },
+  {
+    "id": "DPO-A-043",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Replacing a bespoke hook with a declarative permission rule",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An insurer's platform team maintains a 60-line pre-execution hook that parses each proposed file operation and blocks anything under four infrastructure directories whose paths have not changed in three years. The hook has shipped two bugs — one let a write through for a week — it adds noticeable latency to every call, and its author left the company. A new engineer has been asked to make it more reliable.",
+    "options": [
+      { "key": "A", "text": "Rewrite the hook in a compiled language and add a unit test suite covering the path-parsing logic, so both the latency and the correctness concerns are addressed." },
+      { "key": "B", "text": "Replace the hook with deny rules naming those four directories on the file tools, and keep hooks for checks that genuinely require running code." },
+      { "key": "C", "text": "Keep the hook but narrow its matcher to the file-editing tools and add a fast path that returns immediately when the target is outside the four directories." },
+      { "key": "D", "text": "Move the check to the post-execution event and have it revert any write that landed under one of the four directories, which removes the check from the latency-sensitive path." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The condition is a static set of paths, which the permission system expresses natively as deny rules. Choosing the declarative mechanism removes the code entirely — no parsing bugs, no per-call process launch, no orphaned ownership — and deny is evaluated ahead of any allow, so the guarantee is at least as strong as the hook's. Hooks are the right answer when a decision requires running logic; paying for a hook to reimplement path matching is cost and risk with no corresponding capability.",
+      "distractors": {
+        "A": "This invests in making a redundant component excellent. A faster, better-tested reimplementation of path matching still has to be maintained by someone, and the incident it caused was a logic bug of the kind that disappears when the logic does.",
+        "C": "Both changes are genuine improvements to a hook that has to exist, and neither addresses why this one exists. The team would end up with a faster, better-scoped piece of bespoke code doing what a two-line configuration entry does natively.",
+        "D": "Reverting after the fact means the write happened. For infrastructure directories that may be watched by automation, a write and a revert can both trigger downstream effects, and any failure of the revert leaves the change in place."
+      },
+      "concept": "Use the least powerful mechanism that expresses the rule. Static path and command patterns belong in permission rules; hooks are for decisions that depend on content, timing, or external state that no pattern can capture.",
+      "tip": "Hook items usually test whether you reach for a hook. This one tests whether you reach for one too readily — check whether the condition is a fixed pattern before assuming code is required."
+    }
+  },
+  {
+    "id": "DPO-A-044",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Auto-approving repository MCP servers in a trusted monorepo",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A grocery retailer runs a single first-party monorepo with 80 engineers. Every MCP server defined in the repository's project configuration is added through a pull request reviewed by the platform group under a CODEOWNERS rule. Engineers hit an approval prompt whenever the platform group adds a server, several decline it by reflex, and then file tickets saying their tooling is broken. Engineers also clone third-party repositories for investigations.",
+    "options": [
+      { "key": "A", "text": "Turn on automatic approval of repository-supplied servers in this monorepo's committed settings, so the platform group's reviewed additions arrive without a prompt while other repositories keep prompting." },
+      { "key": "B", "text": "Turn on automatic approval of repository-supplied servers in each engineer's personal settings, so the behaviour follows the engineer and does not have to be configured per repository." },
+      { "key": "C", "text": "Keep the prompt and add a step to the platform group's release notes announcing new servers, so engineers recognise the prompt when it appears and accept it." },
+      { "key": "D", "text": "Move the servers from the repository's project configuration to each engineer's personal configuration during onboarding, which removes the prompt because personal servers are not subject to it." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The approval prompt exists to protect against untrusted repository configuration, and in this monorepo that protection is already provided upstream by mandatory review from the owning group. Enabling automatic approval in the monorepo's own committed settings retires a redundant check exactly where review substitutes for it, while leaving the default behaviour intact everywhere else — which matters because the same engineers open third-party repositories where no such review exists.",
+      "distractors": {
+        "B": "Personal settings apply to every repository the engineer opens, including the third-party clones the stem mentions. That silently removes the prompt in precisely the situation it was designed for, trading a workflow annoyance for a real supply-chain exposure.",
+        "C": "Better communication may raise the acceptance rate but keeps a decision in front of 80 people that has already been made properly once. It also leaves the failure mode intact for anyone who did not read the release notes.",
+        "D": "Duplicating server definitions into 80 personal configurations abandons the reviewed, version-controlled definition. The configurations immediately begin to diverge, and a change by the platform group no longer reaches anyone."
+      },
+      "concept": "A prompt is worth keeping only where it is the layer actually making the decision. When mandatory review already governs what enters a repository, auto-approval scoped to that repository removes duplicated judgement — but scoping it to the user removes the protection everywhere.",
+      "tip": "Two options here relax the same control; the difference is where the relaxation is written. Scope of a security relaxation is usually the whole question."
+    }
+  },
+  {
+    "id": "DPO-A-045",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "When a subdirectory memory file takes effect",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A memory file sits in a service subdirectory of a large repository. When does its guidance apply?",
+    "options": [
+      { "key": "A", "text": "Only when the session is launched with that subdirectory as its working directory; opening the session at the repository root skips it entirely." },
+      { "key": "B", "text": "Always, on every session in the repository, exactly as if its contents had been appended to the root memory file." },
+      { "key": "C", "text": "Only after an engineer explicitly asks the session to load it, since files below the root are treated as optional reference material." },
+      { "key": "D", "text": "When the session works with files in that part of the tree, adding to the guidance already provided by memory files above it." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Subdirectory memory is scoped to the part of the tree it sits in and comes into play when the session is working there, layered on top of whatever the directories above contribute. That conditional loading is the entire reason to split a large repository's guidance: a session touching one service pays for that service's conventions and the repository-wide ones, not for the other ten services.",
+      "distractors": {
+        "A": "Tying the file to the launch directory would make the mechanism useless in a monorepo, where sessions are normally opened at the root and range across services during a single task.",
+        "B": "Unconditional loading is what a root memory file already provides. If subdirectory files behaved this way there would be no context benefit to splitting them out, only a filing convenience.",
+        "C": "Memory is not opt-in reference material. Requiring an explicit request would mean the guidance is absent exactly when the engineer does not know it exists, which is when it is most needed."
+      },
+      "concept": "Memory scope follows directory structure: root files apply throughout, subdirectory files apply to their subtree when work happens there. Placement is therefore a context-budgeting decision as much as an organisational one.",
+      "tip": "Recall items on memory scope usually offer one option that is too eager and one that is too lazy. The behaviour is conditional on where the work is, not on where the session started or on being asked."
+    }
+  },
+  {
+    "id": "DPO-A-046",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Embedding live repository state in a slash command",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A gaming studio has a committed slash command that drafts release notes. It currently begins \"Summarise the commits since the last release tag,\" and the results are inconsistent: sometimes the session inspects the right range, sometimes it guesses the tag, and occasionally it summarises the wrong fortnight. The team wants the command to always operate on the actual commit range.",
+    "options": [
+      { "key": "A", "text": "Rewrite the instruction to spell out precisely how to find the last release tag and derive the range from it, so the session performs the same discovery steps on every run." },
+      { "key": "B", "text": "Have the command require the commit range as an argument, so the engineer looks up the two revisions and supplies them explicitly at invocation time." },
+      { "key": "C", "text": "Have the command execute the revision-listing command as part of its expansion, so the actual commit range is embedded in the prompt before the session sees it." },
+      { "key": "D", "text": "Add a hook that inspects each command before it runs and rewrites the session's history queries so they target the correct commit range." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Command files can run a shell command during expansion and embed its output, which converts a fact the session would otherwise have to discover into a fact it is simply given. The range becomes deterministic because the repository computes it, not the model, and it costs no extra turn. This is the standard way to make a command operate on real state rather than on an instruction to go and find that state.",
+      "distractors": {
+        "A": "More precise instructions reduce variance without removing it, because the session still has to execute a discovery procedure whose intermediate results it may interpret differently. The stem describes exactly that: the steps are understood and the outcome still varies.",
+        "B": "Requiring the engineer to supply revisions makes the command harder to use and moves the error from the model to the human. The whole point of the command is that the range is derivable, so making a person derive it is a step backwards.",
+        "D": "Rewriting the session's queries from a hook is a heavy, opaque mechanism for supplying a value that could simply be passed in. It also means the command's behaviour is defined in two places, one of which is invisible to anyone reading the command."
+      },
+      "concept": "Prefer supplying a fact over instructing a search for it. When a value is computable by a deterministic command, embedding that output at expansion time removes both the variance and the extra turn the discovery would take.",
+      "tip": "Inconsistent results from a clearly worded prompt point at the input, not the wording. Ask whether the session is being asked to discover something the environment already knows."
+    }
+  },
+  {
+    "id": "DPO-A-047",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Diagnosing divergent behaviour between two engineers",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "Two engineers at a payments startup are working in the same repository on the same branch. One reports that her session runs the integration test command without asking; the other is prompted for approval every time and has started skipping the tests. Both are on current versions of the tooling. The team lead has been asked to sort it out before the sprint review.",
+    "options": [
+      { "key": "A", "text": "Add the integration test command to the repository's committed allow rules immediately, since that is where the team wants the behaviour to be defined anyway." },
+      { "key": "B", "text": "Compare the effective configuration on both machines to identify which scope contributes the difference, then move the intended behaviour to the scope the whole team shares." },
+      { "key": "C", "text": "Have the engineer who is being prompted delete her local settings file, on the basis that a stale personal override is the most common cause of this divergence." },
+      { "key": "D", "text": "Raise it with the platform group as a candidate for organisational policy, so the command is permitted identically across every team in the company." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The same repository producing different behaviour means the difference comes from a scope that is not the repository, and until you know which one, any change is a guess that may leave a second divergence in place. Establishing which source contributes the rule on each machine takes minutes and tells you whether the fix belongs in the committed file, whether someone has an unexpected personal rule, or whether one machine is missing something entirely. Then the intended behaviour moves to the shared scope so the divergence cannot recur.",
+      "distractors": {
+        "A": "This will probably make the symptom disappear, and it does so without learning why one engineer already had the permission. If the source was a personal rule that also grants other things, the team has now standardised one behaviour while leaving an unexamined difference in place.",
+        "C": "Deleting configuration on a hunch destroys the evidence that would identify the cause, and it discards whatever legitimate personal settings that engineer had accumulated. It also targets the engineer who is experiencing the correct default behaviour.",
+        "D": "Organisational policy is for controls that must not be declined, not for a convenience allowance one team wants. Escalating a two-person configuration difference to fleet-wide policy is disproportionate and slow, and it still skips the diagnosis."
+      },
+      "concept": "When behaviour differs between people on the same code, the variable is the configuration hierarchy, not the code. Identify the contributing scope before changing anything, then place the intended rule at the scope whose audience matches who should be affected.",
+      "tip": "Next-step items reward one cheap diagnostic step over a plausible fix. If two options would both remove the symptom, prefer the one that first establishes which scope caused it."
+    }
+  },
+  {
+    "id": "DPO-A-048",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Prerequisites before enabling low-prompt autonomy team-wide",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A chemicals manufacturer's engineering leadership wants to let 70 engineers run Claude Code with far fewer approval prompts, arguing that prompt fatigue is causing reflexive approvals. Which THREE must be in place before that change is made? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "An isolation boundary around sessions, so that actions taken without review cannot reach credentials, systems, or data outside the work at hand." },
+      { "key": "B", "text": "Deny rules covering credential paths and destructive operations, enforced at a scope individual engineers cannot lower." },
+      { "key": "C", "text": "A raised command timeout, so that autonomous runs are not interrupted partway through long operations and left in an inconsistent state." },
+      { "key": "D", "text": "A paragraph in each repository's memory file describing the boundaries the assistant is expected to respect while operating with reduced prompting." },
+      { "key": "E", "text": "Retained records of what each session did, held where the team can reconstruct a run after the fact." }
+    ],
+    "correct": ["A", "B", "E"],
+    "explanation": {
+      "correct": "Reducing prompting removes the human checkpoint, so three things have to replace it. An isolation boundary bounds what any unreviewed action can reach. Deny rules bound the tool surface and, because they are evaluated ahead of allow rules and placed where individuals cannot edit them, they survive the generous allowances that low-prompt operation requires. Retained records provide the accountability the approval step used to supply — not containment, but the ability to answer what happened, which becomes essential once nobody watched it happen.",
+      "distractors": {
+        "C": "Timeout tuning is an operational comfort with no bearing on safety. If anything a longer timeout enlarges the window in which an unreviewed command is running, and the inconsistent-state concern it raises is a correctness matter for the task, not a precondition for reducing prompting.",
+        "D": "Written expectations in a memory file are the weakest available control and the one most likely to be cited as sufficient. They shape behaviour and cannot bound it, which is the exact property leadership is giving up when it removes the prompts."
+      },
+      "concept": "Autonomy is bought with boundaries and evidence. Before removing a human checkpoint, install something that limits reach, something that limits capability at a scope users cannot lower, and something that records what happened.",
+      "tip": "Logging is containment in no scenario and a precondition for accountability in many. Read whether the stem asks what limits damage or what must exist before proceeding — the same option can be wrong in one and right in the other."
+    }
+  },
+  {
+    "id": "DPO-A-049",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Reconciling sandbox network policy with build tooling",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A public broadcaster rolled out sandboxed command execution with a default-deny outbound network policy. Within two days, dependency installation was failing for every engineer because the package registry was unreachable from inside the sandbox. The platform lead is under pressure to disable sandboxing before the end of the week.",
+    "options": [
+      { "key": "A", "text": "Disable the sandbox for the commands that install dependencies, keeping it in force for every other command the session runs during the build." },
+      { "key": "B", "text": "Vendor all dependencies into the repositories so installation never needs network access, which removes the conflict permanently for every team." },
+      { "key": "C", "text": "Have engineers run dependency installation manually in an unsandboxed terminal before each session starts, leaving the session itself fully sandboxed for the task." },
+      { "key": "D", "text": "Keep default-deny and add explicit network allowances for the package registry and the internal proxy, so the traffic the build needs is permitted." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Default-deny with a named set of permitted destinations is how a network sandbox is meant to be operated; the rollout simply shipped the deny half without the allowances. Adding the registry and the proxy restores the workflow while keeping every other destination blocked, which preserves the property the sandbox was adopted for — a compromised or misled session cannot reach arbitrary endpoints. It is also a configuration change the platform team can make this week.",
+      "distractors": {
+        "A": "Carving out an exemption for the installation command exempts whatever that command runs, and dependency installers routinely execute arbitrary code from downloaded packages. This creates a hole in the shape of the highest-risk operation in the build.",
+        "B": "Vendoring is a defensible supply-chain strategy in its own right, but as a response to this problem it is an enormous change across every repository, it degrades the update path, and it is not deliverable in the timeframe. It also does not help any other tool that needs the network.",
+        "C": "Moving the step outside the session preserves the sandbox by making the workflow worse, and it fails as soon as a session needs to add a dependency partway through a task. It also reintroduces an unsandboxed installation, so the risk is relocated rather than removed."
+      },
+      "concept": "A network sandbox is a default-deny policy plus a maintained allowlist. Rollout failures usually come from shipping the deny without the allowances, and the fix is to enumerate the destinations the work legitimately needs rather than to weaken the default.",
+      "tip": "When a control breaks a legitimate workflow, the choice is between narrowing the control and abandoning it. Look for the option that keeps the default and adds a specific, named exception."
+    }
+  },
+  {
+    "id": "DPO-A-050",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Scoping an expensive hook so a team stops disabling it",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A health insurer added a hook that runs the repository's type checker to catch broken edits early. It was configured without a matcher, so it fires on every tool call — including reads and searches — and the type checker takes four seconds on this codebase. Engineers have started removing the hook from their local configuration, and the tech lead has evidence that broken edits are reaching review again.",
+    "options": [
+      { "key": "A", "text": "Match the hook to the file-editing tools and have it exit immediately when the edited file is outside the type checker's scope, so the cost falls only on real edits." },
+      { "key": "B", "text": "Keep the hook unmatched but cache the type checker's results, so repeated calls within a session return quickly after the first invocation pays the full cost." },
+      { "key": "C", "text": "Move the check to the end of the turn so it runs once per response rather than once per tool call, accepting a coarser signal in exchange for far less per-call overhead." },
+      { "key": "D", "text": "Deploy the hook through organisational policy so engineers cannot remove it from their own configuration, which restores the guarantee the tech lead has lost." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The hook is paying its full cost on calls it can do nothing about, which is why engineers rationally removed it. Scoping the matcher to the editing tools eliminates the overwhelming majority of invocations, and an early exit for files outside the checker's scope eliminates most of the rest. What remains is a check that runs when an edit has just happened to a file it can evaluate, which is both the cheapest and the most useful configuration — and cheap enough that engineers stop wanting it gone.",
+      "distractors": {
+        "B": "Caching helps repeated identical checks and does nothing for the structural problem, which is that the hook runs on searches and reads where there is no edit to check. The first invocation after every edit still pays in full, and edits are the case that matters.",
+        "C": "Running once per response is cheaper but reports failures after several edits have accumulated, losing the attribution that makes early detection valuable. It is a reasonable fallback if per-edit checking were genuinely unaffordable, which scoping shows it is not.",
+        "D": "Forcing a hook that engineers find intolerable converts an opt-out into a grievance and slows every session in the company by four seconds per tool call. Enforcement is the right instrument for a control people should not decline, not for a productivity check that is simply misconfigured."
+      },
+      "concept": "A hook's cost is paid on every event it matches, so the matcher is a performance decision as much as a correctness one. When a useful check is being circumvented, look at what it costs on the calls where it can do nothing before reaching for enforcement.",
+      "tip": "When people are disabling a control, ask whether it is expensive or unwelcome. Expensive controls get scoped; unwelcome ones get enforced. Choosing enforcement for an expensive one produces a slower system and the same resentment."
+    }
+  },
+  {
+    "id": "DPO-A-051",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Detecting failure of a non-interactive invocation",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A wrapper script must reliably detect that a non-interactive Claude Code run failed. What should it check?",
+    "options": [
+      { "key": "A", "text": "Whether the output contains words such as error or failed, since a failing run explains the problem in its response text." },
+      { "key": "B", "text": "The process exit status, using the structured output for detail about what went wrong." },
+      { "key": "C", "text": "Whether the output is empty, since a successful run always produces text and a failed one produces nothing." },
+      { "key": "D", "text": "The elapsed wall-clock time against an expected duration, since failures terminate faster than successful runs." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "A command-line program signals success or failure to its caller through the exit status, and that is the check an orchestrator should branch on. The structured output is then the place to look for detail — what was attempted, what the result was — rather than the primary success signal. This separation is what lets the wrapper behave correctly without parsing prose, and it is how any CI step is expected to integrate.",
+      "distractors": {
+        "A": "Scanning response text for alarming words produces both kinds of mistake: a successful run that discusses an error it fixed is flagged, and a genuine failure phrased calmly is missed. Natural language is not a status channel.",
+        "C": "Emptiness is neither necessary nor sufficient. Failures frequently produce output explaining themselves, and legitimate runs can produce very little when the requested work turns out to be unnecessary.",
+        "D": "Duration correlates with nothing reliable here. Failures can occur after long work, and successes can be fast. Timing is useful as a stall heuristic during a run, not as a verdict after it."
+      },
+      "concept": "Automated integration relies on the exit status for the branch and the structured output for the explanation. Reserve text inspection for humans reading a log, never for control flow.",
+      "tip": "Any option that asks a script to interpret natural language as a status is wrong on automation items. The mechanism the operating system already provides is the intended answer."
+    }
+  },
+  {
+    "id": "DPO-A-052",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Configuration behaviour of non-interactive runs",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "Which TWO statements about how a non-interactive Claude Code run is configured are correct? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "A non-interactive run ignores deny rules, because deny is enforced by declining a prompt and no prompt can be shown." },
+      { "key": "B", "text": "The set of tools available can be constrained for a single run from the command line, independently of what the settings files on the machine contain." },
+      { "key": "C", "text": "A non-interactive run is limited to the directory it was launched from and cannot be given additional working directories." },
+      { "key": "D", "text": "Configuration resolves through the same precedence chain as an interactive session, so organisational policy still applies." },
+      { "key": "E", "text": "Non-interactive mode automatically switches to the prompt-skipping permission mode when no terminal is attached, so that runs never block." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "Two properties make automated runs governable. Per-invocation tool constraints let a pipeline declare the surface a specific job needs without depending on whatever configuration happens to exist on the runner, which is how a job gets least privilege. And because configuration resolves through the same chain regardless of how the session was launched, organisational policy reaches automated runs too — which matters more for automation than for laptops, since runners typically hold broader credentials.",
+      "distractors": {
+        "A": "A deny rule refuses a call outright; it has never been implemented as an automatic negative answer to a prompt. If deny lapsed in non-interactive mode, every control a team relies on would evaporate in exactly the context where nobody is watching.",
+        "C": "Additional working directories can be supplied for a non-interactive run just as for an interactive one. Cross-repository automation would be impossible otherwise, and it is a common use of headless invocation.",
+        "E": "Nothing escalates permissions automatically because a terminal is absent. Silent escalation triggered by the environment would be an alarming design, and it would mean any job accidentally run without a TTY gained unrestricted execution."
+      },
+      "concept": "Non-interactive mode changes the interface, not the governance. The same precedence chain and the same permission semantics apply; what changes is that no human is available to answer, so the allowed set must be complete before the run starts.",
+      "tip": "Distractors on headless items commonly claim that some safety property is relaxed because nobody is present. Assume the opposite: automation is governed by the same rules and needs a tighter allowlist."
+    }
+  },
+  {
+    "id": "DPO-A-053",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Recording a non-obvious build convention for the team",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A civil engineering software team has a bespoke test harness invoked through a wrapper script rather than the language's usual runner. Claude Code sessions across the team keep reaching for the conventional runner, which fails confusingly. There is no security concern; the team simply wants everyone's sessions to use the right command.",
+    "options": [
+      { "key": "A", "text": "Add a deny rule for the conventional runner, so the wrong command fails immediately and the session is forced to look for an alternative." },
+      { "key": "B", "text": "Add a pre-execution hook that detects the conventional runner and rewrites the call to invoke the wrapper script instead." },
+      { "key": "C", "text": "State the correct invocation in the repository's committed memory file, so every session in the repository has the convention in context." },
+      { "key": "D", "text": "Ask engineers to mention the wrapper script in their first message whenever they expect the session to run tests." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "This is what committed memory is for: a short, repository-specific fact that the session cannot infer and will otherwise get wrong, with no security consequence if it is occasionally ignored. Stating it once in the shared file gives every contributor the same convention, keeps it under review with the code it describes, and costs a line or two of context. Reaching for enforcement here would be disproportionate to a problem whose worst outcome is a confusing failure.",
+      "distractors": {
+        "A": "A deny rule blocks the wrong command without communicating the right one, so the session hits a refusal and guesses again. Denial is the correct instrument when something must not happen, not when something else should happen instead.",
+        "B": "Silently rewriting commands makes the session's behaviour diverge from what it reports doing, which is confusing to debug and surprising to anyone reading a transcript. Substantial machinery for a convention that a sentence conveys.",
+        "D": "Depending on every engineer to remember a preamble is the situation that already produces the failures, and it puts the burden on the person least likely to know the convention — a new joiner."
+      },
+      "concept": "Match the mechanism to the stakes. Conventions with no security consequence belong in memory, where they are cheap and self-documenting; enforcement mechanisms are reserved for outcomes that must not occur.",
+      "tip": "Not every Claude Code item wants a hook. When the stem explicitly says there is no security concern, it is telling you to choose the lightest mechanism that conveys the fact."
+    }
+  },
+  {
+    "id": "DPO-A-054",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Committed configuration that only works on its author's machine",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A staffing platform's team merged a change adding a formatting hook to the repository's committed settings. Since the merge, every teammate's session reports a hook failure on each edit, because the hook invokes a binary at a path that exists only on the author's machine. The author is on leave. Work is continuing but the failures are noisy and two engineers have started ignoring all hook output. What should the team do next?",
+    "options": [
+      { "key": "A", "text": "Change the hook to invoke the formatter through the repository's own tooling, and add a CI check that exercises the committed configuration in a fresh checkout." },
+      { "key": "B", "text": "Revert the merge to restore the previous configuration, and reopen the change when the author returns from leave and can test it on a colleague's machine." },
+      { "key": "C", "text": "Document the required binary in the repository's setup instructions and ask each engineer to install it, since the hook is correct and the environments are incomplete." },
+      { "key": "D", "text": "Move the hook from the committed settings into the author's personal configuration, so it stops affecting teammates while remaining available to whoever wants it." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Committed configuration is a contract with every clone, so the fix is to make the hook resolve through something the repository provides rather than through a path that happens to exist somewhere. Adding a fresh-checkout check in CI is what stops the class of defect recurring: it is the only mechanism here that would have caught this before merge, and the same trap awaits the next hook, MCP server, or command someone commits. Both halves matter — one repairs today, one repairs the process.",
+      "distractors": {
+        "B": "Reverting stops the noise and discards a change the team wanted, and it parks the work until someone returns from leave. It also leaves the underlying gap open, so the corrected version can be merged later with a different environment assumption and fail again.",
+        "C": "Requiring every engineer to install a binary to satisfy a formatting hook shifts the cost of a broken commitment onto the team, and it will keep failing for new joiners and CI runners until someone reads the setup instructions carefully. The repository should carry its own tooling.",
+        "D": "Demoting a team-wide formatting standard to one person's personal configuration abandons the goal. It also leaves the noisy failures unexplained for anyone who later revives the idea, since nothing recorded why the first attempt did not work."
+      },
+      "concept": "Anything committed to a repository's configuration must work on a clean clone, because that is the environment every teammate and every runner actually has. Validating committed configuration in a fresh checkout belongs in CI alongside build and test.",
+      "tip": "Two of these options make the symptom stop. Prefer the one that also prevents the next instance, especially when the stem shows people beginning to ignore a signal — desensitisation is a cost that outlives the incident."
+    }
+  }
+]

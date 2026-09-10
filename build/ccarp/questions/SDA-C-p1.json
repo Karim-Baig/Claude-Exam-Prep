@@ -1,0 +1,454 @@
+[
+  {
+    "id": "SDA-C-001",
+    "domain": "Solution Design & Architecture",
+    "topic": "Dominant contributor to wall-clock latency in one call",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "For a single Claude request with a large prompt and a moderate-length response, which factor most directly drives total wall-clock latency?",
+    "options": [
+      { "key": "A", "text": "Output token count, because generation proceeds one token at a time, so response length sets most of the wall clock." },
+      { "key": "B", "text": "Input token count, because every input token must be decoded one at a time before the first output token can be produced." },
+      { "key": "C", "text": "Network round-trip time and TLS handshake setup between the calling service and the regional API endpoint." },
+      { "key": "D", "text": "The number of tool definitions in the request, each of which is validated in sequence before generation starts." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Prompt processing is largely parallel across the input, while generation is inherently sequential: each output token depends on the one before it. That asymmetry is why a request with a very large prompt and a short answer often returns faster than one with a small prompt and a long answer. It is also why the highest-leverage latency lever available to an architect is usually shortening what the model is asked to emit — tighter output schemas, no restating the input, no narration of reasoning the caller discards.",
+      "distractors": {
+        "B": "Prompt processing does scale with input size, but it is not token-by-token sequential in the way decoding is, and it contributes far less per token. Trimming input helps cost more than it helps latency.",
+        "C": "Transport overhead is real and worth measuring, but for a call producing hundreds of tokens it is a small fraction of the total. This becomes the dominant term only for very short responses or badly placed regions.",
+        "D": "Tool definitions add input tokens and can affect selection quality, but they are not validated serially in a way that dominates timing. Tool count is a context-budget and accuracy concern, not a latency one."
+      },
+      "concept": "Latency in an LLM call decomposes into prompt processing (roughly parallel, cheap per token) and generation (strictly sequential, expensive per token). When you are given a latency budget, look first at how many tokens you are asking the model to produce, then at how many stages are chained serially, and only then at transport.",
+      "tip": "A stem that mentions a big prompt and asks about latency is usually baiting you toward input size. Ask what the model has to write, not what it has to read."
+    }
+  },
+  {
+    "id": "SDA-C-002",
+    "domain": "Solution Design & Architecture",
+    "topic": "Fitting a new serial stage into a measured latency budget",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A freight brokerage exposes a shipment-exception triage endpoint to its carrier partners under a 2,000 ms p95 contractual budget. Measured end-to-end p95 today is 1,780 ms, leaving 220 ms of p95 headroom. The mean stage breakdown from tracing is: auth and routing 20 ms, retrieval from the exceptions index 120 ms, a single Sonnet-tier call 960 ms, response shaping 40 ms, egress 40 ms — a 1,180 ms end-to-end mean. Product now wants the exception classified into one of 40 categories *before* retrieval, so retrieval can be filtered by category. The prototype classifier is a second model call on the same tier that emits a short justification plus the label, and it measures 500 ms p95 and 320 ms mean. Means do compose additively, so inserting the stage serially moves the end-to-end mean from 1,180 ms to 1,500 ms, a 27% shift on a path whose p95 already sits within 220 ms of contract. Percentiles do not compose that way, so the team cannot subtract the stage's 500 ms p95 from the 220 ms of headroom and declare a breach — but it also has no measurement showing the contract still holds. What is the best design response?",
+    "options": [
+      { "key": "A", "text": "Re-implement the classifier on the fastest tier, capped at a single label token and no justification, then re-measure end to end before committing." },
+      { "key": "B", "text": "Cache the classification in the existing Redis layer keyed on shipment id, so most exception events find a warm entry and skip the classifier call." },
+      { "key": "C", "text": "Issue the classifier call concurrently with retrieval so the two stages overlap, discarding the retrieval result whenever the returned category does not match." },
+      { "key": "D", "text": "Convert the endpoint to an accepted-then-callback contract with a webhook per carrier partner, so the p95 budget covers only the acknowledgement." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The prototype's timings are mostly self-inflicted: it is generating a free-text justification nobody in the pipeline consumes, on a tier chosen for triage reasoning rather than 40-way labelling. A classification that emits one label token has almost no generation phase left, and the smallest tier is the right fit for a closed-set label. Shrinking the stage's mean is what plausibly keeps the endpoint inside contract — and the answer commits to re-measuring end to end rather than deriving a new p95 by arithmetic on stage percentiles, because percentiles are not additive and the budget is contractual.",
+      "distractors": {
+        "B": "Exception events are overwhelmingly first-occurrence for a given shipment, so a shipment-keyed cache has a hit ceiling near zero. Caching pays where the key repeats; here the key is nearly unique per request.",
+        "C": "Retrieval is filtered *by* the category, so it cannot start until the label exists. Speculating on all 40 categories concurrently would mean 40 retrievals per request. Parallelism only removes latency when the branches are genuinely independent.",
+        "D": "Changing the interface contract to escape the SLO is a renegotiation dressed as engineering. It pushes real work onto every carrier partner's integration and does nothing about the underlying 500 ms."
+      },
+      "concept": "Before you accept a measured stage latency as a fixed input to a budget, check what the stage is being asked to produce. A prototype's timing usually reflects the prototype's prompt and tier, not the task's intrinsic cost. Closed-set classification with a one-token output is a different latency class from open-ended generation. Reason about an added stage using means, which do add; then confirm the percentile outcome by end-to-end measurement, because stage percentiles cannot be added to or subtracted from an end-to-end percentile.",
+      "tip": "When a stem gives you a stage timing from a *prototype*, treat that number as negotiable. The exam rewards asking why the stage is slow before asking how to fit it in — and it never rewards adding a stage p95 to an end-to-end p95."
+    }
+  },
+  {
+    "id": "SDA-C-003",
+    "domain": "Solution Design & Architecture",
+    "topic": "Why per-stage p95s do not sum to end-to-end p95",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A pharmacy benefit manager is reviewing a prior-authorisation assistant against a 2,000 ms p95 budget. The team's design document adds the measured p95 of each non-overlapping trace span — request validation 90 ms, member and formulary retrieval 260 ms, the model call 1,820 ms, response assembly 140 ms — for a total of 2,310 ms, and concludes the design cannot meet the budget. A shadow deployment carrying mirrored production traffic reports a measured end-to-end p95 of 1,900 ms. The spans do not overlap and the clocks are synchronised. Which reading of this is correct?",
+    "options": [
+      { "key": "A", "text": "The shadow figure is optimistic because mirrored traffic under-represents the real request mix; the additive 2,310 ms estimate should be treated as the planning number." },
+      { "key": "B", "text": "The discrepancy indicates instrumentation loss in the model-call span; the team should re-instrument and re-derive the budget from the corrected stage sum." },
+      { "key": "C", "text": "Both figures are valid for different purposes: the sum is the true p95 and the shadow figure is the p50, so the design meets the budget only half the time." },
+      { "key": "D", "text": "Percentiles are not additive: 2,310 ms is a request at the tail of every stage at once, which is rare. The measured end-to-end p95 is the real number." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Summing per-stage p95s answers the question \"what if every stage is simultaneously unlucky on the same request?\" — a joint event far rarer than 5%. For stages whose slow paths are largely independent, the sum is a loose upper bound and the end-to-end measurement is the number that describes real requests. The genuine caveat, and the reason this is not simply \"trust the measurement\", is correlation: if one input property (a very large member history, say) makes retrieval, generation and assembly all slow together, the tails coincide and the sum becomes realistic. That is what the team should monitor.",
+      "distractors": {
+        "A": "The stem states the shadow deployment carries mirrored production traffic, so the mix objection does not apply. Treating a conservative arithmetic bound as the planning number here would kill a design that already meets its budget.",
+        "B": "The spans are stated as non-overlapping with synchronised clocks, so there is no measurement gap to recover. Chasing instrumentation would find nothing, because the arithmetic — not the telemetry — is what is wrong.",
+        "C": "The shadow number is explicitly an end-to-end p95, not a median. This option preserves the additive mental model by relabelling the measurement, which is exactly the error to unlearn."
+      },
+      "concept": "Percentiles do not compose by addition. The sum of stage p95s is an upper bound that assumes perfect tail coincidence; the true end-to-end p95 of independent stages sits well below it. Always derive a latency SLO from end-to-end measurement, and use per-stage percentiles for attribution, not for budgeting.",
+      "tip": "If a stem hands you per-stage p95s and a total that just misses the budget, check whether it is asking you to add them. Additive percentile arithmetic is a planted error, not a given."
+    }
+  },
+  {
+    "id": "SDA-C-004",
+    "domain": "Solution Design & Architecture",
+    "topic": "Sizing in-flight concurrency from throughput and latency",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A service must sustain 40 requests per second with a mean end-to-end latency of 3 seconds. Approximately what in-flight concurrency must the calling tier support?",
+    "options": [
+      { "key": "A", "text": "Roughly 13 concurrent requests." },
+      { "key": "B", "text": "About 40 concurrent requests." },
+      { "key": "C", "text": "About 120 concurrent requests." },
+      { "key": "D", "text": "Roughly 400 concurrent requests." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Concurrency equals arrival rate multiplied by residence time: 40 requests per second at 3 seconds each means 120 requests are in flight at steady state. This is the single most useful sizing identity in LLM system design, because LLM calls have residence times one to three orders of magnitude longer than conventional service calls, so the required concurrency is correspondingly larger. Under-sizing the pool converts the shortfall into queueing delay, which appears as latency the traces do not attribute to the model.",
+      "distractors": {
+        "A": "This divides throughput by latency rather than multiplying. The result has no physical meaning here, and adopting it would under-provision the pool by roughly a factor of nine.",
+        "B": "Sizing concurrency to the per-second arrival rate implicitly assumes each request completes within one second. At a 3-second residence time this pool saturates immediately and requests queue.",
+        "D": "This overshoots by more than triple. Over-provisioning concurrency is less dangerous than under-provisioning, but it hides the real capacity constraint and can push load onto an upstream throughput allocation that then becomes the bottleneck."
+      },
+      "concept": "Required concurrency = throughput x mean latency. Size worker pools, connection pools and client semaphores from this identity, not from request rate alone. Recompute it whenever latency changes: a design that doubles mean latency doubles the concurrency needed to hold the same throughput.",
+      "tip": "Multiply, do not divide. If the numbers in a concurrency question can be combined two ways, the one with units that resolve to a dimensionless count of in-flight work is the right one."
+    }
+  },
+  {
+    "id": "SDA-C-005",
+    "domain": "Solution Design & Architecture",
+    "topic": "Choosing a caching layer from a measured query distribution",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A specialty retailer runs a Claude-backed customer service assistant. Thirty days of traffic analysis shows: 72% of question texts are unique within the window; the 300 most frequent questions together account for 9% of volume; and every response is personalised with the customer's order history, loyalty status and open returns before it is sent. Finance has asked for a caching strategy to cut spend. Which TWO statements are supported by this distribution? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "An exact-match response cache keyed only on the question text is unsafe here, because stored responses embed one customer's order and returns data." },
+      { "key": "B", "text": "Caching the retrieved product, policy and shipping documents is shareable across customers, because the retrieved corpus is not personalised even though the response is." },
+      { "key": "C", "text": "The 300 most frequent questions make a response cache the highest-leverage change available, because head-of-distribution traffic is where response caching always pays." },
+      { "key": "D", "text": "A semantic cache over question embeddings, with the similarity threshold loosened, will lift the effective hit rate above 70% given the observed query variety." },
+      { "key": "E", "text": "Because 72% of question texts are unique within the window, no caching layer — response, semantic or document — can meaningfully reduce spend on this workload." }
+    ],
+    "correct": ["A", "B"],
+    "explanation": {
+      "correct": "Personalisation is the fact that decides the cache key, and the corpus/response split is the fact that decides the cache layer. Because every response embeds customer-specific data, a text-keyed response cache is a data-leak mechanism, not a cost lever — the key would have to include the customer, which collapses the hit rate. But the *inputs* to that response are shared: the same shipping policy and product documents are retrieved for thousands of customers. Caching at the retrieval layer captures reuse that the response layer cannot, and carries no cross-customer exposure.",
+      "distractors": {
+        "C": "A 9% volume ceiling caps the benefit at 9% even with a perfect hit rate on that head — and personalisation means the real hit rate on those 300 is far lower. Head-of-distribution caching pays when the head is large and the response is shared; neither holds here.",
+        "D": "Loosening a semantic threshold to chase hit rate is how a cache starts returning near-miss answers with confident wording. On a 72%-unique distribution the reachable hit rate is modest, and the failure mode is a wrong answer rather than a slow one.",
+        "E": "Uniqueness of question text rules out response caching, not caching in general. The retrieved corpus, embeddings for repeated documents and static prompt content are all reusable across unique questions."
+      },
+      "concept": "Pick the caching layer by asking which artefact in the request path is shared across users and stable over time. Responses that embed per-user data are the worst caching candidate; retrieved documents, embeddings and static prompt content are the best. Hit-rate ceilings should be read off the measured distribution before any cache is built.",
+      "tip": "When a stem tells you responses are personalised, that single clause disqualifies most response-caching options. Read for it before you do any hit-rate arithmetic."
+    }
+  },
+  {
+    "id": "SDA-C-006",
+    "domain": "Solution Design & Architecture",
+    "topic": "Break-even escalation rate for a two-tier cascade",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A commercial insurer triages first-notice-of-loss submissions with a cascade: a Haiku-tier first pass at a measured $0.0008 per call handles the submission, and low-confidence cases escalate to an Opus-tier adjudication at a measured $0.019 per call. At launch, 25% escalated. Since a new marine cargo product went live, the escalation rate has settled at 58%. Finance has flagged the cost line and asked whether the cascade should be abandoned in favour of sending everything to the Opus tier. Which characterisation of the drift is accurate?",
+    "options": [
+      { "key": "A", "text": "The cascade has crossed over: at 58% escalation the cheap first pass is pure overhead on top of an adjudication that happens anyway, so routing everything straight to the Opus tier costs less." },
+      { "key": "B", "text": "Blended cost per submission has more than doubled, but the cascade still runs about 38% below flat Opus-tier routing, with break-even near a 96% escalation rate; the real change is that 58% of submissions now make two serial calls." },
+      { "key": "C", "text": "Cost per submission is essentially unchanged, because the Haiku-tier first pass is negligible next to the adjudication call and only the escalated share ever moved the line." },
+      { "key": "D", "text": "The cascade saves the same proportion it always did, because both tiers price linearly per submission and the ratio between the first-pass and adjudication rates is fixed." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Blended cost is the first-pass cost plus the escalated share of the second: $0.0008 + 0.58 x $0.019 = $0.01182, against $0.019 for flat Opus-tier routing — about 38% cheaper. It has risen from $0.00555 at 25% escalation, so finance is right that something changed, but wrong about the remedy. Break-even is where $0.0008 + r x $0.019 = $0.019, giving r near 96%. Because the cheap first pass is so much cheaper than the expensive second, a cascade almost never loses on cost. What the drift does change is the shape of the request path: 58% of submissions now make two serial model calls instead of one, which is a latency and complexity cost the stem does not price and which is the right place to look next.",
+      "distractors": {
+        "A": "This asserts a crossover that the arithmetic does not support. At 58% the cascade is still well under flat routing; consolidating would raise the cost line finance is trying to lower while removing the cheap path entirely.",
+        "C": "Cost per submission rose from $0.00555 to $0.01182 — a factor of about 2.1. Dismissing the change as immaterial concedes the wrong point and leaves the underlying escalation drift uninvestigated.",
+        "D": "The saving is a function of the escalation rate, not a fixed ratio. The proportional saving fell from roughly 71% to roughly 38% precisely because r moved."
+      },
+      "concept": "For a two-tier cascade, blended cost is c_cheap + r x c_expensive, and break-even against flat expensive routing is r = (c_expensive - c_cheap) / c_expensive. When the tiers differ by an order of magnitude, break-even sits close to 100%, so escalation drift is almost always a latency and quality problem before it is a cost problem.",
+      "tip": "Do the break-even before you accept a cost argument about a cascade. The number is usually far higher than intuition suggests, which reframes the whole conversation."
+    }
+  },
+  {
+    "id": "SDA-C-007",
+    "domain": "Solution Design & Architecture",
+    "topic": "Scaling out when the binding constraint is upstream capacity",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "An online games publisher runs player-report moderation on Claude. During a tournament weekend, queue depth grew from seconds to eleven minutes and p95 latency tripled. The on-call engineer doubled the worker pod count; queue depth kept growing and pod CPU sat at 28%. Telemetry shows the account's provisioned throughput allocation saturated for the whole window, with the nightly bulk re-scoring job running against the same allocation. What should the team do next?",
+    "options": [
+      { "key": "A", "text": "Double the pod count again and raise the autoscaler's maximum replica ceiling, since queue depth is still growing and the current replica ceiling is what caps the drain rate." },
+      { "key": "B", "text": "Move the worker pods to a memory-optimised instance type so each pod can hold more in-flight requests without the connection pool thrashing under load." },
+      { "key": "C", "text": "Treat the throughput allocation as the binding constraint: cut tokens per request and gate the bulk job behind admission control that yields to interactive traffic." },
+      { "key": "D", "text": "Add a read replica for the moderation history store and warm its cache, shortening the retrieval stage that runs before every moderation call." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Two signals in the stem identify the bottleneck: pods idle at 28% CPU, and the upstream allocation is saturated throughout. Adding compute behind a saturated upstream just moves the queue from one place to another. The capacity unit that actually binds here is throughput consumption, so the levers are the ones that change consumption — fewer tokens per moderation call — and the ones that change who gets it — separating a deferrable bulk job from interactive traffic with explicit admission control. Both are design changes to how capacity is allocated, not attempts to buy more of a resource that is not scarce.",
+      "distractors": {
+        "A": "Scaling the layer that is 72% idle cannot help. This is the reflex the stem is testing, and repeating a change that already failed once is how an incident stretches into a second day.",
+        "B": "Larger instances add the same resource the pods are not short of. In-flight capacity is limited by the upstream allocation, not by pod memory or cores.",
+        "D": "Retrieval is not implicated by any figure in the stem. Optimising an unmeasured stage during an active capacity incident spends engineering time on a hypothesis with no supporting signal."
+      },
+      "concept": "In LLM systems the scarce resource is usually upstream throughput, not local compute. Before scaling horizontally, confirm which resource is saturated. When the binding constraint is a shared allocation, the levers are consumption per request and priority between request classes — horizontal scaling is only effective when your own tier is the bottleneck.",
+      "tip": "A CPU number well under 50% next to a growing queue is the stem telling you the bottleneck is somewhere else. Find the saturated resource before choosing a scaling action."
+    }
+  },
+  {
+    "id": "SDA-C-008",
+    "domain": "Solution Design & Architecture",
+    "topic": "Choosing the denominator for a unit-economics metric",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An architect is defining the unit-economics metric for a customer-support deflection system that will be reviewed monthly by the business. Which denominator makes the number decision-useful?",
+    "options": [
+      { "key": "A", "text": "Per API call, because it reconciles one-to-one against the vendor's monthly invoice lines." },
+      { "key": "B", "text": "Per thousand tokens, because tokens are the unit the cost is actually incurred in." },
+      { "key": "C", "text": "Per resolved conversation, counting every turn, retry and failed attempt." },
+      { "key": "D", "text": "Per deployed environment per month, because that is the granularity of the budget." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The business is buying deflected support contacts, not API calls, so the denominator has to be the unit of delivered value. Costing per resolved conversation makes visible the two things per-call metrics hide: multi-turn conversations that consume five calls to resolve one issue, and conversations that consume calls and then escalate to a human anyway. It also makes the metric directly comparable to the cost of the human channel it is replacing, which is the comparison the monthly review actually needs.",
+      "distractors": {
+        "A": "Per-call cost falls whenever you split work into more, smaller calls — so a change that increases total spend can improve this metric. It reconciles to the invoice but cannot support a design decision.",
+        "B": "Cost per thousand tokens is close to a constant of the tier you chose. It tells you almost nothing about whether the system is getting more or less efficient at the job.",
+        "D": "Environment-level spend is a budgeting view, not a unit economic. It moves with traffic volume and cannot distinguish growth from regression in efficiency."
+      },
+      "concept": "Unit economics for an AI system must be denominated in units of delivered outcome — resolved case, processed claim, published article — and must include the failed and retried work that preceded each outcome. Per-call and per-token figures are inputs to that calculation, never substitutes for it.",
+      "tip": "Ask what the business would pay a human to do, and denominate in that. If a metric can be improved by splitting one call into two, it is the wrong metric."
+    }
+  },
+  {
+    "id": "SDA-C-009",
+    "domain": "Solution Design & Architecture",
+    "topic": "Capacity planning against a six-fold peak-to-average ratio",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A national benefits agency is planning capacity for an eligibility-explanation service ahead of the annual open-enrolment period. Modelling from last year gives 864,000 requests per day, with the busiest hour carrying 25% of daily volume. Mean end-to-end latency is 2.5 seconds. About a third of daily volume is a back-office caseworker batch that has no user waiting on it. Which THREE statements follow from these figures? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "Sustaining the busy hour requires roughly 150 requests in flight concurrently across the worker tier at the measured mean latency." },
+      { "key": "B", "text": "Provisioning to the daily average of 10 requests per second leaves the busy hour short by a factor of six, surfacing as queueing delay rather than as slower model calls." },
+      { "key": "C", "text": "Shifting the caseworker batch out of the busy hour lowers the peak capacity requirement without reducing total daily volume." },
+      { "key": "D", "text": "Autoscaling the worker tier on CPU utilisation will track the enrolment spike accurately, because request volume and CPU move together in this workload." },
+      { "key": "E", "text": "Because the daily average is 10 requests per second, a reservation sized at 10 per second meets the latency SLO provided failed requests are retried." }
+    ],
+    "correct": ["A", "B", "C"],
+    "explanation": {
+      "correct": "The three figures compose cleanly. Busy hour is 216,000 requests in 3,600 seconds, or 60 per second, against a daily average of 864,000 over 86,400 seconds, or 10 per second — a peak-to-average ratio of six. At 60 per second and 2.5 seconds mean residence, concurrency at peak is 150. Provisioning to the average therefore under-provisions the peak sixfold, and the deficit manifests as queue wait, which traces attribute to the client tier rather than to the model. Moving the deferrable third of volume off the peak is the cheapest way to shrink the peak requirement, because it reduces the number you must provision for without reducing work done.",
+      "distractors": {
+        "D": "LLM calls are I/O-bound waits, not CPU work. Worker CPU stays low while in-flight request count climbs, so CPU-based autoscaling reacts late or not at all. Scale on in-flight requests or queue depth instead.",
+        "E": "Retrying into a saturated system adds load to the thing that is already short of capacity, which lengthens the queue rather than clearing it. Average-sized capacity cannot meet a latency SLO under a sixfold peak, retries or no retries."
+      },
+      "concept": "Capacity for an LLM system is planned at the peak, in units of concurrent in-flight requests, and reduced by moving deferrable work off the peak. Peak-to-average ratio, not total volume, drives what you provision — and CPU is a misleading autoscaling signal for a workload that spends its time waiting.",
+      "tip": "When a stem gives you daily volume plus a busy-hour share, convert both to requests per second before reading the options. Three of the five will be judgeable on that one conversion."
+    }
+  },
+  {
+    "id": "SDA-C-010",
+    "domain": "Solution Design & Architecture",
+    "topic": "Designing to an accuracy target the model cannot reach alone",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A legal-tech vendor extracts change-of-control clauses from commercial contracts for corporate clients. On a held-out set of 4,000 human-labelled contracts the extractor scores 94% on that clause class, using the highest-capability tier already. A new enterprise client's contract specifies 99.5% accuracy on change-of-control extraction, with penalties. The delivery lead proposes six more weeks of prompt engineering to close the gap. As architect, what do you recommend?",
+    "options": [
+      { "key": "A", "text": "Run three independent extractions per contract and majority-vote the clause spans, converting the residual errors into detectable agreement failures." },
+      { "key": "B", "text": "Fine-tune a smaller model on the 4,000 labelled contracts, since a task-specific model trained on the client's own clause language will beat a general-purpose one." },
+      { "key": "C", "text": "Treat 99.5% as a system property, not a model one: score each extraction for confidence, auto-accept above threshold, and route the rest to licensed reviewers." },
+      { "key": "D", "text": "Expand the few-shot set with the specific failure cases from the held-out run and re-measure on that same set before committing to the contract." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "A 5.5-point gap on a probabilistic extractor at the top tier is not a prompt defect, and a contractual 99.5% with penalties is not a target you gamble on. The architecture that meets it is a deferral design: the model handles the share of contracts it can handle at the required accuracy, and everything below the confidence threshold goes to a human who is accountable for the clause. That structure lets you commit to 99.5% on day one, because the guarantee comes from the review path, and it converts the improvement programme into a measurable one — raise the auto-accept coverage while holding accuracy fixed.",
+      "distractors": {
+        "A": "Self-consistency voting narrows variance but not systematic error, and the errors that survive at 94% on a specific clause class are mostly the systematic kind. It also triples cost and latency for a gain that will not reach 99.5%.",
+        "B": "Four thousand contracts is a thin training set for a clause class this heterogeneous, and the stem gives no evidence the ceiling is model capability rather than task ambiguity. It also adds a training and revalidation pipeline to a delivery already under contractual time pressure.",
+        "D": "Adding the held-out failures as examples is how a held-out set stops being held out. It will lift the measured score without lifting real accuracy, which is the most dangerous outcome available when penalties attach to the number."
+      },
+      "concept": "Accuracy targets above what a model reliably delivers are architecture requirements, not prompt requirements. Meet them with confidence-scored deferral to a human or deterministic checker, then treat *coverage* — the share of traffic handled without review — as the quantity engineering improves. This is what lets you sign an accuracy SLA for a non-deterministic component.",
+      "tip": "Whenever a stem pairs a measured accuracy with a contractual one and the gap is more than a couple of points, the answer is almost never a prompt change. Look for the option that moves the guarantee out of the model."
+    }
+  },
+  {
+    "id": "SDA-C-011",
+    "domain": "Solution Design & Architecture",
+    "topic": "What streaming buys a machine consumer of the response",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A synchronous internal API returns a Claude-generated JSON object that a downstream service parses in full before it can act. What does enabling response streaming buy this particular caller?",
+    "options": [
+      { "key": "A", "text": "It lets the downstream service parse each JSON field as it arrives and begin acting on the completed ones before the object closes." },
+      { "key": "B", "text": "Nothing material: this caller cannot act until the final token arrives, so streaming helps only human readers or incremental consumers." },
+      { "key": "C", "text": "It reduces total time-to-last-token, because generation itself runs faster once tokens are being delivered incrementally." },
+      { "key": "D", "text": "It raises throughput, because the server can admit the next request as soon as the current one begins streaming its first tokens." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Streaming changes when bytes arrive, not when the work finishes. Its value is time-to-first-token, which matters when something can consume output incrementally — a person reading, a UI rendering, a pipeline that can start on the first section. A consumer that must parse a complete JSON document gets no benefit, because the last token is still the gate. Deciding this correctly matters architecturally: teams add streaming to machine-to-machine paths, complicate error handling and retry semantics, and measure no improvement in the metric they cared about.",
+      "distractors": {
+        "A": "Partial JSON is not valid JSON, and a parser cannot safely act on a truncated object — a half-emitted array of line items looks complete right up until it is not. Incremental consumption requires an output format designed for it.",
+        "C": "Streaming does not make generation faster; it only changes delivery. Time-to-last-token is essentially unchanged, and the sequential nature of decoding is unaffected.",
+        "D": "Server-side concurrency is unrelated to whether this client streams. Throughput is governed by the capacity allocation and the concurrency the caller maintains, not by the delivery mode of one response."
+      },
+      "concept": "Streaming optimises perceived latency, not actual latency, and only for consumers that can act on partial output. Before adding it, identify who reads the response: a human or incremental pipeline benefits, a parser that needs a complete document does not.",
+      "tip": "Look for the consumer in the stem. \"Parses in full before it can act\" is the clause that decides this item, and it is placed early and stated plainly."
+    }
+  },
+  {
+    "id": "SDA-C-012",
+    "domain": "Solution Design & Architecture",
+    "topic": "Reducing change cost when a prompt is copied across repositories",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A music streaming company has five product squads, each of which embeds its own copy of a shared 900-line system prompt in its service repository. A required wording change to the artist-attribution section took three weeks to land across all five repos, one squad shipped a variant with a subtly different constraint ordering, and a sixth team has just requested a copy. Which change gives the best reduction in change cost for the effort involved?",
+    "options": [
+      { "key": "A", "text": "Consolidate the five services into one shared inference service so the prompt exists in exactly one deployment and one release train to change." },
+      { "key": "B", "text": "Add a CI lint rule to every repo that fails the build whenever its prompt file diverges from the designated reference copy." },
+      { "key": "C", "text": "Publish the prompt as a versioned artefact, have each service pin a version, and gate publishes on a shared eval suite." },
+      { "key": "D", "text": "Move the prompt into a runtime configuration service so all five services pick up wording changes on the next request without a deploy." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The cost being paid here is that one logical change requires five coordinated physical changes with no shared verification. Publishing the prompt as a versioned dependency collapses that to one authoring change plus five routine version bumps, which squads can take on their own cadence — and pinning means a squad that is mid-release is not forced to absorb it. The shared eval suite on the publish side is what stops the divergence problem recurring, because the artefact cannot ship without passing the tests that define correct behaviour.",
+      "distractors": {
+        "A": "Merging five services to fix a text-distribution problem is an organisational change with an enormous blast radius, and it couples five release trains that currently move independently. The prompt is shared; the products are not.",
+        "B": "A divergence lint detects the problem after a squad has already written the change, and it still requires five separate edits. It hardens the current expensive process rather than replacing it.",
+        "D": "Runtime configuration removes the deploy but also removes the review, the eval gate and the version history. A wording change that degrades a downstream extraction would reach all five services simultaneously with nothing between it and production."
+      },
+      "concept": "Prompts are code and should be distributed like code: one source of truth, semantic versioning, consumers pinned to a version, and an eval suite gating the release. Optimising for instant propagation over verifiable propagation trades a slow problem for a fast one.",
+      "tip": "When a stem describes the same artefact copied into N repositories, the answer is a dependency, not a synchronisation mechanism. Beware options that make changes propagate faster without making them safer."
+    }
+  },
+  {
+    "id": "SDA-C-013",
+    "domain": "Solution Design & Architecture",
+    "topic": "Effect of cache hit rate on tail latency versus mean",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A travel booking platform has added an exact-match response cache in front of its itinerary-summary endpoint. Measurements over a week: 40% hit rate, 15 ms on a hit, and the cache-miss path unchanged at 2,400 ms p95. The performance lead's summary to the steering group states that the cache \"cuts p95 latency by 40%.\" You are asked to review the claim before it is circulated. What is the accurate correction?",
+    "options": [
+      { "key": "A", "text": "With a 40% hit rate the blended p95 lands near the 92nd percentile of the miss distribution, so the tail barely moves; the real wins are mean latency and spend." },
+      { "key": "B", "text": "The claim is roughly right — blended p95 falls to about 1,440 ms, since 40% of requests now return in 15 ms and the reported percentile shifts in proportion." },
+      { "key": "C", "text": "The steering group should be shown p50 rather than p95, because the median is what most users experience and it reflects the cache benefit honestly." },
+      { "key": "D", "text": "The measurement is invalid: cache hits should be excluded from the latency SLO, since they bypass the model path the SLO was written to govern." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "A cache removes probability mass from the bottom of the latency distribution, not the top. With 40% of requests returning at 15 ms, the blended 95th percentile corresponds to the point where the miss distribution has accumulated (0.95 - 0.40) / 0.60, or about 0.92 — so p95 moves from the miss p95 to roughly the miss p92. On a heavy tail that is a small shift. Mean latency, by contrast, falls dramatically, as does spend and load on the upstream allocation. Those are the benefits worth claiming; the tail claim would be falsified by the next month's dashboard.",
+      "distractors": {
+        "B": "Percentiles do not scale with hit rate. Multiplying the tail by (1 - hit rate) treats the distribution as if it were a single number, which is the error that produced the original claim.",
+        "C": "Switching the reported metric to make the result look better is a reporting failure, not a correction. The p95 exists because the tail is what breaks user journeys and downstream timeouts; a cache does not change why it is tracked.",
+        "D": "Latency SLOs are measured over served traffic, including fast paths. Excluding hits would make the number describe a system nobody uses, and would perversely make a beneficial change invisible."
+      },
+      "concept": "Caching improves mean latency, cost and upstream load roughly in proportion to hit rate, but improves tail latency only weakly: at hit rate h, the blended p95 sits at the (0.95 - h) / (1 - h) quantile of the miss distribution. Tail latency stays miss-dominated until the hit rate approaches the percentile itself.",
+      "tip": "If an option applies a hit-rate percentage directly to a percentile, it is wrong. Percentiles respond to where the mass moves, and a cache moves mass to the bottom."
+    }
+  },
+  {
+    "id": "SDA-C-014",
+    "domain": "Solution Design & Architecture",
+    "topic": "First diagnostic step for a unit-cost regression",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "An education technology company reviews its monthly Claude spend. Spend rose 3.1x month over month; request count rose 1.15x over the same period, implying cost per request grew roughly 2.7x. No model tier change was deployed, and no pricing change was announced. Three feature teams shipped changes during the month. What should the architect do next?",
+    "options": [
+      { "key": "A", "text": "Open a commercial conversation about volume-based pricing now, since spend at this level justifies a negotiated annual commitment." },
+      { "key": "B", "text": "Break cost per request into input and output token components by feature route, and compare the distributions against the prior month." },
+      { "key": "C", "text": "Move the highest-volume route to a cheaper tier behind an automated quality gate, bringing the monthly cost line back within budget this cycle." },
+      { "key": "D", "text": "Add an exact-match response cache to the highest-volume route, since caching is the fastest available reduction in per-request spend." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The two figures already localise the problem: traffic grew 15% but unit cost grew about 2.7x, so this is not a demand story, it is a tokens-per-request story. Something one of the three teams shipped is putting substantially more into the prompt or pulling substantially more out of the model — a widened retrieval window, an unbounded conversation history, a verbose new output schema. Segmenting unit cost by route and by input-versus-output tokens will name the route and the direction within an hour, and every remedy after that depends on knowing which it is.",
+      "distractors": {
+        "A": "Negotiating a better rate on a 2.7x regression locks in the regression. Commercial work is worth doing, but not before you know whether the volume you are committing to is real demand or a defect.",
+        "C": "Downgrading a tier to absorb an unexplained cost rise trades quality for a symptom. If the cause is an unbounded history being resent, the cheaper tier still carries the same bloated payload.",
+        "D": "Caching is a genuine lever, but choosing it before attribution assumes a repeat-request pattern the stem gives no evidence for. It also cannot help if the regression is in output length."
+      },
+      "concept": "Decompose a cost regression before treating it. Spend equals requests x (input tokens x input rate + output tokens x output rate); comparing each factor against the prior period tells you whether you have a demand change, a payload change or a verbosity change. Each has a different fix, and applying the wrong one hides the real cause.",
+      "tip": "When a stem gives you both a spend multiple and a volume multiple, divide them. The quotient is the whole question, and it points at tokens per request every time."
+    }
+  },
+  {
+    "id": "SDA-C-015",
+    "domain": "Solution Design & Architecture",
+    "topic": "Legitimate grounds for building rather than buying a gateway",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An architect is deciding whether to build an internal LLM gateway or license a vendor product that covers routing, cost attribution, key management and logging. Which factor most legitimately favours building?",
+    "options": [
+      { "key": "A", "text": "The engineering team estimates it can ship a working version within one quarter of dedicated work." },
+      { "key": "B", "text": "The vendor's annual licence fee exceeds the estimated engineering cost of building the first release." },
+      { "key": "C", "text": "The vendor product is closed source, so the team cannot inspect how requests are routed and logged." },
+      { "key": "D", "text": "The routing and chargeback rules encode organisation-specific policy expected to change every few weeks." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Build-versus-buy turns on whether the thing being built is differentiating and volatile in ways a vendor's roadmap cannot track. Policy that is specific to one organisation and changes every few weeks is exactly that: with a vendor you would be filing feature requests against someone else's backlog on a cadence measured in quarters, while your own requirement moves monthly. Everything else in a gateway — key handling, request logging, retries — is undifferentiated plumbing that a vendor will do at least as well.",
+      "distractors": {
+        "A": "First-release schedule estimates are the least reliable input to this decision and exclude the part that dominates: multi-year run cost, on-call, and the features you have not thought of yet. Optimism about the build is not an argument for building.",
+        "B": "Comparing a recurring licence against a one-off build cost is the classic build-versus-buy error. The correct comparison includes ongoing maintenance, support and opportunity cost of the engineers, which usually reverses the answer.",
+        "C": "Source visibility is a procurement and assurance question that can often be met with contractual audit rights or a hosted-in-your-VPC deployment. It rarely justifies absorbing a permanent maintenance obligation on its own."
+      },
+      "concept": "Build when the capability is differentiating, when the requirement changes faster than a vendor's release cycle, or when the integration surface is genuinely unique. Buy commodity infrastructure. Compare total cost of ownership over several years, not licence against initial build.",
+      "tip": "In build-versus-buy items, discard any option that compares a recurring cost with a one-time cost. That mismatch is the planted error more often than not."
+    }
+  },
+  {
+    "id": "SDA-C-016",
+    "domain": "Solution Design & Architecture",
+    "topic": "Recurring costs introduced by mixing tiers in one pipeline",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An automotive parts distributor runs a four-stage document pipeline: a Haiku-tier stage extracts fields from supplier invoices, a Sonnet-tier stage reconciles them against purchase orders, and an Opus-tier stage adjudicates exceptions. The mix was chosen deliberately and the cost saving against an all-Opus design is real and measured. Which TWO recurring costs must the design budget for as a direct consequence of mixing tiers? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Every change to a shared instruction must be authored, tested and validated per tier, because identical wording does not produce identical behaviour across tiers." },
+      { "key": "B", "text": "A model version deprecation or upgrade becomes three independent migrations with three separate eval runs and sign-offs, rather than one." },
+      { "key": "C", "text": "Mixing tiers within one pipeline requires separate API credentials and a separate billing account per tier for calls to be routed correctly." },
+      { "key": "D", "text": "Running three tiers triples the request volume charged against the account's throughput allocation relative to a single-tier design of the same pipeline." },
+      { "key": "E", "text": "Because the tiers differ in capability, no stage can share an output schema with a stage running on a different tier, so each needs its own contract." }
+    ],
+    "correct": ["A", "B"],
+    "explanation": {
+      "correct": "Tier mixing buys cost and latency at the price of multiplied change surface, and both keys are that price in its two recurring forms. Prompts are not portable between tiers: an instruction that a higher tier follows implicitly often needs to be made explicit for a smaller one, so a single behavioural change fans out into three authoring-and-eval cycles. And model lifecycle events arrive per tier on their own schedules, so the migration work that a single-tier system does once is done three times, each with its own regression suite and its own risk of behavioural drift.",
+      "distractors": {
+        "C": "Tier selection is a per-request parameter, not an account boundary. Teams often do separate credentials for cost attribution, but that is a choice about visibility, not a consequence of mixing tiers.",
+        "D": "Each stage issues the calls its own work requires; the pipeline's stage count is what determines call volume, and it would be the same if every stage ran on one tier. Mixing tiers changes the cost per call, not the number of them.",
+        "E": "Nothing prevents stages on different tiers from emitting the same schema, and shared schemas across stages are common and desirable. The stages here differ in job, not in what formats are available to them."
+      },
+      "concept": "Multi-tier designs trade unit cost against maintenance surface. Budget for one prompt set, one eval suite and one migration path per tier in the system. The mix is worth it when the cost or latency saving exceeds that ongoing tax — which usually means keeping the number of distinct tiers small and deliberate.",
+      "tip": "For tier-mixing items, the true costs are almost always about change and lifecycle, not about plumbing. Options describing account structure or call volume are usually the invented ones."
+    }
+  },
+  {
+    "id": "SDA-C-017",
+    "domain": "Solution Design & Architecture",
+    "topic": "Cost model for an agent loop that resends its transcript",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A maritime shipping line runs a customs-documentation agent that averages 10 tool-calling turns per case, resending the full transcript on each turn. Each turn adds roughly 1,500 tokens of tool output and assistant text. Finance modelled the cost as turns multiplied by average turn size — 10 x 1,500 = 15,000 input tokens per case — and the actual figure came in near 82,500, over five times the estimate. The team must now produce a capacity and cost model for next year, when volume triples. Which statement about the corrected model is right?",
+    "options": [
+      { "key": "A", "text": "Cost scales linearly with turn count; the model simply used the wrong average turn size and should be recalibrated against the measured per-case figure before next year's volume triples." },
+      { "key": "B", "text": "Cumulative input grows roughly with the square of turn count when the whole transcript is resent, so the model must be driven by the turn-count distribution and its tail, not the mean." },
+      { "key": "C", "text": "Output tokens dominate agent cost in practice, so transcript growth on the input side is a second-order effect and the original model is close enough for capacity planning." },
+      { "key": "D", "text": "Each turn is a separate request billed independently, so per-request cost is constant and total case cost is the turn count multiplied by the cost of the first turn." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Resending the transcript makes turn n carry roughly n increments of context, so cumulative input across N turns is proportional to N(N+1)/2 rather than N. At 10 turns and 1,500 tokens per increment that is 1,500 x 55 = 82,500, which is what was measured and 5.5 times the linear estimate. The planning consequence is the important part: because cost is quadratic in turns, the cases that run 20 turns cost roughly four times a 10-turn case, not twice. A mean-based model systematically under-forecasts, and the forecast has to be built from the turn-count distribution with the tail explicitly modelled.",
+      "distractors": {
+        "A": "Recalibrating the average preserves the linear form, which is the actual defect. It would fit this year's mean and break again the moment the turn-count distribution shifts, which it will as the agent gains tools.",
+        "C": "In tool-calling loops, tool results and accumulated transcript dominate the token count, and output per turn is typically a short tool call. Assuming output dominance is what allows a fivefold under-estimate to look plausible.",
+        "D": "Per-request cost is not constant precisely because each request carries a longer transcript than the last. This option restates the linear assumption that the measurement already falsified."
+      },
+      "concept": "In any loop that resends accumulated context, cost grows with the square of the iteration count. Model such systems from the distribution of iteration counts, not the mean, and set a hard turn cap so the tail of that distribution is bounded — an uncapped loop has an unbounded cost per case.",
+      "tip": "Whenever a stem says the transcript is resent each turn, expect triangular-number arithmetic. N(N+1)/2 rather than N is the check that separates the right option from the plausible ones."
+    }
+  },
+  {
+    "id": "SDA-C-018",
+    "domain": "Solution Design & Architecture",
+    "topic": "Isolating bulk workload from interactive traffic",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A global hotel group runs a guest-facing concierge assistant alongside a bulk job that re-summarises 400,000 property reviews. The group operates in every time zone, so there is no hour without material guest traffic. While the bulk job runs, guest-facing p95 rises from 1.4 s to 9 s. Both workloads share one worker pool and one throughput allocation. Which design change addresses this correctly?",
+    "options": [
+      { "key": "A", "text": "Reschedule the bulk job to the group's lowest-traffic window and split it into smaller nightly increments per region." },
+      { "key": "B", "text": "Raise the client timeout on the guest path from 5 s to 12 s so the elevated p95 stops surfacing to guests as errors." },
+      { "key": "C", "text": "Scale the shared worker pool up for the duration of the bulk window so both workloads have enough workers to drain their queues." },
+      { "key": "D", "text": "Give the bulk job its own lane with capped concurrency and admission control that yields to interactive traffic." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Two workloads with different latency requirements sharing one undifferentiated queue means the one with no deadline can starve the one with a strict deadline — head-of-line blocking, in effect. The fix is to make the difference explicit in the architecture: separate lanes, a concurrency cap on the bulk lane, and admission control that lets interactive demand reclaim capacity. Bulk work then absorbs whatever is spare and stretches when guests are busy, which is exactly the trade its lack of a deadline permits.",
+      "distractors": {
+        "A": "The stem states the group operates in every time zone with no quiet hour, so there is no window to move the job to. Off-peak scheduling is the right answer for a single-region workload and the wrong one here.",
+        "B": "Raising the timeout hides the symptom and hands guests a nine-second wait instead of an error. It also lengthens the residence time of every in-flight request, which raises required concurrency and makes the contention worse.",
+        "C": "More workers behind a shared throughput allocation increases the rate at which both workloads compete for the same scarce upstream capacity. Without prioritisation, the bulk job simply takes a larger share of a bigger pool."
+      },
+      "concept": "Workloads with different latency requirements need separate capacity lanes with explicit priority, not a shared pool sized for the sum. Deadline-free bulk work should be admission-controlled to consume only slack, so contention degrades the batch's completion time rather than the interactive path's tail.",
+      "tip": "\"Operates in every time zone\" is placed in the stem specifically to kill the off-peak-scheduling answer. Scan for the clause that disqualifies the obvious option before you pick it."
+    }
+  }
+]

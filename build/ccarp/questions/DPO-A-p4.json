@@ -1,0 +1,454 @@
+[
+  {
+    "id": "DPO-A-055",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Difference between edit-accepting and prompt-skipping modes",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "How does the permission mode that automatically accepts file edits differ from the mode that skips permission prompting altogether?",
+    "options": [
+      { "key": "A", "text": "They are equivalent in effect; one is simply an older name for the other, retained so that existing configuration continues to work." },
+      { "key": "B", "text": "The edit-accepting mode still confirms file modifications but stops confirming shell commands, on the basis that commands are the reversible operation of the two." },
+      { "key": "C", "text": "The edit-accepting mode auto-approves file modifications while other tool calls remain subject to the permission layer; the prompt-skipping mode removes the confirmation step across the board." },
+      { "key": "D", "text": "The edit-accepting mode applies only to files the session itself created during that session, so modifications to pre-existing files continue to be confirmed individually." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The edit-accepting mode is a narrow ergonomic change: it removes the confirmation step for file modifications, which are the highest-frequency and most recoverable operation in a normal session, while everything else — shell execution, network retrieval, tool calls into external systems — continues to be evaluated. The prompt-skipping mode is categorical and is why it is reserved for isolated environments. Conflating them leads teams to grant far more than they intended in pursuit of fewer interruptions.",
+      "distractors": {
+        "A": "Treating the two as interchangeable is the specific mistake this distinction exists to prevent. One is a routine daily posture in a normal repository; the other is only defensible behind an isolation boundary.",
+        "B": "This inverts the behaviour. Edits are the operation being auto-accepted, precisely because they land in a working tree under version control and are straightforward to inspect and revert, which is not true of an arbitrary command.",
+        "D": "There is no distinction between files the session created and files it did not. Such a rule would be of little practical use, since most useful work modifies code that already exists."
+      },
+      "concept": "Permission modes set the default posture for a session and differ in scope, not merely in strictness. Reach for the narrow mode when the friction is edit confirmations, and treat the categorical one as an isolation-only setting.",
+      "tip": "When two options describe permission modes, check what class of operation each one covers. Items exploit the assumption that any relaxation is equivalent to full relaxation."
+    }
+  },
+  {
+    "id": "DPO-A-056",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "How chained shell commands are evaluated against rules",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An engineer at a mapping company has an allow rule covering the repository's build script. She is puzzled that a proposed command chaining the build script with a cleanup step that deletes a directory tree is not permitted outright, since the chain begins with something she explicitly allowed. What is the correct explanation?",
+    "options": [
+      { "key": "A", "text": "The parts of a chained command are evaluated separately, so an allowance covering one part does not authorise the others in the chain." },
+      { "key": "B", "text": "Chained commands are never matched by allow rules at all, so any command containing a chaining operator always requires confirmation regardless of its contents." },
+      { "key": "C", "text": "The allowance did not apply because the rule matched only when the build script is the entire command, and any additional argument or text after it breaks the match." },
+      { "key": "D", "text": "Chained commands are matched against the last element of the chain, since that is the operation whose effect persists after the command completes." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "A chain is several commands submitted as one string, and it is evaluated that way: each part is considered against the rule set independently. That is the only safe design, because otherwise any allowance would become a universal one by prefixing a permitted command to an arbitrary payload. The engineer's rule authorised her build script and nothing else, so the destructive cleanup step still has to be authorised on its own terms.",
+      "distractors": {
+        "B": "A blanket refusal to match chains would make the permission system unusable for ordinary development, where chained commands are routine. Chains are matched; they are simply matched piecewise rather than as one opaque string.",
+        "C": "Rules can match commands with arguments, which is what makes them practical — otherwise a rule would have to enumerate every possible argument list. The problem here is a second command in the chain, not additional arguments to the first.",
+        "D": "Matching only the final element would be worse than matching only the first, since a harmful step could be hidden anywhere earlier in the chain. Every part has to be considered because every part executes."
+      },
+      "concept": "Permission matching operates on what will actually execute, decomposing compound invocations so each component is authorised on its own. An allowance is never a prefix that launders whatever follows it.",
+      "tip": "When a stem describes a surprising refusal for a command that starts with something allowed, look for a second command inside it. The composition, not the rule, is usually the answer."
+    }
+  },
+  {
+    "id": "DPO-A-057",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Effect of a deny rule that names a tool with no specifier",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A deny rule names a tool without any parenthesised specifier. What is the effect?",
+    "options": [
+      { "key": "A", "text": "Only invocations of that tool which themselves carry no arguments are refused; calls with arguments fall through to the remaining rules." },
+      { "key": "B", "text": "The tool is downgraded to always prompting, so the engineer decides case by case rather than the call being refused outright." },
+      { "key": "C", "text": "The denial applies only within the configuration scope where the rule was written, so an allow rule in a different scope reinstates the tool there." },
+      { "key": "D", "text": "All uses of that tool are refused, regardless of arguments, and no allow rule elsewhere reinstates it." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "A specifier narrows a rule to particular uses of a tool; omitting it leaves the rule covering the tool in its entirety. Because deny is evaluated ahead of allow and the merged rule set is what applies, a bare deny takes the tool off the table for the session as a whole. That makes it the bluntest and most reliable instrument available, and the right one when a team's position is that a capability has no legitimate use in this context at all.",
+      "distractors": {
+        "A": "Reading a missing specifier as meaning no arguments would invert the intent: the broadest possible rule would become the narrowest. A specifier restricts what the rule covers, so its absence means the rule covers everything.",
+        "B": "Downgrading to a prompt is what an ask rule does. Deny and ask are separate categories precisely so a team can distinguish between something requiring judgement and something that must not happen.",
+        "C": "Rules from the applicable scopes are merged and then evaluated by category, so a deny is not confined to the file it was written in. If it were, any team could reinstate a denied tool with a local allow rule, and deny would guarantee nothing."
+      },
+      "concept": "Deny with no specifier removes a tool wholesale; deny with a specifier carves a hole in an otherwise permitted tool. Because deny outranks allow across the merged rule set, both forms are reliable in a way that allow rules are not.",
+      "tip": "Reason about specifiers as filters on a rule's reach. No filter means maximum reach, which for a deny means the strongest possible restriction rather than the weakest."
+    }
+  },
+  {
+    "id": "DPO-A-058",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Granting an automated job partial access to an MCP server",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A utility company's incident triage job uses Claude Code non-interactively against an MCP server for its ticketing system. The server exposes tools that read tickets and search history, and also tools that transition a ticket's state and post to customer-visible fields. The triage job must read and summarise only; a customer-visible post from an automated job would be a regulatory notification issue. The ticketing team is not willing to run a second server instance.",
+    "options": [
+      { "key": "A", "text": "Allow the server as a whole and add an instruction to the job's prompt stating that it must only read and must never transition or post to a ticket." },
+      { "key": "B", "text": "Allow the specific read and search tools by name and deny the state-transition and customer-visible tools, so the mutating operations are unreachable from this job." },
+      { "key": "C", "text": "Allow the server as a whole and rely on the ticketing system's own permissions by giving the job's service account read-only rights in that system." },
+      { "key": "D", "text": "Configure the server at a scope the job does not read, so the triage job simply has no connection to the ticketing system and works from an exported snapshot instead." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "MCP tools are addressable individually in permission rules, so the fact that one server exposes both safe and dangerous operations does not force an all-or-nothing decision. Naming the read and search tools in allow rules gives the job exactly the capability its task requires, and denying the mutating tools makes those unreachable regardless of any broader allowance added later — which matters because deny is evaluated first. No second server instance is needed.",
+      "distractors": {
+        "A": "An instruction is not a boundary, and this job runs unattended against a system where one mistaken call becomes a regulatory event. It is also the weakest link in a chain that includes ticket content the model reads, which is untrusted text that may itself contain instructions.",
+        "C": "Server-side authorisation is a genuinely good second layer and should be done as well, but relying on it alone means the client is asking for operations it should never ask for and depending on the far side to refuse. If the service account is ever widened for another consumer, the client-side gap becomes live immediately.",
+        "D": "Working from an exported snapshot abandons the live data the triage job exists to summarise and introduces a staleness problem in an incident workflow. It solves the permission question by removing the capability the job needs."
+      },
+      "concept": "Permission rules address MCP tools individually, so the unit of trust is the operation rather than the server. Grant the operations the task requires, deny the ones that must never occur, and treat server-side authorisation as an independent layer rather than a substitute.",
+      "tip": "When a stem says a second instance is unavailable, it is closing the isolation escape route on purpose so the item tests tool-level permission granularity. Do not spend the option on re-architecting the server."
+    }
+  },
+  {
+    "id": "DPO-A-059",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Delegating a noisy investigation away from the main session",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An engineer at an airline is mid-way through a delicate refactor, with a lot of accumulated reasoning in the session about which call sites have been converted. She now needs to know every place a deprecated currency formatter is referenced across a 400,000-line codebase — an exhaustive search that will read dozens of files and produce far more intermediate output than the answer requires. She does not want to lose the refactor's state.",
+    "options": [
+      { "key": "A", "text": "Delegate the search to a subagent, which does the work in its own context and returns the list of call sites to the current session." },
+      { "key": "B", "text": "Package the search procedure as a skill and invoke it, so the search steps load on demand rather than being described inline." },
+      { "key": "C", "text": "Compact the current session first to free room, then run the search in the same session with the refactor state summarised." },
+      { "key": "D", "text": "Open a second session in a separate terminal to run the search, then paste the resulting list back into the refactor session." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The problem is context pollution, not procedure. A subagent works in its own window, so the dozens of files it reads and the false starts it makes never enter the refactor session, and only its conclusion comes back. The engineer keeps the accumulated state that makes her current session valuable, and the expensive part of the search is paid for somewhere it can be discarded. This is the canonical use of delegation inside Claude Code.",
+      "distractors": {
+        "B": "A skill controls when instructions load, not where work happens. Invoking one still runs the search in the current session, so every file it reads lands in the same context the engineer is trying to protect.",
+        "C": "Compacting to make room deliberately summarises away exactly the state she said she needs, and it does so before adding the very output that caused the pressure. It treats context as a capacity problem when the issue is what belongs in this window at all.",
+        "D": "A separate session works and is what people do without delegation available, but it is manual, loses any shared repository context, and puts the burden of transferring the result on the engineer. Delegation achieves the same isolation without the copy-paste step."
+      },
+      "concept": "Delegate when the work generates far more intermediate material than its answer is worth and the calling session has state worth protecting. The subagent's separate context window is the mechanism; the returned result is the only thing you pay for.",
+      "tip": "Ask what would be in context afterwards under each option. If the expensive intermediate output ends up in the session you care about, the option has not solved the stated problem."
+    }
+  },
+  {
+    "id": "DPO-A-060",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "What a plugin bundles and how a repository adopts one",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "Which TWO statements about Claude Code plugins are correct? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "A plugin must be installed by each engineer individually; a repository has no way to declare which plugins it expects contributors to have." },
+      { "key": "B", "text": "A plugin can bundle subagents, slash commands, skills, hooks, and MCP server definitions together under a single version." },
+      { "key": "C", "text": "Plugins are limited to slash commands, so agents, skills, and hooks must be distributed through some other channel." },
+      { "key": "D", "text": "A repository can declare in its committed settings both the marketplace it draws plugins from and which plugins should be enabled." },
+      { "key": "E", "text": "Enabling a plugin in a repository allows it to override organisational policy for any settings key the plugin defines." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "The plugin format exists to move several kinds of artefact as one versioned unit, which is what makes it the right answer when a platform group has built a coherent toolkit rather than a single command. Adoption is expressed in the repository's own committed settings — naming the source it draws from and the plugins it wants enabled — so cloning the repository is enough for a contributor to receive the intended tooling, and the choice is reviewed like any other change.",
+      "distractors": {
+        "A": "Per-engineer manual installation is exactly the failure mode plugins solve. It produces divergent versions across a team and gives a new contributor nothing from the clone, which is why repository-level declaration exists.",
+        "C": "Restricting plugins to commands would leave the harder distribution problems — hooks, agents, server definitions — unsolved. The value of the format is that these travel together and are versioned together.",
+        "E": "Nothing enabled from within a repository outranks organisational policy. If a plugin could, adopting a plugin would become a way to opt out of company controls, which would make plugins unusable in any governed environment."
+      },
+      "concept": "Plugins are the versioned distribution unit for Claude Code tooling, adopted per repository through committed settings. They sit inside the configuration hierarchy rather than above it, so policy still governs.",
+      "tip": "Distribution questions turn on two axes: what travels together, and who declares adoption. Options that make a plugin either narrower than it is or more powerful than the policy layer are the standard wrong pair."
+    }
+  },
+  {
+    "id": "DPO-A-061",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Reconstructing the configuration that governed a past change",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A retail bank's regulator asks a question about a change merged eight months ago: what controls were in force on the assistant that helped produce it, and could it have read the customer data fixtures at that time? The team can produce the pull request and the reviewers, but their answer about configuration is that they believe the rules were the same as today. The head of engineering wants to be able to answer this precisely for future enquiries.",
+    "options": [
+      { "key": "A", "text": "Begin retaining full session transcripts for seven years in the compliance archive, so a future enquiry can be answered by reading what the assistant actually did during the work." },
+      { "key": "B", "text": "Have each engineer record, in the pull request description, which permission rules and hooks were active on their machine when they made the change." },
+      { "key": "C", "text": "Turn on verbose diagnostic output across the fleet and ship it to the central log platform, so configuration details appear in the logs from now on." },
+      { "key": "D", "text": "Keep the governing configuration in version control alongside the code — settings, hook scripts, agent and skill definitions, and pinned versions of shared tooling." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The regulator asked what was permitted, not what happened, and only the configuration answers that. Holding it in the same repository as the code means the answer for any past commit is already recorded: check out that commit and the rules in force are there, reviewed and dated, with the shared tooling versions pinned so the picture is complete. It costs nothing extra to retain and it produces a defensible answer rather than a belief.",
+      "distractors": {
+        "A": "Transcripts show what the assistant did, which is valuable but different. They cannot establish that something was impossible, since the absence of an action in one transcript says nothing about what the rules would have allowed.",
+        "B": "Self-reported configuration is the weakest possible evidence: it is manual, unverified, recorded by the party being examined, and likely to be copied forward unchanged. It also imposes a step on every pull request that most engineers will complete inattentively.",
+        "C": "Diagnostic logging is forward-looking and answers nothing about eight months ago. Shipping verbose output fleet-wide also generates a large volume of material in which the configuration question would be difficult to answer precisely."
+      },
+      "concept": "Treat Claude Code configuration as code. When the governing rules live in version control with the software they govern, the question of what was permitted at any point in the past is answered by history rather than by recollection or by retained output.",
+      "tip": "Distinguish evidence of behaviour from evidence of control. Regulators usually ask the second, and options that offer richer records of the first are the most attractive wrong answers."
+    }
+  },
+  {
+    "id": "DPO-A-062",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Promoting a personal subagent into team-shared configuration",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An engineer at a hotel booking company built a subagent in her personal configuration that plans database migrations against their unusual schema conventions. It works well, three teammates asked for it, and she sent them the file. Two of them have since edited their copies, and a fourth engineer is now getting different advice from what everyone assumed was the same agent. The team wants one version that everyone gets, including new joiners.",
+    "options": [
+      { "key": "A", "text": "Publish the definition on the team wiki as the canonical version and ask the two engineers who edited their copies to reconcile their changes against it." },
+      { "key": "B", "text": "Distribute the definition through organisational policy so every engineer receives an identical copy that cannot be altered locally." },
+      { "key": "C", "text": "Commit the definition to the repository's agents directory, where it is reviewed like code and takes precedence over the personal copies teammates still have." },
+      { "key": "D", "text": "Have the author keep ownership of the definition and send an updated file to the team whenever she improves it, with a version number in the filename." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Moving the definition into the repository solves both halves of the problem at once. Everyone who clones gets it, including the new joiners the team is worried about, and improvements go through review rather than through a chat message. The precedence rule does the cleanup: a project-scoped definition wins over a personal one of the same name, so the divergent copies two engineers are still carrying stop taking effect in this repository without anyone having to chase them.",
+      "distractors": {
+        "A": "A wiki page is documentation of a definition, not the definition. Nothing loads it, reconciliation depends on two people finding time, and the fourth engineer still has whatever they were sent originally.",
+        "B": "Organisational policy is for controls that must not be declined. A helpful migration agent is a capability, not a mandate, and pushing it to every engineer in the company — most of whom do not touch this schema — is disproportionate and unwelcome.",
+        "D": "Versioned filenames circulated by the author reproduce the current situation with better labelling. It keeps distribution manual, keeps improvements outside review, and makes the team dependent on one person being available."
+      },
+      "concept": "The path from a personal experiment to team capability runs through the repository: commit the definition where it is reviewed, versioned, and inherited by every clone. Project scope also wins over personal definitions of the same name, which retires the divergent copies.",
+      "tip": "When a stem describes copies diverging, the answer establishes a single loaded source rather than a single documented one. Check whether the winning option actually causes the old copies to stop applying."
+    }
+  },
+  {
+    "id": "DPO-A-063",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Keeping credentials out of a committed MCP configuration",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A team's MCP server definition is committed at project scope and the server requires a per-developer token. How should the token be handled?",
+    "options": [
+      { "key": "A", "text": "Reference an environment variable in the committed configuration, so each machine supplies its own value at run time." },
+      { "key": "B", "text": "Commit the token encrypted and have a start-up step decrypt it, so the committed file never contains a readable secret." },
+      { "key": "C", "text": "Commit a shared team token and restrict access to the repository, so the credential is protected by the repository's own permissions." },
+      { "key": "D", "text": "Have each developer copy the committed definition into their personal configuration and add their token to their private copy." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The committed file should describe how to reach the server, not who is reaching it. Referencing an environment variable keeps the definition identical for everyone while the credential stays on the machine that owns it, which is what allows one reviewed definition to serve the whole team. It also means the file remains safe if the repository is forked, mirrored, or made public.",
+      "distractors": {
+        "B": "This puts ciphertext in history permanently and introduces a second secret to manage, the decryption key. It also does nothing about the stem's actual requirement, which is that each developer has a different token rather than sharing one.",
+        "C": "Repository access controls are not credential controls: everyone with a clone has the secret, forks and mirrors carry it, and rotation means a commit. A shared token also destroys per-developer attribution on the far side.",
+        "D": "Personal copies immediately begin to diverge from the committed definition, so a change to the endpoint or arguments no longer reaches anyone. It solves the secret problem by abandoning the shared configuration."
+      },
+      "concept": "Shared configuration describes the connection; the environment supplies the credential. Committing anything derived from a secret — plaintext or encrypted — puts it in history permanently and makes rotation a code change.",
+      "tip": "Any option that places a secret in version control is wrong regardless of how it is protected, because history is forever. Look for the one that separates the definition from the value."
+    }
+  },
+  {
+    "id": "DPO-A-064",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Configuring one repository with mixed sensitivity zones",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A fintech's monorepo contains both a marketing site and the card-authorisation service, which is in PCI scope and subject to much stricter handling rules. Splitting the repository has been rejected on delivery grounds. Which TWO decisions correctly shape the Claude Code configuration? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Split the monorepo after all, since a single configuration cannot express different rules for different parts of one tree." },
+      { "key": "B", "text": "Keep repository-wide conventions in the root memory file and put the card-authorisation handling rules in a memory file inside that service's directory." },
+      { "key": "C", "text": "Rely on memory scope to limit access, since a session working in the marketing subtree will not reach the card-authorisation subtree." },
+      { "key": "D", "text": "Give each team a personal settings file encoding its own restrictions, so the rules follow the engineer rather than the part of the tree being worked on." },
+      { "key": "E", "text": "Express the card-authorisation restrictions as path-scoped deny rules, which apply wherever in the tree the session happens to be working." }
+    ],
+    "correct": ["B", "E"],
+    "explanation": {
+      "correct": "The two mechanisms do different jobs and both are needed. Memory placed in the service's directory delivers guidance conditionally, so engineers working on the card service get its handling rules without every marketing-site session paying for them. Path-scoped deny rules deliver enforcement unconditionally, so the protected paths stay protected no matter which part of the tree the session started in or wandered into. Guidance follows the work; enforcement follows the paths.",
+      "distractors": {
+        "A": "The stem states the split has been rejected, so this discards the constraint rather than working within it. It is also unnecessary: path-scoped rules and directory-scoped memory address mixed sensitivity inside one tree directly.",
+        "C": "Memory scope determines which guidance loads, not which files can be opened. A session opened in the marketing subtree can read across the repository unless permission rules say otherwise, and assuming otherwise is how a control gap goes unnoticed.",
+        "D": "Attaching restrictions to people means an engineer who moves between teams carries the wrong posture, and a contractor with no personal configuration gets nothing. Sensitivity is a property of the code, so the rules should attach to the paths."
+      },
+      "concept": "In a mixed-sensitivity repository, separate the two axes: memory is scoped by directory and shapes behaviour where work happens, while permission rules are scoped by path and constrain access wherever the session is. Do not use one to do the other's job.",
+      "tip": "Watch for the option that quietly assumes memory scope is an access boundary. It is the most common conceptual error in monorepo configuration items and it reads as reasonable."
+    }
+  },
+  {
+    "id": "DPO-A-065",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Bounding a Claude Code step invoked from a local git hook",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An analytics team wired a non-interactive Claude Code call into their local pre-push hook to summarise the outgoing diff for the pull request description. It usually takes 15 seconds. Twice it has run for several minutes and blocked the push entirely, once when the engineer was offline. The team values the local convenience and their CI already runs the same summary as an authoritative step.",
+    "options": [
+      { "key": "A", "text": "Remove the local call, since CI already produces the summary and duplicating it locally adds a failure mode without adding value." },
+      { "key": "B", "text": "Keep it unbounded but run it in the background and attach the summary to the pull request when it eventually finishes, so the push is never delayed." },
+      { "key": "C", "text": "Make the push depend on the summary succeeding, so an engineer cannot push work whose description was not generated, and raise the timeout to accommodate slow runs." },
+      { "key": "D", "text": "Bound the call with a short timeout and a turn limit, and have the hook allow the push to proceed when the call does not complete or cannot reach the network." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "A convenience that can block a push has been promoted to a gate by accident, and the offline incident shows the cost. Bounding the call caps its worst case, and letting the push proceed on timeout or failure returns it to the role the team actually wants — a helpful default that never stands between an engineer and their work. This is safe specifically because CI runs the authoritative version, so nothing depends on the local attempt succeeding.",
+      "distractors": {
+        "A": "Removing it discards value the team explicitly says it wants, and the local run is what makes the description useful before review rather than after. The failure mode is a configuration problem with a straightforward fix, not an argument against the idea.",
+        "B": "Backgrounding avoids the delay but produces a summary that arrives at an unpredictable time and may reference a diff that has since changed. It also leaves the run unbounded, so a stuck process persists silently on the engineer's machine.",
+        "C": "This does the opposite of what the situation calls for: it makes a best-effort aid mandatory, so an offline engineer or a slow run now cannot push at all. Raising the timeout lengthens the block rather than removing it."
+      },
+      "concept": "Decide whether an automated step is a gate or an aid, and configure its failure behaviour to match. Aids are bounded and fail open; gates fail closed and belong where their failure is visible and owned, which is usually CI rather than a developer's machine.",
+      "tip": "Note where the authoritative check already runs. When CI owns correctness, the local copy should be cheap and non-blocking, and any option that strengthens the local one into a gate is the trap."
+    }
+  },
+  {
+    "id": "DPO-A-066",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "How permissions and sandboxing divide responsibility",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "How do permission rules and operating-system sandboxing divide responsibility in Claude Code?",
+    "options": [
+      { "key": "A", "text": "Sandboxing supersedes permission rules where both are configured, since operating-system enforcement is stronger and the two would otherwise conflict on every call." },
+      { "key": "B", "text": "Permission rules are advisory guidance to the model about which tools to prefer, while sandboxing is the only mechanism that actually refuses anything." },
+      { "key": "C", "text": "Permission rules decide which tool calls may be made at all, while sandboxing constrains what a command that was permitted can reach on the filesystem and the network." },
+      { "key": "D", "text": "Permission rules govern local tools and sandboxing governs MCP servers, so the two apply to disjoint categories and never interact." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The two layers answer different questions. Permission rules are evaluated against a proposed call and decide whether it happens; the sandbox governs the process once it is running and decides what that process can touch. Both are needed because each has a blind spot: a permitted command can still do more than intended, and a sandbox does not know which operations a team considers acceptable in the first place.",
+      "distractors": {
+        "A": "Neither layer supersedes the other, because they do not overlap in what they decide. A call blocked by a rule never reaches the sandbox, and a call the rules permit is still subject to whatever the sandbox allows the resulting process to do.",
+        "B": "Permission rules are enforced by the client, not suggested to the model. Treating them as guidance would mean every allow and deny list a team maintains is decorative, which would make the whole configuration hierarchy pointless.",
+        "D": "Both layers apply across the tool surface. MCP tool calls are subject to permission rules like any other, and sandboxing is about the execution environment of local commands rather than a category of server."
+      },
+      "concept": "Permissions gate the call; the sandbox bounds the consequences of a call that was allowed. Defence in depth here means assuming each layer will occasionally be too permissive and letting the other catch it.",
+      "tip": "If two controls are described as alternatives, check whether they actually operate at the same point. Layers that act before and after execution are complements, and items offering a choice between them are usually wrong."
+    }
+  },
+  {
+    "id": "DPO-A-067",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Reducing prompt fatigue without widening the tool surface",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A 15-person team at a scooter-hire company reports approving roughly 40 prompts a day each, almost all for the same handful of build, test, lint, and package-manager commands. Approval has become reflexive, and last week someone approved a command that removed an untracked configuration directory. The lead has a week to change this and is not willing to reduce the team's real protection.",
+    "options": [
+      { "key": "A", "text": "Allow the shell tool as a whole for this repository and rely on the deny rules already covering the most destructive commands to catch anything dangerous." },
+      { "key": "B", "text": "Enumerate the repository's build, test, lint, and package-manager commands as allow rules in the committed settings, keep destructive commands denied, and leave the rest prompting." },
+      { "key": "C", "text": "Switch the team's default to the mode that automatically accepts file edits, which removes the largest single source of interruption in the day without touching command execution at all." },
+      { "key": "D", "text": "Run a one-week trial with prompting disabled, measure whether anything harmful occurs, and then decide how much protection the team genuinely needs." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Reflexive approval is a symptom of prompting on things that were never in question, and the cure is to answer those questions once, in a reviewed file, rather than 40 times a day each. Enumerating the repository's own commands removes almost all the volume while leaving the prompt meaningful for anything unfamiliar — which is what would have caught last week's incident. Keeping deny in place means the narrowing cannot be undone by a later convenience allowance.",
+      "distractors": {
+        "A": "Allowing shell execution wholesale grants everything except what a denylist happens to anticipate, and last week's incident was a command nobody had anticipated. Denylists work as a backstop under an allowlist and fail as a primary control.",
+        "C": "Auto-accepting edits addresses a source of interruption the stem does not report. The prompts described are for commands, so this leaves the fatigue almost untouched while relaxing a different control for no stated reason.",
+        "D": "Running unprotected to gather evidence accepts the full risk for a week in order to learn something the incident already demonstrated. Absence of harm over five days would also be weak evidence, and the trial has no defined stopping condition if something does go wrong."
+      },
+      "concept": "Prompt fatigue is a configuration defect, not a discipline problem. Pre-authorise the known, repeated, repository-specific operations so the remaining prompts are rare enough to be read, and keep the destructive set denied so the allowlist cannot creep.",
+      "tip": "When a stem reports reflexive approval plus one bad approval, the answer restores signal to the prompt. Options that reduce prompting by widening the surface make the next bad approval likelier, not less likely."
+    }
+  },
+  {
+    "id": "DPO-A-068",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Bootstrapping guidance for an unfamiliar acquired codebase",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A logistics group has acquired a smaller company and inherited a 12-year-old codebase with two remaining maintainers and almost no documentation. Six engineers are being onboarded onto it next month and will use Claude Code from day one. The group wants useful repository guidance in place before they arrive, without waiting for anyone to spend a month reading the code.",
+    "options": [
+      { "key": "A", "text": "Use the initialisation command to generate a first-draft memory file from the codebase, then have the two maintainers prune and correct it before it is committed." },
+      { "key": "B", "text": "Wait until the six engineers have worked in the codebase for a month, then have them write the memory file from what they learned, so it reflects real difficulties rather than a machine's summary." },
+      { "key": "C", "text": "Copy the memory file from the group's most architecturally similar codebase and adjust the obviously wrong parts, so the six engineers start with familiar conventions." },
+      { "key": "D", "text": "Skip repository guidance for now, since an inaccurate memory file is worse than none and the codebase is not yet understood well enough to describe." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Generating a draft turns the expensive part — surveying an unfamiliar codebase — into something that happens in minutes, and it produces a concrete artefact the two maintainers can react to. Reviewing and cutting a draft is a far smaller ask of two busy people than authoring from a blank page, and it is where their scarce knowledge adds the most value. The result is committed before the new engineers arrive, which is the constraint the group actually has.",
+      "distractors": {
+        "B": "This delays guidance past the exact month in which six unfamiliar engineers most need it. Their early confusion is a real signal worth capturing later, but using it as the only input means the onboarding period runs with nothing in place.",
+        "C": "Guidance from a different codebase is confidently wrong in ways that are hard to detect, because it reads plausibly and describes conventions the new engineers will then assume apply. An inherited codebase's value is precisely in where it differs.",
+        "D": "Doing nothing wastes the one asset that expires — the two maintainers, who may not stay. It also leaves each of the six engineers to rediscover the same non-obvious facts independently, which is more total error than a reviewed draft would contain."
+      },
+      "concept": "Bootstrapping repository guidance is a review problem, not an authoring problem. Generate a draft from the code, then spend expert attention on correction and pruning, which is cheaper and produces a better result than either writing from scratch or importing from elsewhere.",
+      "tip": "Note which resource is scarce. Here it is maintainer attention, so the correct option is the one that spends the least of it while still putting a human between the draft and the commit."
+    }
+  },
+  {
+    "id": "DPO-A-069",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Auditing which hooks are active and where they came from",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Before working in an unfamiliar repository, an engineer wants to know what hooks will run in the session. What does the hooks view give them?",
+    "options": [
+      { "key": "A", "text": "It executes each configured hook once against a sample event so the engineer can observe what each one actually does before starting work." },
+      { "key": "B", "text": "It lists only the hooks defined by this repository, since hooks from personal and organisational configuration are managed separately and shown elsewhere." },
+      { "key": "C", "text": "It shows which hooks are configured for each event and which configuration source supplied each one." },
+      { "key": "D", "text": "It is the only place hooks can be defined, so what it shows is by definition everything that will run in the session." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The value of the view is visibility across the whole merged configuration: which events have hooks attached, what they will run, and — critically — where each one came from. Provenance is the part that matters when opening unfamiliar code, because a hook contributed by the repository is untrusted input in a way that a hook from the engineer's own settings is not. Being able to see that distinction before starting work is the point of checking.",
+      "distractors": {
+        "A": "Running hooks to inspect them would execute the very commands the engineer is trying to evaluate first. For an unfamiliar repository that inverts the safety property entirely, since the risk being assessed is what those commands do.",
+        "B": "A partial view would be actively misleading, because the engineer would form a picture of the session's behaviour that omits contributions from other sources. The merged set is what actually runs, so the merged set is what needs to be visible.",
+        "D": "Hooks are defined in configuration files at several scopes, and a plugin or organisational policy can contribute them too. Treating any single interface as the sole definition point would give a false sense of completeness."
+      },
+      "concept": "Hooks execute real commands with the user's privileges, so knowing which are active and which source contributed each is a basic safety check when entering unfamiliar code. Provenance matters as much as content.",
+      "tip": "Recall items about inspection interfaces usually include one option that would execute the thing being inspected. In a security context that option is always wrong."
+    }
+  },
+  {
+    "id": "DPO-A-070",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Recovering from a shared tooling update that broke every team",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A conglomerate's platform group publishes a shared Claude Code toolkit that twelve product teams have adopted. Publication is already gated on a test suite that exercises every hook, agent and command against a fresh checkout. On Tuesday they published an update that changed a hook's behaviour in a way the suite did not cover, and by mid-morning all twelve teams were blocked on the same failure. The immediate cause is understood, a corrected version is ready, and the affected teams have been unblocked. The head of platform engineering wants to know what changes so this cannot recur at this scale.",
+    "options": [
+      { "key": "A", "text": "Extend the existing pre-publication suite until it covers the hook behaviour that slipped through, so a defect of this kind is caught upstream in future." },
+      { "key": "B", "text": "Have each adopting team disable the toolkit's hooks locally when a problem occurs, and publish a documented procedure so they can do it within minutes." },
+      { "key": "C", "text": "Withdraw the shared toolkit and let each product team own its own copy of the artefacts, so a single publication can never affect twelve teams simultaneously." },
+      { "key": "D", "text": "Change adoption so that each repository moves to a new version deliberately rather than automatically, with one team taking each release first." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The defect was ordinary; the simultaneity was the failure. Twelve teams took a new version at the same moment because adoption was automatic, so the blast radius of any mistake is the entire estate. Making version movement a deliberate act per repository, with one team ahead of the others, converts a fleet-wide outage into a single team's bad morning — which is the property the head of engineering is actually asking for. The corrected version and the fresh-checkout suite both belong in the picture, but neither of them is the thing that has to change.",
+      "distractors": {
+        "A": "Closing the specific gap is worth doing and the platform group should do it. But the suite was already there and the defect shipped anyway, which is the general case: no suite catches everything, and this answer leaves the estate configured so that whatever the next one misses lands on all twelve teams at once. It improves the odds rather than the consequences.",
+        "B": "A documented workaround is a runbook for the outage recurring. It also puts twelve teams in the position of disabling controls under time pressure, which is how a temporary mitigation becomes a permanent gap.",
+        "C": "Dissolving the shared toolkit trades the shared failure mode for twelve divergent copies and no central improvement path — the exact problem the toolkit was built to solve. It is an overcorrection that discards the benefit along with the risk."
+      },
+      "concept": "Shared tooling needs staged adoption. When every consumer takes a new version automatically, the publisher's defect rate becomes the estate's outage rate; deliberate version movement with a canary consumer bounds the consequence of any single mistake.",
+      "tip": "When a stem emphasises how many teams were hit at once, the question is about blast radius rather than about the bug. Options that only reduce the chance of a defect are answering a different question."
+    }
+  },
+  {
+    "id": "DPO-A-071",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Narrowing an over-broad allow rule found in committed settings",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "During a review at a healthcare analytics company, an engineer notices that the repository's committed settings contain an allow rule granting the shell tool with no restriction. Version history shows it was added 14 months ago by someone who has left, with the commit message \"stop the constant prompting\". The team of 20 has been working under it since, with no known incident.",
+    "options": [
+      { "key": "A", "text": "Remove the rule immediately, since it is plainly over-broad, and let the team re-add specific allowances as they encounter prompts over the following days." },
+      { "key": "B", "text": "Determine which commands the team actually runs, replace the blanket rule with allowances covering those, and land the narrowing as one reviewed change." },
+      { "key": "C", "text": "Leave the rule in place and add deny rules for the destructive commands the team can think of, which addresses the real risk without disrupting anyone's workflow." },
+      { "key": "D", "text": "Escalate to the security group to have shell execution restricted through organisational policy, since the repository clearly cannot be trusted to manage its own permissions." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The rule exists because prompting was intolerable, and removing it without addressing that will reproduce the original pressure and, most likely, the original fix. Establishing what the team genuinely runs turns the blanket allowance into a specific one that covers real work, and landing it as a single reviewed change means the team experiences a narrowing rather than a fortnight of new interruptions. That is what makes the improvement stick.",
+      "distractors": {
+        "A": "Immediate removal is correct in direction and wrong in method. Twenty engineers hit unfamiliar prompts with no preparation, someone reinstates a broad rule within a week, and the team learns that security review makes their work harder.",
+        "C": "Layering a denylist under an unrestricted allowance protects only against the commands someone remembered to list. The gap is everything nobody thought of, which is precisely the category that causes incidents.",
+        "D": "Organisational policy is for controls that must not be declined, not for correcting one repository's configuration debt. Escalating also removes the team's ability to maintain its own allowances and frames a fixable oversight as an accountability failure."
+      },
+      "concept": "Narrowing an over-broad permission is a migration, not a deletion. Learn what the current breadth is actually being used for, replace it with allowances that cover that, and change it once — otherwise the pressure that created the breadth simply recreates it.",
+      "tip": "The phrase no known incident is not reassurance and not a reason to rush. Next-step items about permission debt reward the option that removes the breadth without recreating the condition that produced it."
+    }
+  },
+  {
+    "id": "DPO-A-072",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Making a team's Claude Code setup defensible under review",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "An internal audit function is reviewing how a 200-engineer organisation governs Claude Code. Which THREE properties should the setup have to withstand that review? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "Controls that must not be declined are expressed in organisation-managed policy rather than in files inside the repositories they govern." },
+      { "key": "B", "text": "Every engineer signs an annual attestation confirming they have not weakened their local configuration." },
+      { "key": "C", "text": "Repository configuration is committed, so the rules in force at any past commit can be reconstructed from version history." },
+      { "key": "D", "text": "Approval prompting is enabled for every tool everywhere, since a human confirming each action is the strongest evidence of control that can be produced." },
+      { "key": "E", "text": "Activity from automated runs is retained where a reviewer can reconstruct what a given run did." }
+    ],
+    "correct": ["A", "C", "E"],
+    "explanation": {
+      "correct": "A defensible setup answers three questions. What could not be done, and who guaranteed it — which requires the mandatory controls to sit where the governed party cannot edit them. What were the rules at the time — which requires configuration in version history rather than in recollection. And what actually happened where nobody was watching — which requires retained records of automated runs, since those are the sessions with no human account of them. Together these cover authority, provenance, and evidence.",
+      "distractors": {
+        "B": "An attestation is a signature about a technical fact that can be established technically. Auditors discount self-reported compliance where enforcement is available, and it does nothing for the 364 days between signatures.",
+        "D": "Universal prompting produces approval fatigue, which degrades the quality of every approval and makes the record of them evidence of clicking rather than of judgement. It also cannot apply to automated runs at all, which is where the review pressure is greatest."
+      },
+      "concept": "Auditability rests on enforcement placed beyond the governed party's reach, configuration recoverable from history, and retained evidence of what unattended runs did. Attestations and blanket prompting substitute human effort for mechanism and satisfy neither the auditor nor the engineers.",
+      "tip": "Three-key items reward a coverage check: authority, provenance, evidence. If two of your picks answer the same question, one of them is probably displacing the property you have not covered yet."
+    }
+  }
+]

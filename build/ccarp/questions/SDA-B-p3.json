@@ -1,0 +1,454 @@
+[
+  {
+    "id": "SDA-B-037",
+    "domain": "Solution Design & Architecture",
+    "topic": "Choosing fan-out width from the input rather than a constant",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A market-research firm analyses open-ended survey verbatims with a fixed fan-out of five subagents on every study, chosen because five looked balanced during the prototype. On a 40-response pilot each branch sees eight comments and reports themes that are really noise. On an 8,000-response tracker each branch is overloaded and returns shallow summaries. Analysts also complain that themes cutting across branches are missed in both cases. What should the design do?",
+    "options": [
+      { "key": "A", "text": "Keep five branches and move them to a higher-capability tier with extended thinking, so each handles its share of verbatims better." },
+      { "key": "B", "text": "Raise the fixed fan-out to twenty branches, sized for the 8,000-response trackers that are the largest studies the firm runs." },
+      { "key": "C", "text": "Derive the branch count from the corpus, targeting a context load per branch, and add a consolidation stage to surface cross-cutting themes." },
+      { "key": "D", "text": "Abandon the fan-out and analyse every study in a single agent, since theme identification is inherently a whole-corpus judgement." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Constant fan-out ties the shape of the computation to a number that has nothing to do with the input, so it is wrong at both ends of the range. Sizing branches from the corpus keeps each branch's context load in the band where it performs well whatever the study size. The consolidation stage addresses the separate complaint: cross-cutting themes are invisible from inside any single branch by construction, so they need a step that sees all branch outputs at once — which is cheap, because branch outputs are small.",
+      "distractors": {
+        "A": "A stronger model on eight comments still has only eight comments, and on 1,600 comments it still has too much. Tier changes the quality of reasoning over a context; they do not change how much context the branch was handed.",
+        "B": "Twenty is a different constant with the same defect. It makes the small-study case dramatically worse — a handful of comments per branch — while paying twenty coordination overheads on every study regardless of size.",
+        "D": "This is right about theme identification being a whole-corpus concern and wrong about the remedy. At 8,000 verbatims a single window cannot hold the corpus, which is why the fan-out exists; the whole-corpus view is recovered at consolidation, not by refusing to split."
+      },
+      "concept": "Fan-out width is a function of the input, not a configuration constant. Partition on a unit that means something in the domain, size each branch to a target context load, and recover any cross-branch property in a consolidation step over the small branch outputs.",
+      "tip": "When a stem shows the same design failing at both extremes of input size, the defect is that something fixed should be dynamic. Look for the option that makes the parameter follow the data."
+    }
+  },
+  {
+    "id": "SDA-B-038",
+    "domain": "Solution Design & Architecture",
+    "topic": "Why a subagent cannot see the caller's earlier reasoning",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An orchestrator established several constraints early in its conversation, then delegated a supplier-certification check to a subagent. The subagent's work ignored those constraints. Why?",
+    "options": [
+      { "key": "A", "text": "Constraints stated in a system prompt stop applying once the model begins a tool-calling loop of its own." },
+      { "key": "B", "text": "The subagent runs in a separate context holding only what the handoff carried, so anything not in the brief is not there." },
+      { "key": "C", "text": "Instructions decay in influence as a conversation lengthens, and this delegation happened late in a long orchestrator run." },
+      { "key": "D", "text": "The subagent's smaller context window forced the earliest constraints to be dropped first when its request was assembled." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Isolation is total in both directions. The subagent is a new conversation whose entire world is the brief it was given, so a constraint that lives in the caller's history has no path into the callee's reasoning. This is the cost side of the pattern that the benefit side is usually quoted for: you buy a clean window and you pay by having to state explicitly everything the callee needs. Constraints that must hold across every branch belong in the handoff template rather than in the orchestrator's narrative.",
+      "distractors": {
+        "A": "Nothing about tool use suspends the instructions in a request. The constraints were never present in the subagent's request at all, which is a different and more basic problem.",
+        "C": "Long-context attenuation is a real phenomenon and the wrong explanation here. The constraints were not weakly attended to in the subagent's window; they were absent from it.",
+        "D": "No truncation occurred. The subagent's request was assembled from the handoff, so there was nothing older to drop."
+      },
+      "concept": "A handoff is the entire interface. Whatever a subagent needs — constraints, definitions, prohibitions, the output contract — must appear in the brief, and cross-cutting rules should be templated into every brief rather than assumed to be inherited from the caller.",
+      "tip": "Watch for distractors that explain a missing-context failure with a degradation mechanism. If the information was never in the request, attention and truncation explanations are both wrong."
+    }
+  },
+  {
+    "id": "SDA-B-039",
+    "domain": "Solution Design & Architecture",
+    "topic": "Removing relay-only layers from an agent hierarchy",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A defence maintenance provider runs a four-level agent hierarchy for fleet-readiness reporting: a root agent, three regional coordinator agents, and nine depot agents. The coordinators make no decisions — each forwards the root's brief to its depots and concatenates and shortens their returns. Engineers report that findings arriving at the root have lost the specifics needed to raise a work order, and cost per report is high. What should the architect change?",
+    "options": [
+      { "key": "A", "text": "Remove the coordinator layer and have the root delegate directly to the nine depots, adding a middle layer back only if it owns a decision." },
+      { "key": "B", "text": "Keep the coordinators but instruct them to relay depot returns verbatim, so no operationally important detail is lost on the way up to the root." },
+      { "key": "C", "text": "Move the coordinators to a higher-capability tier so their shortening preserves the part numbers and fault codes a work order needs." },
+      { "key": "D", "text": "Add a validation layer beneath the depots that checks each depot's findings against the maintenance log before they pass upward." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Any layer that neither decides anything nor reduces context in a useful way is pure overhead, and here it is actively harmful: every relayed summary is a lossy re-encoding, so the root reads third-hand findings. Deleting it removes two costs — the coordinators' tokens and the fidelity loss — and nine returns are well within what a root can aggregate. The conditional in the answer matters: hierarchy is worth reintroducing the moment an intermediate node owns a genuine decision, because then the summarisation it performs is a judgement rather than a relay.",
+      "distractors": {
+        "B": "Verbatim relay makes the coordinators cost without function: the same tokens pass through an extra model call in each direction, adding latency and spend while contributing nothing the root could not have received directly.",
+        "C": "A better summariser loses less, but it still loses, and it still costs. Paying more for a layer whose best possible behaviour is to approximate its own absence is the wrong direction.",
+        "D": "Another layer compounds both problems the stem describes. Validation is worth adding where findings are unreliable; the complaint here is lost specificity in transit, which more hops make worse."
+      },
+      "concept": "Every layer in an agent hierarchy must justify itself with a decision it owns or a context reduction the layer above genuinely needs. Relay-only tiers add latency, cost and information loss. Flatten by default and add depth only where a node has authority over its subtree.",
+      "tip": "If you can describe a component's behaviour as \"passes things along, slightly smaller\", it is overhead. Deleting a component is a legitimate exam answer and is under-selected under time pressure."
+    }
+  },
+  {
+    "id": "SDA-B-040",
+    "domain": "Solution Design & Architecture",
+    "topic": "Carrying prior attempts into a retried handoff",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A SaaS provider's incident-response system delegates root-cause investigation to a diagnostic subagent. When the subagent returns \"cause not determined\", the orchestrator re-delegates with the identical brief, up to three times. Traces show all three attempts following the same path to the same dead end, tripling the time to a human escalation during live incidents. The subagent's tooling and the underlying data are working correctly. What should change?",
+    "options": [
+      { "key": "A", "text": "Increase the retry count from three to six so the investigation eventually diverges onto a different path." },
+      { "key": "B", "text": "Raise the subagent's sampling temperature on each successive retry so the attempts explore different hypotheses." },
+      { "key": "C", "text": "Escalate to a human responder on the first inconclusive return, since retrying an inconclusive investigation adds no new information." },
+      { "key": "D", "text": "Include prior attempts in the retry brief — hypotheses tested and what each ruled out — so the next starts where the last stopped." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Because each attempt runs in a fresh context, an identical brief is a genuinely identical task, and a mostly deterministic process will walk the same path. Carrying negative results forward turns three independent attempts into one search with three stages: each retry inherits the eliminated hypotheses and must look elsewhere. The distinction to hold onto is that blind retry with an unchanged brief is only valid for transient infrastructure failures, where nothing about the task has been learned. Here the stem rules that out by saying the tooling and data are fine.",
+      "distractors": {
+        "A": "More identical attempts produce more identical results and lengthen the incident. Retry count is the right lever for flaky dependencies and does nothing for a deterministic dead end.",
+        "B": "Randomising the search makes divergence possible without making it productive, and it degrades the precision of the diagnostic queries. Variation is not the same as informed exploration.",
+        "C": "Escalating immediately is defensible for the most severe incidents but discards the value retries can add once they are informed. It also puts more load on responders for cases the system could still resolve."
+      },
+      "concept": "A retry is only useful if something in the request has changed. For transient failures the change is time; for reasoning failures it must be information — specifically the record of what was already tried and ruled out. Design briefs so negative results are first-class and can be carried forward.",
+      "tip": "When a stem confirms that infrastructure is healthy, it is telling you the retry is a reasoning retry. Reasoning retries need new inputs, not more attempts or more randomness."
+    }
+  },
+  {
+    "id": "SDA-B-041",
+    "domain": "Solution Design & Architecture",
+    "topic": "Consequences of context isolation between caller and callee",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "Which THREE statements are true of the isolation between an orchestrator and a subagent it invokes? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "The subagent starts from a copy of the caller's context window, so anything the caller had already loaded is available to the branch without being restated." },
+      { "key": "B", "text": "Material the subagent read is unavailable to the caller unless it was deliberately returned or persisted somewhere the caller can reach." },
+      { "key": "C", "text": "Constraints the caller established earlier in its conversation are invisible to the subagent unless the handoff carries them." },
+      { "key": "D", "text": "Caller and subagent draw on a single shared context window, so a long branch reduces the caller's remaining headroom." },
+      { "key": "E", "text": "An instruction embedded in content the subagent read can influence the caller only if it reaches the caller through the returned result." }
+    ],
+    "correct": ["B", "C", "E"],
+    "explanation": {
+      "correct": "Isolation means the two conversations share nothing except the handoff and the return, and the three true statements are simply that fact viewed from three directions. Looking upward: what the branch read is gone unless returned or persisted, which is why audit obligations force external capture. Looking downward: the brief is the whole world, so cross-cutting rules must be templated into it. Looking at trust: the return is the only channel by which anything the branch encountered can affect the caller, which is what makes a narrow, schema-validated return such an effective containment point.",
+      "distractors": {
+        "A": "Nothing is copied across at invocation. The branch starts from the brief it is handed plus whatever it fetches for itself, which is why a handoff that omits a document leaves the subagent unable to see it even though the caller has it loaded.",
+        "D": "Separate windows are the entire point of the pattern. If they were shared, a branch reading a large corpus would consume the caller's headroom and the isolation would deliver nothing."
+      },
+      "concept": "Treat the handoff and the return as the only two openings between agents. Everything else — history, constraints, evidence, injected instructions — is on one side or the other. Design decisions about auditability, safety and brief completeness all follow from taking that boundary literally.",
+      "tip": "Multi-select recall on isolation usually plants one inheritance claim and one shared-resource claim as the false pair. If an option implies anything flows between agents other than the brief and the result, it is the false one."
+    }
+  },
+  {
+    "id": "SDA-B-042",
+    "domain": "Solution Design & Architecture",
+    "topic": "Treating a subagent return as data rather than instruction",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An online travel agency's refund assistant delegates to a subagent that reads and summarises customer-submitted review text for a property. The summary is appended into the orchestrator's context. A review containing text addressed to the assistant caused the orchestrator to skip its usual eligibility check and recommend a full refund. The summarisation step must stay. What is the correct change?",
+    "options": [
+      { "key": "A", "text": "Instruct the subagent to strip imperative sentences and any text addressed to an assistant from the review before it summarises the rest." },
+      { "key": "B", "text": "Place the summary in the orchestrator's system prompt, above the task instructions, so its provenance is unambiguous." },
+      { "key": "C", "text": "Validate the return against its schema, render it in a delimited block marked untrusted, and enforce eligibility outside the model." },
+      { "key": "D", "text": "Add a line to the orchestrator's prompt telling it to ignore any instructions that appear inside subagent returns or review text." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The return leg of a handoff is a trust boundary, because whatever a branch read can reach the caller only through it. Two things follow. The content must arrive shaped and labelled — validated against a schema so free text cannot appear where a verdict was expected, and delimited so the caller can distinguish reported content from its own instructions. And the check that was skipped must not depend on the model's judgement at all: an eligibility rule that a summary can talk the assistant out of was never really a control.",
+      "distractors": {
+        "A": "Asking the component that read the hostile content to neutralise it puts the defence on the wrong side of the boundary. The subagent is the one already under the influence of that text, and detecting instruction-like language reliably is not a solved problem.",
+        "B": "The system prompt is the highest-authority position in the request. Putting content derived from customer-submitted text there strengthens the attack rather than containing it.",
+        "D": "A blanket instruction to ignore embedded instructions helps at the margin and is not a control. It competes with the injected text on the same terms, and it leaves the eligibility rule inside the model where it can be argued with."
+      },
+      "concept": "Anything returned from a branch that read untrusted input is untrusted output. Validate it against a schema, mark it as data in the caller's context, and keep decisions that must hold — eligibility, limits, authorisation — in code the model cannot talk past.",
+      "tip": "Note where each option places the defence. Options that ask the exposed component to protect itself, or that raise the content's authority, are wrong; the fix belongs at the boundary or outside the model."
+    }
+  },
+  {
+    "id": "SDA-B-043",
+    "domain": "Solution Design & Architecture",
+    "topic": "Terminating on budget exhaustion without a misleading result",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A patent office runs an agent that performs prior-art searches across several classification areas, with a per-request token budget set by the operations team. When the budget runs out mid-run, the agent returns whatever it has assembled, formatted exactly like a completed search. Examiners have twice issued opinions on searches that had covered only part of the classification set, believing them complete. Budgets cannot be raised globally. What should the design do on exhaustion?",
+    "options": [
+      { "key": "A", "text": "Automatically extend the budget by a fixed 20% margin when exhaustion is detected mid-run, so most searches run to completion." },
+      { "key": "B", "text": "Return a distinct incomplete status naming the areas covered and those not reached, with the state needed to resume the search." },
+      { "key": "C", "text": "Discard the partial work and return a hard error to the examiner, so an incomplete search can never be mistaken for a complete one." },
+      { "key": "D", "text": "Append a sentence to the end of the returned search noting that coverage of the classification set may be incomplete." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The harm is not that searches are incomplete; it is that incomplete and complete results are indistinguishable to the person acting on them. A distinct status makes the difference structural rather than a matter of reading carefully, and naming the covered and uncovered areas turns a vague caveat into something an examiner can reason about — a gap in one classification area may or may not matter to the opinion. Carrying resumption state preserves the work already paid for, which matters precisely because the global budget cannot be raised.",
+      "distractors": {
+        "A": "Silent extension makes the budget advisory and leaves the examiner in the same position, unable to tell a comfortable completion from one that only just fitted. It also moves the overspend out of view of the team that set the limit.",
+        "C": "This removes the ambiguity by throwing away the work, so every exhausted run costs its full budget and returns nothing. Under a fixed global budget that is the most wasteful option available.",
+        "D": "A prose caveat is unstructured, easy to skim past, and invisible to any downstream tooling that consumes the search. The two incidents happened to people reading the output; the fix has to be in the result's type, not its wording."
+      },
+      "concept": "Resource exhaustion is a normal outcome and needs its own representation: a status distinct from success, an explicit statement of what was and was not covered, and enough state to resume. A partial result formatted like a complete one is the most expensive kind of silent failure because it looks finished.",
+      "tip": "When a stem says humans acted on a result believing it complete, the answer changes the type of the result, not its prose. Caveat-in-text options are always the near-miss in this family."
+    }
+  },
+  {
+    "id": "SDA-B-044",
+    "domain": "Solution Design & Architecture",
+    "topic": "Purpose of a correlation identifier across handoffs",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "What does threading a single correlation identifier through every handoff, tool call and artefact of a multi-agent request give the operator?",
+    "options": [
+      { "key": "A", "text": "The ability to reassemble every branch's calls, returns and artefacts into a single trace for debugging." },
+      { "key": "B", "text": "Automatic deduplication of repeated state-changing calls made by branches that were retried after a timeout." },
+      { "key": "C", "text": "An enforced upper bound on how deep the delegation tree may go before further spawning is refused." },
+      { "key": "D", "text": "Shared reuse of a single cached prompt prefix across every agent taking part in the request." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Context isolation fragments a request into conversations that know nothing about each other, so without a shared key there is no way to answer \"what happened on this request\" after the fact. A correlation id restores that join: logs, tool invocations, persisted artefacts and branch results can all be gathered under one request even though no single agent observed them all. It is the cheapest thing you can add to a handoff protocol and the first thing missed when incidents need reconstructing.",
+      "distractors": {
+        "B": "Deduplication of repeated writes needs an idempotency key scoped to a specific operation, and it must be honoured by the tool or system of record. A correlation id identifies the request; it does not make any call safe to repeat.",
+        "C": "Depth is bounded by a limit enforced where spawning happens, and by carrying the delegation path. An identifier records where a call came from without constraining how far it may go.",
+        "D": "Prefix reuse depends on what the requests contain, not on a field threaded through them for tracing."
+      },
+      "concept": "Give every request one identity that survives every boundary crossing. It is what makes isolated branches observable as a single unit, and it is a precondition for incident reconstruction, cost attribution per request, and any audit obligation that spans more than one agent.",
+      "tip": "Distinguish the three identifiers that look alike in exam options: correlation id for tracing, idempotency key for safe repetition, delegation path for cycle and depth control. Items frequently offer one where another belongs."
+    }
+  },
+  {
+    "id": "SDA-B-045",
+    "domain": "Solution Design & Architecture",
+    "topic": "Subagents built by copying the orchestrator's system prompt",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A hotel group's concierge system was built quickly: each subagent's system prompt is a copy of the orchestrator's, with one task line appended. In production the subagents open with the orchestrator's guest greeting, attempt to plan and delegate work of their own, and on occasion address the guest directly in text that reaches the transcript. Guests receive replies that read as though several assistants are talking. What is the correct remedy?",
+    "options": [
+      { "key": "A", "text": "Append a paragraph to the shared prompt stating that when acting as a subagent the model must not greet, plan or delegate work." },
+      { "key": "B", "text": "Remove only the persona and greeting sections from the copied prompt, keeping the shared operating instructions so behaviour stays consistent across agents." },
+      { "key": "C", "text": "Reduce each subagent's `max_tokens` allowance so there is no room for greetings or planning text before its result." },
+      { "key": "D", "text": "Give each agent a minimal prompt holding only its objective, output contract and tools, leaving guest-facing instructions with the orchestrator." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Every symptom traces to the same cause: the subagents were told they are the concierge, so they behave like one. Instructions are capabilities, and copying the orchestrator's prompt grants each branch the orchestrator's role, its voice and its licence to delegate. Writing each agent's prompt from its own responsibilities removes those behaviours by removing the instructions that produce them, and it has a second benefit — each prompt becomes small enough to reason about and version on its own, so a change to the concierge voice cannot alter how a branch does its work.",
+      "distractors": {
+        "A": "Negating instructions that are still present is weaker than not including them, and it grows the prompt every time a new symptom appears. The model is holding two conflicting descriptions of its role and will sometimes resolve the conflict the wrong way.",
+        "B": "Stripping the persona addresses the greeting and leaves the planning and delegation instructions in place, so branches keep trying to orchestrate. It also keeps every agent coupled to one shared prompt, so any future edit propagates everywhere.",
+        "C": "A shorter output allowance truncates the symptom rather than removing it, and it constrains the useful part of the response. The branch is still trying to be the concierge; it now has less room to say so."
+      },
+      "concept": "Each agent's system prompt should describe that agent's job and nothing else. Shared prompt inheritance leaks role, voice and authority across boundaries and produces branches that duplicate the orchestrator. Small, role-specific prompts are also independently testable and independently versionable.",
+      "tip": "A cluster of unrelated-looking behavioural symptoms across several agents usually has one shared-configuration cause. Look for the option that removes the shared source rather than suppressing each symptom."
+    }
+  },
+  {
+    "id": "SDA-B-046",
+    "domain": "Solution Design & Architecture",
+    "topic": "Capping downstream load generated by parallel branches",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A hospital group's discharge-planning system fans out to subagents that each query the electronic health record. During ward rounds, many requests overlap and the EHR team reports that the assistant's traffic is degrading clinical users' response times. The EHR cannot be scaled. Which TWO controls belong in the orchestration layer? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "A ceiling on the number of subagent branches in flight at once, applied per request and across the whole service." },
+      { "key": "B", "text": "A higher retry count on each branch so transient EHR rejections are absorbed rather than surfacing as failures." },
+      { "key": "C", "text": "An instruction in each subagent's prompt telling it to pace its EHR calls and avoid bursts during ward rounds." },
+      { "key": "D", "text": "A shared rate limiter in front of the EHR from which any branch must take a permit before calling." },
+      { "key": "E", "text": "A move to a cheaper model tier for the branches, reducing the system's overall resource consumption." }
+    ],
+    "correct": ["A", "D"],
+    "explanation": {
+      "correct": "Two different quantities need bounding and each needs its own control. Concurrency is what turns one request into a burst, so a ceiling on in-flight branches — both within a request and across the service — caps the fan-out's shape. Call rate is what the EHR actually experiences, and because branches are independent and unaware of each other, only a shared limiter they must pass through can bound the aggregate. Applying both in the orchestration layer keeps the guarantee independent of how many requests arrive or how each branch happens to behave.",
+      "distractors": {
+        "B": "More retries increase load on a system that is already struggling, and they do so exactly when it is most degraded. Retry policy needs to be paired with a limiter, not used as a substitute for one.",
+        "C": "Prompt-level pacing is unenforceable, and a branch cannot observe what its concurrent peers are doing. Aggregate rate is a property of the system, so it cannot be managed from inside individual agents.",
+        "E": "Model tier determines what the branches cost and how well they reason. It has no bearing on how many EHR calls they make, which is the load the clinical users are feeling."
+      },
+      "concept": "A fan-out is a load amplifier on every downstream system it touches. Bound it in the orchestration layer with a concurrency ceiling and a shared limiter for each protected dependency. Controls that live inside individual agents cannot see aggregate demand and therefore cannot bound it.",
+      "tip": "When a shared downstream system is the victim, discount every option that operates inside a single branch. Only a control at a point all branches must pass through can constrain the total."
+    }
+  },
+  {
+    "id": "SDA-B-047",
+    "domain": "Solution Design & Architecture",
+    "topic": "Bounding a drafter–reviewer exchange that does not converge",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An academic publisher runs a drafting agent and a reviewing agent that exchange revisions of a book blurb. Most titles settle in two or three rounds. A minority run past thirty rounds, with the reviewer requesting ever-smaller wording changes, and cost per title is unpredictable enough that finance has flagged it. The iteration genuinely improves early rounds. What should be added?",
+    "options": [
+      { "key": "A", "text": "Instruct the reviewer to apply a stricter acceptance standard, so it sends fewer drafts back and most titles settle sooner." },
+      { "key": "B", "text": "Move the drafting agent to a higher-capability tier so its first draft needs fewer revision rounds before acceptance." },
+      { "key": "C", "text": "Cap the rounds, require an explicit accept-or-revise decision each round, stop below a materiality threshold, and escalate to an editor at the cap." },
+      { "key": "D", "text": "Have the reviewer comment once on the final draft rather than iterating, converting the exchange into a single review step before publication." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Two agents that can each always find something to say will not stop on their own, so the loop needs a stopping rule that does not depend on either of them being satisfied. Three pieces do it: a hard cap that makes worst-case cost knowable, a structured decision each round so acceptance is a state rather than an inference from tone, and a materiality threshold that ends the exchange when rounds stop adding value — which is what separates the useful early rounds from the thirty-round tail. Escalation on cap exhaustion keeps a stuck title from shipping unreviewed.",
+      "distractors": {
+        "A": "A stricter reviewer changes where the loop settles, not whether it settles. It also degrades the early rounds that the stem says are genuinely productive, trading a cost tail for a quality loss.",
+        "B": "A better first draft shortens the average case and leaves the tail intact: a reviewer with no stopping rule will still find diminishing refinements to request, now on better prose.",
+        "D": "Single-pass review removes the cost variance by removing the mechanism that produces most of the quality. The stem is explicit that iteration helps early, so this over-corrects."
+      },
+      "concept": "Any two agents that pass work back and forth need a convergence rule external to both: a round cap, an explicit per-round decision, and a materiality or improvement threshold that terminates when returns diminish. Without one, cost per task is set by how agreeable the two agents happen to be.",
+      "tip": "Cost variance concentrated in a minority of runs points at a missing stopping rule, not at model quality. Options that improve either participant address the average and leave the tail untouched."
+    }
+  },
+  {
+    "id": "SDA-B-048",
+    "domain": "Solution Design & Architecture",
+    "topic": "Default treatment of state in a multi-agent design",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "What should the default be for state in a multi-agent system, before any specific requirement is considered?",
+    "options": [
+      { "key": "A", "text": "Private to each agent, with anything shared introduced deliberately as a defined, versioned artefact where a contract requires it." },
+      { "key": "B", "text": "Shared across all agents, so every agent works from a consistent view and no information is duplicated." },
+      { "key": "C", "text": "Shared and readable by all agents but writable only by the orchestrator, giving consistency without write conflicts." },
+      { "key": "D", "text": "Held entirely in the orchestrator's conversation, with agents receiving whatever slice they need at invocation." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Shared state is coupling, and coupling should be paid for rather than assumed. Starting private means each agent can be changed, replaced, retried or evaluated without coordinating with the others, and every shared item is then an explicit decision with a schema, a version and an owner. The alternative order — sharing first and carving out privacy later — leaves undocumented dependencies that only surface when one agent's output format changes and something unrelated quietly breaks.",
+      "distractors": {
+        "B": "Sharing by default maximises coupling and write contention, and consistency is not free: it introduces conflict resolution, ordering and visibility questions that most agents in the system do not need answered.",
+        "C": "A single-writer shared store is a reasonable specific design once a need is established, but as a default it still exposes every agent to every other agent's data shape and makes each one harder to change independently.",
+        "D": "This describes how briefs are assembled, not a state model. It also does not survive anything long-running: a conversation is not durable state, so nothing outlives the orchestrator's run."
+      },
+      "concept": "Default to private state and treat every shared item as a published interface with a schema, a version and an owner. The question to ask before sharing is whether the data must outlive an individual agent or forms a contract between two of them; if neither, keep it private.",
+      "tip": "Default-choice recall items reward the option that minimises coupling. Attractive wrong answers usually offer consistency or convenience as the reason to couple things together up front."
+    }
+  },
+  {
+    "id": "SDA-B-049",
+    "domain": "Solution Design & Architecture",
+    "topic": "Adding agents when the bottleneck is a serialised dependency",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "An energy retailer's tariff-comparison assistant fans out to six subagents, each of which calls a legacy pricing service. That service serialises all requests for a given customer account and takes roughly three seconds per call, so the six branches complete in about eighteen seconds regardless of how they are scheduled. A proposal on the table is to split into twelve branches to increase parallelism. What should the team do next?",
+    "options": [
+      { "key": "A", "text": "Approve the split to twelve branches and re-measure end-to-end time, since more parallelism should reduce the wall clock." },
+      { "key": "B", "text": "Leave the topology alone and address the pricing service — batch the six lookups into one call, or pre-materialise the tariffs." },
+      { "key": "C", "text": "Keep six branches but move them to a faster model tier so the non-pricing portion of each branch completes about a second sooner." },
+      { "key": "D", "text": "Raise the request deadline from fifteen to twenty-five seconds so the current design fits inside it reliably." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The stem states that the pricing service serialises per account, so the six calls take about eighteen seconds however they are issued — the agent topology is not on the critical path at all. Twelve branches would make twelve serialised calls and get slower. The only changes that move the floor act on the dependency: one batched call instead of six, or tariff data materialised in advance so the calls are not needed per request. Recognising that the constraint is outside the agent layer is the whole decision here.",
+      "distractors": {
+        "A": "Parallelism only helps when the resource being contended for can serve requests concurrently. Against a per-account serialising service, doubling the branch count doubles the queue and increases total time while adding coordination overhead.",
+        "C": "A faster tier compresses the model time around a three-second serialised call that dominates each branch. The saving is small, it costs quality, and the eighteen-second floor is untouched.",
+        "D": "Moving the deadline accepts the latency rather than fixing it, and it institutionalises an eighteen-second interaction in a comparison tool where responsiveness is much of the product."
+      },
+      "concept": "Multi-agent designs parallelise reasoning and context, not contended external resources. Before changing topology, find where time is actually spent; if a shared dependency serialises, no arrangement of agents improves it and the fix belongs in the data or integration layer.",
+      "tip": "Any stem that says results are the same \"regardless of scheduling\" has told you the bottleneck is not concurrency. Options that adjust the agent layer are then all disqualified together."
+    }
+  },
+  {
+    "id": "SDA-B-050",
+    "domain": "Solution Design & Architecture",
+    "topic": "Metrics that expose growing coordination overhead",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A telematics company's multi-agent claims-triage system has become steadily more expensive per request over two quarters, while traffic and task difficulty have been flat. The team wants standing metrics that would reveal coordination overhead growing, early, rather than at quarterly review. Which TWO metrics best serve that purpose? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "End-to-end p95 latency for the request, from intake to the answer shown to the adjuster." },
+      { "key": "B", "text": "The distribution of delegation depth and branch count per triage request, tracked week over week." },
+      { "key": "C", "text": "Tool error rate for each integrated tool, broken down by error class and originating branch." },
+      { "key": "D", "text": "Mean length of the final triage answer returned to the adjuster on each completed request." },
+      { "key": "E", "text": "The share of request tokens spent establishing subagent context and ingesting returns, rather than on the task." }
+    ],
+    "correct": ["B", "E"],
+    "explanation": {
+      "correct": "Coordination overhead has two observable dimensions: how much delegation is happening, and what fraction of the spend it consumes. Depth and branch-count distributions catch structural drift — a routing change that starts delegating in cases that used to be handled inline shows up here long before the invoice does. The overhead ratio catches the economics directly and is the number to argue from, because it separates growth in real work from growth in the machinery around it. Both are specific to the multi-agent structure rather than to the system's general health.",
+      "distractors": {
+        "A": "Latency is a good service metric and a poor attribution metric. It moves for model changes, dependency slowness, retries and traffic shape, so a rise tells you something happened without indicating that coordination is the cause.",
+        "C": "Tool error rate tracks dependency health. Errors can drive retries and therefore cost, but the metric will sit flat through exactly the kind of quiet structural drift described here.",
+        "D": "Final answer length is largely a product decision and is dominated by output tokens, whereas coordination overhead is overwhelmingly an input-side cost."
+      },
+      "concept": "Instrument the coordination layer as a first-class subject: delegation depth, branch count, handoffs per request, and the proportion of tokens spent on establishing and ingesting branch context rather than on the task. Generic service metrics will show that something is wrong and never that delegation is the reason.",
+      "tip": "For \"which metric would reveal X\" items, discard anything that also moves for many other reasons. The right answers are usually the two that could only move if X were happening."
+    }
+  },
+  {
+    "id": "SDA-B-051",
+    "domain": "Solution Design & Architecture",
+    "topic": "Justifying multi-agent spend by branch contribution",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A recruitment platform piloted a five-branch multi-agent design against its existing single-agent baseline for candidate–role matching. The multi-agent version costs roughly five times as much per request and scores three points higher on the team's matching-quality metric. Product wants to ship it; the platform lead wants the spend defended. Neither has data on which branches contribute what. What should be done next?",
+    "options": [
+      { "key": "A", "text": "Ship the multi-agent version now and optimise its per-request cost once adoption data is available." },
+      { "key": "B", "text": "Revert to the single-agent baseline, since a three-point quality gain does not justify a fivefold increase in cost per request." },
+      { "key": "C", "text": "Move all five branches to a cheaper model tier and re-measure both matching quality and cost per request." },
+      { "key": "D", "text": "Run an ablation, measuring quality with each branch removed in turn, so the gain can be attributed per branch." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Both sides of the argument are reasoning about the design as a single unit, and it is not one. Removing each branch in turn and re-scoring converts an unattributed aggregate into per-branch marginal contribution, which is the only basis on which the spend can be defended or trimmed. It is common for most of a fan-out's gain to come from one or two branches, in which case a three-branch design captures nearly all the quality at a fraction of the multiple, and the decision stops being ship-or-revert.",
+      "distractors": {
+        "A": "Shipping first defers the measurement to a point where the cost is live, the design is entrenched, and removing a branch requires a production change with its own risk. The measurement is cheap now and expensive later.",
+        "B": "Reverting on the aggregate ratio discards a real quality gain without knowing what produced it. If two branches deliver most of the three points, the sensible design was never on the table in this framing.",
+        "C": "A uniform downgrade changes cost and quality together and confounds the two effects, leaving the team unable to say which branches mattered. Tier choice is a sensible follow-up once contribution is known, not a substitute for knowing it."
+      },
+      "concept": "Evaluate a multi-agent design branch by branch, not as a monolith. Marginal contribution per branch is what turns a cost argument into an engineering decision, and it usually shows the gain is concentrated. Measure it before shipping, while removing a branch is still free.",
+      "tip": "When a stem highlights that nobody knows which component produces the benefit, the next step is the measurement that produces that knowledge — not a decision made without it."
+    }
+  },
+  {
+    "id": "SDA-B-052",
+    "domain": "Solution Design & Architecture",
+    "topic": "Branch failures that never reach an asynchronous orchestrator",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A customs brokerage dispatches subagent tasks onto a message queue and collects results asynchronously. Last month a branch failed permanently, its message was routed to the dead-letter queue after redelivery, and no result ever came back. The orchestrator waited indefinitely; the shipment request sat unresolved for two days until a client called. What should the design add?",
+    "options": [
+      { "key": "A", "text": "A per-request ledger of every dispatched branch, with a deadline after which an unresolved branch is failed and the partial-failure policy applies." },
+      { "key": "B", "text": "An alert on dead-letter queue depth so the on-call operator is paged whenever a branch's message is parked there." },
+      { "key": "C", "text": "A longer message visibility timeout and more redelivery attempts, so a branch is less likely to be declared permanently failed." },
+      { "key": "D", "text": "Automatic replay of dead-lettered branch messages back onto the main queue on a fifteen-minute schedule." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The orchestrator waited forever because it had no independent record of what it was waiting for — completion was defined by messages arriving rather than by a state it owned. A ledger inverts that: the orchestrator knows the branch set at dispatch time and holds a deadline for each, so absence of a result becomes an observable event rather than silence. Once a branch is resolved as failed, the partial-failure policy already decides whether the request degrades or aborts. In asynchronous designs the caller must be able to conclude a branch is not coming back.",
+      "distractors": {
+        "B": "An alert tells an operator that something failed somewhere; it does not unblock the waiting request, and it depends on someone connecting a parked message to a specific client's shipment. Two days of silence would still be possible on a quiet weekend.",
+        "C": "Redelivery tuning changes how long the system takes to give up on transient problems. The failure here was permanent, so more attempts delay the same outcome and lengthen the period during which the request is stuck.",
+        "D": "Blind replay of dead-lettered work re-runs failures on a loop, and for any branch with side effects it risks repeating them. It also still never informs the waiting orchestrator."
+      },
+      "concept": "In an asynchronous fan-out, absence of a message is not a signal. The dispatcher must own a record of every branch it started and a deadline per branch, so a missing result becomes a typed failure the request can act on. Queue-side controls manage delivery; they cannot make a caller aware that nothing is coming.",
+      "tip": "Any stem where the system waits indefinitely is missing a timeout owned by the waiter. Options operating on the transport — redelivery, alerting, replay — never supply that."
+    }
+  },
+  {
+    "id": "SDA-B-053",
+    "domain": "Solution Design & Architecture",
+    "topic": "Delegating a step that needs the caller's whole context",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A museum's cataloguing assistant drafts object descriptions in a long conversation with a curator. The team added a tone-check subagent, but to judge tone it needs the full drafted description and the whole preceding conversation about the object, all of which the orchestrator forwards on every call. Cost rose and nothing improved. What should the team do?",
+    "options": [
+      { "key": "A", "text": "Forward a summary of the conversation instead of the full history to reduce the tokens sent to the subagent." },
+      { "key": "B", "text": "Give the tone-check subagent a larger context allowance so forwarding the full history is less constrained." },
+      { "key": "C", "text": "Perform the tone check inline in the drafting agent, which already holds everything the check requires." },
+      { "key": "D", "text": "Run the tone check on the finished description alone, with none of the curator conversation attached." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Boundaries are only worth their round trip if the callee needs materially less than the caller holds. Here it needs everything, so the split duplicates the entire context into a second window and returns a judgement the drafting agent could have made while it still had all of that loaded. The rise in cost with no change in quality is exactly what that looks like. Keeping the check inline removes a hop, removes the duplication, and leaves one component responsible for the description and its tone.",
+      "distractors": {
+        "A": "Summarising to feed the check means spending tokens to produce a lossy version of context the drafting agent already has in full. It reduces the bill somewhat while making the judgement worse.",
+        "B": "A larger allowance addresses a limit that is not being hit. The complaint is cost and lack of benefit, neither of which is caused by the size of the window available.",
+        "D": "Stripping the context makes the call cheap and the judgement unreliable, since tone for a museum object depends on what the curator established about it. This trades the current problem for a quality one."
+      },
+      "concept": "Delegate only when the callee's context needs are a strict, substantial subset of the caller's. If a subagent requires everything the caller holds, the boundary duplicates context and buys nothing; keep the step inline, or move it to a point in the flow where the required context really is smaller.",
+      "tip": "\"Cost went up and quality did not change\" after adding an agent is the signature of a boundary that isolates nothing. Check what the callee needs before considering how to send it more cheaply."
+    }
+  },
+  {
+    "id": "SDA-B-054",
+    "domain": "Solution Design & Architecture",
+    "topic": "Hidden dependency between supposedly parallel branches",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A football club's recruitment system fans out to four scouting subagents that run concurrently. One of them normalises its player ratings against a positional benchmark that another branch computes and writes to the shared store during the same run. Because both start together, the normalising branch reads whichever benchmark is already there — usually the previous run's. Shortlists have been produced against stale benchmarks for weeks with no error raised. What should the architect change?",
+    "options": [
+      { "key": "A", "text": "Have the normalising branch poll the shared store until the current run's benchmark appears before it starts normalising." },
+      { "key": "B", "text": "Compute the benchmark before the fan-out and carry its value in the handoff to every branch that needs it." },
+      { "key": "C", "text": "Version the benchmark with the run identifier so the normalising branch can detect when what it read is from a previous run." },
+      { "key": "D", "text": "Run all four branches sequentially in a fixed order so that any dependency between them is always satisfied." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "One branch consuming another's output is a dependency edge, and a fan-out is by definition a set of independent branches — so the decomposition was wrong, not merely mis-scheduled. Computing the benchmark above the split makes the ordering structural: it cannot be violated by timing, and every branch receives the same value through its brief rather than by reaching into shared state. This also removes a shared-store read from the branches entirely, which is what allowed the staleness to be silent in the first place.",
+      "distractors": {
+        "A": "Polling encodes the dependency as a runtime wait inside a branch that is nominally parallel. It reintroduces the serialisation without the clarity, and it deadlocks if the producing branch fails — a failure mode that is harder to diagnose than the current one.",
+        "C": "Detecting staleness is a genuine improvement over silence and still leaves the branch with no correct value to use. It converts a wrong shortlist into a failed one, which is better but is not the fix.",
+        "D": "Full serialisation removes the parallelism of three branches to satisfy one edge. It also hides the dependency in an execution order that a future change can silently break, whereas hoisting makes it visible in the graph."
+      },
+      "concept": "Only fan out over branches with no dependencies among them. When one branch consumes another's output, hoist the producer above the split and pass its result into the briefs. Shared state accessed opportunistically during a parallel section turns an ordering requirement into a race, and races in agent systems fail silently rather than loudly.",
+      "tip": "Any time a stem shows a branch reading something another branch writes in the same run, the decomposition is the defect. Options that add waiting, detection, or blanket serialisation are all working around a graph that should be redrawn."
+    }
+  }
+]

@@ -1,0 +1,724 @@
+[
+  {
+    "id": "CPE-A-019",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Findings that justify moving a step up a tier",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Which finding most justifies moving a production step up to a higher capability tier?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Cost per request has fallen enough elsewhere in the programme that the budget can comfortably absorb the higher tier at current volume."
+      },
+      {
+        "key": "B",
+        "text": "A newer and more capable tier has become generally available, and the team is still on the one chosen at inception."
+      },
+      {
+        "key": "C",
+        "text": "Residual errors are concentrated in cases needing multi-step inference, and further prompt and context work has stopped moving the metric."
+      },
+      {
+        "key": "D",
+        "text": "Stakeholders reviewing sample outputs in a demo have asked for responses that sound more authoritative and less hedged."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "An upgrade is warranted when two things hold together: the remaining errors are of a kind that additional capability plausibly fixes, and the cheaper levers have been exhausted. Errors concentrated in multi-step inference are exactly the profile that responds to capability, and a prompt-and-context effort that has stopped moving the metric is the evidence that you are at the tier's ceiling rather than at the prompt's. Without both halves an upgrade is speculative: teams routinely buy capability to solve problems that were actually instruction clarity or missing context.",
+      "distractors": {
+        "A": "Affordability permits an upgrade; it does not justify one. Spending a newly available budget on a tier change with no evidence of a capability shortfall converts headroom into recurring cost for no measured return.",
+        "B": "Availability is not a reason. This is the most common informal justification in practice and the one an architect is paid to resist, because it makes the roadmap a function of vendor release timing rather than of the system's measured gaps.",
+        "D": "Tone is a prompt problem, not a tier problem. Asking for a more authoritative voice is satisfied by instruction and examples; moving up a tier to change register is an expensive way to do something the cheaper tier already does."
+      },
+      "concept": "Upgrade when the error profile matches what capability fixes and the cheaper levers are exhausted. Availability, affordability and stylistic preference are not upgrade criteria — they are the three reasons teams most often upgrade anyway.",
+      "tip": "For upgrade and downgrade recall items, look for the option that names both an error profile and an exhausted alternative. Single-clause justifications are almost always the distractors."
+    }
+  },
+  {
+    "id": "CPE-A-020",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Extracting values that exist only inside chart images",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An investor-relations analytics firm extracts around 60 KPIs per annual report. Roughly 30% of them appear only inside charts and infographics — never in the narrative text or the tabular financial statements. The current pipeline runs a text extraction service and then a text-only model; those KPIs come back either null or with a plausible-looking value inferred from the prose near the figure, which is worse. What is the right change?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Render the figure-bearing pages as images for a vision-capable model, keeping the existing text path for narrative and tables."
+      },
+      {
+        "key": "B",
+        "text": "Widen the text extracted around each figure caption so the model has more surrounding prose to work from when inferring the value."
+      },
+      {
+        "key": "C",
+        "text": "Move the text pipeline to the highest tier so it reasons more carefully about the prose and captions around each figure."
+      },
+      {
+        "key": "D",
+        "text": "Have the model mark chart-derived KPIs as unavailable and route all 18 of them per report to an analyst for manual entry."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The information the pipeline needs is encoded in pixels — bar heights, axis labels, legend mappings — and the text extraction step destroys it before any model is involved. No amount of model capability recovers data that was discarded upstream. Sending the figure-bearing pages as images to a vision-capable model puts the signal back in front of the model, and keeping the text path for the narrative and tables avoids paying image token cost on the 70% of KPIs the cheap path already handles correctly. The hybrid also preserves the existing extraction's accuracy where it was never the problem.",
+      "distractors": {
+        "B": "More prose around a caption gives the model more material to guess from, which is precisely the failure the stem describes as worse than nulls. Widening the window increases confident fabrication rather than reducing it.",
+        "C": "Capability applied to information that is not present cannot produce the value. A stronger model reading the same flattened text will infer more fluently and be wrong more convincingly — the failure mode the stem already flags.",
+        "D": "Routing 30% of 60 KPIs per report to manual entry is a retreat from the product's purpose. It is the right contingency for a small residual after a vision path is in place, not a substitute for adding one."
+      },
+      "concept": "When a pre-processing stage discards a modality, no downstream model choice can recover it. Diagnose extraction failures by asking whether the required signal survived into the model's input at all — and route modality-specific pages down modality-appropriate paths rather than converting the whole document.",
+      "tip": "Fabricated-rather-than-null outputs are a strong tell that the model is being asked about something absent from its input. The fix is upstream of the model, not in the model."
+    }
+  },
+  {
+    "id": "CPE-A-021",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Tier allocation between a generator and its grader",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An education provider grades free-text exam answers with a model-based grader whose score drives a pass/fail outcome. The grader and the answer-feedback generator both run on the same mid tier, chosen for cost. An audit against two expert human raters puts grader-to-expert agreement at 79%; the accreditation body requires 92%. The generator's feedback quality is not under complaint. An engineer proposes moving the generator to the highest tier. What should the architect do?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Move the generator to the higher tier, on the basis that better-written answers and feedback are easier to grade consistently."
+      },
+      {
+        "key": "B",
+        "text": "Keep both on the current tier and average three independent grader calls per answer so scoring variance against the rubric falls."
+      },
+      {
+        "key": "C",
+        "text": "Move the grader to the higher tier and re-measure agreement against the expert-rated set before changing anything about the generator."
+      },
+      {
+        "key": "D",
+        "text": "Replace the grader with exact-match scoring of each answer against a model reference answer held in the question bank."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The failing component is the grader, and the accreditation gap is thirteen points on a decision that determines whether a candidate passes. Grading free-text against a rubric is a harder judgement than generating feedback, so it is the step in this system with the strongest claim on capability — the tier allocation is currently backwards relative to where the difficulty sits. Moving the grader up and re-measuring against the same expert-rated set is the smallest change that tests the actual hypothesis, and it leaves the generator, which is not under complaint, untouched so the measurement stays attributable.",
+      "distractors": {
+        "A": "Upgrades the component that is working. Even if better feedback marginally helped, it does not address a grader that disagrees with expert raters on more than one answer in five, and it changes two things at once if the grader is later moved too.",
+        "B": "Averaging repeated calls reduces variance, not bias. A thirteen-point systematic gap against expert raters is not noise, and three calls per answer triples grading cost while leaving a consistently-wrong grader consistently wrong.",
+        "D": "Exact match cannot score free-text answers, where many wordings are correct and many near-matches are not. This replaces a grader that is 79% right with one that would be far worse, in the name of determinism."
+      },
+      "concept": "Allocate capability to the step that carries the hardest judgement and the highest consequence, not uniformly across the system. Evaluation and grading components frequently deserve a higher tier than the components they grade, because judging quality is often harder than producing it.",
+      "tip": "When a stem names a failing component and then offers to change a different one, that is the trap. Check which step the measured deficit actually belongs to before reading the tier arguments."
+    }
+  },
+  {
+    "id": "CPE-A-022",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "What a leaderboard result licenses you to conclude",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A published leaderboard shows one tier clearly outperforming another on a coding benchmark. What may an architect legitimately conclude for a document-classification service?",
+    "options": [
+      {
+        "key": "A",
+        "text": "That the stronger tier will classify documents more accurately, because coding ability correlates with general reasoning."
+      },
+      {
+        "key": "B",
+        "text": "That the stronger tier will need fewer few-shot examples to reach the same classification accuracy."
+      },
+      {
+        "key": "C",
+        "text": "Nothing at all, since results on one benchmark are not comparable across tiers."
+      },
+      {
+        "key": "D",
+        "text": "Only that the tier is worth shortlisting for an eval on the classification task; the benchmark itself says nothing more."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "A benchmark is a measurement on the benchmark's distribution. It supports one inference — that a tier is a credible candidate worth the cost of evaluating — and no inference at all about how it behaves on a different task with a different prompt and a different input mix. That is not a dismissal of benchmarks; shortlisting is genuinely useful when there are several candidates and limited eval capacity. It is a statement about the scope of the claim, which is where architects most often overreach when justifying a model choice to a stakeholder.",
+      "distractors": {
+        "A": "Correlation across tasks is real but weak and unreliable at the margins that matter. Mature classification prompts frequently sit at a ceiling set by label ambiguity in the source documents, where extra reasoning capability changes nothing.",
+        "B": "Sample efficiency is a distinct property from benchmark accuracy and is not measured by the leaderboard at all. This asserts a specific mechanism the evidence does not touch.",
+        "C": "Overcorrects into nihilism. Benchmark results are valid measurements of something; the error is transferring them to your task, not producing them. Refusing to use them even for shortlisting throws away a cheap filter."
+      },
+      "concept": "Benchmarks select candidates; task-specific evals select the model. State the scope of any benchmark claim explicitly when you use it in an architecture decision, and never let it stand in for evidence on your own distribution.",
+      "tip": "Options that swing to 'tells you nothing' are as wrong as options that swing to 'transfers directly'. The defensible answer on benchmark items is almost always the narrow, scoped one."
+    }
+  },
+  {
+    "id": "CPE-A-023",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Evidence pattern that supports an upgrade decision",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A national rail operator summarises safety incident reports for a weekly review board. The step runs on a mid tier and sits four points below the agreed accuracy target. The team is considering an upgrade. Which TWO findings would genuinely support that decision? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Residual failures concentrate on reports where the model must reconcile contradictory witness statements, and three rounds of prompt and context revision have not moved the metric."
+      },
+      {
+        "key": "B",
+        "text": "A pilot on the higher tier resolves a material share of those residual failures, at a cost per report the programme has budget for."
+      },
+      {
+        "key": "C",
+        "text": "The current tier's model version carries a deprecation notice with a retirement date next year, so the step has to be moved to a different version before then."
+      },
+      {
+        "key": "D",
+        "text": "Measured p95 latency on the current tier is already above the team's own service objective for the weekly summarisation step."
+      },
+      {
+        "key": "E",
+        "text": "The residual failures are cases where the incident report referenced a witness appendix that the pipeline never retrieved."
+      }
+    ],
+    "correct": [
+      "A",
+      "B"
+    ],
+    "explanation": {
+      "correct": "An upgrade case needs a diagnosis and a demonstration. The diagnosis is that the remaining errors are capability-shaped — reconciling contradictory accounts is genuine multi-step reasoning — and that the cheaper levers have been worked without effect, which locates the ceiling at the tier rather than at the prompt. The demonstration is a pilot showing the higher tier actually resolves those specific failures at a price the programme can pay. Either finding alone is incomplete: a diagnosis without a pilot is a hypothesis, and a pilot without a diagnosis cannot tell you whether the gain will persist as the report mix changes.",
+      "distractors": {
+        "C": "A deprecation notice forces a migration, not an upgrade. The successor within the same tier is the default destination; treating a retirement date as a reason to buy more capability confuses a lifecycle event with a capability gap.",
+        "D": "Latency already exceeding the objective argues against an upgrade, since a higher tier will generally be slower. This option is a reason to look at the tier, but in the opposite direction from the one proposed.",
+        "E": "Failures caused by material the pipeline never retrieved cannot be fixed by any tier. The model was not given the appendix; a more capable model reading the same incomplete input produces a more fluent incomplete answer."
+      },
+      "concept": "A defensible upgrade rests on a capability-shaped error profile plus a pilot that resolves those specific errors within budget. Deprecation, latency pressure and retrieval gaps are all reasons to act, but none of them is a reason to move up a tier.",
+      "tip": "In upgrade multi-selects, sort each option into 'diagnosis', 'demonstration', or 'something else entirely'. Only the first two buckets can be keys, and the stem's key count usually matches them one for one."
+    }
+  },
+  {
+    "id": "CPE-A-024",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Different tier criteria for interactive and overnight workloads",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A national library runs two Claude workloads. One is an interactive search summariser for researchers, with a 2s p95 objective. The other is an overnight metadata enrichment job across 6 million scanned items, with the whole night available. Both currently run on the same tier, chosen 'for consistency'. Which TWO statements correctly explain why the tier decision should be made separately for each? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Using one tier across both workloads is required once they share a prompt template, because a template is bound to the tier it was authored against."
+      },
+      {
+        "key": "B",
+        "text": "Interactive workloads should use the cheapest available tier, because users value responsiveness over accuracy and the 2s p95 objective is the only binding constraint."
+      },
+      {
+        "key": "C",
+        "text": "The overnight job's binding constraint is cost per acceptable result across 6 million items, while the interactive path's tier is bounded by what fits inside 2s p95."
+      },
+      {
+        "key": "D",
+        "text": "The overnight job should use the cheapest tier by definition, since work with no user waiting on it carries no quality requirement to defend."
+      },
+      {
+        "key": "E",
+        "text": "With no user waiting, the overnight job can afford a higher tier or a reasoning budget if the eval shows better metadata quality."
+      }
+    ],
+    "correct": [
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "The two workloads are constrained by different things, which is exactly why one tier cannot be optimal for both. The overnight job is bounded by volume economics: at 6 million items the per-item cost dominates and the right question is cost per acceptable result. The interactive path is bounded by a human waiting: the tier must fit inside 2s p95 whatever it costs per call, and cheap-but-slow is no more acceptable than expensive-but-slow. The corollary is that latency-tolerant work can buy capability the interactive path cannot, provided an eval shows the purchase produces better metadata.",
+      "distractors": {
+        "A": "Sharing a prompt template does not couple the tier. A template is parameterised text; the same template can be sent to different tiers, and prompts that need per-tier tuning can be forked. This invents a constraint to justify the status quo.",
+        "B": "Stated as a rule about all interactive workloads, and false as one. Some interactive paths have a tight latency budget and a high accuracy bar simultaneously; the cheapest tier is a candidate, not a conclusion.",
+        "D": "Offline does not mean unimportant. Metadata written across 6 million catalogue items is durable, hard to correct at scale, and shapes every future search — the quality requirement is arguably higher than the interactive path's, not absent."
+      },
+      "concept": "Workload shape, not organisational tidiness, sets the tier. Latency-bound interactive paths select on what fits the budget; volume-bound offline jobs select on cost per acceptable result — and latency tolerance is itself a budget that offline work can spend on capability.",
+      "tip": "When a stem says two workloads share a tier 'for consistency', consistency is the thing being tested. Look for the options that name each workload's actual binding constraint."
+    }
+  },
+  {
+    "id": "CPE-A-025",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Gating a tier downgrade in a clinical workflow",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A hospital group drafts discharge summaries with Claude; a clinician reviews and signs every one. To cut cost the team evaluated a cheaper tier offline on 500 historical cases: rubric agreement is within one point of the current tier and measured cost per summary falls by about two thirds. The clinical safety officer owns the sign-off and has previously rejected changes evidenced only by aggregate scores. What should the team do next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Roll out to all wards at once and watch the clinician edit-rate dashboard for a week, rolling back if the rate rises above its current baseline."
+      },
+      {
+        "key": "B",
+        "text": "Ask the clinical safety officer to sign off on the offline eval alone, on the grounds that 500 cases is a statistically adequate sample for a one-point difference."
+      },
+      {
+        "key": "C",
+        "text": "Roll out on a single ward first and let the clinicians there raise problems informally through their usual channels."
+      },
+      {
+        "key": "D",
+        "text": "Shadow the cheaper tier on live traffic, score both outputs on the same clinical rubric, and take the paired comparison to the safety officer before any traffic moves."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The stem tells you the decision-maker's standard: aggregate scores alone have been rejected before. A shadow run satisfies it without exposing a patient to the change — the cheaper tier sees real current traffic, both outputs are scored on the same rubric so the comparison is paired rather than across different samples, and the safety-relevant slice is surfaced separately because a one-point aggregate difference can hide a concentration of errors in exactly the cases that matter clinically. It also produces evidence in the form the sign-off requires, which is the actual blocker.",
+      "distractors": {
+        "A": "Moving all wards before sign-off inverts the governance. Edit rate is also a lagging and noisy proxy: a clinician who accepts a subtly wrong medication line does not raise the edit rate, and that is the failure the safety officer exists to prevent.",
+        "B": "This asks the safety officer to accept precisely the evidence form they have already rejected. It also over-reads the sample: 500 cases can bound an aggregate difference while saying very little about a rare, high-severity slice.",
+        "C": "A single-ward pilot with informal feedback still exposes patients to an unapproved change and collects the least structured evidence available. Informal channels under-report subtle omissions, which is the error class that matters here."
+      },
+      "concept": "For a downgrade in a safety-relevant workflow, aggregate parity is necessary but not sufficient. Produce paired, same-rubric evidence on live traffic without exposing users, and report the high-severity error slice separately from the headline score.",
+      "tip": "When a stem names the person who signs off and the evidence they have previously rejected, the answer is the option that produces the evidence they will accept — not the one that reaches production fastest."
+    }
+  },
+  {
+    "id": "CPE-A-026",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Failure classes image input cannot address",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A team is switching a failing text-extraction step to native image input. Which failure will image input NOT address?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Values that appear only inside a chart and never in the document's text."
+      },
+      {
+        "key": "B",
+        "text": "Fields whose meaning depends on their position in a printed form's layout."
+      },
+      {
+        "key": "C",
+        "text": "Fields that are genuinely absent from the document the user uploaded."
+      },
+      {
+        "key": "D",
+        "text": "Handwritten annotations that the OCR service renders as noise."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Image input restores signal that a text-extraction stage destroyed — layout, marks, chart geometry, handwriting. It cannot supply information the document never contained. When a field is simply not in the uploaded document, the correct system behaviour is to return an explicit absence and route the case for follow-up, and no change of input modality alters that. Teams that adopt vision expecting the absent-field rate to fall are usually mistaking a document-completeness problem for an extraction problem.",
+      "distractors": {
+        "A": "This is a core case for image input. Chart-encoded values are destroyed by text extraction and recoverable from the rendered page, so switching modality directly addresses it.",
+        "B": "Layout-dependent semantics are exactly what flattening to text loses. Sending the page as an image preserves the spatial relationships that give the field its meaning.",
+        "D": "Handwriting rendered as noise by OCR is a textbook motivation for vision input, which can read the annotation in place rather than receiving the OCR service's garbled guess."
+      },
+      "concept": "Image input recovers signal lost in pre-processing; it does not create information. Separate 'the model could not see it' failures, which modality fixes, from 'it was never there' failures, which need an intake or workflow change.",
+      "tip": "Negatively-framed items reward sorting the options into one bucket first. Here, three options describe destroyed signal and one describes absent signal — the odd one out is the answer."
+    }
+  },
+  {
+    "id": "CPE-A-027",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Layout preservation in hardship-packet extraction",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A mortgage servicer processes borrower hardship packets containing bank statements, pay stubs and handwritten letters. A text-extraction service flattens each packet into one text blob before the model sees it. The dominant error is figures being attributed to the wrong column of a multi-column statement. The team already reconciles column totals where the statement prints them, which catches about a third of these misattributions. What is the right change?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Send the page images to a vision-capable model so column structure and table boundaries survive into the model's input."
+      },
+      {
+        "key": "B",
+        "text": "Add an explicit instruction that each figure belongs to the column it is printed under, with two worked examples."
+      },
+      {
+        "key": "C",
+        "text": "Move the extraction step to a higher tier so the model reasons more carefully about the flattened text."
+      },
+      {
+        "key": "D",
+        "text": "Extend the reconciliation check to infer expected totals where the statement does not print them, so more misattributions are caught."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Column membership is spatial information, and the flattening step destroys it before the model is invoked — by the time the blob arrives, which column a figure sat under is genuinely unrecoverable from the text. That makes this an input-modality problem rather than a prompting or capability problem. Sending page images preserves the geometry the extraction depends on, and it addresses the two thirds of misattributions the reconciliation check cannot see, rather than improving detection of errors the pipeline keeps producing.",
+      "distractors": {
+        "B": "Instructing a model to respect a structure that is not present in its input cannot work. Worked examples would teach the format of the answer, not restore the column boundaries that were flattened away upstream.",
+        "C": "More capability applied to the same degraded input yields more confident misattribution. The stem's error is not a reasoning failure; it is missing information, and tier does not create information.",
+        "D": "This improves detection rather than accuracy, and inferring totals the statement never printed introduces a second source of error. Detection controls are worth keeping, but they are the wrong lever when the underlying extraction can be fixed."
+      },
+      "concept": "Ask where in the pipeline the required signal is lost. Errors introduced by a lossy pre-processing stage are fixed by changing the input the model receives, not by prompting, tiering or validating harder downstream.",
+      "tip": "Detection-based options — reconcile more, validate more, flag more — are the giveaway that a stem is really about a fixable upstream loss. Catching an error is not the same as not making it."
+    }
+  },
+  {
+    "id": "CPE-A-028",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Capability upgrade proposed for a retrieval-bound failure",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A university runs a research assistant over a policy corpus. Its eval reports faithfulness at 98% — nearly every statement is traceable to the context supplied — but answer completeness at only 61%. Error analysis of the incomplete answers shows that in 34% the required passage was never retrieved, and in a further 41% it was retrieved but ranked below the cut-off passed to the model. The team has proposed moving to the highest tier. What should the architect advise?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Upgrade the tier; a stronger model composes more complete answers from the same retrieved context."
+      },
+      {
+        "key": "B",
+        "text": "Enable extended thinking so the model reasons harder about the context it does have."
+      },
+      {
+        "key": "C",
+        "text": "Leave the tier alone and fix retrieval, because three quarters of the incomplete answers trace to a passage the model was never shown."
+      },
+      {
+        "key": "D",
+        "text": "Increase the number of passages passed to the model until the context window is full, so the cut-off stops excluding relevant material."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Add the two error slices: 34% plus 41% is 75% of incomplete answers where the required passage either was never found or never reached the model. The 98% faithfulness figure confirms the model is using what it is given correctly and not inventing. That combination locates the bottleneck unambiguously in retrieval — recall for the first slice, ranking for the second — and no model tier can answer from a passage it never received. Spending on capability here buys a better writer for a brief that is missing three quarters of its source material.",
+      "distractors": {
+        "A": "The premise fails on the numbers. Completeness is limited by what reaches the context, not by how well the model composes from it, and the high faithfulness score already shows composition is working as intended.",
+        "B": "Reasoning budget cannot recover an absent passage. It would make the model more thorough about the material it has, which the faithfulness figure suggests it already handles, while adding latency and tokens to every query.",
+        "D": "Filling the window with lower-ranked passages trades a recall problem for a precision problem. It raises the chance the right passage is somewhere in the context while diluting it among weaker matches, and it inflates cost on every query — reranking addresses the 41% slice far more directly."
+      },
+      "concept": "Read faithfulness and completeness together before choosing a model lever. High faithfulness with low completeness means the model is doing its job on an inadequate brief — that is a retrieval defect, and tier, reasoning budget and window size are all the wrong dials.",
+      "tip": "When a stem breaks failures into slices with percentages, sum the ones attributable to a single subsystem before reading the options. If the sum dominates, the answer names that subsystem regardless of what the team proposed."
+    }
+  },
+  {
+    "id": "CPE-A-029",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Choosing between a tier change and a reasoning budget",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An automotive supplier assigns causal codes to warranty claims. The step runs on Sonnet and scores 84% against a 90% target agreed with the quality organisation. Two proposals are on the table: move to Opus, or enable extended thinking on the current tier. The team is arguing the merits in the abstract and the decision has been open for three weeks. What should the architect do?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Move to Opus, because tier is the stronger lever and a reasoning budget can always be layered on afterwards if the target is still missed."
+      },
+      {
+        "key": "B",
+        "text": "Run the two proposals as arms of one eval on the same held-out set, comparing accuracy gain against measured cost and p95 latency."
+      },
+      {
+        "key": "C",
+        "text": "Enable extended thinking first, because a reasoning budget is a smaller change to make and therefore the cheaper of the two options."
+      },
+      {
+        "key": "D",
+        "text": "Apply both changes together so the 90% target is cleared in a single release ahead of the quality organisation's next review."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Tier and reasoning budget are different levers with different cost curves, and which one closes a six-point gap on causal coding is not deducible from first principles — it depends on whether the residual errors are capability-shaped or premature-commitment-shaped, which only the data shows. Running them as arms of one eval on the same held-out set makes the comparison paired and also surfaces the second half of the decision: the two options can differ sharply in cost and latency profile even when they deliver similar accuracy, and the quality target is not the only constraint the step has to meet.",
+      "distractors": {
+        "A": "Asserts an ordering between the levers that does not hold generally. On tasks where failures come from committing too early, a reasoning budget on the current tier can beat a tier change outright, and the sequencing here is chosen by argument rather than measurement.",
+        "C": "The cost premise is not safe. Extended thinking generates additional tokens on every call, and at volume that can exceed the cost of a tier change with no reasoning budget. Which is cheaper is a measurement, not a given.",
+        "D": "Changing both at once means that if the target is met the team cannot attribute the gain, and will keep paying for whichever lever contributed nothing. It also reaches the highest-cost configuration by default."
+      },
+      "concept": "Capability tier and reasoning budget are independent levers, not points on one scale. When both are candidates, run them as arms of the same eval and compare accuracy gain per unit of cost and latency — the ranking is task-dependent and cannot be argued from principle.",
+      "tip": "A stem that describes a stalled debate is usually asking you to convert an argument into a measurement. Options that pick a side on general grounds are all wrong together."
+    }
+  },
+  {
+    "id": "CPE-A-030",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Accounting for reasoning tokens when sizing a request",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "How should an architect treat the reasoning tokens produced under an extended-thinking budget when sizing and costing a request?",
+    "options": [
+      {
+        "key": "A",
+        "text": "As free, since the reasoning is internal working and is not the answer returned to the user."
+      },
+      {
+        "key": "B",
+        "text": "As generated tokens that are paid for and that consume part of the response allowance."
+      },
+      {
+        "key": "C",
+        "text": "As input tokens, since they are derived from the prompt that was supplied."
+      },
+      {
+        "key": "D",
+        "text": "As tokens that count only when the caller chooses to have the reasoning surfaced."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Reasoning under an extended-thinking budget is generated, which means it is produced token by token, takes time, is billed, and shares the response allowance with the answer itself. Two practical consequences follow. First, cost models that count only the visible answer will understate a reasoning-enabled step substantially. Second, a request that budgets nearly all of its response allowance to the answer leaves no room for reasoning, so the allowance has to be sized for both — which is why enabling extended thinking on an existing endpoint often requires revisiting the request's token budget as well.",
+      "distractors": {
+        "A": "Treating reasoning as free is how teams enable it in a pilot and then discover the bill and the latency in production. Generated tokens cost time and money regardless of whether they are shown to a user.",
+        "C": "Reasoning is produced by the model, not supplied to it, so it behaves like output in every respect that matters to a design: it takes generation time, it is billed as generated, and it occupies response budget.",
+        "D": "Whether reasoning is surfaced to the caller is a presentation choice. It has no bearing on whether the tokens were generated, paid for, or occupied part of the response allowance."
+      },
+      "concept": "Reasoning tokens behave like output: generated, timed, billed, and drawn from the same response allowance as the answer. Size the allowance for reasoning plus answer, and include reasoning in every cost and latency model for the step.",
+      "tip": "If an item offers 'free' or 'only when displayed' as a way to account for reasoning tokens, both are wrong. Anything the model generates is on the meter."
+    }
+  },
+  {
+    "id": "CPE-A-031",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Design responses when one case exceeds the window",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A coroner's service is building a case-preparation assistant. A single inquest bundle — witness statements, medical records, expert reports and prior correspondence — can reach roughly 900,000 tokens, far beyond the context window, and the assistant must answer specific questions about the bundle with references. Which THREE are appropriate design responses to that constraint? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Retrieve per question and place only the passages relevant to that question in the window, with citations back to the source documents."
+      },
+      {
+        "key": "B",
+        "text": "Raise the request's maximum response length so the model has more room to hold the bundle while it works."
+      },
+      {
+        "key": "C",
+        "text": "Map over the bundle in sections with a per-section extraction step, then reduce the section outputs in a final call sized to fit the window."
+      },
+      {
+        "key": "D",
+        "text": "Concatenate the whole bundle and rely on the oldest material being trimmed away, since the most recent documents are the most relevant to an inquest."
+      },
+      {
+        "key": "E",
+        "text": "Carry a compact, application-maintained case digest forward between calls instead of the raw bundle, so each request's window holds a bounded amount."
+      }
+    ],
+    "correct": [
+      "A",
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "All three are legitimate ways of making a bounded window serve an unbounded case. Per-question retrieval is the right shape for the assistant's primary job — specific questions with references — because it puts only what the question needs in front of the model. Map-reduce over sections handles the tasks that genuinely require covering the whole bundle, such as building a chronology, by keeping every individual call inside the window and sizing the reduction step deliberately. And carrying an application-maintained digest between calls bounds what each request must hold, so the window cost does not grow with how long the case has been open.",
+      "distractors": {
+        "B": "Confuses two separate budgets. Response length governs how much the model may emit, not how much input it can take, so raising it does nothing for a bundle that will not fit.",
+        "D": "Relies on silent trimming that you should not design around: an over-window request fails rather than quietly dropping material, and any trimming must be yours so you know what was excluded. Recency is also a poor proxy for relevance in an inquest, where the earliest records are often the decisive ones."
+      },
+      "concept": "A context window is a per-request budget. When the material exceeds it, the three durable responses are select (retrieve what this question needs), decompose (map-reduce in window-sized pieces), and compress (carry a bounded digest forward). Raising output length and hoping for truncation are not among them.",
+      "tip": "In window-overflow multi-selects, check every option against the select / decompose / compress trio. Anything that does none of the three — or that reaches for the output limit — is a distractor."
+    }
+  },
+  {
+    "id": "CPE-A-032",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Regression in heavily tuned prompts after a version migration",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A tour operator is migrating its itinerary-drafting service from a retiring model version to its successor. On the team's regression suite, 11 of the 14 prompts pass unchanged. The three that regress — from 93% to 78% — are the ones with hand-selected few-shot examples and detailed formatting cues accumulated over two years of tuning against the retiring version. Retirement is four months away. What is the right conclusion and response?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The successor is materially less capable on this task; escalate to the vendor, ask for the retirement date to be reversed, and pause the migration."
+      },
+      {
+        "key": "B",
+        "text": "Reduce the temperature on the three affected prompts until the regression suite passes again, then re-baseline."
+      },
+      {
+        "key": "C",
+        "text": "Keep the three affected prompts pinned to the retiring version until close to its retirement date, then revisit the problem."
+      },
+      {
+        "key": "D",
+        "text": "The examples and formatting cues were tuned to the retiring version; re-select the examples and re-tune those three prompts on the same suite."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The pattern is diagnostic: the eleven prompts with little version-specific tuning migrate cleanly, and the three that regress are precisely those carrying two years of accumulated adaptation to the retiring version's quirks. That is prompt overfitting to a model version, not a capability deficit in the successor, and the remedy is to redo the tuning against the new target — re-selecting examples that are informative for it and revisiting cues that were compensating for behaviour it no longer exhibits. Measuring on the unchanged regression suite keeps the comparison honest across the rework.",
+      "distractors": {
+        "A": "The evidence does not support a capability claim. If the successor were weaker on this task the lightly-tuned prompts would regress too; instead they pass unchanged, which points at the tuning rather than the model.",
+        "B": "Temperature affects sampling diversity, not adherence to examples that no longer suit the model. Tuning a sampling parameter until a suite passes also risks fitting the suite rather than fixing the prompts.",
+        "C": "Deferring the three hardest prompts to the last weeks before retirement concentrates all the remaining risk into the period with no fallback. Four months of runway exists precisely so this work happens with room to fail safely."
+      },
+      "concept": "Prompts accumulate version-specific adaptation, and few-shot examples are the most version-sensitive component of all. In a migration, expect the most tuned prompts to regress most, and treat re-selecting examples against the new version as planned work rather than as evidence the new version is worse.",
+      "tip": "When a migration regresses unevenly, look at what distinguishes the regressing prompts. If it is the amount of tuning they carry, the model is not the story."
+    }
+  },
+  {
+    "id": "CPE-A-033",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Proportionate tier selection for a reviewed internal tool",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A six-person charity operations team wants a tool that drafts first-pass thank-you notes to donors. Every note is read and edited by a staff member before it is sent, volume is around 400 a week, and there is no capacity to build or maintain an eval programme. What tier posture should the architect recommend?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Start on the cheapest tier a quick hands-on review finds acceptable, since a human edits every output before it is sent."
+      },
+      {
+        "key": "B",
+        "text": "Start on the highest tier so quality is never the constraint, and downgrade later once an eval set has been built."
+      },
+      {
+        "key": "C",
+        "text": "Build a labelled eval set of 500 historical donor notes before committing to any tier, prompt or review process."
+      },
+      {
+        "key": "D",
+        "text": "Match the tier already used by the charity's other Claude workload, purely for operational consistency."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Rigour should scale with consequence, and here the consequence of a mediocre draft is bounded by a human who reads every one before it leaves the building. That makes the cheapest acceptable tier the right starting point and a hands-on review the right evidence — the review the staff already perform is a continuous, if informal, quality signal. Spending this team's scarce capacity on a formal eval, or its scarce budget on capability it cannot measure the benefit of, would be a misallocation dressed up as diligence.",
+      "distractors": {
+        "B": "Starting high and downgrading later is sensible when the downgrade will actually be evidenced, but the stem says no eval capacity exists, so the later downgrade never happens. In practice this is a decision to pay the highest tier indefinitely.",
+        "C": "A 500-item labelled eval is a substantial project for a six-person team, and it is disproportionate to a workflow with a human in the loop on every output. Eval investment should track the cost of an undetected error, which is low here.",
+        "D": "Consistency with an unrelated workload imports someone else's constraints. The other workload's tier was chosen for its own quality bar and volume, neither of which applies to reviewed donor notes."
+      },
+      "concept": "Match the rigour of a model selection to the cost of getting it wrong. Where a human reviews every output at low volume, cheap-and-good-enough with informal review is the correct posture; formal eval investment belongs where undetected errors are expensive.",
+      "tip": "Easy items often test proportionality rather than knowledge. When the stem stresses a small team, low stakes and human review, the over-engineered option is the trap even though it sounds responsible."
+    }
+  },
+  {
+    "id": "CPE-A-034",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Cost per correct result versus cost per call",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A food-delivery marketplace normalises restaurant menus into its own schema. On a 2,000-menu benchmark the cheaper tier costs a measured £0.04 per menu in API spend and produces a correct normalisation 71% of the time; failures go to an operations queue whose measured handling cost is £2.10 per menu. The higher tier costs four times as much per menu in API spend and is correct 94% of the time. The error rate is flat across menu length. The finance lead objects that the higher tier 'quadruples our model spend'. What should the architect recommend?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Stay on the cheaper tier: its API cost per menu is a quarter of the alternative's, and the operations queue is a standing team cost rather than a per-menu one."
+      },
+      {
+        "key": "B",
+        "text": "Move to the higher tier: at the measured rework cost, total cost per menu falls from about £0.65 to about £0.29 even though API spend rises."
+      },
+      {
+        "key": "C",
+        "text": "Stay on the cheaper tier and add extended thinking to close the accuracy gap for less than a tier change would cost."
+      },
+      {
+        "key": "D",
+        "text": "Split by menu complexity, sending only long menus to the higher tier and keeping short ones on the cheaper one."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Work the total, not the line item. On the cheaper tier: £0.04 of API spend plus 29% of £2.10 in rework, which is £0.609, for about £0.65 a menu. On the higher tier: £0.16 of API spend plus 6% of £2.10, which is £0.126, for about £0.29 a menu. The higher tier is less than half the all-in cost despite quadrupling the number the finance lead is looking at. The architect's job here is to reframe the metric from cost per call to cost per correct result, because the rework cost is measured per menu and therefore scales with the error rate.",
+      "distractors": {
+        "A": "The stem states the handling cost is measured per menu, which contradicts the standing-cost premise. Even where an operations team is nominally fixed, a 29% failure rate consumes capacity that has to be staffed for, so treating it as free is an accounting convention rather than an economic fact.",
+        "C": "Assumes both the size of the gain and its price. Extended thinking generates additional tokens on every one of the 2,000 menus, which may cost more than the tier change while delivering an improvement nobody has measured on this task.",
+        "D": "Complexity-based routing is a strong pattern when errors concentrate in the hard cases, but the stem removes that premise by stating the error rate is flat across menu length. With a flat error profile there is no slice to route."
+      },
+      "concept": "Compare model tiers on cost per correct result, including the downstream cost of being wrong. Where failures trigger measurable human rework, a higher API cost frequently produces a lower total cost, and the cheaper tier is only cheaper on the line item stakeholders happen to be watching.",
+      "tip": "Whenever a stem prices both a model call and a human rework step, do the two-term arithmetic before reading further. The item exists because the intuitive answer reverses once you do."
+    }
+  },
+  {
+    "id": "CPE-A-035",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Window and cost constraints in multi-page image extraction",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A title insurer extracts a fixed set of fields from scanned property deed packets that typically run 40 to 90 pages. The team plans to send the pages as images to a vision-capable model. Which TWO constraints most directly shape the design? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Sending pages as images removes the need for a page-ordering step, because the model infers document order from the content of each page."
+      },
+      {
+        "key": "B",
+        "text": "Page images consume tokens in proportion to their size, so a 90-page packet's image footprint has to be budgeted against the context window."
+      },
+      {
+        "key": "C",
+        "text": "Maximum response length grows with the number of input pages, so a 90-page packet can return a proportionally longer extraction than a 40-page one."
+      },
+      {
+        "key": "D",
+        "text": "Only a few pages in a typical packet carry the fields being extracted, so a cheap page-selection pass ahead of extraction changes cost and window budget."
+      },
+      {
+        "key": "E",
+        "text": "Scanned image input does not count against the context window, because it is handled by a separate vision path before the text model sees it."
+      }
+    ],
+    "correct": [
+      "B",
+      "D"
+    ],
+    "explanation": {
+      "correct": "Two facts dominate the design. Images are not free in the window: their token footprint scales with the image, so ninety pages of scans can consume a large share of the budget before a single instruction is added, and that has to be modelled rather than discovered in production. And packets are sparse with respect to the target fields, which means a cheap selection pass — deciding which pages are worth sending in full — collapses both the token footprint and the cost of the expensive extraction pass. Together they point at a two-stage design rather than a single all-pages call.",
+      "distractors": {
+        "A": "Page ordering in a scanned packet is metadata the scanning process supplies; asking a model to infer it from content adds an inference step with its own error rate. Nothing about image input removes an ordering requirement.",
+        "C": "Response length is independent of input size. This invents a relationship between the two budgets and, if believed, leads teams to expect long packets to produce longer extractions than the response allowance permits.",
+        "E": "Image input occupies context like any other input. Believing otherwise is how a design gets costed without its largest component and then fails on packets at the upper end of the page range."
+      },
+      "concept": "Treat image pages as a first-class consumer of the context window whose footprint scales with the image. In sparse multi-page documents, a cheap selection stage before the expensive extraction stage is the standard way to keep both the window and the bill bounded.",
+      "tip": "Any option claiming a modality is exempt from the window, or that output length scales with input length, is false. Those two misconceptions supply distractors across the whole document-processing topic."
+    }
+  },
+  {
+    "id": "CPE-A-036",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Evaluating a newer version with no deprecation pressure",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A streaming service applies content advisory tags with Claude, pinned to a specific model version that has no deprecation notice. A newer version is now available. The team has a maintained regression suite and three months of logged production traffic. The product director wants to be on 'the newest model'; the trust-and-safety lead owns the advisory taxonomy and has not been consulted. What should the team do next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Replay a stratified sample of logged traffic through both versions, compare on the regression suite and the sensitive slices, and hand the result to the trust-and-safety lead."
+      },
+      {
+        "key": "B",
+        "text": "Move the pin to the newer version behind a kill switch, watch the tagging dashboards for a week, and revert if the tag distribution shifts."
+      },
+      {
+        "key": "C",
+        "text": "Leave the pin where it is: with no deprecation pressure there is no reason to spend engineering effort evaluating a newer version until the provider forces the question."
+      },
+      {
+        "key": "D",
+        "text": "Ask the vendor for a written summary of the behavioural differences between the two versions and make the adoption decision from that."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The team already has both assets a version comparison needs — a regression suite and three months of real traffic — so the cheap, low-risk move is an offline replay that produces a like-for-like comparison without exposing viewers to a change. Stratifying the sample matters because advisory tagging failures are concentrated in rare, sensitive categories that a uniform sample would barely touch. And the decision belongs to the trust-and-safety lead who owns the taxonomy, not to the product director's preference for newness; the replay produces exactly the evidence that owner needs.",
+      "distractors": {
+        "B": "A kill switch limits the duration of harm, not its occurrence. With no deprecation pressure there is no reason to take even that risk when an offline replay is available, and dashboard-level tagging metrics will not surface a shift confined to a rare sensitive category.",
+        "C": "Declining to evaluate is over-conservative given the assets already exist. Periodic evaluation of newer versions is how a team avoids discovering, under a future deprecation deadline, that its prompts do not transfer.",
+        "D": "Vendor release notes describe general behavioural changes, not how a specific advisory taxonomy behaves on this catalogue. They are useful for knowing what to look for in the replay, not a substitute for running it."
+      },
+      "concept": "Absence of deprecation pressure changes the urgency of a version evaluation, not its value. When a regression suite and logged traffic exist, offline replay against a stratified sample is the cheapest evidence available — and the decision belongs to whoever owns the affected domain.",
+      "tip": "Next-step items often hide the decision-maker in a clause about who has not been consulted. The correct action usually produces evidence for that person rather than deciding without them."
+    }
+  }
+]

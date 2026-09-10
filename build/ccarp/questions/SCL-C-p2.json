@@ -1,0 +1,724 @@
+[
+  {
+    "id": "SCL-C-019",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Choosing phase-one scope against a hard dependency",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A rail operator wants a Claude-based depot assistant with three capabilities: answering engineers' questions from maintenance manuals, drafting fault reports, and automatically raising parts orders in the ERP. Funding covers one phase before the board's next review in sixteen weeks, and the board will decide continued funding on demonstrated value. The ERP write path needs a security review that the security team estimates at ten to fourteen weeks and cannot begin for another six. Fault-report drafting reuses the manuals index already built for question answering and needs no new integration. What should phase one contain?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Question answering over the manuals only, read-only, deferring everything else so the first phase carries the smallest possible surface area into the board review."
+      },
+      {
+        "key": "B",
+        "text": "Question answering plus fault-report drafting, both read-only, with the engineer submitting the report."
+      },
+      {
+        "key": "C",
+        "text": "All three capabilities behind a feature flag, with the ERP write path built and shipped disabled so it can be switched on the day the security review clears."
+      },
+      {
+        "key": "D",
+        "text": "Parts ordering first, since it carries the largest quantified saving, running the security review in parallel with development so the two complete together."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The security review cannot start for six weeks and takes ten to fourteen, so the earliest it clears is week sixteen — the board review itself. Anything depending on the ERP write path is therefore out of phase one as a matter of arithmetic, not preference. That leaves the two read-only capabilities, and the stem states fault-report drafting adds no new integration because it reuses the manuals index. Including it maximises demonstrated value at essentially no additional dependency risk, which is exactly what a funding gate rewards.",
+      "distractors": {
+        "A": "Dropping report drafting shrinks the phase without shrinking any risk, because the stem tells you it introduces no new integration. Minimal scope is a virtue when scope carries dependency; here it only reduces the value story taken to the board.",
+        "C": "Building a write path that cannot be enabled inside the funding window means carrying untested, unreviewed integration code through a board decision. Shipping code disabled also invites the assumption that it has been assured, when the security team has not yet looked at it.",
+        "D": "The saving is real and the parallelisation is not: the review cannot begin for six weeks, so it finishes at week sixteen at the earliest. Sequencing the highest-value item first is right in general and impossible against this dependency."
+      },
+      "concept": "Phase boundaries are set by dependencies you do not control, then by value within what remains. Compute the critical path of every external gate — security review, legal sign-off, data-sharing agreement — before choosing scope, and put in the first phase the highest-value capability whose dependencies all close inside the window.",
+      "tip": "Add the dependency dates before you read the options. Six plus ten is sixteen, which is the review date itself, and that single sum eliminates every option that touches the ERP."
+    }
+  },
+  {
+    "id": "SCL-C-020",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "What an AI production readiness review adds",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "What must a production readiness review for a Claude-based feature cover that a conventional service readiness review typically does not?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Capacity planning and load testing against projected peak throughput with agreed headroom."
+      },
+      {
+        "key": "B",
+        "text": "A rollback path for the prompt and pinned model version, and alerting on output quality rather than availability alone."
+      },
+      {
+        "key": "C",
+        "text": "An on-call rotation with paging thresholds and agreed incident severity definitions."
+      },
+      {
+        "key": "D",
+        "text": "Backup and restore procedures for the feature's persistent state, tested end to end against the agreed recovery time objective."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Everything else on a conventional readiness checklist still applies to an AI feature; the question is what it fails to cover. Two things are genuinely new. First, behaviour is governed by artefacts — the prompt and the pinned model version — that are not part of the application binary, so they need their own revert path. Second, the system's characteristic failure is producing plausible wrong output while healthy, which no availability or latency alert will detect. A readiness review that omits both signs off a system nobody can observe or undo.",
+      "distractors": {
+        "A": "Capacity and load testing matter and should be on the checklist, but they are standard for any service. An AI feature changes what you measure at peak, not whether you measure it.",
+        "C": "On-call and severity definitions are conventional review items. They do need extending with AI-specific severities, but the rotation and paging machinery itself is not new. The genuine addition is a severity band for correctness failures, not the rotation itself.",
+        "D": "Backup and restore is one of the oldest items on any readiness checklist and is unaffected by the feature being AI-based. Restoring a conversation store is the same exercise as restoring any other datastore of comparable size."
+      },
+      "concept": "Treat an AI readiness review as the standard review plus two additions: independent rollback of behaviour-controlling artefacts, and quality-proxy alerting with a named owner and a documented action. Everything else on the conventional list still applies unchanged. Do not let the novelty of the two additions distract the review from closing the ordinary items.",
+      "tip": "The stem asks what is additional, not what is important. Three options here are true and necessary and still wrong, because they are true of every service you have ever shipped."
+    }
+  },
+  {
+    "id": "SCL-C-021",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Incident severity definitions for correctness failures",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A manufacturer's run team has inherited a Claude-based supplier-email triage service. The team's existing severity matrix defines S1 as service unavailable, S2 as degraded latency, and S3 as cosmetic. In the first month a prompt change broke two routing categories and roughly 300 supplier emails went to the wrong queue over four days. No incident was ever raised, because the service was up and inside its latency objective the whole time. What should the run team change?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Require the product team to review and approve every prompt change before it can be promoted to production."
+      },
+      {
+        "key": "B",
+        "text": "Produce a daily routing report that a run-team engineer samples by hand each morning to spot anomalies."
+      },
+      {
+        "key": "C",
+        "text": "Add severity definitions keyed to output-correctness thresholds, so a sustained misroute rate is an S1 or S2 regardless of availability."
+      },
+      {
+        "key": "D",
+        "text": "Move the triage service to a higher-capability model tier so that routing mistakes of this kind become substantially less likely, and re-run the routing evaluation afterwards to confirm the improvement."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The failure ran for four days not because nobody could see it but because nothing in the team's vocabulary called it an incident. A severity matrix defined purely on availability and latency makes a correctness failure unclassifiable, so it is never declared, never paged, and never gets an owner. Adding correctness-based severities gives the misroute rate a threshold, a severity, and therefore a response — which is the mechanism that converts an observation into action at three in the morning.",
+      "distractors": {
+        "A": "Change approval is a prevention control and a reasonable one, but this prompt change would probably have passed review; the categories broke in production. It also does nothing for the four-day detection gap, which is what actually caused the damage.",
+        "B": "Manual daily sampling of routing decisions might have caught this eventually, but it is unowned, unscaled and easily skipped. It produces information without producing an obligation to act on it.",
+        "D": "Nothing in the stem attributes the misroutes to model capability; a prompt change broke the categories. A stronger model would have misrouted differently and still silently, because the detection and classification gap is untouched."
+      },
+      "concept": "Extend the incident severity matrix to correctness before handing an AI system to a run team. Every quality proxy you alert on needs a severity band, a declared owner, and a documented first action. An anomaly with no severity is an anomaly nobody is accountable for.",
+      "tip": "When a stem stresses that nothing was down and nothing was slow, it is pointing at the classification layer, not the monitoring layer. Ask what the team is permitted to call an incident."
+    }
+  },
+  {
+    "id": "SCL-C-022",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Change communications when job security is the blocker",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A regional bank is rolling out a Claude-based mortgage-document checker to 140 underwriters. The programme director's communications plan consists of a launch email and a recorded demo. HR has separately told the works council that no roles will be cut, with no timeframe attached. Underwriters have heard that a sister division introduced a similar tool shortly before a restructure. The bank's internal survey shows staff rate their line manager as the most trusted source of information about change and programme-team email as the least. Which two additions to the plan address the risk the survey and the rumour together describe? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "An expanded demo recording covering advanced features and prompt technique, so that underwriters get more out of the tool once they begin using it in earnest."
+      },
+      {
+        "key": "B",
+        "text": "An anonymous feedback form so underwriters can raise concerns without attaching their names to them."
+      },
+      {
+        "key": "C",
+        "text": "Line-manager briefings that address the job-security question head-on, sourced from the commitment HR has already given the works council."
+      },
+      {
+        "key": "D",
+        "text": "A named network of underwriter peers who use the tool first and answer questions inside their own teams."
+      },
+      {
+        "key": "E",
+        "text": "A written commitment from the chief executive that no underwriting roles will be cut for twenty-four months."
+      }
+    ],
+    "correct": [
+      "C",
+      "D"
+    ],
+    "explanation": {
+      "correct": "The blocker is a credibility problem about job security, and the survey tells you exactly which channels carry credibility here. Line managers are the most trusted source, so the job-security message has to be delivered by them and has to say something concrete rather than reassuring in general. Peers are the second mechanism: underwriters watching a colleague use the tool and keep their job is evidence in a way that a recording is not. Both route the message through channels the population already believes.",
+      "distractors": {
+        "A": "A richer demo raises capability among people who are already willing. It cannot move someone whose reason for not engaging is that they think the tool is a precursor to redundancy.",
+        "B": "Anonymous collection surfaces concerns without answering any of them, and here the concern is already known. Asking again what people are worried about, when you have been told, reads as stalling.",
+        "E": "This goes beyond what HR has agreed with the works council and creates a commitment the bank has not decided it can honour. A guarantee that is later broken destroys the credibility of every subsequent change programme."
+      },
+      "concept": "Adoption resistance rooted in job security is a trust problem, not an information problem. Deliver the message through the channels the affected population already trusts — usually their own line managers and visible peers — and say only what the organisation has actually committed to. Extra features, surveys and executive proclamations do not touch the underlying fear.",
+      "tip": "When a stem hands you survey data about which channels people trust, that data is the discriminator. Options are graded on the channel they use, not on how well-intentioned the content is."
+    }
+  },
+  {
+    "id": "SCL-C-023",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Binding prompt, model and eval into one release identity",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Why should a production AI release record bind the prompt version, the pinned model version and the gating evaluation run together under one identifier?",
+    "options": [
+      {
+        "key": "A",
+        "text": "So that any behaviour change observed in production can be attributed to a specific, reproducible configuration."
+      },
+      {
+        "key": "B",
+        "text": "Because model providers require the full configuration to be declared before a support request can be opened."
+      },
+      {
+        "key": "C",
+        "text": "Because prompt registries can hold only one active version per environment, so binding the components together is what allows more than one configuration to be staged at a time."
+      },
+      {
+        "key": "D",
+        "text": "Because evaluation results expire and must be re-run at deployment time to remain valid."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Behaviour in a Claude-based system is a function of at least three independently changeable things. If they are versioned separately and deployed on separate schedules, a quality movement in production cannot be traced to a cause and a rollback cannot restore a known state, because there is no name for the state you want back. One identifier covering all three makes the deployed configuration reproducible, diffable against the previous one, and revertible as a unit.",
+      "distractors": {
+        "B": "Declaring your configuration is useful when raising a support case, but that is a downstream convenience. Release identity exists for your own attribution and rollback, and would be necessary even if support never asked.",
+        "C": "Registries hold many versions and are usually pointed at by environment. The claim inverts the relationship between the registry and the release record. Nothing about holding several versions requires any of them to be bound to a model version or an evaluation run.",
+        "D": "Evaluation results do go stale as data and prompts drift, which is why suites are re-run on change. That is an argument about re-running evals, not about what a release identifier binds."
+      },
+      "concept": "Version the whole behaviour-determining configuration as one artefact: application build, prompt version, model version, tool or retrieval index version, and the evaluation run that gated it. Deploy and roll back that unit. Anything left out of the identifier is something you cannot reproduce or revert.",
+      "tip": "Ask what breaks without the practice. Here it is attribution and rollback — the two things you need at the moment production quality moves and nobody knows why."
+    }
+  },
+  {
+    "id": "SCL-C-024",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Announcing end-of-life for a concentrated-usage feature",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A SaaS HR platform plans to retire a Claude-based candidate-CV summarisation feature. Telemetry shows 4% of tenants use it at all, but two enterprise tenants generate 61% of its calls, and both are in renewal negotiation this quarter. Product wants to announce end-of-life in the next release note. What should happen first?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Publish the release note as planned; only 4% of tenants use the feature, and a single broad announcement treats every customer identically and fairly."
+      },
+      {
+        "key": "B",
+        "text": "Keep the feature alive indefinitely behind a legacy flag for the two heavy tenants and remove it from the product for everyone else."
+      },
+      {
+        "key": "C",
+        "text": "Swap the feature for a general-purpose summarisation endpoint without announcing anything, so no tenant has to act on a deprecation notice."
+      },
+      {
+        "key": "D",
+        "text": "Contact the two tenants directly with a migration path and a dated timeline before any general announcement goes out."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Usage here is concentrated, not sparse: two accounts carry most of the calls and both are deciding whether to renew. Learning about a removal from a release note during a renewal conversation is how a deprecation turns into a churn event. Reaching those tenants first with a migration path and dates lets the account team control the conversation, discover whether either tenant has a hard dependency, and adjust the timeline before it has been published to everyone.",
+      "distractors": {
+        "A": "Treating tenants identically is fair in principle and wrong on the numbers. A percentage of tenants is the wrong denominator when usage is concentrated; the exposure lives in two accounts, not in the 4%.",
+        "B": "An indefinite legacy flag is a permanent maintenance obligation with no end date and no migration pressure, and it still leaves the two tenants on a path that will eventually have to be unwound.",
+        "C": "Silent substitution changes behaviour under customers who have integrated against the feature and may have contractual expectations about notice. It also guarantees the change is discovered as a defect rather than as a plan."
+      },
+      "concept": "Segment usage before deprecating anything. Low overall adoption often hides concentrated dependency, and the right sequence is to contact the concentrated users individually with a migration path first, then announce broadly. The general notice sets the timeline; the direct conversation is what stops the timeline from becoming a commercial incident.",
+      "tip": "Whenever a stem gives both a share of accounts and a share of usage, the two will disagree and the usage figure is the one that matters. Check whether the small percentage is hiding a large customer."
+    }
+  },
+  {
+    "id": "SCL-C-025",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Sequencing a large migration around a seasonal peak",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A tax agency is migrating its 1,100 contact-centre agents from a keyword search tool to a Claude-based knowledge assistant. Training takes two hours per agent, and the agency cannot release more than 60 agents a week from the floor without breaching its published service level. The filing deadline is eighteen weeks away and the six weeks before it are peak, when call volume triples. The legacy search tool's support contract ends seven weeks after the filing deadline and cannot be renewed. Which migration plan fits the constraints?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Raise the weekly release to 100 agents so all 1,100 are trained before peak begins, accepting a temporary service-level dip during the run-up."
+      },
+      {
+        "key": "B",
+        "text": "Cut every agent over at week ten using a condensed one-hour session, so the whole floor is on a single tool throughout the peak period."
+      },
+      {
+        "key": "C",
+        "text": "Train and migrate as many agents as the 60-a-week limit allows before peak, keep the legacy tool live for the remainder through the deadline, and finish the migration in the quiet weeks that follow."
+      },
+      {
+        "key": "D",
+        "text": "Hold the entire migration until after the filing deadline so that no change of any kind lands near the busiest period of the year."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "At sixty a week, 1,100 agents need just over eighteen weeks of training capacity, and only twelve of those weeks fall before peak — 720 agents. Full migration before peak is arithmetically impossible within the service-level constraint, and the legacy tool's contract expires seven weeks after the deadline, which rules out an indefinite postponement. The only plan that satisfies both bounds is a partial migration before peak with both tools running for the remaining 380 agents, who need a little over six of the seven weeks available between the deadline and the contract expiry — tight, but it closes.",
+      "distractors": {
+        "A": "Raising throughput to 100 a week does make the numbers work, at the explicit cost of the published service level. The stem states that limit as a constraint the agency will not breach, so this trades a hard commitment for a scheduling convenience.",
+        "B": "Halving the training and moving everyone at once concentrates all migration risk into the two weeks before the busiest period of the year, with no fallback tool and no staggered signal of trouble.",
+        "D": "After the deadline only seven weeks remain before legacy support ends, which at sixty a week trains 420 agents. This plan strands the other 680 on an unsupported tool."
+      },
+      "concept": "Migration plans are bounded on both sides: a peak or freeze period you must not disrupt, and a hard expiry on the incumbent. Compute the throughput of your training or cutover mechanism against both bounds first. When the numbers do not permit a clean cutover, the answer is a period of dual running with an explicit end date, not a compressed cutover or an indefinite delay.",
+      "tip": "Work both ends of the timeline. The pre-peak window sets what you can finish early, and the incumbent's expiry sets what you must finish late; the plan lives in whatever gap survives both calculations."
+    }
+  },
+  {
+    "id": "SCL-C-026",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "AI-specific items on a readiness sign-off checklist",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An energy retailer is holding the production readiness review for a Claude-based billing-query assistant. The reviewer already has the company's standard checklist covering capacity, backup and restore, on-call rotation and disaster recovery, all of which are closed. Which further items must be closed before sign-off because they exist only because this is an AI system? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "A load test demonstrating that the service sustains projected peak concurrency with the agreed headroom margin, repeated after every significant dependency change."
+      },
+      {
+        "key": "B",
+        "text": "A rollback procedure for the prompt version and the pinned model version that does not require an application deployment."
+      },
+      {
+        "key": "C",
+        "text": "A tested restore of the conversation store from backup completing inside the recovery time objective."
+      },
+      {
+        "key": "D",
+        "text": "Named thresholds on output-quality proxies, each with an owner and a documented action when the threshold is breached."
+      },
+      {
+        "key": "E",
+        "text": "A defined behaviour for what the assistant does, and what the customer sees, when a guardrail withholds an answer."
+      }
+    ],
+    "correct": [
+      "B",
+      "D",
+      "E"
+    ],
+    "explanation": {
+      "correct": "Each of the three names a gap the standard checklist cannot express. Prompt and model version are behaviour-controlling artefacts outside the application binary, so their revert path is separate and must be proven. Quality proxies are the only signals that move when the assistant is wrong but healthy, and a threshold without an owner and an action is decoration. Guardrail-withheld output is a state the system will genuinely enter, and if nobody has decided what the customer sees, the customer sees whatever the error path happens to render.",
+      "distractors": {
+        "A": "Load testing is on every readiness checklist ever written and the stem says capacity is already closed. Peak concurrency behaviour is not changed in kind by the service being AI-based.",
+        "C": "Backup restore against the recovery time objective is standard and also already closed per the stem. A conversation store is an ordinary datastore from a readiness perspective. Nothing about a model sitting in the request path changes how a restore is planned or tested."
+      },
+      "concept": "An AI readiness review is the standard review plus three things: independent rollback of prompt and model version, quality-proxy thresholds with owners and actions, and defined user-visible behaviour for refusal, guardrail block and low-confidence paths. Sign-off should be blocked on those, not on re-litigating the conventional items.",
+      "tip": "The stem tells you the conventional checklist is already closed. Any option describing a conventional item is disqualified for that reason alone, however well written it is."
+    }
+  },
+  {
+    "id": "SCL-C-027",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Overnight triage of a quality regression with two candidate causes",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "At 02:10 the run team for a retailer's Claude-based returns-authorisation assistant is paged: escalation-to-human rate has doubled. The dashboard shows the rate flat until 00:45 and climbing steadily since. No application deployment has happened for six days. The prompt registry records a new prompt version promoted at 00:40. A scheduled job re-indexed the knowledge base at 00:15, and the rate was unchanged between 00:15 and 00:45. The runbook documents a one-step revert for the prompt and a forty-minute rebuild to restore the previous index. What is the next step?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Revert the prompt to the previous version and re-check the escalation rate before touching the index."
+      },
+      {
+        "key": "B",
+        "text": "Revert the prompt and rebuild the previous index at the same time, restoring the last fully known-good state as quickly as possible."
+      },
+      {
+        "key": "C",
+        "text": "Wake the product team to read sample transcripts and identify the cause before making any change to the running configuration."
+      },
+      {
+        "key": "D",
+        "text": "Raise the escalation-rate alert threshold to stop the paging overnight and investigate properly during business hours when the owners are available."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The timeline in the stem does the work. The re-index landed at 00:15 and the rate stayed flat for thirty minutes afterwards, which is evidence against it; the prompt promotion at 00:40 sits five minutes before onset. Reverting the prompt is one step, fast, and directly reverses the only change temporally consistent with the symptom. Doing it alone also preserves attribution: if the rate recovers, the cause is confirmed for the postmortem, which a simultaneous double rollback would have made impossible to establish.",
+      "distractors": {
+        "B": "Rolling back both restores service no faster — the index rebuild takes forty minutes against a one-step prompt revert — and destroys the evidence about which change was responsible. It also re-runs a forty-minute rebuild that the timeline already exonerates.",
+        "C": "Transcript reading is valuable and belongs in the postmortem, but the escalation rate is climbing now and a one-step, low-risk revert of the temporally matching change is available. Escalating to read evidence before using a safe revert prolongs customer impact.",
+        "D": "Muting the alert converts a detected incident into an undetected one and leaves customers escalating until morning. Threshold tuning is a legitimate activity, and doing it during the incident it is currently detecting is not."
+      },
+      "concept": "In AI incident triage, correlate the onset time against the change log for every behaviour-controlling artefact — prompt, model version, retrieval index, tool schema — and revert the cheapest change that matches the timeline, one at a time. Single-change reverts preserve the attribution that the postmortem depends on.",
+      "tip": "Read the timestamps as evidence, not as scene-setting. A change followed by thirty flat minutes is largely cleared; a change five minutes before onset is the suspect, and the runbook telling you one revert is cheaper than the other decides the order."
+    }
+  },
+  {
+    "id": "SCL-C-028",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Contents of an internal service deprecation notice",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A platform team is retiring a shared Claude-based summarisation microservice used by nine downstream teams. Beyond the retirement date, what must the deprecation notice contain?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The reason for retirement and the saving it delivers to the platform budget, so consuming teams understand the rationale."
+      },
+      {
+        "key": "B",
+        "text": "The replacement endpoint, a documented behavioural diff against the retiring service, and the date new integrations stop being accepted."
+      },
+      {
+        "key": "C",
+        "text": "An invitation to object, with the retirement date reconsidered if enough consuming teams push back on the timeline."
+      },
+      {
+        "key": "D",
+        "text": "The full changelog of the retiring service since its launch, so consuming teams can see how its behaviour evolved and judge how much of that behaviour they have come to depend on."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "A deprecation notice has to be actionable by nine teams who have their own roadmaps. What they need is where to go, how the new thing behaves differently from the old thing, and the freeze date after which no new dependency can be created. The behavioural diff matters more for an AI service than for a conventional API, because downstream teams have often tuned their own prompts, parsers or thresholds against the incumbent's exact output style and cannot assess migration effort from an endpoint name alone.",
+      "distractors": {
+        "A": "Rationale is worth a sentence and does not help anyone migrate. A budget saving that accrues to the platform team is, if anything, an argument the consuming teams will resent rather than act on.",
+        "C": "Consultation belongs before the date is set. Publishing a date that is negotiable if enough teams complain guarantees that everyone complains and nobody starts migrating. Consulting after publication also signals that dates from this team can be moved by complaint.",
+        "D": "A historical changelog describes where the service has been. Teams need the forward diff to the replacement, which is a different document and the only one that sizes their work."
+      },
+      "concept": "A deprecation notice should carry four things: the retirement date, the freeze date for new integrations, the replacement, and a concrete behavioural diff between old and new. For AI services the diff must cover output behaviour, not just interface shape, because consumers integrate against observed behaviour.",
+      "tip": "Judge notice content by whether a downstream team can size the migration from it. Rationale, savings and history read as courtesy; endpoints, diffs and dates are what get scheduled."
+    }
+  },
+  {
+    "id": "SCL-C-029",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Feeding production incidents into the iteration backlog",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A logistics broker's Claude-based freight-quote assistant has an improvement backlog built entirely from sales-team feature requests. Its regression suite has held steady at 240 cases for four months, gaining nothing, while three production quality incidents occurred in the same period. The engineering manager asks what should change about how the backlog is constructed.",
+    "options": [
+      {
+        "key": "A",
+        "text": "Replace the request-driven backlog with a purely metric-driven one derived from the quality dashboard, so prioritisation follows measurement rather than opinion."
+      },
+      {
+        "key": "B",
+        "text": "Move backlog ownership from the sales team to engineering, so that reliability and technical debt receive fair weighting against new features."
+      },
+      {
+        "key": "C",
+        "text": "Grow the regression suite to 500 cases by sampling more production traffic, raising coverage before the next incident occurs."
+      },
+      {
+        "key": "D",
+        "text": "Make every production incident produce at least one regression case, and rank incident-derived work above feature requests in each iteration."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Three incidents and no new regression cases means the system is failing in ways that nothing prevents it failing again. The specific missing mechanism is the link from a production failure to a permanent test, and that link has to be a rule rather than an intention or it competes with feature work and loses every time. Giving incident-derived cases priority is what makes the suite grow along the axis where the system actually breaks, rather than along the axis someone imagined at design time.",
+      "distractors": {
+        "A": "A purely metric-driven backlog discards the sales team's information about what customers need, which is real signal. The defect is that incident learning is absent, not that customer requests are present.",
+        "B": "Reassigning ownership changes who argues for what without creating any mechanism. Engineering-owned backlogs drift toward feature work under commercial pressure just as readily. The suite would still gain nothing after an incident, because no rule requires it to.",
+        "C": "Doubling the suite by random sampling adds cases weighted toward common traffic, which the assistant already handles. Coverage that is not aimed at observed failures inflates runtime and confidence together."
+      },
+      "concept": "Close the loop from production failure to regression case as a standing rule: no incident is closed until a test that would have caught it is in the suite. A regression suite that does not grow after incidents is a suite that measures yesterday's understanding of the system, and quality will drift regardless of how many cases it contains.",
+      "tip": "A flat test-count alongside a non-zero incident count is the tell. The answer is the mechanism that connects the two numbers, not a change of owner or a bigger suite."
+    }
+  },
+  {
+    "id": "SCL-C-030",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Mechanisms that shorten the production-to-iteration loop",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A pet insurer reviews its Claude-based claims-photo triage assistant monthly and wants to shorten the loop between a production failure and the iteration that fixes it. Today, problems reach the team as anecdotes weeks later with no way to reproduce them. Which mechanisms close that loop? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "A weekly export of aggregate customer satisfaction scores delivered to the product manager."
+      },
+      {
+        "key": "B",
+        "text": "A monthly all-hands session where adjusters describe problems they hit during the month."
+      },
+      {
+        "key": "C",
+        "text": "A quarterly benchmark comparing the assistant against a competing vendor product on a standard task set."
+      },
+      {
+        "key": "D",
+        "text": "A one-click \"this was wrong\" control in the adjuster's screen that captures the full request context and files the case into a triage queue."
+      },
+      {
+        "key": "E",
+        "text": "A scheduled job that samples low-confidence and human-overridden decisions into a labelling queue for review."
+      }
+    ],
+    "correct": [
+      "D",
+      "E"
+    ],
+    "explanation": {
+      "correct": "The stated defect is that failures arrive as unreproducible anecdotes. Both keys attack that directly by capturing the case with its context at the moment it happens. The report control converts a user's judgement into a reproducible artefact with one action, which is the only reporting cost low enough that busy adjusters actually pay it. Sampling low-confidence and overridden decisions catches the failures nobody bothers to report, which is most of them, and turns overrides into a standing supply of labelled candidates.",
+      "distractors": {
+        "A": "Aggregate satisfaction scores tell you the direction of travel and nothing about any individual case. You cannot reproduce, diagnose or write a regression test from a weekly average. Averages move only once a problem is already widespread, which is far too late to be useful.",
+        "B": "An all-hands recollection a month after the event is exactly the anecdote pipeline the team already has, with a meeting attached. Detail and context are gone by then. By then the specific case, the retrieved context and the exact output have all gone.",
+        "C": "Competitive benchmarking informs procurement and roadmap arguments. It runs quarterly on a synthetic task set and produces nothing about the insurer's own production failures. It also runs against a task set chosen for comparability, not against the insurer's own claims."
+      },
+      "concept": "A production feedback loop needs case-level capture with full context at the moment of failure, plus automated sampling of the cases users will never report. Aggregates and retrospective conversations describe the problem; only captured cases can be reproduced, labelled, turned into regression tests and fixed.",
+      "tip": "Test each option against \"could an engineer reproduce a specific failure from this?\" Aggregates and meetings always fail that test, which is what separates them from mechanisms that look similarly diligent."
+    }
+  },
+  {
+    "id": "SCL-C-031",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Prioritising enablement content against observed failure modes",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A hospital trust is enabling 350 ward clerks on a Claude-based discharge-letter drafter, with one 45-minute session per clerk and no realistic prospect of a second. The pilot found that the two dominant causes of bad output were clerks pasting notes belonging to the wrong patient, and clerks accepting a draft without checking the medication list against the source. What should the 45 minutes prioritise?",
+    "options": [
+      {
+        "key": "A",
+        "text": "A drill on the two observed failure modes: verifying patient identity before pasting, and a mandatory medication-list check worked through on a draft that got it wrong."
+      },
+      {
+        "key": "B",
+        "text": "A structured overview of the assistant's capabilities and limitations, with time reserved for clerks to ask their own questions."
+      },
+      {
+        "key": "C",
+        "text": "Prompt-writing technique, so clerks can steer drafts toward the trust's house style and reduce the editing burden on each letter."
+      },
+      {
+        "key": "D",
+        "text": "The trust's AI governance policy and the clerk's personal accountability for anything they sign off under it."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Enablement time is a fixed budget of forty-five minutes and the pilot has already told you where the harm comes from. Spending that budget on drilling the two known failure modes buys the largest reduction in real errors per minute, and doing it on a draft that actually got the medication list wrong teaches recognition rather than instruction. Both failures are behavioural — a step skipped under time pressure — and behaviour changes through practice, not through being told.",
+      "distractors": {
+        "B": "A capabilities-and-limitations overview is the default first session and produces general awareness. With one session available it consumes the entire budget on breadth while leaving both known failure modes untrained.",
+        "C": "House style affects the editing burden, not patient safety. Optimising the pleasantness of the output while clerks are attaching the wrong patient's notes is the wrong use of the only session you get.",
+        "D": "Accountability briefings tell clerks they will be answerable without teaching them what to check. In practice that raises anxiety and hesitancy rather than detection, and governance content is better delivered as written policy."
+      },
+      "concept": "Design enablement from observed failure data, not from a feature tour. Rank the failure modes the pilot revealed, and spend scarce training time drilling the specific checks that prevent them, using real examples of the failure. Awareness content scales through documentation; behaviour change needs the session.",
+      "tip": "When a stem gives you both a hard time budget and a named list of observed failures, it is asking you to spend the budget on the list. Any option offering breadth is spending it on everything else."
+    }
+  },
+  {
+    "id": "SCL-C-032",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Pilot exit criteria versus production readiness criteria",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "How do pilot exit criteria differ in purpose from production readiness criteria?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Pilot exit criteria are qualitative judgements gathered from users, whereas readiness criteria are quantitative thresholds measured by instrumentation."
+      },
+      {
+        "key": "B",
+        "text": "Pilot exit criteria are owned by the engineering team, whereas readiness criteria are owned by the business sponsor who funds the work."
+      },
+      {
+        "key": "C",
+        "text": "Exit criteria test whether the value is real; readiness criteria test whether the organisation can run it."
+      },
+      {
+        "key": "D",
+        "text": "Pilot exit criteria concern the model's behaviour, whereas readiness criteria concern the infrastructure the model is deployed onto."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The two gates answer different questions and a system can pass one while failing the other. A pilot can prove a real, measured benefit and still be unshippable because nobody can roll it back, nobody is on call, and no one has defined what users do when it refuses. Conversely a beautifully operable system that saves nobody any time should not ship. Keeping the gates separate stops a strong result on one from being used to wave through the other.",
+      "distractors": {
+        "A": "Both sets of criteria should be measurable, and both usually mix quantitative thresholds with qualitative sign-offs. The split is about what is being asked, not about the type of evidence.",
+        "B": "If anything this is inverted: value criteria typically belong to the sponsor and operability criteria to engineering and operations. Either way, ownership is not the distinction that matters. Both gates should in any case be signed by whoever bears the consequence of getting them wrong.",
+        "D": "Readiness covers a great deal that is not infrastructure — degraded-mode procedures, runbooks, escalation paths, quality alerting — and exit criteria are about outcomes rather than model behaviour as such."
+      },
+      "concept": "Run two independent gates. The pilot gate asks whether the measured benefit justifies production investment. The readiness gate asks whether the organisation can operate, observe, degrade and recover the system. Passing one is never evidence for the other, and collapsing them is how systems ship that work but cannot be run.",
+      "tip": "If you cannot recall the definitions, ask what each gate would block. One blocks a project with no proven value; the other blocks a valuable project nobody can operate at three in the morning."
+    }
+  },
+  {
+    "id": "SCL-C-033",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Prioritising handover work before a build team departs",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A consultancy built a Claude-based grant-application scoring assistant for a philanthropic foundation and its engagement ends in thirty days. The foundation has two internal developers, neither of whom has worked on an LLM system before. Current state: the evaluation harness runs only from the consultancy's laptops via a local script; prompts are in a Git repository the foundation owns; the pinned model version is set by hand as an environment variable in the cloud console; the foundation's developers have already drafted a runbook from the design documents but have never run the evaluations or changed the model version themselves. With thirty days, what should the consultancy do first?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Write and hand over a formal runbook to consultancy standards, since a runbook drafted by people who have never operated the system cannot be relied on in an incident."
+      },
+      {
+        "key": "B",
+        "text": "Deliver a two-week hands-on programme for the two developers covering LLM fundamentals and a walkthrough of the system's design decisions."
+      },
+      {
+        "key": "C",
+        "text": "Negotiate a six-month support retainer so the foundation is never left without expertise, and complete the handover work gradually across that period."
+      },
+      {
+        "key": "D",
+        "text": "Make the evaluation harness runnable in the foundation's own CI and move the pinned model version into the versioned configuration the prompts already use."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Two capabilities disappear the day the consultancy leaves, and both are unrecoverable by the foundation on its own. The evaluation harness exists only on machines that are going away, so once it is gone the foundation cannot tell whether a change is safe. The model version lives as a hand-set console variable, so a version change is an untracked, unreviewable action with no revert. Moving both into the foundation's own infrastructure converts them into things two inexperienced developers can operate; the runbook they drafted can be corrected by them once they can actually exercise the system.",
+      "distractors": {
+        "A": "A consultancy-written runbook is better prose and no better preparation. The foundation already has a draft, and what it lacks is the ability to perform the actions a runbook would describe.",
+        "B": "Two weeks of the thirty spent on fundamentals and design rationale leaves the structural gaps in place. Developers who understand the design but cannot run an eval or revert a model version are still unable to operate it.",
+        "C": "A retainer postpones the problem at ongoing cost and removes the pressure that makes handover happen. It also leaves the same laptop-bound harness and hand-set variable in place at the end of six months."
+      },
+      "concept": "Before a build team disperses, migrate every capability that lives in that team's environment or heads into the receiving organisation's infrastructure: evaluation harness into their CI, configuration into their versioned store, credentials into their vault. Knowledge transfer is second. Documentation and training can be redone later; environment-bound capability cannot.",
+      "tip": "Sort handover gaps by what becomes unrecoverable at departure. A drafted runbook can be improved next month; an eval harness on a departing laptop cannot be recreated by people who have never seen it run."
+    }
+  },
+  {
+    "id": "SCL-C-034",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Sunset obligations unique to a retired AI service",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A telco is decommissioning a Claude-based network-fault summariser after eighteen months in service. Its outputs were attached to roughly 400,000 engineer work orders that the regulator may inspect for the next six years. The decommission plan already covers the standard steps. Which obligations does the sunset plan carry that a conventional application decommission would not? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Cancelling the service's cloud subscriptions and releasing its reserved accelerator capacity once the final batch of work orders has been archived."
+      },
+      {
+        "key": "B",
+        "text": "Removing DNS records and load-balancer rules so that nothing in the estate continues to route toward the retired summariser endpoints."
+      },
+      {
+        "key": "C",
+        "text": "Retaining, for each historical output, the prompt version, pinned model version and input context, so a past summary can be reconstructed if challenged."
+      },
+      {
+        "key": "D",
+        "text": "Notifying the engineering population that the summariser is being withdrawn and confirming which manual step replaces it in the fault-handling workflow from cutover."
+      },
+      {
+        "key": "E",
+        "text": "Preserving the record of which outputs an engineer amended and which were accepted unmodified, since accountability for a challenged summary turns on that."
+      }
+    ],
+    "correct": [
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "A six-year inspection window outlives the service, so the plan must preserve what makes a historical output defensible after the system producing it no longer exists. That is the configuration that generated it — prompt version, model version, input context — and the human-review status of each output, because the answer to \"who is accountable for this summary\" is different for one an engineer amended and one they accepted untouched. Neither obligation arises when decommissioning a deterministic application, where the code in version control is a sufficient record of behaviour.",
+      "distractors": {
+        "A": "Reclaiming cloud spend is on every decommission checklist and is unaffected by the service being AI-based. It is also the step organisations remember, which is why it is a tempting inclusion.",
+        "B": "Tearing down DNS and routing is routine decommission hygiene for any service. Nothing about a model in the request path changes how it is done. The AI-specific obligations all concern what survives the teardown rather than the teardown itself.",
+        "D": "Telling users a system is going away and what replaces it is ordinary change communication, and it is required for any withdrawal. It is good practice rather than an AI-specific obligation."
+      },
+      "concept": "When a probabilistic system is retired but its outputs persist in records with a retention obligation, the retention obligation extends to the configuration that produced each output and to its human-review status. Deterministic systems can be reconstructed from source control; an AI system cannot, so the reproducibility evidence must be captured at generation time and survive the service.",
+      "tip": "The phrase to seize on is the inspection window that outlasts the system. It converts \"decommission the service\" into \"decommission the service while keeping its outputs explainable\", and only options about reproducibility and accountability answer the second half."
+    }
+  },
+  {
+    "id": "SCL-C-035",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Why a prompt change is a high-risk deployment",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In a production Claude system, what makes a prompt change a higher-risk deployment than a code change of comparable size?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Prompt changes cannot be meaningfully reviewed before merge, because their effect on output is not deterministic."
+      },
+      {
+        "key": "B",
+        "text": "A prompt change can shift behaviour across every input class at once, and the effect is not visible from reading the diff."
+      },
+      {
+        "key": "C",
+        "text": "Prompt changes bypass the application's automated test pipeline, because that pipeline exercises code paths and assertions rather than free text, and a prompt presents no code path to cover."
+      },
+      {
+        "key": "D",
+        "text": "Prompt changes invalidate cached responses, producing a latency and cost spike immediately after deployment."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "A code change usually has a locatable blast radius: you can read the diff, see which call sites are affected, and reason about them. A single sentence added to a system prompt applies to every request the system will ever serve, and its consequences on any given input class cannot be inferred from the text. That combination — global scope plus opaque effect — is why prompt changes need evaluation gating, independent versioning and their own fast revert path rather than review alone.",
+      "distractors": {
+        "A": "Prompt changes are reviewable, just not by reading. You review them by running an evaluation suite over representative cases, which is precisely the control this risk profile demands. Treating them as unreviewable is how prompt changes end up shipping with no gate at all.",
+        "C": "Nothing forces a prompt change to bypass the pipeline; teams that let it are choosing to. Prompts belong in the same gated pipeline as code, with evaluations as the gate.",
+        "D": "Cache invalidation is a real and manageable operational side effect of changing prompt content. It is a cost and latency consideration, not the reason a prompt change carries behavioural risk."
+      },
+      "concept": "Prompt changes combine unlimited scope with unreadable effect, so control them empirically rather than by inspection: gate on an evaluation suite, version them independently of application code, roll them out progressively, and keep a revert path that does not require a code deployment.",
+      "tip": "Distinguish the risk from the mitigation. Prompt changes are risky because of scope and opacity; bypassing tests and cache churn are things that happen to teams, not properties of the change itself."
+    }
+  },
+  {
+    "id": "SCL-C-036",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Diagnosing an adoption plateau from session logs",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "Eight weeks after launch, a building-materials distributor's Claude-based purchase-order query assistant is used weekly by 62% of its 400 target users, a figure flat for three weeks. The product owner proposes an internal marketing push. Session logs show that among the 152 non-users, 71% opened the assistant once and never returned, and their first sessions were disproportionately questions about a supplier catalogue the assistant has no connection to. What is the next step?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Connect the supplier catalogue to close the capability gap, then re-invite the roughly 108 users who tried the assistant once and left."
+      },
+      {
+        "key": "B",
+        "text": "Run the internal marketing push as proposed, since awareness is the standard lever to reach for when weekly usage stops climbing at this stage."
+      },
+      {
+        "key": "C",
+        "text": "Add a guided onboarding tutorial so that first sessions are more likely to end in a successful answer."
+      },
+      {
+        "key": "D",
+        "text": "Survey the 152 non-users to establish why they are not returning before committing engineering effort."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The logs have already diagnosed the plateau: most non-users are not unaware, they tried the assistant, asked about a data source it cannot see, got nothing useful, and left. That is a capability gap, and no amount of promotion or onboarding changes what the assistant can answer. Connecting the catalogue removes the cause, and the re-invitation matters because these users have already formed a judgement — they will not come back spontaneously and need to be told specifically what changed.",
+      "distractors": {
+        "B": "Marketing brings people to a tool that will fail them the same way it failed them the first time. Driving traffic into a known capability gap burns the remaining goodwill of the population you most need back.",
+        "C": "Onboarding helps users who cannot work out how to ask. These users asked perfectly clearly about something outside the assistant's reach, and a tutorial will teach them that faster without changing the outcome.",
+        "D": "Surveying is the right instinct when you have no data. Here the session logs already answer the question, and running a survey delays the fix while asking users to restate what they have already demonstrated."
+      },
+      "concept": "Segment an adoption plateau before treating it. Never-tried is an awareness problem, tried-and-left is a capability or trust problem, and tried-and-struggled is an enablement problem. Each has a different remedy, and applying the awareness remedy to a capability gap accelerates abandonment.",
+      "tip": "Look for the split between users who never arrived and users who arrived and left. The moment a stem tells you most non-users tried it once, every awareness-based option is disqualified."
+    }
+  }
+]

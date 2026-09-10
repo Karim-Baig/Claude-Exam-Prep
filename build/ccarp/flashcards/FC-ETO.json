@@ -1,0 +1,182 @@
+[
+  {
+    "id": "FC-ETO-001",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Building a golden eval set",
+    "difficulty": "medium",
+    "front": "Your eval set is 50 cases the team wrote by hand and the system scores well on it while users complain. What is wrong with the set?",
+    "back": "Hand-written cases encode what the authors imagined, not what production sends. Sample from real traffic, stratified across the categories, channels and input lengths you actually see; deliberately over-weight known failure classes and edge cases; and hold out a slice never used for prompt iteration. An eval set that only contains easy cases cannot detect a regression.",
+    "hook": "\"Passes evals, fails users\" is a coverage problem. The answer resamples from production traffic — not a stricter grader and not more cases of the same kind."
+  },
+  {
+    "id": "FC-ETO-002",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "LLM-as-judge design",
+    "difficulty": "medium",
+    "front": "You need to grade open-ended summaries at scale. What makes an LLM judge trustworthy rather than decorative?",
+    "back": "A rubric with concrete, observable criteria and anchored levels rather than \"rate quality 1-10\"; a reference answer or source document to check against; a required short justification before the score; and a small enough scale that judgements are reproducible. Pairwise comparison of two candidates is generally more stable than absolute scoring when you are choosing between versions.",
+    "hook": "Judge questions test rubric specificity. Any option that scores \"overall quality\" on a wide numeric scale with no anchors is the weak design, however sophisticated the model."
+  },
+  {
+    "id": "FC-ETO-003",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Bias in model graders",
+    "difficulty": "hard",
+    "front": "Name the systematic biases an LLM judge exhibits and the mitigation for each.",
+    "back": "Position bias — favours one slot in a pairwise comparison; mitigate by running both orders and keeping only consistent verdicts. Verbosity bias — rewards length over substance; mitigate with rubric criteria that penalise unsupported padding. Self-preference — favours text resembling its own style; mitigate by using a different grader model than the one under test, or human-anchored calibration.",
+    "hook": "If a stem says the judge consistently prefers the longer or the first-listed answer, it is describing a known judge bias, not a genuine quality difference."
+  },
+  {
+    "id": "FC-ETO-004",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Validating the grader itself",
+    "difficulty": "hard",
+    "front": "Before you gate deployments on an automated grader's score, what must you do to the grader?",
+    "back": "Evaluate it. Have humans label a representative subset, measure the grader's agreement with those labels, and inspect the disagreements — they usually reveal an ambiguous rubric clause. Also establish inter-rater agreement among the humans first; if people cannot agree, the task definition is the problem and no grader can be validated against it. Re-check agreement whenever the rubric or grader model changes.",
+    "hook": "An ungraded grader is an unmeasured system gating a measured one. Stems that jump straight to \"gate CI on the judge score\" are missing the calibration step."
+  },
+  {
+    "id": "FC-ETO-005",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Choosing the grading method",
+    "difficulty": "easy",
+    "front": "Exact match, fuzzy/programmatic checks, and model-graded evaluation — how do you decide which a task gets?",
+    "back": "Use the cheapest method the task admits. Exact match for closed outputs: classifications, extracted fields, tool-call arguments. Programmatic checks for structural properties: valid JSON, schema conformance, required citation present, no forbidden token. Model grading only for genuinely open outputs where correctness is a judgement. Most pipelines can convert far more of their eval to deterministic checks than teams assume.",
+    "hook": "The trap is reaching for an LLM judge on something a deterministic assertion would settle. Deterministic checks are faster, free, and never drift."
+  },
+  {
+    "id": "FC-ETO-006",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Sample size and noise in eval results",
+    "difficulty": "hard",
+    "front": "A prompt change moves the score by two points on a 40-case eval set. Is that a win?",
+    "back": "Unknown — a small absolute move on a small set is inside sampling noise, and non-determinism adds variance on top. Run the same items through both variants (paired comparison), report a confidence interval rather than a point score, repeat runs to estimate run-to-run variance, and enlarge the set for the dimension you are trying to resolve. Small deltas need more cases, not more confidence.",
+    "hook": "Any stem quoting a small improvement on a small eval set is testing statistical humility. The right answer questions the measurement before shipping the change."
+  },
+  {
+    "id": "FC-ETO-007",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Gating CI on evals",
+    "difficulty": "easy",
+    "front": "How does an eval suite become a deployment gate rather than a report someone reads occasionally?",
+    "back": "Run it automatically on every prompt, model or tool-schema change; treat prompts as versioned code so changes go through the same pipeline. Define thresholds in advance — an absolute floor on critical categories plus a maximum allowed regression against the current baseline — and fail the build when they are breached. Cheap deterministic checks on every commit, the expensive full suite before release.",
+    "hook": "Prompts are code. A stem where prompt edits reach production without passing the suite is asking for CI gating with pre-agreed thresholds, not more manual review."
+  },
+  {
+    "id": "FC-ETO-008",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Shadow versus canary deployment",
+    "difficulty": "medium",
+    "front": "You want production evidence for a new model version before exposing users. Shadow or canary — what does each actually give you?",
+    "back": "Shadow runs the candidate on real production inputs in parallel while users still see the incumbent's output: zero user risk, real input distribution, but you learn nothing about user reaction and you pay for both calls. Canary routes a small slice of real traffic to the candidate: real outcomes and user signals, at the cost of real exposure. Shadow first, then canary.",
+    "hook": "Zero user impact means shadow. Real user-visible outcomes on a limited slice means canary. Stems mentioning irreversible actions favour shadow, or a dry-run canary."
+  },
+  {
+    "id": "FC-ETO-009",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "A/B testing an LLM change",
+    "difficulty": "medium",
+    "front": "An A/B test shows the new prompt lifts the primary quality score. What else must you look at before rolling it out?",
+    "back": "Guardrail metrics that the primary score cannot see: latency percentiles, cost per task, refusal and escalation rates, safety-filter triggers, and downstream business outcomes rather than the proxy. A prompt that improves rated quality by writing longer answers can simultaneously blow the latency budget and the cost model. Also check segment-level results — an aggregate win can hide a regression in one category.",
+    "hook": "Optimisation stems reward noticing the metric that was not optimised. A quality win that ignores latency, cost or refusal rate is an incomplete answer."
+  },
+  {
+    "id": "FC-ETO-010",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Faithfulness versus answer relevance",
+    "difficulty": "easy",
+    "front": "In RAG evaluation, what is the difference between faithfulness and answer relevance, and why must both be measured?",
+    "back": "Faithfulness asks whether every claim in the answer is supported by the retrieved context — it catches hallucination and unsupported inference. Answer relevance asks whether the answer actually addresses the user's question. They fail independently: a perfectly grounded answer can be off-topic, and a highly on-topic answer can invent its supporting detail. Neither alone tells you the system is working.",
+    "hook": "RAG metric questions want the failure decomposed. Faithfulness is a grounding measure; relevance is a responsiveness measure. Do not let one stand in for the other."
+  },
+  {
+    "id": "FC-ETO-011",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Context precision and recall as diagnostics",
+    "difficulty": "medium",
+    "front": "Answers are poor. How do context precision and context recall tell you whether to fix retrieval or generation?",
+    "back": "Context recall asks whether the passages needed to answer were retrieved at all; if it is low, the fault is upstream — chunking, embeddings, query formulation, index coverage. Context precision asks whether the relevant passages ranked near the top and how much noise came with them; low precision points to reranking or top-k. If both are healthy and answers are still wrong, the failure is in generation.",
+    "hook": "Split the pipeline before choosing a fix. A stem that reports strong retrieval metrics and weak answers is ruling out the retrieval fixes on offer."
+  },
+  {
+    "id": "FC-ETO-012",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Trajectory evaluation for agents",
+    "difficulty": "hard",
+    "front": "An agent reaches the right final answer. Why might you still fail it, and what do you have to score to catch that?",
+    "back": "Because it may have got there by an unacceptable path: called a destructive tool needlessly, made twelve calls where two would do, retrieved data it had no business touching, or guessed correctly without evidence. Trajectory evaluation scores the steps — tool selection, argument correctness, step count, redundant or unsafe calls — alongside the outcome. Final-answer-only scoring is blind to cost, safety and luck.",
+    "hook": "Agent stems mentioning cost blow-ups, unsafe tool use or non-reproducible success are asking for trajectory scoring, not a better final-answer rubric."
+  },
+  {
+    "id": "FC-ETO-013",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Adversarial testing as a regression suite",
+    "difficulty": "medium",
+    "front": "A red-team exercise finds several jailbreaks and the team patches the system prompt. What is the missing step?",
+    "back": "Turn every finding into a permanent, automated adversarial test case and run it in the same CI suite as functional evals. One-off red-teaming produces fixes that silently regress at the next prompt or model change. Keep the corpus growing from new attack classes, retrieved-content injection attempts and real production abuse, and track pass rate as a released metric.",
+    "hook": "Red-teaming stems test whether findings become regression tests. \"Patch the prompt\" alone is always incomplete; the answer institutionalises the attack corpus."
+  },
+  {
+    "id": "FC-ETO-014",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Order of optimisation",
+    "difficulty": "medium",
+    "front": "Latency and cost are both over budget. In what order do you attack the levers, and what comes before all of them?",
+    "back": "Measure first: instrument the stages and find where time and tokens actually go. Then, cheapest and safest first — trim prompt and retrieved context, cut output length, apply prompt caching to the stable prefix, remove or parallelise a sequential call, then downgrade model tier on the steps an eval says can take it, and only then restructure the architecture. Each step re-measured.",
+    "hook": "Optimisation stems reward sequence. Jumping to a smaller model or a rewritten architecture before profiling is the classic wrong answer, even when it would eventually help."
+  },
+  {
+    "id": "FC-ETO-015",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Model downgrade behind a quality gate",
+    "difficulty": "medium",
+    "front": "Finance wants the whole pipeline moved to the cheapest tier. What is the responsible way to say yes in part?",
+    "back": "Downgrade per step, each behind its own eval gate: run the cheaper tier against the golden set for that step, compare on the metrics that matter including the tail cases, and adopt it only where the delta is within an agreed tolerance. Keep the stronger tier on steps that fail the gate, and add a monitored fallback that escalates hard inputs back up.",
+    "hook": "Cost-pressure stems want a conditional yes tied to evidence. Blanket downgrade and blanket refusal are both wrong; the gate and the per-step scope are the answer."
+  },
+  {
+    "id": "FC-ETO-016",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Production monitoring signals",
+    "difficulty": "easy",
+    "front": "Beyond uptime and error rate, what should a production LLM feature emit so quality problems are visible without user complaints?",
+    "back": "Latency percentiles rather than averages, cost per task, token usage per stage, and quality proxies you can compute continuously: refusal rate, escalation-to-human rate, retry and tool-error rate, output length distribution, retrieval hit rate, and explicit or implicit user feedback. Sample outputs continuously for offline grading. Trend shifts in these proxies precede the complaints.",
+    "hook": "Monitoring answers must include a quality proxy, not only infrastructure health. A system can be perfectly available and quietly wrong all week."
+  },
+  {
+    "id": "FC-ETO-017",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Drift detection without a deploy",
+    "difficulty": "medium",
+    "front": "Quality has degraded but nothing was deployed. What kinds of drift explain that, and how do you detect each?",
+    "back": "Input drift — users, channels or topics have changed; detect by monitoring input distribution against the eval set's distribution. Data drift — the knowledge base or upstream records changed or went stale; detect via index freshness and retrieval hit rate. Behavioural drift — an unpinned model version or a dependency changed. Compare current traffic against a stored baseline, not against intuition.",
+    "hook": "\"Degraded with no code change\" points at the inputs, the corpus, or an unpinned dependency. The answer names a baseline comparison rather than a prompt rewrite."
+  },
+  {
+    "id": "FC-ETO-018",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Feedback loop from production into evals",
+    "difficulty": "easy",
+    "front": "What is the continuous-improvement loop that keeps an eval suite from going stale?",
+    "back": "Capture production failures — thumbs-down, escalations, corrections, incidents — triage them into classes, and promote representative cases into the versioned eval set with the expected output attached. Each new case makes that failure a permanent regression test. Review the additions on a fixed cadence so the suite tracks how the system is actually used, not how it was used at launch.",
+    "hook": "Look for the option that closes the loop: production failure becomes an eval case. Options that only fix the individual complaint leave the class open."
+  },
+  {
+    "id": "FC-ETO-019",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "When prompt caching does not pay",
+    "difficulty": "medium",
+    "front": "A team adds cache breakpoints everywhere and their spend barely moves. Under what conditions does prompt caching fail to pay?",
+    "back": "When there is no substantial stable prefix — short prompts, or content that varies per request; when traffic for a given prefix is too sparse for entries to be reused before they expire; and when the workload is output-token dominated, since caching addresses input processing. Caching rewards a long shared prefix hit repeatedly by concurrent traffic, and nothing else.",
+    "hook": "Caching stems hinge on prefix stability and reuse frequency. If the stem's cost is dominated by long generated outputs, caching is the wrong lever entirely."
+  },
+  {
+    "id": "FC-ETO-020",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Triaging a production quality incident",
+    "difficulty": "hard",
+    "front": "A quality incident is open. What is the first question, and what makes the whole investigation possible?",
+    "back": "First: what changed — prompt version, model version, tool or schema, retrieval corpus, input mix, or an upstream dependency. That question is only answerable if every request logged its prompt version, model identifier, retrieved document ids, tool calls and a correlation id. Then reproduce on the captured inputs, add them to the eval set, and roll back the smallest change that restores the metric.",
+    "hook": "Incident stems reward versioned, correlated logging captured before the incident. Without it the honest answer is that the cause cannot be established, only guessed."
+  }
+]

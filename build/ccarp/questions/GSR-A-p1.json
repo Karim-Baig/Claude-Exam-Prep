@@ -1,0 +1,724 @@
+[
+  {
+    "id": "GSR-A-001",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Concurrent input classifier without losing the delivery gate",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An online learning platform runs a Claude writing tutor for 300,000 students. Product has committed to 1.5s to first token; the team currently keeps all safety rules in the system prompt and is adding a dedicated input moderation classifier. Measurements show the classifier adds roughly 180ms when run before generation, which pushes the p95 over budget on the slowest region. An engineer proposes running the classifier and the generation call concurrently. What is the sound way to implement that?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Dispatch the classifier and the generation call concurrently, but withhold the first streamed token until the classifier verdict returns."
+      },
+      {
+        "key": "B",
+        "text": "Keep the classifier strictly before generation, because running the two concurrently necessarily trades safety for latency and there is no design that recovers the gate."
+      },
+      {
+        "key": "C",
+        "text": "Run both concurrently and begin streaming immediately, terminating the stream the moment the classifier flags the input; almost all requests are benign, so few students would ever see content that is later withdrawn."
+      },
+      {
+        "key": "D",
+        "text": "Drop the input classifier and rely on the output classifier alone, since a harmful input only matters when it produces a harmful output, and the output check already sits in the delivery path."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Concurrency buys latency only if the gate survives it. Because the classifier is a small, fast call and generation has to produce tokens before anything is worth showing, the verdict almost always lands inside the window before first content — so the 180ms disappears into time the system was spending anyway. The gate is preserved by making delivery, not invocation, the thing the verdict controls. The wasted generation on the rare blocked request is a cost the 1.5s commitment justifies.",
+      "distractors": {
+        "B": "This is the safe default and it is not unsafe — but the justification is wrong, and it spends the whole 180ms when the design does not have to. Sequencing is only mandatory when the classifier's verdict must prevent the model from ever seeing the input, which is not this platform's threat.",
+        "C": "Streaming before the verdict returns means violating content has already reached the student's screen; terminating the stream afterwards removes it from the transcript, not from the reader. Post-delivery cancellation is a cleanup mechanism, never a control.",
+        "D": "Input classification is not only about output harm. It is the telemetry that detects abuse campaigns, it protects against spend on adversarial traffic, and in tool-enabled paths the harm is the action taken rather than the text returned. Output-only leaves all of that uncovered."
+      },
+      "concept": "Guardrail latency can be hidden by overlapping the classifier with generation, but the enforcement point must move to the delivery boundary rather than disappear. Ask of any 'run it in parallel' proposal: what does the verdict still block? If the answer is nothing, the parallelism removed the control rather than accelerated it.",
+      "tip": "When a stem gives you a first-token commitment and a small classifier, the intended answer is usually speculative execution with a gate at emit time — not a choice between safety and speed."
+    }
+  },
+  {
+    "id": "GSR-A-002",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Risk-tiered fail-open versus fail-closed on classifier outage",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An energy utility runs a public outage assistant with two paths: a status lookup that returns deterministic data from the outage database, and a free-text path that answers safety questions such as what to do about a suspected gas smell. Both paths pass through the same third-party moderation classifier. During a storm the classifier's p99 latency triples and it begins returning timeouts on about 4% of calls. The on-call architect must decide the failure behaviour before the next storm window. What should the design do?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Fail open on both paths and write the unmoderated turns to the incident log for next-day review, because blocking a customer who is reporting a gas smell is the larger harm."
+      },
+      {
+        "key": "B",
+        "text": "Fail closed on both paths and serve a maintenance notice until the classifier recovers, so that no unmoderated content can reach a customer during any period when the utility cannot verify what it is saying."
+      },
+      {
+        "key": "C",
+        "text": "Bind the failure behaviour to each path's risk: the free-text safety path fails closed to a scripted response carrying the emergency number, while the deterministic status lookup keeps serving."
+      },
+      {
+        "key": "D",
+        "text": "Move moderation off the synchronous path entirely and classify stored transcripts asynchronously, raising an alert whenever a violation is found after delivery; nothing in the request path then depends on the classifier."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The stem quietly tells you the two paths have different content sources. A status lookup emits values from the outage database, so a moderation classifier adds almost nothing to its risk profile and taking it down during a storm degrades the utility's core public duty. The safety-advice path is generative and the failure mode is someone acting on wrong guidance about gas, so it must degrade to something deterministic and still useful — a scripted message plus the emergency number. Fail behaviour is a per-path property, not a global switch.",
+      "distractors": {
+        "A": "Uniform fail-open puts unmoderated generative safety advice in front of customers precisely when volume is highest. Logging is a detective control; it tells you afterwards that someone was given bad advice about a gas smell.",
+        "B": "Uniform fail-closed takes down the deterministic status lookup during the exact event it exists for. The classifier is not protecting anything on that path, so its outage should not be able to cause an outage there.",
+        "D": "Asynchronous moderation is a reasonable supplement for volume analysis, but as the only control it converts every classifier fault into delivered-then-detected harm. It also does not give the storm-window path anything to degrade to."
+      },
+      "concept": "Fail-open versus fail-closed is not a single decision for a system; it is a decision per path, driven by what that path can emit and what the user loses when it stops. Design the degraded mode explicitly — a scripted fallback that still serves the user is almost always better than either an unguarded model or a maintenance page.",
+      "tip": "When a stem describes two paths with different content provenance and then asks about a shared dependency's failure, the answer nearly always separates the two rather than picking one global policy."
+    }
+  },
+  {
+    "id": "GSR-A-003",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Indirect injection from supplier documents into a write tool",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A manufacturer's procurement assistant ingests supplier PDFs — quotes, spec sheets, terms — into a retrieval index and has three tools: `search_documents`, `get_contract_terms`, and `create_purchase_order`. During an internal exercise, a document uploaded through the supplier portal contained a paragraph addressed to the assistant telling it to raise a purchase order, and the assistant did so. The team has to close this before the portal opens to 4,000 suppliers. What is the primary architectural fix?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Add a system-prompt directive, repeated ahead of each retrieved passage, telling the assistant that any instruction inside a supplier document is not from the buyer and must be ignored."
+      },
+      {
+        "key": "B",
+        "text": "Run an injection-detection classifier over every ingested document and quarantine flagged files before they reach the index, so hostile content is stopped at the portal rather than discovered afterwards in a raised purchase order."
+      },
+      {
+        "key": "C",
+        "text": "Strip imperative sentences and second-person phrasing from document text during ingestion, so that no instruction-shaped content is ever indexed and the assistant retrieves only declarative material from supplier files."
+      },
+      {
+        "key": "D",
+        "text": "Treat all document text as data with no authority, and require `create_purchase_order` to be authorised by a deterministic check outside the model that matches the order against an originating buyer request."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The failure is not that the model was fooled; it is that document content was able to reach a capability with real-world consequence. Once a purchase order can only be created when a deterministic authorisation step matches it to a buyer request that originated from an authenticated human, no amount of persuasive text inside a supplier PDF can produce one. That control holds whether or not the model is fooled, which is the property the other options lack with 4,000 untrusted uploaders on the way.",
+      "distractors": {
+        "A": "Prompt directives raise the cost of the attack and belong in the design, but they are a probabilistic mitigation sitting in the same channel as the attack. They are not an enforcement boundary and cannot be the primary control for an action that spends money.",
+        "B": "A useful layer, but it is a detection control with a false-negative rate guarding a deterministic capability. It also has to be right on every one of thousands of uploads forever, whereas the authorisation check has to be right once.",
+        "C": "This mangles legitimate content — supplier terms are full of imperative language — and an attacker who does not use imperative phrasing walks straight through. It degrades the product to buy an incomplete filter."
+      },
+      "concept": "Indirect injection is an authorisation problem wearing a prompting costume. Put the boundary where it can be enforced deterministically: content the model reads may inform an action, but must never be the thing that authorises it. Rank consequential tools by blast radius and gate the top of that list outside the model.",
+      "tip": "If an option fixes the model's behaviour and another fixes what the model is allowed to do, the second is the primary control. Prompt-side and classifier-side answers are supporting layers, not the fix."
+    }
+  },
+  {
+    "id": "GSR-A-004",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Role of untrusted-content markers in injection defence",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In an indirect prompt-injection defence, what does wrapping retrieved passages in explicit untrusted-content markers actually buy you?",
+    "options": [
+      {
+        "key": "A",
+        "text": "It prevents the model from acting on instructions embedded in the passages, so tool-layer authorisation checks on consequential actions become redundant."
+      },
+      {
+        "key": "B",
+        "text": "It lowers the probability that embedded text is treated as instruction, but remains a probabilistic mitigation, so authorisation must still be enforced outside the model."
+      },
+      {
+        "key": "C",
+        "text": "It causes the tokeniser to exclude the marked spans from attention, so the delimited content still contributes context without being able to influence what the model generates."
+      },
+      {
+        "key": "D",
+        "text": "It is the mechanism that lets the model attribute each claim to the correct source document when it produces citations alongside a retrieved answer."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Delimiting and labelling provenance measurably reduces how often a model follows text it was asked to summarise, and it makes the trust structure of the prompt legible to whoever maintains it. It does not change the fact that everything in the context window is the same channel. Because the reduction is statistical, the controls that must not fail — what data the turn can read, what tools it can invoke — belong in code, outside the model.",
+      "distractors": {
+        "A": "This is the reasoning that produces the worst incidents: a mitigation treated as a boundary. No prompt-level construct removes the need for authorisation enforcement on consequential capabilities.",
+        "C": "Markers are ordinary tokens with no special handling inside the model. Nothing is excluded from attention because of them, and a delimiter's whole effect is on how the model interprets the span, not on whether it processes it.",
+        "D": "Citation quality benefits from clear document boundaries and identifiers, but that is a separate benefit and not what makes the technique part of an injection defence."
+      },
+      "concept": "Every in-prompt defence — delimiters, provenance labels, instruction-hierarchy language — shifts probabilities. Every out-of-prompt defence — entitlement checks, tool scoping, deterministic approval — sets limits. Build with both, but only ever rely on the second class for anything whose failure you cannot absorb.",
+      "tip": "Options claiming a prompt technique makes another control 'redundant' or 'unnecessary' are almost always the trap. Safety architecture answers accumulate layers; they do not remove them."
+    }
+  },
+  {
+    "id": "GSR-A-005",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Confused deputy from a broad HR service-account credential",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An HR SaaS vendor ships an assistant that answers employee questions about their own pay, leave and benefits. It reaches the HR system through a single service account with read access to every record across all customer tenants, and the current design injects the requesting employee's ID into the system prompt with an instruction to only discuss that person. A penetration test showed the assistant returning a colleague's salary band when the tester phrased the question as a comparison. What change addresses the root cause?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Exchange the employee's authenticated session for a scoped, on-behalf-of credential and enforce record-level entitlements inside the HR data service that fetches the record."
+      },
+      {
+        "key": "B",
+        "text": "Strengthen the system prompt with an explicit rule that the assistant may discuss only the requesting employee's own record and must refuse all comparative questions."
+      },
+      {
+        "key": "C",
+        "text": "Add an output filter that detects employee names and compensation figures, blocking any response that contains a name other than the requester's before it is returned to the browser."
+      },
+      {
+        "key": "D",
+        "text": "Issue a unique session identifier for each conversation and log every HR query made under it, so that any unauthorised disclosure can afterwards be traced to a specific session and user."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "This is a textbook confused deputy: a privileged component acting on instructions from a less-privileged principal, with the privilege boundary expressed only as text. Once the request carries the employee's own identity down to the data service and entitlements are evaluated there, no phrasing can produce a record the employee could not open directly — the data never enters the context window. That also fixes the cross-tenant exposure the single shared service account creates, which is the larger latent risk in a multi-tenant product.",
+      "distractors": {
+        "B": "It moves the same failing control a few words along. The pen test already demonstrated that phrasing defeats it, and comparative refusals will also block legitimate questions like benchmarking against a published band.",
+        "C": "Output filtering runs after the sensitive record is already in context, so it fails against paraphrase, indirect description and ranges, and it does nothing about the credential's cross-tenant reach. It is a useful backstop, not a boundary.",
+        "D": "Attribution is valuable and this system needs it, but a detective control tells you which salaries leaked. The pen test found a preventable disclosure path, and logging leaves it open."
+      },
+      "concept": "Whenever an AI component holds broader authority than the user it serves, you have a confused deputy waiting to happen. Propagate the caller's identity to the point where data is fetched and evaluate authorisation there. A prompt describing who the user is, is documentation; a token carrying who the user is, is a boundary.",
+      "tip": "The tell is a service account with 'read access to every record'. Any option that leaves that credential intact and adds text or filtering is treating the symptom."
+    }
+  },
+  {
+    "id": "GSR-A-006",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Reversible pseudonymisation when identifiers must be restored",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A revenue-cycle vendor summarises clinical notes for hospital coders. The summary is written back into the EHR and must carry the real patient name, MRN and admitting physician so the coder can act on it. Legal wants direct identifiers kept out of the model call. The team is choosing an identifier-handling design for a pipeline processing 90,000 notes a night. Which design meets both requirements?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Replace each direct identifier with a generic placeholder such as `[PATIENT]` or `[MRN]` before the call and instruct the model to preserve the placeholders in its output."
+      },
+      {
+        "key": "B",
+        "text": "Hash each identifier with a per-patient salt so the model receives a stable, non-reversible token that stays consistent across every note belonging to the same patient."
+      },
+      {
+        "key": "C",
+        "text": "Tokenise identifiers through a vault held outside the model boundary, send the surrogate tokens in the call, and re-hydrate the surrogates in the returned summary before it is written to the EHR."
+      },
+      {
+        "key": "D",
+        "text": "Send the real identifiers and rely on the contractual commitment that customer data is not used to train models, which is the assurance the vendor agreement already provides for this pipeline."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The pipeline has two hard requirements pulling apart: no direct identifiers in the call, and real identifiers in the written-back summary. Only a reversible mapping satisfies both. A vault that issues surrogates and resolves them afterwards keeps the model boundary clean while preserving referential integrity across multiple people in one note — patient, physician, next of kin all stay distinguishable, and each resolves back to the right value at write time.",
+      "distractors": {
+        "A": "Generic placeholders destroy the mapping. A note mentioning two physicians and a patient collapses into ambiguous tokens, and there is nothing to re-hydrate from, so the coder receives a summary that cannot be safely written back.",
+        "B": "Hashing is deliberately one-way. It gives consistency across notes, which is useful for analytics, but the pipeline cannot recover the name or MRN it must write into the EHR.",
+        "D": "A no-training commitment addresses one downstream use of the data. It does not satisfy a requirement to keep direct identifiers out of the call at all, which is a data-minimisation control, not a retention or training question."
+      },
+      "concept": "Choose the de-identification technique from what the downstream step needs, not from which is strongest. Irreversible masking suits analytics and evaluation corpora; reversible tokenisation through a vault suits any pipeline that must return the real values. Referential consistency within a document is a requirement in its own right.",
+      "tip": "Look for a write-back or re-identification requirement in the stem. Its presence eliminates every irreversible option immediately, which usually cuts the field in half before you evaluate anything else."
+    }
+  },
+  {
+    "id": "GSR-A-007",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Sanitising model output rendered as rich HTML",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A retailer's support widget renders the assistant's markdown as HTML in the customer's browser, because the product requires clickable product links, tables and inline images from the catalogue. The assistant also summarises the customer's order history and previous ticket text, some of which is attacker-controllable through a returns form. A security review flags the rendering step. What is the correct control?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Sanitise the generated output server-side against an allowlist of permitted elements and attributes, and resolve every image and link host against a domain allowlist before it is returned."
+      },
+      {
+        "key": "B",
+        "text": "Add a system-prompt rule forbidding the assistant from emitting raw HTML, script tags or inline event handlers, and requiring it to stay inside the widget's markdown subset."
+      },
+      {
+        "key": "C",
+        "text": "Escape the output entirely and render it as plain text, removing the whole class of markup problem at source and leaving nothing for an injected fragment to act on in the browser."
+      },
+      {
+        "key": "D",
+        "text": "Rely on a strict Content Security Policy on the widget page, with `script-src 'self'` and `frame-ancestors 'none'`, since the browser then governs what the page is permitted to load."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Two things have to be true at once here: the markup must be safe, and the destinations must be ones you trust. An element and attribute allowlist applied on the server handles the first regardless of what the model emitted or what the returns-form text tried to smuggle through. Host allowlisting handles the second — an image or link whose destination is chosen by attacker-controlled context is an outbound channel even when the markup itself is well-formed. Doing both server-side keeps the control on infrastructure you own.",
+      "distractors": {
+        "B": "The output is untrusted because it is influenced by attacker-controlled input, not because the model is careless. A prompt rule cannot be the validator for its own output channel.",
+        "C": "This is safe and it breaks the product. The stem states clickable links, tables and inline catalogue images are requirements, so an answer that removes rich rendering solves a different problem than the one posed.",
+        "D": "CSP is a good defence-in-depth layer and worth having, but it governs what the browser will load, not whether the markup you generated is well-formed or whether a permitted host is being used as a destination. Relying on it alone leaves the content unvalidated."
+      },
+      "concept": "Model output is untrusted input to whatever consumes it. Sanitise at the boundary where it is interpreted — HTML renderer, shell, SQL engine, downstream API — using the validation appropriate to that interpreter, and control destinations as well as syntax when the output can carry data outward.",
+      "tip": "When a stem says rich rendering is a product requirement, the 'render as plain text' option is disqualified by the requirements, not by security. Watch for options that are technically safe but delete the feature."
+    }
+  },
+  {
+    "id": "GSR-A-008",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Layered defences for a retrieval-backed legal research agent",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A legal research firm runs an agent over a corpus of case filings, client emails and opposing-counsel submissions, all uploaded by external parties. The agent can search the corpus, draft memos, and send drafts to a named recipient. Counsel wants indirect-injection risk reduced before the agent is enabled for litigation matters. Which three belong in that defence as controls the firm can actually rely on? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Wrap every retrieved passage in explicit untrusted-content markers with its source and uploader, and instruct the model that marked content is material to analyse and never an instruction to follow."
+      },
+      {
+        "key": "B",
+        "text": "Move the agent from Sonnet to Opus, since the higher-capability tier is measurably better at recognising injected instructions inside retrieved material and disregarding them in favour of the lawyer's actual request."
+      },
+      {
+        "key": "C",
+        "text": "Require an out-of-band confirmation from the matter owner before any send action executes, independent of what the retrieved material says."
+      },
+      {
+        "key": "D",
+        "text": "Enforce the requesting lawyer's matter-level entitlements at the tool layer, so a compromised turn cannot reach filings or recipients the lawyer could not reach directly."
+      },
+      {
+        "key": "E",
+        "text": "Raise retrieval top_k substantially so that legitimate passages outnumber any injected one and dilute its influence on what the model generates for the memo."
+      }
+    ],
+    "correct": [
+      "A",
+      "C",
+      "D"
+    ],
+    "explanation": {
+      "correct": "The three that work operate at different layers. Provenance-marked, explicitly-labelled untrusted content lowers the base rate at which the model treats filing text as instruction. A confirmation step in front of the send action means an exfiltration attempt cannot complete without a human who knows the matter agreeing to it. Entitlement enforcement at the tool layer caps the blast radius of any turn to what its human principal could already do. Together they cover reduce-likelihood, gate-the-consequential-action, and contain-the-damage.",
+      "distractors": {
+        "B": "Capability correlates loosely with injection resistance, but it is not a control: you cannot state a bound, test it as a boundary, or point a regulator at it. Tier selection is a quality and cost decision that happens to move an attack success rate slightly.",
+        "E": "Dilution is not a defence. A single instruction-bearing passage in the context can still redirect behaviour, and a larger `top_k` increases the number of untrusted passages present and the cost per call."
+      },
+      "concept": "An indirect-injection defence needs three distinct properties: reduce the chance the model is misled, prevent untrusted content from authorising a consequential action, and limit what any single turn can touch. Measures that only make the attack statistically less likely to work belong in the first bucket and cannot substitute for the other two.",
+      "tip": "Sort candidate defences by whether they change probability or change permission. A sound answer set almost always contains at least one permission-changing measure; sets made entirely of probability-changers are the wrong sets."
+    }
+  },
+  {
+    "id": "GSR-A-009",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Egress control for a code-execution sandbox",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A pharmaceutical analytics team gives researchers a Claude assistant that writes and runs Python against internal trial datasets in an execution sandbox. The main concern raised in review is that generated code could send dataset contents out of the environment. Which sandbox control addresses that concern most directly?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Run the interpreter process as an unprivileged non-root user inside the container, so that generated code cannot escalate privileges, install system packages, or modify any file owned by the runtime environment itself."
+      },
+      {
+        "key": "B",
+        "text": "Deny all outbound network traffic from the sandbox by default with an explicit allowlist for the few required internal hosts, and inject no ambient cloud or database credentials into the runtime."
+      },
+      {
+        "key": "C",
+        "text": "Run a static analyser over every generated script and refuse to execute anything that references sockets, networking or file-transfer libraries before the code reaches the interpreter."
+      },
+      {
+        "key": "D",
+        "text": "Apply per-execution CPU, memory and wall-clock limits enforced by the container runtime, so one researcher's runaway job cannot exhaust the shared analytics pool."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Exfiltration needs a path out and something to authenticate with. Default-deny egress removes the path for every technique at once rather than for the ones an analyser recognises, and stripping ambient credentials means code that does find a route has nothing privileged to present. Both are enforced by the platform rather than by inspecting the code, so they hold for generated code, imported libraries and anything a dependency does on its own.",
+      "distractors": {
+        "A": "Non-root execution is correct hygiene and limits privilege escalation within the container, but an unprivileged process can open a socket just as easily as a privileged one.",
+        "C": "Static analysis of generated code is bypassable in a language as dynamic as Python and it will also reject legitimate work. It is a filter in front of the risk, not containment of it.",
+        "D": "Resource limits protect availability and cost for the shared environment, and they stop one researcher's runaway job starving the pool. They have no bearing on whether trial data leaves the sandbox, which is the concern the review actually raised."
+      },
+      "concept": "Sandbox design starts from what the contained process is allowed to reach, not from what it is allowed to be. Default-deny egress with a narrow allowlist, no ambient credentials, ephemeral writable storage and hard resource caps are separate controls addressing separate risks — map each to the threat it actually covers.",
+      "tip": "Match the control to the stated concern. Three of these are real sandbox hardening measures; only one is about data leaving. Read the sentence naming the concern twice before scanning options."
+    }
+  },
+  {
+    "id": "GSR-A-010",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Output moderation on a streamed response",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A gaming company streams assistant responses into an in-client chat panel; product measures time-to-first-token as a headline KPI and will not accept a non-streamed experience. The output moderation classifier they use needs a coherent span of text to score reliably and returns noisy verdicts on very short fragments. Moderation must prevent violating content reaching players, not merely record it. How should the streaming path be built?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Emit tokens to the client as they arrive and pull the message from the chat panel with a retraction event if a post-hoc classification of the completed response flags it."
+      },
+      {
+        "key": "B",
+        "text": "Disable streaming and return complete, fully classified responses, accepting the regression in time-to-first-token as the unavoidable cost of a control that must prevent rather than record."
+      },
+      {
+        "key": "C",
+        "text": "Classify only the opening segment of each response, since a completion that is going to violate policy almost always declares itself in its first sentences, and scanning less keeps the added delay off the streaming path."
+      },
+      {
+        "key": "D",
+        "text": "Hold a rolling buffer, classify each completed segment together with a short overlap from the previous one, and release only cleared segments; on a violation, stop generation and replace the whole message with a safe notice."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Segment-and-release keeps the stream alive while preserving the property the stem demands — nothing reaches a player unclassified. Buffering to a segment boundary gives the classifier the coherent span it needs instead of noisy fragments, the overlap catches violations that straddle a boundary, and terminating generation on a hit avoids paying for the rest of a response you will not send. First token slips by one segment, which is a far smaller regression than abandoning streaming.",
+      "distractors": {
+        "A": "Content shown and then retracted has already been read and screenshotted. Retraction manages the transcript, not the exposure, and the stem explicitly requires prevention rather than recording.",
+        "B": "It satisfies the control by discarding a stated product constraint. The exam-relevant point is that a design exists which satisfies both, so conceding the KPI is not required.",
+        "C": "This assumes violating content is front-loaded. A response can turn several paragraphs in, and an adversarial prompt will aim at exactly the unscanned region."
+      },
+      "concept": "Streaming and output moderation are reconcilable by moving the unit of enforcement from the response to the segment. Buffer to a boundary the classifier can score, overlap the boundaries, and gate release rather than gate generation. Reserve non-streamed delivery for cases where even a segment of unverified text is unacceptable.",
+      "tip": "Two hard constraints in a stem — a KPI that cannot regress and a control that cannot be advisory — signal that the answer is a design satisfying both. Options that sacrifice one of them are there to test whether you looked for it."
+    }
+  },
+  {
+    "id": "GSR-A-011",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Entitlement pre-filtering in a shared vector index",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A wealth advisory firm indexes client statements, meeting notes and suitability assessments into one vector store shared by all advisers. Advisers are restricted to their own book of clients, and an internal audit has asked how that restriction is enforced in the assistant. The current implementation retrieves the top 20 chunks for the query and then discards any belonging to clients outside the adviser's book before building the prompt. What should change?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Derive an entitlement filter from the adviser's authenticated identity and apply it as a pre-filter in the vector query."
+      },
+      {
+        "key": "B",
+        "text": "Keep the global retrieval and post-filter, but raise the candidate set to 100 chunks so enough in-book material survives filtering to answer the question."
+      },
+      {
+        "key": "C",
+        "text": "Add a system-prompt instruction naming the adviser's client list explicitly and forbidding any discussion of a client who does not appear on it, refreshed at the start of every session."
+      },
+      {
+        "key": "D",
+        "text": "Encrypt each client's documents with a per-client key, so unauthorised content cannot be read even in the event that the retrieval step happens to return it."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Post-filtering means out-of-book client data is fetched, decrypted, deserialised and passed through application memory on every query — a disclosure path that exists whether or not the filter has a bug, and one an auditor will fail. Pre-filtering makes the entitlement part of the query predicate, so the store never surfaces the chunk. It also fixes the quality problem the current design has: relevance ranking runs across the whole corpus, so an adviser with a small book can lose most of their candidate set to material they were never allowed to see.",
+      "distractors": {
+        "B": "Enlarging the candidate set treats the symptom and worsens the exposure — more unauthorised chunks are read per query, and the starvation returns for any adviser whose book is small relative to the corpus.",
+        "C": "The prompt is not where entitlements are enforced, and by the time the instruction is read the unauthorised content is already in the context window alongside it.",
+        "D": "Per-client encryption protects data at rest and in a breach. It does not decide who may query what, and the embeddings and metadata still participate in ranking."
+      },
+      "concept": "Authorisation in retrieval belongs in the query, not after it. Attach entitlement metadata at index time and make the caller's identity a mandatory filter predicate, so unauthorised content is never materialised. Post-filtering leaves both a disclosure path and a ranking-starvation bug that only appears for your smallest-scope users.",
+      "tip": "Whenever a stem describes retrieve-then-drop, the answer is filter-at-query-time. The audit framing is a hint that the graded property is whether unauthorised data was ever read, not whether it was ever shown."
+    }
+  },
+  {
+    "id": "GSR-A-012",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Operational properties of a deployed guardrail classifier",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A media company is deploying a Haiku-based classifier as an input guardrail in front of its editorial assistant, replacing a regex list. The safety lead asks what the deployment needs beyond the classifier itself to be operable. Which two properties should the design have? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "The classifier call carries its own timeout and retry policy, with an explicitly defined behaviour when it exceeds them, independent of the main generation call's settings."
+      },
+      {
+        "key": "B",
+        "text": "The classifier is given the same system prompt as the editorial assistant so that it evaluates each input with full knowledge of the product's purpose, tone and editorial standards."
+      },
+      {
+        "key": "C",
+        "text": "Every decision is recorded with the score, the threshold in force and a reference to the input, so thresholds can be re-tuned against real traffic and reviewed after incidents."
+      },
+      {
+        "key": "D",
+        "text": "The decision threshold is fixed at whatever value maximises overall accuracy on the validation set, so that the classifier operates at its best measured performance point across the set as a whole."
+      },
+      {
+        "key": "E",
+        "text": "The classifier runs only when the editorial assistant's response is a refusal, avoiding cost on the majority of traffic that is clearly benign."
+      }
+    ],
+    "correct": [
+      "A",
+      "C"
+    ],
+    "explanation": {
+      "correct": "A guardrail is a production dependency in the request path, so it needs its own failure semantics — a timeout and a defined outcome when it fires — rather than inheriting the generation call's, which are tuned for a much longer operation. And it needs decision telemetry: without the score and the threshold in force at the time, you cannot tell a threshold problem from a model problem, cannot re-tune against traffic you actually receive, and cannot reconstruct why a specific request was blocked when someone escalates it.",
+      "distractors": {
+        "B": "Handing the classifier the assistant's system prompt widens its task and imports instructions written for a different job, which degrades classification consistency. Classifiers should have a narrow, stable definition of the categories they score.",
+        "D": "Maximising accuracy assumes the two error types cost the same. They rarely do: a false negative that lets harmful input through and a false positive that blocks a working journalist have different consequences, so the threshold follows that asymmetry, not the accuracy peak.",
+        "E": "This inverts the guardrail's purpose. An input guardrail exists to act before generation; running it only after a refusal means it never influences the requests that matter and it misses everything the model did not refuse."
+      },
+      "concept": "Shipping a classifier is the small half of shipping a guardrail. The operable half is failure semantics in the request path, decision telemetry rich enough to re-tune with, and a threshold chosen from the relative cost of the two error types rather than from an accuracy curve.",
+      "tip": "For 'what does the deployment need beyond the model' items, favour operability answers — timeouts, telemetry, thresholds — over anything that changes what the classifier is asked to do."
+    }
+  },
+  {
+    "id": "GSR-A-013",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Containing an active injection path in an agent",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A travel platform's support agent handles 60% of contacts end-to-end and can call `cancel_booking`, `rebook`, and `issue_refund`. It also has an itinerary-import feature that parses customer-forwarded confirmation emails, which are arbitrary attacker-influenced HTML. A support ticket this morning shows the agent cancelled a booking the customer never mentioned, immediately after processing an imported email. Traces confirm the cancellation followed content in the imported message. What is the most appropriate immediate action?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Deploy a system-prompt update instructing the agent that content inside imported emails is data and must never be treated as a request, and monitor for recurrence."
+      },
+      {
+        "key": "B",
+        "text": "Revoke the mutating tool scopes for any session that has processed imported content, leaving import read-only and the rest of the agent's contact handling intact, while the design fix is built."
+      },
+      {
+        "key": "C",
+        "text": "Take the agent offline for all contacts until an injection-detection classifier has been trained on imported-email traffic and deployed in front of the parser, so nothing resumes until the vector is provably closed."
+      },
+      {
+        "key": "D",
+        "text": "Queue a batch job to find other bookings cancelled shortly after an import, notify affected customers, and schedule a design review for the next sprint."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Containment should be as narrow as the evidence. The traces identify one path — imported content reaching mutating tools — so cutting exactly that path stops recurrence now, while import continues to work read-only and the 60% of contacts the agent handles keep flowing. Scoping by session state rather than by disabling tools globally means customers who never used import are unaffected. That buys the time to build the durable fix without either leaving the hole open or absorbing a full outage.",
+      "distractors": {
+        "A": "A prompt change is the fix you would ship after the incident, not the containment during it. It is unverifiable at the moment you most need certainty, and monitoring for recurrence means accepting more cancellations as your detector.",
+        "C": "Full withdrawal is disproportionate when the vulnerable path is known and separable, and it makes the outage last as long as a model-training exercise. Containment should not depend on building something new.",
+        "D": "Finding and remediating affected customers is necessary and must happen, but on its own it addresses the harm already done while the path stays open. Deferring the design review to the next sprint leaves an exploited vulnerability in production."
+      },
+      "concept": "Contain first at the narrowest boundary the evidence supports, then remediate, then fix. The right containment for an agent incident is usually a capability revocation scoped to the implicated path — not a prompt edit, not a full shutdown — because it is deterministic, immediate, and preserves the parts of the system that are not implicated.",
+      "tip": "For next-step items during a live incident, rank options by how quickly and how certainly they stop the bleeding. Anything requiring new training, new models, or a future sprint is not containment."
+    }
+  },
+  {
+    "id": "GSR-A-014",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Failure mode only an output guardrail can catch",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Which failure mode can be caught by an output-side guardrail but not by an input-side one?",
+    "options": [
+      {
+        "key": "A",
+        "text": "A user pastes a widely circulated jailbreak template into their message before stating the request they actually want fulfilled."
+      },
+      {
+        "key": "B",
+        "text": "A user asks outright for content in a category the product has decided it will not serve under any circumstances."
+      },
+      {
+        "key": "C",
+        "text": "A benign question makes the response repeat another customer's record that retrieval placed in context."
+      },
+      {
+        "key": "D",
+        "text": "A request arrives whose fully assembled prompt exceeds the token budget the system has configured for that particular route."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Input guardrails can only see what the caller sent. When the request itself is unremarkable and the problem is introduced by the system's own retrieval, tool results or context assembly, there is nothing on the input side to detect. The disclosure exists only in the generated response, so the output path is the only place a guardrail can observe it. This is the standard argument for why the two guardrails are not redundant.",
+      "distractors": {
+        "A": "A pasted jailbreak template is present in the request and is precisely the kind of pattern an input guardrail is positioned to catch.",
+        "B": "An explicit out-of-scope request is visible in the input, and catching it there avoids paying for a generation that will be discarded.",
+        "D": "Token budget is a pre-flight capacity check, not a safety guardrail, and it is evaluated on the assembled request before the model call."
+      },
+      "concept": "Input and output guardrails cover disjoint failure sets. Input catches what the caller brings; output catches what the system introduces — retrieved data, tool results, context bleed, and model behaviour that no input signalled. Any design that ships only one of them has an uncovered class of failure by construction.",
+      "tip": "The distinguishing question is always: was the problem visible in what the user sent? If the harm originates inside your own pipeline, it is an output-side item."
+    }
+  },
+  {
+    "id": "GSR-A-015",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Keeping personal data out of prompt and trace telemetry",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A telco's observability pipeline captures full prompts and completions for every assistant turn as span attributes, and those spans go to a hosted vendor. Prompts contain subscriber names, account numbers and, in porting cases, addresses. The privacy team requires that personal data not leave the telco's boundary in telemetry, while engineering needs to keep debugging multi-step failures across services. Which two changes meet both requirements? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Redact identified entities in the emitting service before the span is exported, so raw values never leave the process that held them."
+      },
+      {
+        "key": "B",
+        "text": "Enable the observability vendor's ingest-time scrubbing rules as the control, since they apply uniformly across every service and language in the pipeline."
+      },
+      {
+        "key": "C",
+        "text": "Shorten trace retention so telemetry is short-lived enough that redaction is not required."
+      },
+      {
+        "key": "D",
+        "text": "Emit a stable salted hash in place of each redacted entity, so the same subscriber can still be correlated across spans and services during debugging."
+      },
+      {
+        "key": "E",
+        "text": "Sample 1% of traces so the great majority of prompts are never persisted at all."
+      }
+    ],
+    "correct": [
+      "A",
+      "D"
+    ],
+    "explanation": {
+      "correct": "The requirement is that personal data not cross the boundary, which forces redaction at the emitter — the last point still inside it. Doing it in-process also means the redaction runs where the schema is known, rather than against free text at a collector. Substituting a stable salted hash preserves exactly the property engineering needs: two spans in different services referring to the same subscriber remain joinable, so a multi-step failure can still be reconstructed without any real identifier existing in telemetry.",
+      "distractors": {
+        "B": "Ingest-time scrubbing runs after the data has already been transmitted to the vendor, which is the boundary the requirement names. It is a reasonable second layer, never the control.",
+        "C": "Retention shortens the window of exposure; it does not prevent the transfer. Personal data outside the boundary for a day is still personal data outside the boundary.",
+        "E": "Sampling reduces volume, not sensitivity. The sampled 1% contains real subscriber data, and sampling also removes exactly the traces you need when debugging a specific reported failure."
+      },
+      "concept": "Redact at the earliest point that still knows the data's structure, and replace rather than delete when downstream systems need to correlate. A stable pseudonym keeps observability useful; deletion breaks joins and pushes engineers back toward logging raw values.",
+      "tip": "Watch for options that reduce exposure — shorter retention, sampling, coarser logs — when the stated requirement is that data must not cross a boundary. Less of a violation is still a violation."
+    }
+  },
+  {
+    "id": "GSR-A-016",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Detecting gradual multi-turn escalation in a tutoring product",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A schools tutoring product classifies every incoming student message independently and blocks on a per-message score. Safety review finds sessions where each individual message scored well under threshold, yet the conversation as a whole walked the assistant from a history lesson into content the product must never produce for minors. Message-level scores show a slow upward drift across ten to fifteen turns but never cross the line. What change addresses this?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Score at the conversation level — run the guardrail over a rolling window of recent turns and keep a per-session risk score that escalates when the trajectory, not any single message, crosses a threshold."
+      },
+      {
+        "key": "B",
+        "text": "Lower the per-message threshold so the drifting messages are caught earlier in the sequence, well before the conversation has travelled far enough for the content to become genuinely unsuitable for a school setting or reach a student."
+      },
+      {
+        "key": "C",
+        "text": "Re-inject the full safety system prompt before every turn and pin it after the conversation history, so the model's standing instructions cannot be diluted by the accumulating transcript."
+      },
+      {
+        "key": "D",
+        "text": "Cap conversations at twenty turns and force a fresh session with a cleared transcript once the cap is reached, so that no single exchange can accumulate enough momentum to drift."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The stem describes an attack whose signal exists only in the sequence: every message is individually innocuous and the score never crosses the line, so no per-message threshold can separate it from a genuine tutoring session. Moving the unit of evaluation to a window of turns lets the classifier see the direction of travel, and a session-level accumulator turns a sustained drift into a crossing even when no single point does. This is a change of what is measured, not of how strictly.",
+      "distractors": {
+        "B": "The stem says scores stay well under threshold throughout. Lowering it far enough to catch the drift would block ordinary lessons on history, biology and literature, and the product's false-positive cost with schools is high.",
+        "C": "Re-injecting the system prompt is worth doing for long sessions and does help against instruction dilution, but it strengthens the model's disposition rather than closing the detection gap. The review found a guardrail that cannot see the pattern.",
+        "D": "A turn cap is blunt: it truncates legitimate long tutoring sessions, and the pattern simply restarts in a new session because nothing carries the accumulated risk forward."
+      },
+      "concept": "Some adversarial patterns are properties of a conversation, not of a message. Where the harmful signal is trajectory, the guardrail's unit of analysis has to be the trajectory — a rolling window plus a session-level risk accumulator — because tightening a per-item threshold trades a detection gap for a false-positive problem.",
+      "tip": "When a stem says every individual item passes but the whole fails, the answer changes the unit of evaluation. Threshold-tightening options are there for candidates who read 'not caught' as 'not strict enough'."
+    }
+  },
+  {
+    "id": "GSR-A-017",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Least-privilege design for agent tool and data access",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A logistics operator is hardening a dispatch agent used by 900 depot staff. Today it has one broad `manage_shipment` tool that reads and mutates, and it reaches the shipments database using the same credential as the main dispatch web application. Which three changes move the design toward least privilege in a way that is actually enforced? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Split `manage_shipment` into separate read and mutate tools, so the mutating one can carry a stricter authorisation path and be withheld from roles that only need lookups."
+      },
+      {
+        "key": "B",
+        "text": "Put the authorisation rules in the system prompt in structured form, so the agent can decline out-of-scope requests before it ever calls a tool."
+      },
+      {
+        "key": "C",
+        "text": "Resolve the acting identity from the authenticated session and have the tool layer re-check authorisation against it, rather than trusting a staff identifier supplied in the tool arguments."
+      },
+      {
+        "key": "D",
+        "text": "Give the agent its own database credential scoped to the specific tables and operations its tools require, instead of reusing the dispatch application's credential."
+      },
+      {
+        "key": "E",
+        "text": "Keep the single broad credential for operational simplicity and log every tool invocation with its arguments for weekly review."
+      }
+    ],
+    "correct": [
+      "A",
+      "C",
+      "D"
+    ],
+    "explanation": {
+      "correct": "Least privilege has to be enforceable somewhere other than the model. Splitting read from mutate creates a boundary you can attach different authorisation to and lets you withhold write capability by role. Deriving the identity from the session and re-checking it in the tool layer removes the model's arguments from the trust path, which is what stops both mistakes and injected instructions from acting as someone else. A dedicated, table-and-operation-scoped credential bounds what the agent can touch even if a tool is misused, and stops the agent inheriting the web application's full reach.",
+      "distractors": {
+        "B": "Prompt-declared rules produce refusals most of the time and are useful for user experience, but the model is the thing being defended against here. A rule the model can be talked out of is not an authorisation boundary.",
+        "E": "Logging is a detective control and this system needs it, but weekly review of a broad credential is not least privilege — it is a record of what the excessive privilege was used for."
+      },
+      "concept": "Least privilege for an agent has three surfaces: which tools exist and what each can do, whose identity the tool layer authorises against, and how narrowly the underlying credential is scoped. A design is only least-privileged if all three are enforced outside the model; anything expressed in the prompt is guidance.",
+      "tip": "Test each option with: could a sufficiently persuasive input defeat this? If yes, it is guidance, not privilege reduction. That single question separates the enforced options from the advisory ones."
+    }
+  },
+  {
+    "id": "GSR-A-018",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Data minimisation when assembling a customer context block",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A grocery retailer's loyalty support assistant answers questions about points balances and voucher eligibility. The current implementation fetches the full customer profile object — including date of birth, address history, payment tokens and purchase history — and pastes it into the prompt because it was the simplest thing the existing API returned. Privacy review asks for a change. What should the team do?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Continue sending the full profile but add a system-prompt instruction that the assistant must ignore fields not relevant to the question asked."
+      },
+      {
+        "key": "B",
+        "text": "Continue sending the full profile and add an output filter that removes any personal field appearing in the assistant's response before it is shown to the customer."
+      },
+      {
+        "key": "C",
+        "text": "Build a server-side projection that returns only the fields the loyalty task needs — points balance, tier, voucher eligibility flags — and send that."
+      },
+      {
+        "key": "D",
+        "text": "Continue sending the full profile but place it behind a prompt cache breakpoint so the record is transmitted once rather than on every turn."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Data minimisation is about what enters the boundary, and the only option that changes that is the one that stops fetching fields the task does not use. A projection is small, cheap to build against the existing API, and it makes the assistant's data footprint auditable — a reviewer can read the projection and know exactly what the model can ever see. It also shrinks the prompt and removes payment tokens and address history from every downstream artefact the turn produces, including logs and traces.",
+      "distractors": {
+        "A": "Instructing the model to ignore data does not stop the data being sent, stored in logs, or reachable in the context window. The field is still there for anything that reads the transcript.",
+        "B": "An output filter reduces disclosure to the user while leaving the underlying exposure untouched, and it is a probabilistic control layered over an avoidable problem.",
+        "D": "Caching is a cost and latency optimisation. Fewer transmissions of unnecessary personal data is still unnecessary personal data in the boundary, now with a longer-lived copy."
+      },
+      "concept": "Minimise at the fetch, not in the prompt and not in the response. Define an explicit projection per task describing the smallest field set that supports it; that projection then doubles as the artefact you show privacy reviewers and the thing you diff when the task changes.",
+      "tip": "Three of these keep sending the same data and add something afterwards. When a privacy question offers exactly one option that changes what is fetched, that is the one."
+    }
+  }
+]

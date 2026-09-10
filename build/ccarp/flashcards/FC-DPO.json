@@ -1,0 +1,182 @@
+[
+  {
+    "id": "FC-DPO-001",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "How CLAUDE.md files combine across the hierarchy",
+    "difficulty": "easy",
+    "front": "Claude Code finds a CLAUDE.md in your home directory, at the repo root, and in the subdirectory you launched from. Which one wins?",
+    "back": "None wins outright. Discovered memory files are concatenated into context rather than overriding each other, ordered from the filesystem root down to the working directory, so the most specific file is read last. Memory is guidance the model weighs, not a config file that resolves to one value per key.",
+    "hook": "The trap is importing settings-file thinking into memory files. Memory layers and accumulates; settings.json resolves per key. Keep the two mental models apart."
+  },
+  {
+    "id": "FC-DPO-002",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Memory is context, not enforcement",
+    "difficulty": "medium",
+    "front": "Your CLAUDE.md says never push directly to main, and Claude pushed to main anyway. What is the actual fix?",
+    "back": "A hook, or a deny permission rule. CLAUDE.md is delivered as context that shapes behaviour with no guarantee of compliance. A PreToolUse hook is a command the client runs at a fixed lifecycle event and applies regardless of what the model decides; permission rules are likewise enforced by the client, not the model.",
+    "hook": "Any requirement phrased as \"always do X before Y\" or \"never allow Z\" is asking for a hook or a permission rule. Restating it more forcefully in memory is the distractor."
+  },
+  {
+    "id": "FC-DPO-003",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Settings precedence order",
+    "difficulty": "medium",
+    "front": "The same key is set in managed settings, .claude/settings.json, .claude/settings.local.json, and ~/.claude/settings.json. Which value applies?",
+    "back": "Highest to lowest: managed settings (a managed-settings.json file, an MDM policy, or the console), then a settings file passed on the command line, then project-local .claude/settings.local.json, then shared project .claude/settings.json, then user ~/.claude/settings.json. Managed settings sit on top so organisational policy cannot be overridden locally.",
+    "hook": "Two points get missed most: project-local beats shared project, and user settings are the weakest layer despite feeling like \"yours\"."
+  },
+  {
+    "id": "FC-DPO-004",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Deny-first permission evaluation",
+    "difficulty": "medium",
+    "front": "Settings allow a narrow AWS command and also deny the whole AWS CLI. What happens, and why can't the allow act as an exception?",
+    "back": "The call is blocked. Rules are evaluated deny, then ask, then allow, and the first match in that order decides — specificity does not reorder them. So a deny rule cannot carry allowlist exceptions carved out inside it. The same holds across scopes: a user-level deny blocks a project-level allow.",
+    "hook": "Permission stems love a narrow allow sitting inside a broad deny. Deny-first is absolute across every scope, so no allow rule anywhere rescues the call."
+  },
+  {
+    "id": "FC-DPO-005",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Where blanket permission bypass is defensible",
+    "difficulty": "hard",
+    "front": "A team wants unattended runs and proposes enabling the skip-all-permissions mode on developer laptops. What is the correct position?",
+    "back": "That mode skips prompts including writes to protected paths, so it belongs only in an isolated environment — a container or throwaway VM — where the agent cannot do lasting damage. On managed fleets, disable it through managed settings, and achieve unattended operation with a narrow explicit allowlist instead of removing the gate.",
+    "hook": "Autonomy stems offer \"skip permissions\" as the pragmatic choice. The right answer keeps the gate and narrows it, and puts any blanket bypass behind an isolation boundary."
+  },
+  {
+    "id": "FC-DPO-006",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Choosing between memory, skills, permissions and hooks",
+    "difficulty": "medium",
+    "front": "Four extension mechanisms exist: CLAUDE.md, skills, permission rules, hooks. What is each actually for?",
+    "back": "CLAUDE.md: standing context wanted in every session. A skill: a procedure or reference loaded on demand when relevant. A permission rule: what the client will and will not allow, enforced independently of the model. A hook: a command that must run at a specific lifecycle event, also client-enforced.",
+    "hook": "Configuration stems hinge on two axes: always-loaded versus on-demand, and guidance versus enforcement. Place the stated requirement on both axes before reading the options."
+  },
+  {
+    "id": "FC-DPO-007",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "How a PreToolUse hook blocks a call",
+    "difficulty": "medium",
+    "front": "How does a PreToolUse hook actually stop a tool call, and can it be used to widen access?",
+    "back": "It blocks either by exiting with code 2, or by returning JSON whose hookSpecificOutput sets a deny permission decision. Exit 2 is the stronger signal and cannot be overridden by the JSON output. A hook cannot widen access: returning allow does not bypass a matching deny or ask rule.",
+    "hook": "Two facts are tested together: exit code 2 is the block signal, and hook approval never overrides deny-first permission evaluation. Hooks can tighten, not loosen."
+  },
+  {
+    "id": "FC-DPO-008",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "What a subagent inherits and what it does not",
+    "difficulty": "easy",
+    "front": "What does a subagent carry over from the conversation that launched it, and what does it leave behind?",
+    "back": "It starts in its own context window with its own system prompt, the task message it was handed, and the project's CLAUDE.md hierarchy. It does not inherit the parent's conversation history or the files the parent already read. Only its final report returns; the parent never sees the intermediate work.",
+    "hook": "The benefit and the cost are one fact. Isolation keeps the parent's window clean, which also means anything the subagent needed had to be stated in its prompt."
+  },
+  {
+    "id": "FC-DPO-009",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Project versus personal subagent definitions",
+    "difficulty": "medium",
+    "front": "Where do project subagents live as against personal ones, and why does the distinction matter operationally?",
+    "back": "Project subagents live in .claude/agents/ and are committed to the repository so the whole team gets the same behaviour; personal ones live in ~/.claude/agents/ and follow the individual across projects. Only name and description are required in the frontmatter, and the description is what governs when Claude delegates to it.",
+    "hook": "Team-consistency stems: the answer commits the definition to the repo rather than asking everyone to copy it locally. A vague description shows up as an agent that never gets used."
+  },
+  {
+    "id": "FC-DPO-010",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Progressive disclosure of skills versus always-loaded memory",
+    "difficulty": "medium",
+    "front": "Why does a long reference procedure cost almost nothing as a skill but a great deal inside CLAUDE.md?",
+    "back": "CLAUDE.md loads into context at the start of every session, so you pay its full length on every conversation whether or not it is relevant. A skill contributes only its description at startup; the body enters context only when it is invoked. Long procedures and reference material belong in skills for that reason.",
+    "hook": "Context-bloat stems where a team keeps appending procedures to CLAUDE.md. The fix relocates task-specific procedure into a skill, not into a terser paraphrase."
+  },
+  {
+    "id": "FC-DPO-011",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "MCP configuration scope and its trust consequence",
+    "difficulty": "medium",
+    "front": "A team wants one shared MCP server configuration that arrives with the repository. Which scope, and what does choosing it imply?",
+    "back": "Project scope, which writes a .mcp.json at the project root and is checked into version control. Local scope is private to you within one project; user scope follows you across projects. Neither is shared. Because a committed server definition is code someone else wrote, interactive sessions ask for approval before using it.",
+    "hook": "MCP scope stems test the sharing axis and the trust axis together: the only scope that travels with the repo is also the only one that triggers an approval prompt."
+  },
+  {
+    "id": "FC-DPO-012",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Baseline for running Claude Code in CI",
+    "difficulty": "easy",
+    "front": "What is the minimum needed to run Claude Code inside a CI job and consume the result programmatically?",
+    "back": "Non-interactive print mode with an explicit prompt, plus a machine-readable output format — JSON or streaming JSON — so the result parses instead of being formatted for a terminal. Beyond that you bound the run with a tool allowlist, a permission mode, and a turn limit, because no human is present to intervene.",
+    "hook": "CI stems: print mode plus a structured output format is the baseline. The better option also bounds tools and turns rather than trusting session defaults."
+  },
+  {
+    "id": "FC-DPO-013",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Granting permissions in an unattended pipeline",
+    "difficulty": "hard",
+    "front": "In CI there is nobody to approve anything. Why is skipping permissions entirely still the wrong way to unblock the job?",
+    "back": "It removes the boundary instead of defining it. Grant exactly the tools and paths the task needs through an explicit allowlist with deny rules over everything else, and run in an isolated ephemeral environment. Note also that non-interactive runs load a project's committed MCP servers without prompting, so that file is part of your CI attack surface.",
+    "hook": "The CI-permissions trap has two halves: blanket bypass instead of a scoped allowlist, and forgetting that the approval prompt protecting you interactively never fires in print mode."
+  },
+  {
+    "id": "FC-DPO-014",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "What @path imports in CLAUDE.md do and do not save",
+    "difficulty": "easy",
+    "front": "You split a 600-line CLAUDE.md into five files pulled in with @path imports. What did that actually achieve?",
+    "back": "Organisation, not context savings. Imported files are expanded and loaded at launch alongside the file referencing them, so the token cost is unchanged. Paths resolve relative to the importing file and imports can nest a limited number of hops. To reduce startup context, move material into skills or path-scoped rules instead.",
+    "hook": "The trap is reading imports as lazy loading. They are not — only skills and path-scoped rules defer their cost until something in the session needs them."
+  },
+  {
+    "id": "FC-DPO-015",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Cost attribution through telemetry export",
+    "difficulty": "medium",
+    "front": "Finance wants Claude Code spend broken down by team. What mechanism produces that, and what is the data actually keyed on?",
+    "back": "OpenTelemetry export, switched on with the telemetry environment variable plus OTLP exporter configuration, and deployed to everyone through the env block of managed settings. It emits cost, token, session and activity metrics carrying attributes such as user, organisation, session and model, which you join against your own team mapping.",
+    "hook": "Cost-attribution stems: the export is per-user and per-session, so team roll-up is a join you own, not a built-in dimension. Managed settings is how you guarantee coverage."
+  },
+  {
+    "id": "FC-DPO-016",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Instrumenting a multi-step chain for diagnosis",
+    "difficulty": "hard",
+    "front": "A user reports a wrong answer from a chain that does retrieval, two model calls, and a tool call. What must have been instrumented for you to diagnose it?",
+    "back": "A correlation identifier propagated through every hop, plus per-hop capture of the real inputs: the resolved query, retrieved chunk identifiers and text, the exact prompt sent, model and prompt versions, tool arguments and results, token counts and latency. Logging only the final response tells you it was wrong, never which stage failed.",
+    "hook": "Debugging stems where only the final output was logged. The answer instruments the intermediate boundaries; retrieval output and the prompt actually sent are the two most often missing."
+  },
+  {
+    "id": "FC-DPO-017",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Making a non-deterministic failure tractable",
+    "difficulty": "medium",
+    "front": "A failure reproduces roughly one time in twenty. What makes it tractable enough to actually fix?",
+    "back": "Capture the exact request state — prompt version, model version, the fully assembled context including retrieved documents, tool results, and sampling parameters — then replay that fixed input many times to measure a failure rate. You convert a flaky bug into a measured rate on a stored case, and that case joins the eval set.",
+    "hook": "Non-determinism stems: replay-many-times-and-measure, then promote the case into evals. Hunting a single clean reproduction is the instinct being tested against."
+  },
+  {
+    "id": "FC-DPO-018",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Secret hygiene beyond blocking a file path",
+    "difficulty": "hard",
+    "front": "Adding a Read deny rule for your .env file is a sensible start. Why is it nowhere near sufficient for secret hygiene?",
+    "back": "It stops one path reaching the file tools — and a Read deny rule also covers Edit and Write on that path — but secrets still arrive through environment variables echoed by a command, tool results, MCP server responses, and pasted output. Everything that enters context lands in transcripts, logs, and any telemetry you export.",
+    "hook": "Secret-hygiene stems reward reasoning about every route into context and about where context is persisted afterwards, not only about which file paths are blocked."
+  },
+  {
+    "id": "FC-DPO-019",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Prompt libraries as versioned code",
+    "difficulty": "easy",
+    "front": "What changes when a team's prompts move out of a shared document and into the repository as versioned artefacts?",
+    "back": "They gain review, diffs, a version identifier that can be logged with each request, eval gating in CI, and rollback. A shared document offers none of these: nobody can say which variant is live, when it last changed, or whether the change was tested. Prompts are production configuration, not documentation.",
+    "hook": "Enablement stems where two teams have quietly diverged on the same prompt, or where a quality change cannot be dated, are asking for prompts under source control."
+  },
+  {
+    "id": "FC-DPO-020",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Measuring AI-assisted developer productivity honestly",
+    "difficulty": "hard",
+    "front": "Leadership proposes measuring impact by lines of code generated and suggestion acceptance rate. Why are both poor, and what is better?",
+    "back": "Both reward volume over value: more code accepted means more review burden and potentially more defects, and both are trivially gamed. Measure delivery outcomes instead — cycle time to merge, change failure rate, time to a new joiner's first meaningful contribution, defect escape rate — against a comparison group, paired with self-reported friction.",
+    "hook": "Productivity stems plant an activity metric that is easy to collect. The right answer moves to delivery outcomes with a control group and names the volume incentive as the hazard."
+  }
+]

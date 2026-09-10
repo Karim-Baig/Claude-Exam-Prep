@@ -1,0 +1,455 @@
+[
+  {
+    "id": "SDA-C-037",
+    "domain": "Solution Design & Architecture",
+    "topic": "Rationale for a hard per-request input token cap",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "What most strongly justifies imposing a hard cap on input tokens per request in a high-volume production system?",
+    "options": [
+      { "key": "A", "text": "It materially reduces the average cost per request, since most requests already sit close to the cap and would be trimmed by it." },
+      { "key": "B", "text": "A small fraction of requests carries a disproportionate share of tokens, so a cap bounds worst-case cost and slot occupancy." },
+      { "key": "C", "text": "It improves answer quality, because shorter prompts are consistently easier for the model to follow instruction by instruction." },
+      { "key": "D", "text": "It is a prerequisite for enabling response streaming reliably, since the server sizes its output buffer from the input length." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Input size distributions in production are heavy-tailed: one attachment, one pathological conversation history or one over-broad retrieval and a request carries fifty times the median payload. Those requests are what set the worst case for cost, for latency and — because they occupy a concurrency slot far longer — for throughput. A cap set well above the median leaves ordinary traffic untouched while making the worst case a known, bounded number you can put in a capacity model. It also forces an explicit decision about what to do with oversized inputs rather than leaving it to chance.",
+      "distractors": {
+        "A": "If most requests sat near the cap it would be a throttle, not a guard, and would reject legitimate traffic. The value of a cap comes precisely from it binding rarely; the average barely moves.",
+        "C": "Prompt length and instruction-following do interact, but that is a prompt-design question answered by evaluation, not a reason to impose an infrastructure limit. Truncating a necessary document to improve quality is not a trade that works.",
+        "D": "Streaming has no dependency on input size; it changes how a response is delivered, not how a prompt is accepted. This option connects two unrelated mechanisms, and adopting the reasoning would lead a team to impose a limit for a benefit that does not exist while missing the tail-control benefit that does."
+      },
+      "concept": "Design limits exist to bound the tail, not to shift the mean. Cap input tokens, output tokens, tool-call turns and chain depth at values that ordinary traffic never reaches, so that worst-case cost, latency and slot occupancy are known quantities rather than emergent ones.",
+      "tip": "Ask what a limit is for. If an option justifies a cap by its effect on the average, it has misidentified the purpose — caps are tail controls."
+    }
+  },
+  {
+    "id": "SDA-C-038",
+    "domain": "Solution Design & Architecture",
+    "topic": "Cross-region round trips inside a multi-call chain",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An Australian energy retailer runs a bill-explanation service. Its application tier and retrieval index are hosted in Sydney, but all model traffic routes through the company's own API gateway deployed in Virginia, a legacy of the original build. The flow makes three sequential model calls, and each pays roughly 180 ms of cross-Pacific round trip. Measured end-to-end p95 is 2,700 ms against an internal budget of 2,500 ms. The three calls are genuinely dependent — each consumes the previous one's output. What is the most effective change?",
+    "options": [
+      { "key": "A", "text": "Move the gateway to the Sydney region alongside the callers, removing roughly 540 ms of pure transit from the critical path." },
+      { "key": "B", "text": "Add a regional read cache in Sydney for the responses of the first of the three calls, so repeat bills skip it." },
+      { "key": "C", "text": "Keep the gateway where it is and shorten the generated output of each of the three calls to recover the 200 ms overrun." },
+      { "key": "D", "text": "Replicate the retrieval index into Virginia so retrieval and model traffic are co-located in one region." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Three dependent calls each crossing the Pacific pay the round trip three times: about 540 ms of the 2,700 ms p95 is transit that produces nothing. Because the calls are dependent, the hops cannot be overlapped, so the only way to remove them is to stop making them — and gateway placement is entirely within the company's control. Removing 540 ms takes the measured p95 to roughly 2,160 ms, comfortably inside the 2,500 ms budget, with no change to the model, the prompts or the quality of the output.",
+      "distractors": {
+        "B": "A cache in front of one of three calls addresses at most a third of the work, only for repeated inputs, and leaves the other two round trips in place. Bill explanations are per-customer and per-period, so the hit rate would be poor anyway.",
+        "C": "Trimming output is a real lever, but here it is being used to claw back a 200 ms overrun while leaving 540 ms of avoidable transit untouched. It also degrades the explanation quality customers see, which the placement fix does not.",
+        "D": "This moves the wrong component. Retrieval already sits next to the application tier; relocating it to Virginia would add a Sydney-to-Virginia hop for retrieval as well as leaving the callers remote."
+      },
+      "concept": "In a chain of dependent calls, network placement is multiplied by the number of hops. Count the round trips in the critical path and locate every component that a request must reach; co-location is often the largest single latency win available and it costs no quality. Only independent calls can hide transit behind concurrency.",
+      "tip": "Multiply the per-hop round trip by the number of sequential calls before reading the options. If that product is a large share of the overrun, the answer is about placement, not about the model."
+    }
+  },
+  {
+    "id": "SDA-C-039",
+    "domain": "Solution Design & Architecture",
+    "topic": "Hedged requests as a tail-latency lever and its cost",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An online auction platform generates a listing description when a seller submits an item. p50 is 900 ms and p99 is 5,400 ms, and the p99 is what sellers complain about — the generation itself is read-only and has no side effects. The team must bring the p99 inside 2,500 ms without changing the model tier or the output length, and has been told any solution must add no more than about 5% to token spend. Which approach fits?",
+    "options": [
+      { "key": "A", "text": "Set a 2,500 ms client timeout and retry once on expiry, so no seller ends up waiting longer than the stated budget." },
+      { "key": "B", "text": "Issue a duplicate request once the original has been outstanding for about the p95 elapsed time, take the first to finish and cancel the other." },
+      { "key": "C", "text": "Issue two requests concurrently for every submission and take the first to complete, which halves the chance of any submission hitting a slow response." },
+      { "key": "D", "text": "Raise the client concurrency limit so a slow generation no longer delays the submissions queued behind it." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Hedging attacks a tail caused by variance rather than by load: most slow responses are not slow for a reason that will repeat, so a second attempt started late usually finishes before the first. Setting the hedge delay at roughly p95 is what makes the cost bound hold — only about 5% of requests ever spawn a duplicate, so token spend rises by roughly the same 5% while the p99 collapses toward the p95 of a single attempt. The precondition the stem supplies deliberately is that generation is read-only with no side effects, which is what makes issuing a duplicate safe.",
+      "distractors": {
+        "A": "A timeout-and-retry pays the full 2,500 ms before starting over, so the seller's total wait becomes 2,500 ms plus a fresh attempt — worse than the p99 it was meant to fix. Retry addresses failure; hedging addresses slowness.",
+        "C": "Unconditional duplication does cut the tail, but it doubles token spend against a stated 5% ceiling. The whole design skill in hedging is choosing a delay that buys the tail reduction for a small fraction of extra work.",
+        "D": "More client concurrency helps when requests are queuing for a slot. The stem describes variance in individual response times, not contention, and nothing suggests the p99 requests are waiting to start."
+      },
+      "concept": "Hedged requests convert tail latency into a small, bounded amount of duplicated work. Set the hedge delay at a high percentile so the hedge rate equals the extra cost you are willing to pay, and only hedge operations that are idempotent or side-effect-free. Retries fix failures; hedges fix slowness.",
+      "tip": "\"No side effects\" and a percentage cost ceiling in the same stem are the tell for hedging. The delay parameter is what separates the correct option from the naive duplicate-everything version."
+    }
+  },
+  {
+    "id": "SDA-C-040",
+    "domain": "Solution Design & Architecture",
+    "topic": "Precomputing answers for a known finite question set",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A national tax authority runs a filing-help assistant. Analysis of last season shows that during the ten-week filing peak, about 60% of questions map to a known set of roughly 2,000 standard topics; the remaining 40% is long tail. The standard topics change only when the authority publishes revised guidance, which happens a few times a year on a scheduled date. Peak throughput demand is the authority's binding constraint. Which TWO statements about precomputing answers for the standard set are correct? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Precomputing the standard set off-peak converts variable peak inference into fixed off-peak work and removes roughly 60% of question volume from the peak throughput demand." },
+      { "key": "B", "text": "Precomputed answers must be regenerated and re-evaluated whenever revised guidance is published, so the job belongs in the publication pipeline rather than in a cron." },
+      { "key": "C", "text": "Given filing-season volumes, precomputation raises total token spend, because every one of the 2,000 standard topics is generated whether or not it is asked." },
+      { "key": "D", "text": "Precomputation removes the need for a live model path during the filing peak, since the standard set covers the overwhelming majority of real demand." },
+      { "key": "E", "text": "Because the answers are generated in advance and reviewed once before publication, they no longer need to carry citations back to the guidance they came from." }
+    ],
+    "correct": ["A", "B"],
+    "explanation": {
+      "correct": "The two facts that make precomputation right here are a bounded question set and a scheduled change trigger. Generating 2,000 answers off-peak turns the largest share of peak demand into a lookup, which directly relieves the constraint the stem names. And because the answers are derived from a corpus that changes on a known date, the regeneration must hang off the publication event — a periodic job would leave a window in which the assistant confidently states superseded tax guidance, which is the failure mode that matters most for this organisation.",
+      "distractors": {
+        "C": "Two thousand generations against a filing-season volume measured in millions of questions is negligible, and each precomputed answer replaces many live generations. Precomputation would only raise spend if the set were large relative to demand.",
+        "D": "Forty per cent of questions are long tail and still need live inference. Precomputation reduces the peak; it does not remove the live path, and designing as if it did would fail 40% of filers.",
+        "E": "Provenance is a property of the answer, not of when it was generated. For a tax authority the citation is often the most important part of the response, and precomputation makes it easier to attach, not unnecessary."
+      },
+      "concept": "Precomputation is the strongest caching variant available when the input set is bounded, enumerable in advance and changes on a known trigger. It shifts inference from the constrained peak to unconstrained off-peak time. Its obligation is invalidation: tie regeneration to the lifecycle event that changes the source, not to a clock.",
+      "tip": "Look for \"bounded set\" plus \"changes on a scheduled event\". Those two together point at precomputation; either alone usually does not."
+    }
+  },
+  {
+    "id": "SDA-C-041",
+    "domain": "Solution Design & Architecture",
+    "topic": "Where to place the seam that limits vendor switching cost",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A hospital group's platform team is building shared infrastructure for six clinical and administrative teams that will call Claude. The CTO wants to avoid being locked in and has asked for an abstraction layer that would let any model vendor be substituted. The platform lead points out that a genuinely vendor-neutral interface would have to reduce to a lowest common denominator, giving up tool-use semantics and prompt-structure features the teams already depend on, and that the translation layer would itself become a shared dependency for six teams. What should the architect recommend?",
+    "options": [
+      { "key": "A", "text": "Build the vendor-neutral interface as requested and have all six teams work within the common subset, since portability is worth more than any individual feature." },
+      { "key": "B", "text": "Place the seam at the task boundary: expose internal capability services with stable contracts, and keep provider-specific features behind them." },
+      { "key": "C", "text": "Call the provider SDK directly from each of the six team codebases, accepting that meaningful portability is not achievable in practice." },
+      { "key": "D", "text": "Maintain parallel implementations against two providers so the switch is exercised continuously and lock-in never accumulates." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Abstracting at the provider API forces you to the intersection of every provider's capabilities, which is exactly where the value is not. Abstracting at the task boundary gives the six teams a contract they actually want to depend on — a named clinical capability with a defined input and output — while leaving the implementation free to use whatever the provider offers well. Switching then means reimplementing a handful of capability services behind unchanged contracts and re-running their evaluations: expensive, bounded, and estimable. That is the honest form of portability.",
+      "distractors": {
+        "A": "Paying a permanent capability tax against a switch that may never happen is a poor trade, and it hands six teams a shared dependency that blocks them whenever the abstraction lags a feature they need.",
+        "C": "Direct calls from six teams scatter provider-specific code across six codebases and duplicate retries, logging and prompt handling. The absence of a good abstraction is not an argument for no seam at all.",
+        "D": "Dual implementations double the surface that must be built, evaluated and kept behaviourally aligned, permanently, to insure against an event that may not occur. It is the most expensive form of optionality on the list."
+      },
+      "concept": "Put the seam where your domain is stable, not where the vendor's API is. Task-level capability services with owned contracts give teams a stable dependency and confine provider specifics to one implementation each. A lowest-common-denominator provider shim buys theoretical portability by discarding the capabilities you selected the provider for.",
+      "tip": "Lock-in questions reward bounding the switching cost rather than eliminating it. Options promising a flag-flip migration or continuous dual implementation are both avoiding the real trade."
+    }
+  },
+  {
+    "id": "SDA-C-042",
+    "domain": "Solution Design & Architecture",
+    "topic": "Marginal versus average cost when adding to an existing call",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An airline's disruption-rebooking assistant costs a measured $0.011 per request, on a call carrying about 6,000 input tokens of policy and itinerary context and returning about 500 output tokens. Product wants to add a short passenger-facing explanation of why the offered alternative was chosen. It reuses the same context and adds roughly 300 output tokens to the existing call; a prototype measures the increment at $0.0026. Finance has priced the feature in the business case at $0.011 per use, using the current average cost per request. How should the architect respond?",
+    "options": [
+      { "key": "A", "text": "Accept the $0.011 figure as a conservative estimate, since costing at the current average avoids understating the feature's contribution to spend." },
+      { "key": "B", "text": "Price the feature at the marginal $0.0026, since the average embeds retrieval and 6,000 shared input tokens it never re-incurs; flag the 300 output tokens as latency." },
+      { "key": "C", "text": "Treat the feature as effectively free, since it reuses an existing call, adds no new request to the system and consumes no additional retrieval." },
+      { "key": "D", "text": "Keep the average-cost figure for consistency with how every other feature in the business case is priced, and note the discrepancy in a footnote for the investment committee." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The increment does not repeat the expensive part. Retrieval, the 6,000 tokens of shared context and the request overhead are already being paid; the feature adds only output tokens to a call that was happening anyway, which is why the measured increment is about a quarter of the average. Pricing it at $0.011 overstates it more than fourfold and will kill a feature that is cheap. The second half of the answer is the part architects forget: 300 extra output tokens are generated sequentially on the critical path, so the honest cost of this feature is small in money and non-trivial in latency.",
+      "distractors": {
+        "A": "Conservatism that is wrong by a factor of four is not conservatism, it is a bad number. It systematically biases the portfolio against incremental features and toward features that justify a whole new call.",
+        "C": "The increment is not zero: 300 output tokens cost money and, more importantly, time. \"It reuses an existing call\" is the argument for marginal pricing, not for free.",
+        "D": "Consistency in a costing method is worth something, but not at the price of a materially wrong figure in a decision document. The fix is to price all incremental features marginally, not to keep this one wrong."
+      },
+      "concept": "Price an addition to an existing call at its marginal cost, not the average cost per request, because the average includes shared inputs the addition does not re-incur. Then state the marginal latency separately: added output tokens are cheap in money and expensive in wall clock, and the two costs move differently.",
+      "tip": "When a stem gives both an average per-request cost and a measured increment, the presence of both is the question. Any option that applies the average to an increment is the planted error."
+    }
+  },
+  {
+    "id": "SDA-C-043",
+    "domain": "Solution Design & Architecture",
+    "topic": "Placing admission control at the edge rather than the worker",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "In a system that must remain within a provisioned throughput allocation, why is it better to make the admission-control decision at the edge rather than in the worker that issues the model call?",
+    "options": [
+      { "key": "A", "text": "The edge has better observability, so shed decisions can be logged with the full request context and surfaced in one dashboard." },
+      { "key": "B", "text": "Workers cannot return an error response to the client once they have begun processing a request and issued the model call." },
+      { "key": "C", "text": "By the time a request reaches a worker it has already claimed a concurrency slot and spent retrieval budget." },
+      { "key": "D", "text": "Edge infrastructure is cheaper to operate per request than worker infrastructure, so shedding there costs less." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Admission control only helps if it is applied before the scarce resource is consumed. A request that has reached a worker has already taken a slot out of a fixed pool and, in most designs, already run retrieval and possibly a first model call — so rejecting it there wastes exactly the capacity the rejection was meant to protect. Deciding at the edge, where the cost of a rejection is a response header, means the capacity saved goes to a request that will complete. It also keeps the queue short enough that the requests still in it have a chance of finishing inside their deadline.",
+      "distractors": {
+        "A": "Observability is better served by tracing the decision wherever it is made. Log quality is not a reason to move a control point.",
+        "B": "Workers can and do return errors mid-processing. The problem is not that they cannot refuse but that refusing at that point is too late to save anything.",
+        "D": "Per-request infrastructure cost at the edge versus the worker is a rounding error next to the model spend. The argument for edge placement is about resource preservation, not hosting economics."
+      },
+      "concept": "Apply admission control at the earliest point before the scarce resource is committed. Shedding after a concurrency slot, a retrieval or a model call has been spent converts overload into wasted capacity. The corollary is that the edge needs visibility of the downstream constraint, so the capacity signal has to be published upstream.",
+      "tip": "For control-placement questions, ask what has already been spent by the time the control fires. The correct placement is always upstream of the expensive commitment."
+    }
+  },
+  {
+    "id": "SDA-C-044",
+    "domain": "Solution Design & Architecture",
+    "topic": "Sizing the second stage of a recall-then-precision filter",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A food manufacturer screens about 120,000 consumer complaints a month for potential allergen incidents. A cheap first-stage filter measures 0.99 recall and 0.12 precision. Measured prevalence of genuine allergen incidents in the complaint stream is 1.5%. Complaints passed by the filter go to a second, far more expensive verification stage. Which THREE statements follow from these figures? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "The second stage will see roughly 14,850 complaints a month — about 12% of total volume — and that is the figure its cost and capacity model must be built on." },
+      { "key": "B", "text": "End-to-end recall cannot exceed the first stage's 0.99, so any requirement above 99% detection is infeasible without changing the first stage." },
+      { "key": "C", "text": "The first stage's 0.12 precision is not a defect: its job is to shed the clearly-negative majority of volume cheaply, and precision is the second stage's responsibility." },
+      { "key": "D", "text": "Raising the first stage's precision from 0.12 to 0.50 would improve end-to-end recall, because fewer false positives leaves the second stage more capacity per case." },
+      { "key": "E", "text": "Because the first stage has 0.99 recall, the system as a whole will detect 99% of incidents regardless of how the second verification stage behaves." }
+    ],
+    "correct": ["A", "B", "C"],
+    "explanation": {
+      "correct": "The arithmetic sizes the design. Of 120,000 complaints, 1.5% — 1,800 — are genuine, of which the filter catches 0.99, or 1,782. At 0.12 precision those true positives are 12% of what the filter passes, so it passes 1,782 / 0.12 = 14,850, or about 12% of volume, and that is the second stage's workload. Recall composes multiplicatively down the chain, so the first stage's 0.99 is a hard ceiling on end-to-end detection. And low first-stage precision is the design working as intended: a high-recall, low-precision filter exists to discard the obvious negatives at low cost, leaving discrimination to the stage that can afford it.",
+      "distractors": {
+        "D": "Precision and recall are separate quantities; raising precision by tightening the filter typically reduces recall, and cannot increase it. Second-stage capacity affects throughput and cost, not the first stage's detection rate.",
+        "E": "The second stage can reject true positives, so end-to-end recall is the product of both stages' recalls. The first stage's 0.99 is a ceiling, not a guarantee."
+      },
+      "concept": "In a recall-then-precision cascade, size the expensive stage from prevalence, first-stage recall and first-stage precision — its volume is (volume x prevalence x recall) / precision. End-to-end recall is the product of stage recalls, so the first stage sets an unbreakable ceiling and should be tuned for recall almost regardless of its precision.",
+      "tip": "Compute the second stage's volume before reading the options; it is the number the item is built around. Then check every recall claim by multiplying down the chain rather than quoting one stage."
+    }
+  },
+  {
+    "id": "SDA-C-045",
+    "domain": "Solution Design & Architecture",
+    "topic": "Precondition for a safe cheap-tier-first cascade",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "What must be true for a cheap-tier-first cascade with escalation to a higher tier to be a sound design rather than a way of making mistakes cheaply?",
+    "options": [
+      { "key": "A", "text": "The cheap tier must emit a reliable signal — a calibrated confidence, a verification check or a structural test — showing when to escalate." },
+      { "key": "B", "text": "Both tiers must run the same prompt, so their outputs stay directly comparable at the escalation boundary." },
+      { "key": "C", "text": "The escalation rate must stay below 50%, or the blended cost rises above flat routing and the advantage disappears." },
+      { "key": "D", "text": "The cheap tier must have the same context window as the higher tier, so no case is ever rejected before it is scored." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "A cascade is only as good as its escalation decision. If the cheap stage cannot tell when it is out of its depth, it will answer confidently on exactly the cases that needed the expensive tier, and the cascade will have converted an accuracy problem into a cheaper accuracy problem. The escalation signal is therefore the component to design and evaluate first — whether it is a self-reported confidence that has been calibrated against outcomes, a downstream validation the cheap output either passes or fails, or a structural rule such as document type or ambiguity markers.",
+      "distractors": {
+        "B": "Prompts usually should differ: a smaller tier typically needs instructions made explicit that a larger one infers. Forcing a shared prompt handicaps the cheap stage for the sake of a comparison nobody needs at runtime.",
+        "C": "Because the tiers differ by a large multiple in cost, break-even escalation rates sit far above 50%. A cascade at 60% escalation can still be substantially cheaper; what suffers at that rate is latency.",
+        "D": "Size handling matters operationally and can be dealt with by routing oversized cases straight to the higher tier. It is a routing rule, not the property that makes the cascade sound."
+      },
+      "concept": "The value of a cascade lives in the escalation decision, not in the price difference between tiers. Build and evaluate the escalation signal as a first-class component with its own metrics, and monitor the escalation rate as a drift indicator — a cascade whose signal degrades silently degrades quality, not cost.",
+      "tip": "Cascade questions almost always turn on \"how does the cheap stage know it is wrong\". Options about prompts, context size or escalation percentages are describing consequences, not preconditions."
+    }
+  },
+  {
+    "id": "SDA-C-046",
+    "domain": "Solution Design & Architecture",
+    "topic": "Setting accuracy requirements by action reversibility",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A car-sharing operator uses one model-driven assessment of vehicle-return photographs to drive two automated actions: raising a maintenance job for a depot technician, who reviews the photos before acting, and charging a damage fee to the member's payment card, which the member can dispute and which is reportable to the consumer regulator if disputes exceed a threshold. The product director has asked for \"one accuracy target for the AI\" to simplify reporting. Which TWO responses are correct? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Accuracy requirements should be set per action according to how reversible it is and what an error costs, so the fee-charging path needs a materially higher bar and a review threshold." },
+      { "key": "B", "text": "One underlying assessment can drive both actions provided the confidence threshold and the escalation rule are configured separately per action." },
+      { "key": "C", "text": "A single system-wide target set to the stricter of the two is the safer default, because it cannot under-protect either path or either action." },
+      { "key": "D", "text": "Since the fee path carries the higher risk, moving it to the highest model tier is the primary control for meeting its accuracy requirement." },
+      { "key": "E", "text": "Reversibility is a legal characteristic rather than an architectural input, so it belongs in the terms of service and the dispute process rather than in the system design." }
+    ],
+    "correct": ["A", "B"],
+    "explanation": {
+      "correct": "The two actions differ in exactly the dimension that should drive the requirement: one is checked by a technician before anything happens, the other takes money from a customer and creates a regulatory exposure. Requirements therefore attach to actions, not to \"the AI\". The second key is what makes this practical — the expensive part, the photo assessment, is shared, and the differentiation lives in cheap configuration: a high threshold plus mandatory review before a charge, a permissive threshold for a suggestion a human will look at anyway.",
+      "distractors": {
+        "C": "Applying the fee path's bar to maintenance suggestions would send most photographs to human review for a decision a technician already reviews, destroying the value of automation on the low-risk path for no reduction in risk.",
+        "D": "Tier choice moves the underlying assessment quality by some amount; it cannot deliver a guarantee. The control that actually meets a high bar on an irreversible action is the threshold and the human review it triggers, with the tier as a secondary lever.",
+        "E": "Reversibility is one of the most load-bearing architectural inputs available: it determines where humans sit in the path, what has to be logged, and how confident the system must be before acting. Pushing it into contract language leaves the design unspecified."
+      },
+      "concept": "Set accuracy and autonomy requirements per action, indexed to reversibility and cost of error, not per system. A single model can serve actions with very different risk profiles as long as thresholds, review gates and logging differ. A uniform target is either too weak for the risky path or too expensive for the safe one.",
+      "tip": "When a stem describes two actions driven by one model, resist the option that unifies the target. The exam is testing whether you attach requirements to consequences rather than to components."
+    }
+  },
+  {
+    "id": "SDA-C-047",
+    "domain": "Solution Design & Architecture",
+    "topic": "Designing backwards from a hard per-unit cost ceiling",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A classified-ads marketplace earns an average of $0.040 per listing and has set a moderation budget of 2.25% of that, giving a hard ceiling of $0.0009 per listing for automated listing-quality checks. The current design sends every listing to a model and measures $0.0031 per listing. Analysis of a week of listings shows that about 75% are from established sellers reusing prior categories and templates, and are resolved correctly by deterministic rules the team already has. What design meets the ceiling?",
+    "options": [
+      { "key": "A", "text": "Sample 25% of listings for model-based moderation and pass the remainder unchecked, which also brings the blended cost to about $0.00078 per listing." },
+      { "key": "B", "text": "Route through the deterministic rules first and send only the roughly 25% they cannot resolve to the model, at a blended $0.00078 per listing." },
+      { "key": "C", "text": "Move the existing design to the cheapest available tier and accept the resulting quality reduction across all listings, including the difficult ones." },
+      { "key": "D", "text": "Open a commercial negotiation for a lower per-call rate, since a 3.4-fold gap is unlikely to be closed by design changes alone at this volume." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "A hard per-unit ceiling is met by doing less work per unit, not by paying less for the same work. Three quarters of listings are already correctly handled by rules the team owns, so those listings should never reach a model: 0.25 x $0.0031 is about $0.00078, inside the $0.0009 ceiling with margin for the rules' own negligible cost. Crucially, coverage is unchanged — every listing is still checked, just by the cheapest mechanism that is adequate for it. That is what makes this a design answer rather than a scope reduction.",
+      "distractors": {
+        "A": "The arithmetic is identical and the risk is not. Sampling leaves 75% of listings unmoderated, so the marketplace's exposure to bad listings rises by roughly a factor of four while the cost line looks the same. This is the trap: correct number, wrong system.",
+        "C": "A tier change might reduce cost per call but there is no basis in the stem for assuming it reaches a 3.4-fold reduction, and it degrades moderation on the 25% of listings that genuinely need judgement — exactly the wrong quarter to weaken.",
+        "D": "Commercial work is worth doing but cannot be the plan for a 3.4-fold gap, and it concedes that the current design is efficient when 75% of its calls are avoidable. Negotiate after the design is right, not instead."
+      },
+      "concept": "When a per-unit cost ceiling is fixed by unit economics, work backwards to the share of units that may reach the expensive component. Deterministic pre-filters that remove the cases needing no judgement are usually the largest lever, because they cut volume rather than price and leave coverage intact.",
+      "tip": "Two options landing on the same cost number is a deliberate construction. Compare what each does to coverage: the one that meets the budget by not checking things is the distractor."
+    }
+  },
+  {
+    "id": "SDA-C-048",
+    "domain": "Solution Design & Architecture",
+    "topic": "Establishing a demand profile before choosing an architecture",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A fashion e-commerce brand has committed publicly to launching an AI personal stylist to its 2 million registered customers in twelve weeks. The team is debating whether it should be a single call with a large catalogue context, a multi-step agent with catalogue tools, or a two-tier cascade — and has already begun a spike on all three. Nothing about actual demand has been measured: there is no figure for sessions per user, turns per session, or tokens per turn. The architect has one week before the design must be fixed. What should happen first?",
+    "options": [
+      { "key": "A", "text": "Pick the multi-step agent with catalogue tools, since it is the most capable option and can be simplified later if it proves too expensive." },
+      { "key": "B", "text": "Open the throughput allocation increase with the vendor now, because lead times are long and capacity is the one thing that cannot be added late in a launch." },
+      { "key": "C", "text": "Ship a deliberately simple version to a small invited cohort and measure sessions per user, turns per session and tokens per turn before fixing the design." },
+      { "key": "D", "text": "Design the caching layer first, since it is common to all three candidate architectures and will reduce peak demand whichever one is chosen." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "All three candidate designs are defensible in the abstract and the choice between them is entirely determined by numbers nobody has. Turns per session decides whether an agent's quadratic context growth is affordable; tokens per turn decides whether a large catalogue context fits a cost ceiling; sessions per user decides peak concurrency and therefore the allocation. A one-week cohort measurement with a deliberately simple implementation produces all three, and it is achievable inside the remaining time. Choosing the architecture first commits twelve weeks of build on assumptions that a week of data would have settled.",
+      "distractors": {
+        "A": "Selecting the most capable option and simplifying later inverts the usual outcome: the agent's turn count and tool surface become load-bearing for the product, and \"simplify later\" competes with post-launch feature work it will lose to.",
+        "B": "Requesting an allocation is sensible once you know what to request. With no tokens-per-turn or sessions-per-user figure, the number in the request would be invented, and an allocation sized to a guess is as likely to be stranded as short.",
+        "D": "Caching design depends on the query distribution and on whether responses are personalised — both unknown. For a personal stylist, personalisation is likely to constrain the cache heavily, which is another reason to measure first."
+      },
+      "concept": "Non-functional architecture decisions are functions of a demand profile: sessions per user, interactions per session, tokens per interaction, and peak-to-average ratio. When those are unmeasured, the cheapest next step is almost always a bounded pilot that produces them, because every candidate design's cost, latency and capacity follow from the same three numbers.",
+      "tip": "When a stem lists several plausible architectures and explicitly says nothing has been measured, the answer is the measurement. The listed alternatives are there to tempt you into choosing one."
+    }
+  },
+  {
+    "id": "SDA-C-049",
+    "domain": "Solution Design & Architecture",
+    "topic": "Metric that best tracks maintainability of an LLM system",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An architect wants a single tracked metric that reflects whether a Claude-based system is becoming harder or easier to change over time. Which is the most useful?",
+    "options": [
+      { "key": "A", "text": "Total prompt line count across every prompt in the system, tracked month over month against a rolling baseline." },
+      { "key": "B", "text": "The number of distinct prompt files checked into the platform repository, counted at each release." },
+      { "key": "C", "text": "Elapsed time from starting a typical behavioural change to it being safely in production, plus how many components it touched." },
+      { "key": "D", "text": "The number of distinct model tiers and provider endpoints the system depends on in production." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Maintainability is only observable through the act of changing something, so the metric has to be about changes. Lead time captures everything that makes a change slow — unclear ownership, missing evaluations, manual verification, coordination across teams — in one number that a stakeholder understands. Pairing it with the count of components touched separates the two distinct causes: a change that is slow because verification is weak needs an evaluation suite, while a change that touches nine components needs the duplication removed. Neither is visible in a static count of artefacts.",
+      "distractors": {
+        "A": "Line count grows with legitimate scope and shrinks when someone deletes examples that were carrying weight. It moves for reasons unrelated to how hard the system is to change.",
+        "B": "More prompts can mean sprawl or can mean clean separation of well-owned tasks. Without knowing how they relate to each other the count says nothing directional.",
+        "D": "Tier count is a real cost driver for maintenance, but it is a design choice made once, not a trend. It would sit flat for a year while the system quietly became unmaintainable for other reasons."
+      },
+      "concept": "Measure maintainability through change: lead time for a representative behavioural change, and the blast radius that change touches. Static artefact counts are proxies that move for the wrong reasons. If you want a system to stay changeable, track the cost of changing it and treat a rising trend as a defect.",
+      "tip": "Maintainability metrics that can be computed without making a change are usually the wrong ones. Look for the option that measures the act, not the artefact."
+    }
+  },
+  {
+    "id": "SDA-C-050",
+    "domain": "Solution Design & Architecture",
+    "topic": "Cost and latency profile of self-consistency sampling",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A semiconductor fab classifies yield-excursion reports into root-cause families. A single call measures 88% agreement with the engineering panel's adjudicated label. Sampling the same call three times and taking the majority measures 92%, at 3.1 times the token cost including the short aggregation step. The three samples can be issued concurrently. The fab must decide whether to adopt this before the next process node ramps. Which TWO conclusions are sound? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "The gain is bounded by how independent the errors are: where the model is confidently wrong all three samples agree, so the four-point improvement is the ceiling of this technique." },
+      { "key": "B", "text": "Because the samples run concurrently, the added latency is roughly the aggregation step rather than three sequential generations, so this trades cost for accuracy far more than latency." },
+      { "key": "C", "text": "Majority voting makes the classification deterministic across runs, which resolves the reproducibility concerns that come with sampling the model repeatedly." },
+      { "key": "D", "text": "Moving from three samples to five should deliver roughly double the improvement, since the gain scales with the number of independent opinions collected." },
+      { "key": "E", "text": "Voting improves worst-case behaviour by guaranteeing that every classification has been independently checked twice before the label is emitted." }
+    ],
+    "correct": ["A", "B"],
+    "explanation": {
+      "correct": "Voting only fixes errors that vary between samples. Cases where the model has a systematically wrong reading of a report produce three matching wrong answers, and no amount of sampling touches them — so the four points measured here is close to what this technique has to give, and the plan should treat it as such. The latency point is the other half of the economics: concurrency means the wall-clock cost is the slowest sample plus a short aggregation, while tokens triple. That asymmetry is what makes self-consistency attractive in a batch or near-real-time setting and unattractive when the cost ceiling is the binding constraint.",
+      "distractors": {
+        "C": "Voting reduces variance but does not remove it: three fresh samples on another day can split differently, and a two-to-one majority can become one-to-two. If reproducibility is the requirement, voting is not the mechanism.",
+        "D": "Returns diminish sharply with sample count. Going from three to five typically adds a fraction of what the first step added while adding two-thirds more cost, and it cannot touch the systematic errors at all.",
+        "E": "Independent sampling from the same model is not an independent check; it is the same reasoning drawn again from the same distribution. A genuine check requires a different mechanism — a verifier, a rule, a different information source."
+      },
+      "concept": "Self-consistency sampling converts variance into accuracy, so its ceiling is set by how much of the residual error is variance rather than systematic. It multiplies token cost by the sample count while leaving latency roughly unchanged if the samples run concurrently. Evaluate it against the cost ceiling, not the latency budget.",
+      "tip": "The recurring trap on voting items is treating repeated samples from one model as independent evidence. Options claiming determinism, independent verification, or linear returns are all built on that mistake."
+    }
+  },
+  {
+    "id": "SDA-C-051",
+    "domain": "Solution Design & Architecture",
+    "topic": "Buy first and build later as an option-value decision",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An international development NGO has an eight-person engineering team and ten weeks to deliver grant-application triage before the next funding round opens. A vendor product covers the requirement on month-to-month terms with a documented data export. The programme director argues that triage logic could eventually become the NGO's distinctive capability and that building it now avoids paying twice. The team has never run this workload and has no data on application volume, mix or failure modes. What should the architect recommend?",
+    "options": [
+      { "key": "A", "text": "Build now, because a capability that may become the NGO's distinctive advantage should not be outsourced at the point it is being defined." },
+      { "key": "B", "text": "Buy on the month-to-month terms, put a thin internal contract in front of it, and set an explicit trigger at which building is re-evaluated." },
+      { "key": "C", "text": "Buy, but negotiate a three-year term to secure the discount, since the capability is clearly needed for the long run and the rate improves with term." },
+      { "key": "D", "text": "Build a provider-neutral internal platform now and run the vendor behind it, so any later switch is invisible to the consuming teams." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The team is being asked to build a differentiated version of something it has never operated, on a fixed external deadline, with no data on the workload. Buying converts that into a cheap experiment: ten weeks of real applications produces the volume, mix and failure-mode information that a good build would need as input, and month-to-month terms with an export mean the option to build is still open. The revisit trigger is what stops \"buy\" from silently becoming permanent — an unrevisited buy decision is how organisations end up two years into a product that no longer fits.",
+      "distractors": {
+        "A": "Distinctiveness is a hypothesis here, not an observation, and it is the hardest kind to build toward blind. Building the differentiated version first means guessing at exactly the details that operating experience would supply.",
+        "C": "A multi-year term trades away the optionality that makes buying the right answer in this situation. The discount is being paid for with the ability to change course, which is the asset the NGO most needs to keep.",
+        "D": "Building the platform now incurs a large share of the build cost while still paying the licence, and it is designed around an interface the team cannot yet specify well. It is the most expensive way to keep the option open."
+      },
+      "concept": "Buying can be the cheapest way to buy information. When the workload is unknown and the deadline is external, prefer the reversible option with a low exit cost, wrap it in a contract you own, and attach an explicit trigger for revisiting. Build when you have the operating data that tells you what to build.",
+      "tip": "Look for exit terms in the stem. \"Month-to-month with documented data export\" is placed there to tell you the buy option is reversible, which is what makes deferring the build cheap rather than risky."
+    }
+  },
+  {
+    "id": "SDA-C-052",
+    "domain": "Solution Design & Architecture",
+    "topic": "Qualifying a quoted stage latency before budgeting on it",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A team reports that a proposed reranking stage \"costs 40 ms\". Before accepting that figure into an end-to-end latency budget, what most needs to be established?",
+    "options": [
+      { "key": "A", "text": "Whether 40 ms is a mean or a tail figure, and whether it was measured under production load." },
+      { "key": "B", "text": "Whether the reranker runs in the same language runtime and process as the rest of the retrieval service." },
+      { "key": "C", "text": "Whether the measurement was taken after the process and its local caches had fully warmed up." },
+      { "key": "D", "text": "Whether the reranker process is co-located on the same host as the retrieval index it queries." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Budgets are written against tail behaviour under load, and a single unqualified number tells you neither. A 40 ms mean measured on an idle box routinely becomes a 300 ms p95 when the stage is sharing CPU with everything else at peak — and it is the p95 that the end-to-end budget has to accommodate. Establishing the statistic and the load conditions turns an anecdote into a planning input; without them the figure cannot be added to anything, whatever its size.",
+      "distractors": {
+        "B": "Runtime choice affects the number but is already reflected in whatever was measured. It matters for how the stage might be optimised later, not for whether the quoted figure can be trusted now.",
+        "C": "Warm-up matters, and a cold-start figure would be worse rather than better. It is a subset of the broader question about measurement conditions, and on its own it misses the load and percentile issues entirely.",
+        "D": "Co-location affects transport time, which would already appear in an end-to-end measurement of the stage. It is a design detail rather than the qualification the figure needs."
+      },
+      "concept": "A latency figure without a percentile and a load condition is not a measurement. Require both before adding any stage to a budget, and prefer figures taken at the concurrency the system will actually run at, since contention is what separates a benchmark from production behaviour.",
+      "tip": "Any bare millisecond number in a stem is an invitation to ask \"mean or tail, and under what load\". That question is the answer more often than any specific optimisation."
+    }
+  },
+  {
+    "id": "SDA-C-053",
+    "domain": "Solution Design & Architecture",
+    "topic": "Cache stampede on a cold key under a traffic surge",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A ticketing platform caches assistant answers keyed on normalised question text. When a stadium tour goes on sale, roughly 40,000 users ask essentially the same question about queue position within ninety seconds. Because the key is cold at the moment the on-sale opens, the first wave of requests all miss simultaneously and issue their own generation, saturating the throughput allocation and pushing p95 past two minutes. The cache then fills and the incident resolves. The on-sale for the next tour is in six days. What should the team do next?",
+    "options": [
+      { "key": "A", "text": "Increase the cache entry lifetime so the queue-position key stays warm for far longer between on-sale events." },
+      { "key": "B", "text": "Add request coalescing on the cache key so only one generation runs per key and concurrent misses wait on that result." },
+      { "key": "C", "text": "Pre-warm the cache with every question the platform has ever seen, in a batch job that runs just before each on-sale opens." },
+      { "key": "D", "text": "Add worker capacity for the on-sale window so the wave of concurrent misses can all be absorbed at once." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The defect is that a cold key permits unbounded concurrent generation of the same answer. Coalescing — one in-flight generation per key, with everyone else waiting on its result — bounds that to a single call regardless of how many users arrive together, which is exactly the property a surge needs. The placeholder written at miss time is what closes the race between the first request checking the cache and it writing the result. It is a small change, it is testable before the next on-sale in six days, and it fixes the class of problem rather than this instance of it.",
+      "distractors": {
+        "A": "A longer lifetime helps for keys that are already populated. The stampede happens on a key that has never been written, which no retention setting affects.",
+        "C": "Pre-warming works against a bounded, known set. \"Every question ever seen\" is unbounded, mostly irrelevant to this tour, and would itself consume the allocation it is meant to protect. Pre-warming a small set of anticipated on-sale questions is defensible; this is not.",
+        "D": "More workers lets more duplicate generations run at once. Since the allocation was already saturated, this makes the surge worse and spends money generating 40,000 copies of one answer."
+      },
+      "concept": "A cache that permits concurrent misses on the same key converts a traffic surge into a thundering herd against the most expensive component. Coalesce in-flight work per key so that N simultaneous misses produce one generation. This is a correctness property of the cache layer, not a capacity problem.",
+      "tip": "Distinguish a cold key from an expired one. Retention and pre-warming address expiry; only coalescing addresses many requests arriving before the first result exists."
+    }
+  },
+  {
+    "id": "SDA-C-054",
+    "domain": "Solution Design & Architecture",
+    "topic": "Sizing a committed-throughput commitment against demand shape",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A public broadcaster has been offered a twelve-month committed-throughput contract by its provider, discounted against on-demand rates in exchange for a monthly minimum. Its measured demand has a peak-to-average ratio of about five to one, driven by breaking-news surges. Two further facts are on the table: the engineering roadmap includes a context-restructuring change in the second quarter that the team believes will cut tokens per request substantially, and the newsroom is piloting two features whose adoption is genuinely uncertain. How should the commitment be sized?",
+    "options": [
+      { "key": "A", "text": "Size it to the forecast peak, since the discount applies across the whole commitment and peak coverage maximises the total saving." },
+      { "key": "B", "text": "Take no commitment this year, because the second-quarter roadmap change and the pilot uncertainty make any figure a guess." },
+      { "key": "C", "text": "Size it to the average of the twelve-month forecast, which balances the breaking-news surges against the quiet periods between them." },
+      { "key": "D", "text": "Size it to the floor of demand the broadcaster is confident it will consume even if both pilots fail and the token cut lands, and buy the rest on demand." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "A commitment is a purchase of certainty, so it should only cover the demand that is certain. Both stated uncertainties push the same way: a successful token reduction lowers consumption, and failed pilots lower it further, so a commitment sized above the confident floor becomes a minimum the broadcaster pays for and does not use. Sizing to the floor captures the discount on the volume that will exist under every scenario, leaves the volatile portion on flexible terms, and — importantly — keeps the incentive to ship the efficiency work rather than penalising it.",
+      "distractors": {
+        "A": "Committing at peak means paying a five-to-one peak level all twelve months for demand that exists in bursts. It converts a discount into a large standing overpayment and is the most expensive option available.",
+        "B": "Refusing any commitment forgoes a real discount on volume that is not actually uncertain. Some floor of consumption exists under every scenario described, and that portion carries no commitment risk.",
+        "C": "The twelve-month average sits above the confident floor precisely because it includes the pilot volume that may not materialise and ignores the token reduction that may land. It looks moderate and is still an overcommitment."
+      },
+      "concept": "Commit only to the demand floor that holds under the pessimistic scenario, and buy variability on demand. Commitments interact badly with efficiency roadmaps: any planned reduction in tokens per request lowers future consumption, so it must be subtracted from the committed figure before signature, not discovered afterwards.",
+      "tip": "When a stem pairs a commercial commitment with a planned efficiency improvement, that pairing is the question. The efficiency work reduces the volume you should commit to, even though it makes the system better."
+    }
+  }
+]

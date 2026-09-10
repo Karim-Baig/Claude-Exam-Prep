@@ -1,0 +1,719 @@
+[
+  {
+    "id": "INT-D-001",
+    "domain": "Integration",
+    "topic": "Primary drivers for choosing a Claude deployment route",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An architect must recommend whether a new Claude workload calls the first-party Anthropic API, Claude on Amazon Bedrock, or Claude on Google Vertex AI. Which consideration set most directly drives that decision?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Committed cloud spend and procurement route, how the workload authenticates and reaches the endpoint on the existing network, and where data may be processed."
+      },
+      {
+        "key": "B",
+        "text": "Whichever route the team can prototype fastest in a two-week spike, since a later switch is largely a configuration change the platform team can absorb in one sprint."
+      },
+      {
+        "key": "C",
+        "text": "The relative reasoning quality of each route, established by running the organisation's own eval suite against all three and selecting the highest scorer."
+      },
+      {
+        "key": "D",
+        "text": "The application's expected monthly token volume, since capacity scaling behaves identically on every route and volume is the only real differentiator."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The three routes are alternative delivery channels for the same model family, so the decision is an enterprise-integration decision rather than a model-capability one. What actually differs is contractual and operational: whether spend flows through an existing cloud commitment or a direct agreement, whether the workload can authenticate with cloud IAM or must hold a third-party key, whether it can reach the endpoint over private networking already in place, and which regions the route can be pinned to. Those four factors decide the recommendation in almost every enterprise case.",
+      "distractors": {
+        "B": "Reversibility is the seductive part. Switching route touches credential handling, SDK and request signing, network path, logging, contracts and often the deployment region — all of which are cheap on day one and expensive after two years of production integrations.",
+        "C": "Treating the routes as different models leads teams to run bake-offs that measure noise. Capability differences worth designing around live between model tiers, not between hosting routes for the same tier.",
+        "D": "Volume matters, but it does not distinguish the routes the way this option claims. How capacity is procured, quota'd and burst-handled is one of the things that differs between them, so treating scaling as identical removes the very variable that would matter at high volume."
+      },
+      "concept": "Choosing where Claude runs is a procurement, identity, network and residency decision, not a model-quality decision. Frame the recommendation around the four enterprise constraints and the answer usually falls out of whichever cloud the organisation already has contracts, IAM and private connectivity in.",
+      "tip": "When a stem lists three hosting routes, resist the urge to compare model behaviour. The examinable distinction is always the enterprise plumbing around the call, never the tokens coming back."
+    }
+  },
+  {
+    "id": "INT-D-002",
+    "domain": "Integration",
+    "topic": "Private connectivity mistaken for a residency control",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A Dutch health insurer's data protection officer sets two conditions on a new claims-correspondence assistant: traffic carrying member data must never traverse the public internet, and processing must remain within the EU. The platform team provisions a private VPC endpoint to the model service inside their EU region, removes the NAT gateway, and reports both conditions satisfied. What is wrong with that conclusion?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Private connectivity governs the network path only; residency must be established separately by pinning the regional endpoint and keeping logs and artefacts in-region."
+      },
+      {
+        "key": "B",
+        "text": "Application-layer encryption of the payload under a key the insurer holds is what residency means; with that in place the region serving the request is irrelevant."
+      },
+      {
+        "key": "C",
+        "text": "Nothing is wrong; a private endpoint terminating inside the EU region necessarily means the request is off the internet, served by EU compute, and logged in-region."
+      },
+      {
+        "key": "D",
+        "text": "Private endpoints raise p95 latency by adding a hop, so meet the network condition with an IP allowlist on the public endpoint covering the insurer's egress ranges."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Two separate controls have been collapsed into one. Removing internet egress addresses how the bytes travel; it says nothing about where the request is served or where derived copies come to rest. Residency has to be established independently by selecting and pinning the regional endpoint, verifying that no automatic cross-region routing or overflow behaviour is enabled for that call, and extending the perimeter to every artefact the request generates — access logs, traces, prompt and response captures, evaluation datasets and any human-review queue. The DPO's second condition is unmet until those are all evidenced.",
+      "distractors": {
+        "B": "Encryption in transit and at rest is expected but does not relocate processing. A regulator asking about residency wants to know which jurisdiction the data was processed and stored in, not which cipher protected it.",
+        "C": "This is the trap belief the team acted on. The private path is a property of the network, not a guarantee about where the service performs inference or replicates telemetry, and it is silent about anything written after the response returns.",
+        "D": "The latency point is minor and the substitution is worse: an IP allowlist on a public endpoint still puts member data on the internet, which is precisely what the first condition forbids. It also does nothing for the residency condition."
+      },
+      "concept": "Private networking and data residency are orthogonal controls. Solve the path with private connectivity, solve the location with explicit regional pinning, and remember the residency perimeter includes every downstream copy — logs, traces, caches and review queues — not just the inference call.",
+      "tip": "Whenever a stem gives you two requirements and a single fix, check whether the fix addresses both. Architects lose marks by accepting a control that genuinely solves the first condition and quietly ignores the second."
+    }
+  },
+  {
+    "id": "INT-D-003",
+    "domain": "Integration",
+    "topic": "Regional failover that preserves an EEA residency commitment",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A Nordic public-sector agency runs a Claude-based citizen-correspondence summariser. Its regulator requires that all personal data processing stay within the EU/EEA, and the agency has separately committed to a 99.9% availability SLO. The SRE team wants automatic failover when the primary regional endpoint degrades. Which TWO design choices keep that failover consistent with the residency commitment? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Restrict the failover target list to other EU/EEA regions and fail closed, queueing the citizen's request for later delivery, when no in-scope target is healthy."
+      },
+      {
+        "key": "B",
+        "text": "Encrypt payloads with an agency-held key before the call, so data processed in a non-EEA region no longer counts as personal data for residency purposes."
+      },
+      {
+        "key": "C",
+        "text": "Enable a provider-side routing feature that automatically selects the least-loaded region worldwide, since the 99.9% SLO is the binding commitment and requests are transient."
+      },
+      {
+        "key": "D",
+        "text": "Serve the most recent cached summary for that citizen whenever the in-region endpoint is unhealthy, so no request ever needs to leave the EU/EEA during a degradation."
+      },
+      {
+        "key": "E",
+        "text": "Ensure the failover path's request and response logging, traces and stored artefacts also land in EU/EEA storage rather than the primary region's default destination."
+      }
+    ],
+    "correct": [
+      "A",
+      "E"
+    ],
+    "explanation": {
+      "correct": "Residency is a constraint on the whole failure envelope, not on the happy path. Constraining the target set to in-scope regions and failing closed makes the availability design incapable of violating the commitment even under pressure — the worst case becomes a delayed response, which is a service problem the agency can own, rather than a regulatory breach it cannot. The second requirement is that the failover path drags its telemetry with it: a secondary region that writes its logs to the primary's default destination, or to a central account elsewhere, moves personal data out of scope just as effectively as the inference call would have.",
+      "distractors": {
+        "B": "A widely held misconception. Where the controller holds the key, the data remains personal data, and in any case the model cannot process ciphertext, so it must be decrypted somewhere to be summarised. Encryption reduces exposure; it does not change jurisdiction.",
+        "C": "This is the availability engineer's instinct and it directly breaches the commitment. Transience is not a defence — processing happened in the other jurisdiction. Global least-loaded routing is a sound pattern for workloads with no residency constraint, which is exactly what this one is not.",
+        "D": "Returning a stale summary of a different item of correspondence is a correctness failure, not a degradation. Cache-on-failure works for idempotent lookups of stable content; per-citizen generated text has no valid cached predecessor to serve."
+      },
+      "concept": "A residency commitment binds the degraded path as tightly as the normal one. Design failover as a closed set of in-scope targets plus fail-closed behaviour, and treat logs, traces and artefacts generated on the failover path as in-scope data that must land in-region.",
+      "tip": "Multi-select residency items almost always hide one option that reframes availability as an excuse and one that claims encryption changes legal classification. Both are false; the true options are usually the boring perimeter ones."
+    }
+  },
+  {
+    "id": "INT-D-004",
+    "domain": "Integration",
+    "topic": "Attributing model calls to end users behind a service account",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A telco's 4,000 contact-centre agents use an internal Claude assistant that drafts customer letters. Every call reaches the provider through one machine credential owned by the platform team. After a customer complaint, security asks which agent asked the model to draft a specific refund letter, and the only available evidence is provider-side usage against a single principal. What is the right way to close this gap?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Group the provider's usage reporting by workload tag and reconcile the call timestamps against contact-centre shift rosters to infer which agent asked."
+      },
+      {
+        "key": "B",
+        "text": "Prepend the agent's username and team code to the system prompt on every call so the identity is captured in the recorded prompt text and searchable later."
+      },
+      {
+        "key": "C",
+        "text": "Issue a separate provider credential to each of the 4,000 agents and map credential to employee so provider-side records identify the individual."
+      },
+      {
+        "key": "D",
+        "text": "Authenticate each agent to the gateway with their corporate SSO token, and record the subject, a correlation id and the call in the gateway's own audit store."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The provider credential is a machine identity for the platform, and it is the wrong place to carry human identity. The organisation already has an authoritative source of who the agent is — the corporate SSO session — so the fix is to terminate that identity at the gateway, bind the authenticated subject to a correlation id, and make the gateway's audit store the system of record linking human, request, model call and response. That record survives credential rotation, works across all three hosting routes, and answers the security question in one query instead of an inference exercise.",
+      "distractors": {
+        "A": "Roster reconciliation gives you a probable answer, not an auditable one. If the control has to stand up to a regulator or an employment dispute, an inference over shift patterns is exactly the evidence quality that gets rejected.",
+        "B": "Putting the username in the prompt spends context on it, exposes it to the model and to anything downstream that renders the prompt, and provides no assurance — nothing prevents a client from sending a different name. Identity must be asserted by the authentication layer, not by the payload.",
+        "C": "Four thousand credentials is an operational trap: rotation, offboarding, per-key quota fragmentation and a much larger leak surface, all to obtain an attribution the gateway can record for free. It also fails the moment an agent's work is executed by a background job."
+      },
+      "concept": "Machine credentials answer 'which system called', never 'which human asked'. Terminate end-user identity at the gateway, correlate it with the request, and keep the human-to-request binding in your own audit store — the provider only ever sees your service principal.",
+      "tip": "If a stem asks 'who did this' and the only logs belong to the provider, the answer is always about adding an internal audit boundary, never about multiplying provider credentials."
+    }
+  },
+  {
+    "id": "INT-D-005",
+    "domain": "Integration",
+    "topic": "Short-lived workload credentials versus stored API keys",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A workload runs on managed compute inside the same cloud account that hosts the managed Claude service it calls. Which credential approach gives the smallest blast radius if the compute node is compromised?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Inject the key as an environment variable from the deployment manifest at container start so it never lands on the node's disk or in an image layer."
+      },
+      {
+        "key": "B",
+        "text": "Store a long-lived key in the platform secret manager, fetch it at start-up, and rotate it on the standard quarterly schedule with an audited access trail."
+      },
+      {
+        "key": "C",
+        "text": "Attach a scoped workload identity to the compute so calls use automatically rotated short-lived credentials with no durable secret on the node."
+      },
+      {
+        "key": "D",
+        "text": "Share one key across development, staging and production and restrict its use with a network ACL that permits egress only from the workload's subnet."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Blast radius is a function of how long a stolen credential stays useful and how much it can reach. A workload identity attached to the compute produces credentials that expire in minutes, are minted per-instance, can be scoped to exactly the model actions required, and leave nothing durable for an attacker to exfiltrate and reuse from elsewhere. Revocation is a policy change rather than a rollout. The other options all leave a credential that remains valid after the attacker has copied it and left.",
+      "distractors": {
+        "A": "Environment variables are readable by any process in the container, appear in crash dumps and process listings, and are frequently echoed into logs. Avoiding disk is not the property that matters — durability of the secret is.",
+        "B": "Better than nothing, but a quarterly window means a stolen key is usable for up to three months. A secret manager improves custody and auditability; it does not shorten the credential's life.",
+        "D": "A shared cross-environment key means a compromise in the least-protected environment is a compromise of production. Network ACLs constrain where the key can be used from, which helps only until the attacker uses the compromised node itself."
+      },
+      "concept": "Prefer identity over secrets. When the caller and the service share a cloud trust domain, use the platform's workload identity so credentials are short-lived, scoped and non-exfiltratable; fall back to a managed secret only when no such trust relationship exists.",
+      "tip": "Rank credential options by how long a copied one stays valid, not by where it is stored. That single question separates the right answer from the three that merely relocate the secret."
+    }
+  },
+  {
+    "id": "INT-D-006",
+    "domain": "Integration",
+    "topic": "Dividing responsibilities between an LLM gateway and applications",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A media group has nine product teams calling Claude directly with their own credentials. Finance cannot attribute spend, security cannot evidence what content left the estate, and a recent provider-side degradation hit all nine simultaneously with no coordinated fallback. The platform team is chartered to build a central gateway. Which division of responsibility should it adopt?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The gateway caches every response keyed on a hash of the request body, so repeated work across the nine teams is eliminated before any other concern is addressed."
+      },
+      {
+        "key": "B",
+        "text": "The gateway owns credential custody, per-team quota and cost attribution, audit logging and provider routing; applications keep prompts, retrieval and business validation."
+      },
+      {
+        "key": "C",
+        "text": "The gateway owns everything the applications currently do with the model, including prompt templates and retrieval, so all nine teams are held to a single prompting standard."
+      },
+      {
+        "key": "D",
+        "text": "The gateway operates as a transparent layer-4 proxy forwarding bytes unmodified, since anything that parses the payload adds latency to all nine teams' calls."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The three stated problems are all cross-cutting concerns that no single product team can solve alone: custody of credentials, attribution of spend, evidence of what left the estate, and a coordinated response to a provider incident. Those are exactly the responsibilities that justify a shared chokepoint. Everything downstream of them — how a prompt is assembled, what context is retrieved, whether the output passes a business rule — is product logic that varies per team and would couple nine release cycles to the platform team's if it moved into the gateway.",
+      "distractors": {
+        "A": "Response caching is a cost lever, not a control, and keying on the whole request body rarely hits in workloads carrying per-customer content. It also does nothing for attribution, evidence or coordinated failover.",
+        "C": "Centralising prompt templates sounds like governance and behaves like a bottleneck. Nine teams with different tasks now queue behind one platform backlog for every wording change, and the gateway acquires product semantics it cannot evaluate. Standardise prompting through shared libraries and review, not through the network path.",
+        "D": "A layer-4 proxy cannot attribute cost, cannot log content, and cannot route between providers, so it solves none of the three stated problems. Its only virtue is the latency it saves, which was not the complaint."
+      },
+      "concept": "Put in the gateway only what must be true for every caller and cannot be enforced per-team: credentials, quota and attribution, audit, and routing or failover. Leave anything that encodes what the product is trying to do in the product.",
+      "tip": "When a stem lists the specific pains that motivated a gateway, the correct scope is the smallest set that resolves exactly those pains. Options that add prompt ownership or caching are scope creep dressed as thoroughness."
+    }
+  },
+  {
+    "id": "INT-D-007",
+    "domain": "Integration",
+    "topic": "Immediate response to a leaked production API key",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A logistics startup's on-call engineer is paged: a contractor pushed a first-party Claude API key to a public repository roughly forty minutes ago, and the usage graph shows a step change in traffic from a pattern the team does not recognise. Three production services use that one key, and there is no gateway — each holds the key in its own environment configuration. What should the engineer do next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Force-push a rewritten history to remove the commit and delete the fork copies, then monitor usage for another hour before deciding whether rotation is needed."
+      },
+      {
+        "key": "B",
+        "text": "Reduce the key's permitted scope to the minimum the three services need, then rotate at the end of the sprint once the contractor's access review is complete."
+      },
+      {
+        "key": "C",
+        "text": "Apply an egress IP allowlist so the key is only usable from the startup's production ranges, and schedule rotation into the next release window."
+      },
+      {
+        "key": "D",
+        "text": "Revoke the leaked key immediately, accepting a short outage of the three services, and roll the replacement key out to their configurations in parallel."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Unauthorised use is already observed, so this is containment, not risk assessment. Every minute the key stays live is billed spend and, more importantly, prompts and responses flowing through an account the team no longer controls. A short, well-understood outage of three services is a smaller and far more recoverable loss than an open-ended compromise, and the rollout of the replacement can proceed concurrently rather than gating the revocation. The correct ordering under active abuse is always contain first and restore second.",
+      "distractors": {
+        "A": "History rewriting is the most common wrong instinct here. The key was public for forty minutes and is already harvested by automated scanners; removing the commit changes the evidence, not the exposure, and the proposed extra hour of monitoring is an hour of continued abuse.",
+        "B": "Scope reduction limits what the attacker can do while leaving them inside. When abuse is confirmed, narrowing a compromised credential is a delaying action; the credential still has to die, and deferring that to the end of the sprint is indefensible in the postmortem.",
+        "C": "An allowlist is a useful hardening control and a poor incident response. It depends on the provider honouring a source-based restriction that must be configured correctly under time pressure, and it leaves a known-compromised credential valid until the next release."
+      },
+      "concept": "A credential observed in unauthorised use is dead regardless of the availability cost of killing it. Contain first, restore second, and design ahead of time for the containment step — dual active credentials or a gateway holding a single rotatable secret make revocation a non-event.",
+      "tip": "Next-step items about leaks reward whoever is willing to take the outage. Any option that trades continued validity of a compromised credential for uptime is wrong, however operationally reasonable it sounds."
+    }
+  },
+  {
+    "id": "INT-D-008",
+    "domain": "Integration",
+    "topic": "Queue-based load levelling in front of fixed model capacity",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An online marketplace triages return requests with Claude. Baseline load is steady, but during two-hour flash-sale windows volume rises roughly tenfold while the account's provisioned model capacity is unchanged. The current design calls the model synchronously from the web tier with client-side retries; during the last sale, shoppers received errors and the retry traffic made the window worse. Which change addresses the root cause?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Accept the return request into a durable queue, acknowledge the shopper immediately with a tracked case, and size worker concurrency to sustainable model capacity."
+      },
+      {
+        "key": "B",
+        "text": "Autoscale the web tier aggressively through the two-hour window, adding instances on request-queue depth so fewer shoppers are rejected at the front door."
+      },
+      {
+        "key": "C",
+        "text": "Raise the client retry count to five and lengthen the backoff to thirty seconds so transient rejections are absorbed inside the shopper's original request."
+      },
+      {
+        "key": "D",
+        "text": "Request a provisioned-capacity increase from the provider ahead of each announced flash sale and leave the synchronous web-tier contract unchanged."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The system has a fixed service rate and a demand curve that exceeds it for a bounded period. Nothing in the request path can create capacity, so the only structural fix is to stop coupling arrival rate to service rate: buffer the burst in a durable queue, return a fast acknowledgement that the shopper's return is logged, and drain at whatever rate the model capacity actually supports. Triage results arriving minutes later is acceptable for returns, which is what makes this workload a legitimate candidate for the async contract in the first place.",
+      "distractors": {
+        "B": "Scaling the web tier scales the thing that is not the bottleneck. It increases the number of concurrent callers pressing on the same fixed model capacity, which raises rejection rates rather than lowering them.",
+        "C": "More retries against a saturated service is the mechanism that turned a busy window into an incident. Retries multiply offered load precisely when the service is least able to absorb it; backoff slows the spiral without reversing it.",
+        "D": "Pre-provisioning more capacity is a reasonable complement but not a substitute. It requires accurate forecasting of a tenfold spike, carries lead time and cost between sales, and leaves the system with no burst absorption the first time a sale exceeds the forecast."
+      },
+      "concept": "When demand is bursty and service capacity is fixed, change the contract before you change the capacity. A durable queue with a fast acknowledgement decouples arrival rate from service rate and turns a rejection into a delay, which is nearly always the cheaper failure.",
+      "tip": "Spot the shape: fixed capacity plus a bounded spike plus retries equals load levelling. If the stem also tells you the user does not need the answer in the same interaction, the async contract is being handed to you."
+    }
+  },
+  {
+    "id": "INT-D-009",
+    "domain": "Integration",
+    "topic": "Queue visibility timeout shorter than worst-case model latency",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An energy utility processes meter-dispute letters from a message queue. Each worker takes a message, calls Claude with extended thinking enabled, and creates a case in the CRM. The queue's visibility timeout is 60 seconds; measured end-to-end processing is 20 seconds at the median but exceeds three minutes on the long tail. Operations reports a small but steady stream of duplicate CRM cases, all for disputes with unusually long letters. What is the correct fix?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Raise the queue's maximum-receives threshold from five to twenty so long-running dispute messages take much longer to be parked in the dead-letter queue."
+      },
+      {
+        "key": "B",
+        "text": "Disable extended thinking and cap output at 500 tokens so even the longest dispute letters complete inside the existing 60-second visibility window."
+      },
+      {
+        "key": "C",
+        "text": "Switch the queue to FIFO ordering with content-based deduplication, so the same dispute message can never be handed to a second worker."
+      },
+      {
+        "key": "D",
+        "text": "Heartbeat the visibility timeout while the call is in flight, and make the CRM write idempotent on a deterministic dispute key."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The correlation with long letters gives it away: on tail requests the worker is still waiting on the model when the 60-second visibility window expires, the message becomes visible again, and a second worker starts the same unit of work. Both eventually succeed and both write a case. The two halves of the fix are needed together — heartbeating the visibility window while the call is in flight removes the routine cause, and a deterministic idempotency key on the CRM write makes the remaining genuine redeliveries harmless. Distributed queues promise at-least-once delivery, so the consumer must be safe to run twice regardless.",
+      "distractors": {
+        "A": "The maximum-receives threshold governs when a repeatedly failing message is parked. Nothing here is failing — both attempts succeed — so moving that threshold changes nothing about the duplicate cases.",
+        "B": "This trades output quality on exactly the hardest disputes to make the tail fit an arbitrary timeout, and it still fails whenever the provider is slow. It also leaves the consumer non-idempotent, so the next tail event reproduces the bug.",
+        "C": "FIFO addresses ordering and, where deduplication exists at all, it applies to messages being published, not to redelivery after a visibility timeout expires. The duplicate here originates from the queue correctly re-offering an unacknowledged message."
+      },
+      "concept": "A queue consumer's invisibility window must exceed the worst-case processing time, not the median, and any consumer of an at-least-once queue must be idempotent at the point where it mutates external state. Latency-variable LLM calls make both requirements sharper than in traditional workloads.",
+      "tip": "Duplicates that correlate with long inputs are a timeout race, not a delivery bug. When the stem gives you a median and a tail, the number that matters is always the tail."
+    }
+  },
+  {
+    "id": "INT-D-010",
+    "domain": "Integration",
+    "topic": "Webhook receiver holding the connection through model latency",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An HR software vendor receives webhooks from an applicant-tracking system. Each webhook triggers a Claude call that summarises a CV, taking 5 to 20 seconds. The sending platform times out at 5 seconds and retries on timeout, and the vendor's team now sees most candidates summarised three or four times, with correspondingly inflated spend. What should the receiver do?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Keep processing synchronously and deduplicate at read time, showing recruiters only the most recent summary per candidate in the pipeline view."
+      },
+      {
+        "key": "B",
+        "text": "Validate the signature, persist the event, return success inside the sender's timeout, then process from a queue and deduplicate on the sender's event id."
+      },
+      {
+        "key": "C",
+        "text": "Move summarisation to the fastest model tier and trim the prompt to the first two pages of the CV so the call reliably lands inside 5 seconds."
+      },
+      {
+        "key": "D",
+        "text": "Raise a support case with the applicant-tracking vendor asking it to configure a 30-second webhook timeout for this receiver's endpoint before the next intake peak."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "A webhook acknowledgement means 'I have durably accepted this event', not 'I have finished acting on it'. The receiver is currently making the sender wait for its business processing, which guarantees timeouts and, because the sender retries on timeout, guarantees duplicated work. Persisting the event and acknowledging within the sender's window breaks that coupling entirely, and deduplicating on the sender's event id makes the retries that still occur — from network loss or a genuinely slow acknowledgement — harmless rather than expensive.",
+      "distractors": {
+        "A": "Hiding the duplicates at display time leaves all four model calls paid for and all four writes performed. The complaint includes inflated spend, so suppressing the symptom in the UI addresses neither half of the problem.",
+        "C": "Fitting inside the timeout by degrading the work is a bet on the tail, and the tail is where the timeouts already happen. It also sacrifices summary quality to solve a contract problem that has a structural fix.",
+        "D": "This makes the vendor's reliability depend on a third party changing its platform behaviour, and it only moves the cliff: a 25-second tail still times out at 30 seconds. Never design a receiver that is correct only for a particular sender configuration."
+      },
+      "concept": "Acknowledge webhooks on durable receipt, not on completion of work. The receiver's synchronous path should do signature verification, minimal validation and a durable write; anything with variable latency belongs behind a queue keyed on the sender's event id.",
+      "tip": "Duplicate downstream effects plus a sender that retries on timeout is nearly always a receiver that acknowledges too late. Look for the sender's timeout in the stem — it is the number the design has to respect."
+    }
+  },
+  {
+    "id": "INT-D-011",
+    "domain": "Integration",
+    "topic": "Outbound webhook reliability to unreliable partner endpoints",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A veterinary practice-management vendor delivers an 'AI visit summary ready' webhook to about 1,200 clinic endpoints. Many are self-hosted on practice premises and are offline for hours at a time, and the summaries derive from patient records. Which THREE practices belong in the delivery design? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Embed the full visit summary and the linked patient record in the body so receivers never need a callback, and retain undelivered bodies in the retry store indefinitely."
+      },
+      {
+        "key": "B",
+        "text": "Sign each delivery with a per-clinic secret and include a timestamp the receiver validates against a short freshness window before accepting the body."
+      },
+      {
+        "key": "C",
+        "text": "Include a monotonic sequence number or event version per clinic so a receiver can detect and discard a delivery that arrives out of order or is already superseded."
+      },
+      {
+        "key": "D",
+        "text": "Stop retrying an endpoint after two consecutive failures so the delivery queue never backs up, and require the clinic to poll for anything it missed."
+      },
+      {
+        "key": "E",
+        "text": "Retry failed deliveries with exponential backoff and jitter, park endpoints that exhaust the schedule in a dead-letter store, and expose an operator-triggered replay."
+      }
+    ],
+    "correct": [
+      "B",
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "The three chosen practices cover the three failure modes this integration actually has. Signing with a timestamp window gives the receiver a way to authenticate the sender and reject replays, which matters because the endpoints are on practice premises with unknown network hygiene. Backoff with jitter plus a dead-letter store with operator replay is the standard answer to receivers that are down for hours: it avoids synchronised retry storms across 1,200 endpoints and preserves an explicit recovery path. Sequence numbers give the receiver a way to reason about ordering, which no retrying delivery system can guarantee.",
+      "distractors": {
+        "A": "The fat-payload choice is defensible in general, but pairing it with indefinite retention of patient records in a retry store is not. Sensitive payloads argue for a thin notification plus an authenticated fetch, and any retry store holding them needs a bounded lifetime.",
+        "D": "This discards the reliability guarantee for the exact endpoints the stem says are offline for hours, and it silently converts the contract to polling without giving clinics a resumable cursor. Queue depth is managed with backoff and a dead-letter store, not by abandoning deliveries."
+      },
+      "concept": "Reliable webhook delivery rests on three legs: authenticate and bound the freshness of each delivery, retry with backoff and jitter into a dead-letter store with a replay path, and give receivers ordering metadata because delivery order is never guaranteed. Sensitive payloads add a fourth consideration — keep bodies thin and retention bounded.",
+      "tip": "Count carefully on webhook multi-selects. The distractors are usually a reasonable design paired with one disqualifying clause, and an option that solves queue depth by giving up on delivery."
+    }
+  },
+  {
+    "id": "INT-D-012",
+    "domain": "Integration",
+    "topic": "Standard contract shape for a long-running model job",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A Claude-backed job routinely runs longer than the caller's HTTP timeout. Which contract shape is the conventional asynchronous design?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Accept the request, return an accepted status with a job id and a status location, and let the client poll that location or receive a callback."
+      },
+      {
+        "key": "B",
+        "text": "Stream the response over server-sent events so the connection stays open for the full duration of the job and the caller sees tokens as they arrive."
+      },
+      {
+        "key": "C",
+        "text": "Hold the connection open and emit a keepalive byte every fifteen seconds, extending the caller's socket timeout to cover the longest observed job."
+      },
+      {
+        "key": "D",
+        "text": "Return a partial result immediately and require the client to re-issue the identical request every few seconds until the response is marked complete."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The defining property of the async contract is that the work outlives the request that started it. Returning an identifier and a location decouples job lifetime from connection lifetime, which means a client crash, a proxy timeout or a deploy of the caller no longer destroys in-flight work, and the client can retry the submission safely if it also carries an idempotency key. It also gives the server somewhere to record progress and terminal state, which is what makes the job observable and re-fetchable after the fact.",
+      "distractors": {
+        "B": "Streaming is the right tool for delivering tokens progressively within a single interaction, not for surviving a job that exceeds the caller's timeout. The connection still binds the client for the whole duration and the result is not re-fetchable afterwards.",
+        "C": "Keepalive bytes fight the symptom by keeping an idle connection technically alive. They do nothing about intermediate proxies with their own idle limits, and the work is still lost if the client disconnects.",
+        "D": "Re-issuing the same request is polling done badly: there is no job identity, so the server cannot tell a resumption from a fresh submission, and any intermediate infrastructure will treat each attempt as new work."
+      },
+      "concept": "When work can outlive a request, give the work its own identity. Accept, return a handle and a location, and expose terminal state separately — that is what makes the job retryable, observable and independent of any single connection.",
+      "tip": "Recall items on async contracts hinge on one distinction: streaming keeps a connection busy, a job handle removes the need for one. If the stem says the work exceeds the timeout, the answer creates a resource."
+    }
+  },
+  {
+    "id": "INT-D-013",
+    "domain": "Integration",
+    "topic": "Adding model enrichment to a CICS mainframe policy system",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A regional insurer's policy-administration system runs as CICS and COBOL on z/OS with no outbound internet path and a quarterly change window. The business wants Claude-generated summaries of claim notes surfaced to underwriters. The estate already has an established IBM MQ integration between the mainframe and the distributed platform. What is the most appropriate integration approach?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Drive a terminal-emulation robot that reads the green screens on a schedule, calls the model, and types the summary back into the claim-notes field."
+      },
+      {
+        "key": "B",
+        "text": "Replicate the policy and claim-notes tables into a cloud database nightly and treat that replica as the integration point, retiring the mainframe interface over time."
+      },
+      {
+        "key": "C",
+        "text": "Have the mainframe put a claim-notes message on the existing MQ queue; a distributed adapter consumes it, calls the model, and replies on a reply queue."
+      },
+      {
+        "key": "D",
+        "text": "Open an outbound HTTPS path from the LPAR through the enterprise proxy and call the model synchronously inside the CICS transaction that opens the claim."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Three constraints in the stem all point the same way: no outbound internet, a quarterly change window, and an MQ integration that already exists and is already operationally understood. Reusing the queue means the mainframe contributes a message and nothing about its network posture, TLS handling or transaction timing changes. It also gives the enrichment asynchronous semantics for free, which matters because model latency is variable and a CICS transaction has no tolerance for it. The distributed adapter absorbs all the novelty — credentials, retries, model calls — where it can be changed weekly rather than quarterly.",
+      "distractors": {
+        "A": "Screen-scraping is the answer when a legacy system has no programmatic interface at all. Here a supported messaging interface already exists, so choosing an emulation robot adds a brittle, unauditable component for no gain.",
+        "B": "Replication is a data-platform strategy, not an integration for this feature. It introduces staleness and a second copy of policy data, and the stem gives no mandate to migrate off the mainframe.",
+        "D": "This couples an interactive mainframe transaction to a variable-latency external dependency and requires new outbound connectivity, certificate handling and credential management on the platform with the slowest change cycle in the estate. It is technically possible and operationally the worst of the four."
+      },
+      "concept": "Integrate with a legacy system through the interface it already exposes and already operates. The correct place to put novelty — external credentials, variable latency, model calls — is the component with the fastest change cycle, never the one with a quarterly window.",
+      "tip": "Mainframe items reward reading the constraints as a set. A slow change window plus an existing messaging estate is the examiner telling you not to touch the mainframe's network path."
+    }
+  },
+  {
+    "id": "INT-D-014",
+    "domain": "Integration",
+    "topic": "Model enrichment inside a constrained nightly ETL window",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A grocery retailer's nightly load moves 6 million product records into its warehouse between 01:00 and 04:00, and reporting must be ready by 06:00. Merchandising wants Claude-generated category attributes on products. At the concurrency the team can obtain, enriching all 6 million records inside the window is impossible; roughly 40,000 products are new or changed on a typical night. What design meets the requirement without threatening the load SLA?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Generate attributes lazily at query time when a report first touches a product, caching the result in the warehouse for every subsequent read."
+      },
+      {
+        "key": "B",
+        "text": "Extend the load window from 04:00 to 06:00 and enrich inline as records land, since reporting is only required to be ready at 06:00."
+      },
+      {
+        "key": "C",
+        "text": "Enrich all 6 million records every night through an offline bulk path running alongside the load, so every product's attributes come from one prompt version."
+      },
+      {
+        "key": "D",
+        "text": "Enrich only new and changed records from the change feed, run that job off the load's critical path, and have the warehouse join on the last known good value."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Two things in the stem constrain the design: the enrichment cannot fit the window at any realistic rate, and only a small fraction of the corpus actually changes. Driving enrichment from the change feed reduces the nightly work by two orders of magnitude, and lifting it out of the critical path means a slow or failed enrichment degrades attribute freshness rather than breaking the load. The last-known-good join is what makes that degradation safe — reporting always has a value to render, and the pipeline has no hard dependency on the model being available at 02:00.",
+      "distractors": {
+        "A": "Query-time generation puts variable model latency inside interactive BI queries and makes nightly cost unpredictable and unbounded by report usage. It also means the first user of every report pays the latency.",
+        "B": "Extending the window to 06:00 consumes the entire buffer between load completion and the reporting deadline, leaving no room for a retry, a late source file or a slow night. It also still requires enriching 6 million records, which the stem states is not achievable.",
+        "C": "Re-enriching unchanged products every night pays full cost for no new information and reintroduces the volume problem the delta approach removes. Consistency is better served by versioning the enrichment prompt and backfilling deliberately when it changes."
+      },
+      "concept": "Keep model enrichment off the critical path of a batch pipeline and drive it from a change feed rather than the full corpus. Consumers should join to the enrichment table tolerantly, using the last known good value, so enrichment freshness degrades independently of pipeline success.",
+      "tip": "When a stem gives you a total row count and a much smaller changed-row count, it is pointing at incremental processing. Check the arithmetic against the window before you accept any option that processes everything."
+    }
+  },
+  {
+    "id": "INT-D-015",
+    "domain": "Integration",
+    "topic": "Migrating a synchronous public endpoint to an async contract",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A legal-tech vendor exposes a synchronous contract-review endpoint used by 60 enterprise clients, most with hard-coded integrations built years ago and documented against a 30-second client timeout. A new deep-review capability takes two to six minutes per contract. The product team wants it shipped this quarter. What should the platform team do next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Change the existing endpoint to accept the request and return an accepted status with a job handle, and publish a migration note in the changelog."
+      },
+      {
+        "key": "B",
+        "text": "Introduce deep review as a separate versioned asynchronous endpoint alongside the existing synchronous one, leaving the current contract untouched."
+      },
+      {
+        "key": "C",
+        "text": "Keep the existing endpoint and stream the deep review over the open connection so clients receive partial findings inside their documented 30-second budget."
+      },
+      {
+        "key": "D",
+        "text": "Raise the documented timeout to ten minutes and coordinate a client-side configuration change across all 60 integrations before the capability launches."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Sixty hard-coded integrations built against a documented synchronous contract cannot be moved on the vendor's schedule, and a new capability is not a reason to break a working one. Shipping deep review as a new versioned resource with its own asynchronous shape lets it launch this quarter without a single client change, gives clients a deliberate opt-in with their own testing, and preserves a clean deprecation path later if the old behaviour is ever retired. The existing endpoint keeps doing exactly what its consumers built against.",
+      "distractors": {
+        "A": "Changing the response shape of an endpoint 60 clients parse is a breaking change no changelog entry mitigates. Integrations built years ago rarely have anyone reading release notes, and the failure surfaces in their production, not yours.",
+        "C": "Progressive output does not help a client whose HTTP stack, proxy or SDK enforces a 30-second limit, and existing clients have no code path to consume a stream. It changes the wire behaviour of a contract those clients did not agree to.",
+        "D": "A coordinated configuration change across 60 enterprise clients is a multi-quarter programme, and many will have intermediate proxies with their own limits that they do not control. Making launch depend on all of them is the slowest possible path."
+      },
+      "concept": "Never migrate an existing contract's semantics to serve a new capability. Add the new shape beside the old one, version it, let consumers opt in on their own schedule, and deprecate only once adoption is evidenced.",
+      "tip": "Any option that requires every existing client to change something before you can ship is the wrong next step. Look for the one that lets the new thing launch without touching the old thing."
+    }
+  },
+  {
+    "id": "INT-D-016",
+    "domain": "Integration",
+    "topic": "Hosting route chosen by a no-third-party-credentials policy",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An industrial manufacturer runs entirely in one public cloud. Its security standard states that no long-lived third-party credential may exist in any of its accounts, and the CISO has already refused an exception for this project. A second standard requires that traffic to managed services use the cloud's private service endpoints. Which approach fits these constraints with the least friction?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Consume Claude through that cloud's managed model service, authenticating with the workload's existing cloud identity over a private service endpoint."
+      },
+      {
+        "key": "B",
+        "text": "Build a gateway that holds the single first-party key in the platform secret manager and issues short-lived internal tokens to each calling workload."
+      },
+      {
+        "key": "C",
+        "text": "Use the first-party API with the key in the platform secret manager under a 30-day rotation policy, a documented compensating control and quarterly attestation."
+      },
+      {
+        "key": "D",
+        "text": "Use the first-party API over a NAT gateway with a single static egress address registered on the provider's source-address allowlist."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Both standards are satisfied structurally rather than by compensating control. Calling the model through the cloud's own managed service means the caller authenticates with the workload identity it already has, so no third-party credential is created anywhere in the estate and there is nothing to rotate, store or leak. Private service endpoints are the native connectivity model for that service, so the second standard is met by configuration rather than by network engineering. This is the canonical case where the hosting route is chosen by identity and network policy, not by anything about the model.",
+      "distractors": {
+        "B": "The strongest wrong answer. A gateway genuinely reduces sprawl and gives internal callers short-lived tokens, but the third-party key still exists somewhere in an account the standard governs. It converts a breach in many places into a breach in one place, which is an improvement and still a breach.",
+        "C": "Rotation and a secret manager improve custody but the credential still exists and is still long-lived relative to a minted token. The stem says the exception was refused, so an option whose viability depends on that exception is out regardless of how well it is operated.",
+        "D": "This fails the same standard as the previous option and adds a public egress path, which the private-endpoint standard was written to prevent. Source-address allowlisting is a hardening measure, not a substitute for either policy."
+      },
+      "concept": "When an organisation's identity and network standards forbid third-party secrets and public egress, the cloud-hosted route is not a preference — it is the only shape that satisfies the standards without an exception. Read hosting-route questions as identity questions first.",
+      "tip": "The gateway option is the trap: it is a good idea in general and still violates the specific stated rule. Check every option against the exact wording of the constraint, not against best practice in the abstract."
+    }
+  },
+  {
+    "id": "INT-D-017",
+    "domain": "Integration",
+    "topic": "Secret baked into a container image promoted across environments",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An education-technology startup bakes its Claude API key into the container image as a build-time environment variable, using a different key per environment. The release process is meant to promote the same tested artefact from staging to production, but today each environment gets its own build. What should change?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Move the keys into the CI system's protected variable store and keep baking the right one into a per-environment build at deploy time."
+      },
+      {
+        "key": "B",
+        "text": "Build one credential-free artefact and inject the environment's secret at container start from the platform secret store or the workload's cloud identity."
+      },
+      {
+        "key": "C",
+        "text": "Keep the per-environment builds but encrypt the value in the Dockerfile, shipping the decryption key in the same image so the entrypoint can unwrap it."
+      },
+      {
+        "key": "D",
+        "text": "Continue baking the key in but shorten its useful life by rebuilding and redeploying every environment on a weekly schedule."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Two problems share one cause. Because the credential is inside the image, the artefact is environment-specific, so the thing tested in staging is not the thing running in production; and because it is inside the image, rotating the credential requires a rebuild and a redeploy rather than a configuration change. Removing the secret from the build and resolving it at start-up fixes both at once: one artefact promotes cleanly through environments, and rotation becomes an operation on the secret store that the next container start picks up.",
+      "distractors": {
+        "A": "A CI variable store is a better custody location, but if the value is still baked at build time the artefact remains environment-specific and rotation still requires a rebuild. Custody and injection point are separate decisions.",
+        "C": "Shipping ciphertext alongside its key is obfuscation, not encryption. Anyone who can pull the image can recover the credential, and the artefact is still environment-specific, so neither problem is addressed.",
+        "D": "Weekly rebuilds shorten the exposure window at the cost of a mandatory weekly deploy of every environment, and they leave the credential inside every image in the registry for as long as those images are retained."
+      },
+      "concept": "Build artefacts should be environment-agnostic and credential-free. Resolve secrets at runtime from a managed store — or eliminate them entirely with workload identity — so the same tested image promotes across environments and rotation never requires a rebuild.",
+      "tip": "When a stem mentions promoting artefacts between environments and also mentions secrets, the two facts are one problem. The answer separates configuration from the build."
+    }
+  },
+  {
+    "id": "INT-D-018",
+    "domain": "Integration",
+    "topic": "Telemetry breaching a residency perimeter around in-region inference",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A German medical-imaging reporting vendor must process and store patient data only in EU regions. Its Claude calls go to an EU regional endpoint that has been verified and pinned. An external audit nonetheless reports a residency gap. Which TWO findings are the most plausible causes? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "The application-performance-monitoring product is a SaaS hosted outside the EU, and its spans capture full prompt and response bodies."
+      },
+      {
+        "key": "B",
+        "text": "Responses are held briefly in an in-memory cache running inside the same EU cluster as the reporting application, keyed by study identifier."
+      },
+      {
+        "key": "C",
+        "text": "TLS terminates at a load balancer the auditors confirmed sits in the same EU region as the application, re-encrypting on the hop onward."
+      },
+      {
+        "key": "D",
+        "text": "The internal gateway writes complete request and response bodies to the company's central logging account, which sits in a non-EU region."
+      },
+      {
+        "key": "E",
+        "text": "The team pinned a specific model version rather than tracking the newest available one, so reports come from an older model snapshot."
+      }
+    ],
+    "correct": [
+      "A",
+      "D"
+    ],
+    "explanation": {
+      "correct": "Getting the inference call right is the visible half of residency and usually the half teams verify. The invisible half is everything the call emits on its way through the stack. Observability tooling is the most common breach because tracing agents are installed for reliability reasons by a different team, default to capturing payloads, and ship them to a vendor endpoint nobody mapped against the residency scope. Centralised logging is the second, for the same organisational reason: the logging account was built before the residency requirement existed and every service ships to it by default.",
+      "distractors": {
+        "B": "An in-memory cache co-located with the application in the same EU cluster keeps the data exactly where the requirement wants it. It may raise retention or eviction questions, but it moves nothing across a border.",
+        "C": "Terminating TLS at an in-region load balancer is normal architecture and the data never leaves the region. The option is designed to make TLS sound suspicious; the location of the terminating component is what matters and it is in scope.",
+        "E": "Version pinning is a change-management decision with no bearing on where a request is processed or where its data comes to rest. It belongs to a different risk conversation entirely."
+      },
+      "concept": "The residency perimeter includes every derived copy of the payload: traces, logs, metrics with high-cardinality samples, error reports, evaluation captures and human-review queues. Audit the observability path with the same rigour as the inference path, because it is usually owned by a team that never saw the residency requirement.",
+      "tip": "When a stem says the endpoint was verified but a gap was found anyway, stop looking at the call. The answer is downstream of the response, in whatever the platform captures by default."
+    }
+  }
+]

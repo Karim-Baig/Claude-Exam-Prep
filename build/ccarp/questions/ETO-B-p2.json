@@ -1,0 +1,724 @@
+[
+  {
+    "id": "ETO-B-019",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Role of a guardrail metric alongside the primary metric",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In a canary release or online experiment, what distinguishes a guardrail metric from the primary metric?",
+    "options": [
+      {
+        "key": "A",
+        "text": "It is the same metric as the primary, measured on a smaller cohort so that early movement is visible sooner."
+      },
+      {
+        "key": "B",
+        "text": "It is a secondary metric used to break the tie when the primary metric comes back inconclusive at the end of the planned run."
+      },
+      {
+        "key": "C",
+        "text": "It is computed offline before deployment, whereas the primary metric is only observable in live traffic."
+      },
+      {
+        "key": "D",
+        "text": "It is a metric the change is not expected to improve, watched so a win on the primary cannot be bought by degrading it."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "A guardrail exists to make a specific trade-off illegal in advance. You state before the experiment that cost, latency, refusal rate, escalation or safety pass rate must not move beyond a stated band, so a candidate that improves the headline by sacrificing one of them is rejected without a debate at the end. That asymmetry is the point: the primary needs to move to win, the guardrail only needs to stay put, and a guardrail breach vetoes the change even when the primary looks excellent.",
+      "distractors": {
+        "A": "Measuring the primary on a subset is just a lower-powered version of the same measurement. It gives you the same trade-offs and the same blind spots, with more noise.",
+        "B": "Tie-breaking is what a pre-registered decision rule is for. A guardrail is not there to help you declare a winner; it is there to disqualify one.",
+        "C": "Both kinds of metric can be measured offline or online. What separates them is the direction of the test — improvement required versus degradation forbidden — not where the number comes from."
+      },
+      "concept": "Every experiment needs a small set of guardrails chosen from the dimensions the change could plausibly damage, with thresholds fixed before launch. Their job is to prevent an unpriced trade — a quality win paid for in cost, latency, safety or escalations that nobody agreed to.",
+      "tip": "Guardrails are stated as \"must not get worse\", primaries as \"must get better\". If an option describes something that has to improve for the change to ship, it is describing a primary."
+    }
+  },
+  {
+    "id": "ETO-B-020",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Interaction between two concurrent experiments on one surface",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A food-delivery marketplace runs two experiments concurrently on its order-support assistant. Team A tests a rewritten system prompt; team B tests a new retrieval configuration. Each randomises users independently, so users land in all four combinations. Both report a clear win on the same primary metric, and each was later re-confirmed on its own in a separate single-change canary. When both changes are deployed together, the metric returns to its pre-experiment level. What is the most likely explanation and the right correction?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The two randomisations were correlated, so each analysis was contaminated by the other; assign both experiments from a shared hash so the four arms are orthogonal."
+      },
+      {
+        "key": "B",
+        "text": "Both original wins were false positives produced by repeatedly checking the results during the run; adopt a fixed-horizon analysis and re-test each change."
+      },
+      {
+        "key": "C",
+        "text": "The changes interact, so each single-change estimate holds only while the other is absent; analyse the four cells factorially and test the pair as its own arm."
+      },
+      {
+        "key": "D",
+        "text": "The initial wins were novelty effects that decayed once users adapted to the new behaviour; extend future experiments until the weekly effect stabilises."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Independent randomisation across two experiments creates a two-by-two design whether or not anyone intended it. Each team's headline compares its arms averaged over the other team's arms, which estimates a main effect and says nothing about the corner where both changes are on. A rewritten prompt and a changed retrieval configuration are exactly the pair you would expect to interact — the prompt is tuned to the evidence shape the old configuration produced. The four cells already contain the answer, and the combined configuration has to be validated as its own condition before it ships.",
+      "distractors": {
+        "A": "Independent assignment is the correct design here, not the fault; it is what makes the four cells estimable. A shared hash that forces orthogonality changes nothing about the interaction, because orthogonality is what you already have.",
+        "B": "Peeking does inflate false positives, and it is worth fixing on principle. It cannot be the explanation here: the stem says each change was re-confirmed independently in a later single-change canary, so both effects are real in isolation.",
+        "D": "Novelty decay would show the effect fading within each experiment and would also have shown up in the confirmatory canaries. It does not explain why two separately reproducible wins cancel when combined."
+      },
+      "concept": "Concurrent experiments on the same surface are a factorial design by default. Either enforce mutual exclusion so each change is measured cleanly, or accept the factorial and analyse the cells — but never assume two independently measured wins compose. Changes that touch the same context window almost always interact.",
+      "tip": "When a stem says two changes each won alone and lost together, it has already ruled out noise and novelty for you. That leaves interaction, and the fix is analysing or testing the combination, not re-running the parts."
+    }
+  },
+  {
+    "id": "ETO-B-021",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Questions a shadow run can and cannot answer",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A port operator plans a two-week shadow run of a candidate configuration for its vessel-arrival exception assistant. All requests are mirrored, write tools are stubbed, and shadow responses are discarded. Which TWO questions can the run answer directly? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Whether duty operators accept the candidate's recommendations more often than the incumbent's."
+      },
+      {
+        "key": "B",
+        "text": "Whether the candidate's p95 end-to-end response time meets the team's four-second budget on the real production input mix."
+      },
+      {
+        "key": "C",
+        "text": "Whether the candidate reduces the rate at which exceptions are escalated to the duty manager."
+      },
+      {
+        "key": "D",
+        "text": "Whether the candidate satisfies the operator's record-keeping obligation, since shadow runs write to the same audit log as production."
+      },
+      {
+        "key": "E",
+        "text": "How the candidate's cost per request compares with the incumbent's over the same two weeks of traffic."
+      }
+    ],
+    "correct": [
+      "B",
+      "E"
+    ],
+    "explanation": {
+      "correct": "Shadow mode gives you the real input distribution and nothing else that is real. That is enough for any property computable from the request and the candidate's own response: latency percentiles measured against genuine production inputs rather than a synthetic mix, and the true cost of serving that mix under the candidate. Both are the questions shadow runs are best at, because both are notoriously badly estimated from an eval set — real traffic has the long documents, the awkward encodings and the peak-hour concurrency that a curated suite does not.",
+      "distractors": {
+        "A": "Acceptance is a human response to an output that, in shadow mode, no human ever sees. Measuring it requires exposure, which means a canary.",
+        "C": "Escalation rate is a downstream behavioural outcome of the conversation actually happening. The shadow path is not in anyone's conversation, so the metric is undefined for it.",
+        "D": "Shadow output must not reach the audit log — the audit trail records what the system actually did, and polluting it with actions that were never taken corrupts the record. Log shadow results to a separate store."
+      },
+      "concept": "Shadow answers questions about the system: latency, cost, error rate, output diffs, intended tool calls, and offline quality scoring of paired outputs. Canary answers questions about people: acceptance, escalation, conversion, complaints. Choose the technique from which side of that line the metric sits on.",
+      "tip": "Read each candidate metric and ask whether computing it needs a human to have seen the output. If it does, shadow cannot produce it, no matter how much traffic you mirror."
+    }
+  },
+  {
+    "id": "ETO-B-022",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Gating on trajectory efficiency when final accuracy is unchanged",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An enterprise software vendor runs an IT service-desk agent that resolves access requests. After a prompt change shipped, final-answer accuracy is unchanged at 91% and user satisfaction is flat, but monthly inference spend rose 38% and p95 resolution time went from 22 to 51 seconds. Inspection shows the agent now re-queries the directory tool several times per ticket where it used to query once. The eval harness already records complete trajectories but scores only the final answer. What should be added to the release gate to catch this class of change in future?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Assert a maximum wall-clock duration of 30 seconds per eval case in the harness, so any agent that runs slower than that fails the build."
+      },
+      {
+        "key": "B",
+        "text": "Gate per-case trajectory counters — tool calls, duplicate calls with identical arguments, tokens per resolved case — against the incumbent's distribution."
+      },
+      {
+        "key": "C",
+        "text": "Expand the final-answer eval set until accuracy is estimated to within a point, so that small quality shifts around the 91% figure become detectable."
+      },
+      {
+        "key": "D",
+        "text": "Add a judge over the final response scoring conciseness and redundancy, since verbose answers are the usual driver of token growth on a service desk."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The regression is entirely in the path, so it has to be measured on the path. The traces are already captured, which makes the counters nearly free: calls per case, duplicate calls with identical arguments, and total tokens per resolved ticket are all deterministic functions of a trace, they are cheap to compute, and comparing them to the incumbent's distribution turns cost and latency into things a build can fail on. Gating on a distribution rather than a fixed ceiling accommodates genuinely hard tickets that legitimately need more steps.",
+      "distractors": {
+        "A": "Harness wall-clock time is dominated by the environment — concurrency, warm connections, provider-side variance — so the threshold is either so loose it never fires or so tight it fires constantly. It also names the symptom without attributing it to the redundant calls that caused it.",
+        "C": "More precision on a metric that did not move buys nothing. Accuracy stayed at 91% through a 38% cost increase; the measurement gap is a missing dimension, not an imprecise one.",
+        "D": "Response length is not where the tokens went. The growth is in repeated tool round-trips, each of which carries the accumulated context, and a judge reading only the final response cannot see any of it."
+      },
+      "concept": "An agent has at least three quality dimensions — outcome, path safety, and path efficiency — and outcome metrics are blind to the other two. Once trajectories are logged, efficiency counters are cheap deterministic assertions and belong in the gate as a budget relative to the incumbent.",
+      "tip": "Cost and latency regressions with flat accuracy always live in the trajectory. If the stem mentions that traces are already recorded, it is telling you the data exists and only the scoring is missing."
+    }
+  },
+  {
+    "id": "ETO-B-023",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Handling a working attack corpus inside a CI pipeline",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An HR software vendor maintains an adversarial suite whose cases include attack strings that previously succeeded in making its assistant surface another tenant's data. The safety team wants the suite to run on every release build in the normal CI pipeline, which all 200 engineers can read. How should the corpus and its results be handled?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Commit the corpus alongside the application code so any engineer can add cases, on the grounds that attacks of this kind are already publicly discussed."
+      },
+      {
+        "key": "B",
+        "text": "Store only irreversible hashes of the attack strings in the repository and have the job compare hashes at run time, so the literal text is never checked in."
+      },
+      {
+        "key": "C",
+        "text": "Keep the corpus in an access-restricted store, fetch it with a scoped credential at run time, and emit only per-category pass rates."
+      },
+      {
+        "key": "D",
+        "text": "Remove the suite from CI entirely and run it as a manual pre-release exercise operated by two safety engineers on an isolated, air-gapped workstation."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Two requirements have to hold at once: the suite must run automatically on every build, and the working exploits for this product must not become general reading. Fetching the corpus at run time under a scoped credential satisfies both — the pipeline gets the cases, the repository never holds them, and access is revocable and auditable. Publishing only category pass rates to the build log matters just as much, because a failing case that prints the input and the model's compliant output puts a live exploit and its proof into a log that has a much wider audience than the corpus ever did.",
+      "distractors": {
+        "A": "\"Already public\" is doing a lot of work it cannot support. These are strings verified to work against this product, and the tenant-isolation failure they exploited is specific to this system. Broad internal availability also widens the insider surface for a multi-tenant HR platform holding employee records.",
+        "B": "Hashes cannot be sent to a model. The job needs the literal text to run the attack, so hashing the corpus makes the suite unrunnable; it is a control designed for detecting known-bad values, not for reproducing them.",
+        "D": "This protects the corpus by abandoning the coverage. Manual pre-release runs mean regressions introduced mid-cycle are found late and expensively, and the schedule slips whenever the safety team is busy — which is the situation the team is trying to leave."
+      },
+      "concept": "Adversarial corpora are sensitive artefacts and should be treated like credentials: restricted storage, scoped run-time access, and output redaction so failures report a category and a count rather than a reproducible exploit. Automation and confidentiality are compatible; choosing between them is a false trade.",
+      "tip": "For any question about running a red-team suite in CI, check both the input path and the output path. Teams routinely lock down the corpus and then print the failing case straight into a build log that everyone can read."
+    }
+  },
+  {
+    "id": "ETO-B-024",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Isolating a model change from code changes after a nightly eval drop",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "An agricultural co-operative runs a nightly eval on the main branch of its agronomy advisory assistant. Tonight the suite score falls from 0.88 to 0.71. Since the last green run, three commits merged — a prompt edit, a retrieval filter change, and a logging change — and the platform team also repointed the service's internal model alias to a newer tier the same evening. What is the correct first action?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Re-run tonight's suite on the same commit with the model alias pinned back to the version the last green run used, isolating the model change."
+      },
+      {
+        "key": "B",
+        "text": "Bisect the three merged commits by re-running the suite with each reverted in turn, starting with the prompt edit as the most likely cause."
+      },
+      {
+        "key": "C",
+        "text": "Revert all three commits, confirm the suite returns to 0.88, and then re-land them one at a time over the following three nightly runs."
+      },
+      {
+        "key": "D",
+        "text": "Re-run the suite twice more before investigating, since a single nightly figure fluctuates and a seventeen-point drop may not reproduce on the same commit."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Four things changed, and one of them is not in version control. Bisecting the commits while the model underneath is also different can produce a clean-looking but wrong result — revert the prompt edit, the score stays low, conclude the prompt was innocent — because the confound moves with every run. Pinning the model back to the known-good version and re-running the identical commit costs one run and partitions the problem in half: if the score recovers, the alias repoint is the cause and the commits are exonerated; if it does not, you can bisect commits with confidence.",
+      "distractors": {
+        "B": "Bisecting is the right technique applied at the wrong time. With an uncontrolled variable still moving, each bisect step measures the commit plus the model change together, and a seventeen-point drop is large enough that the model repoint alone could account for all of it.",
+        "C": "A blanket revert is expensive in delivery terms and still leaves the model change in play, so a failure to recover would be uninformative and a recovery would be ambiguous. It also blocks three teams for a diagnosis one pinned run could give you.",
+        "D": "Confirming reproducibility is reasonable practice for a marginal move. A drop of this size sits far outside normal nightly variation, and spending two more runs on confirmation delays the diagnosis without narrowing anything."
+      },
+      "concept": "Before bisecting, enumerate everything that changed — including things outside your repository: model versions behind an alias, index refreshes, guardrail policy updates, downstream schema changes. Pin the external variables to their last known-good state first, then bisect what is left.",
+      "tip": "Stems that quietly mention a platform-side change alongside application commits are testing whether you notice the unversioned variable. The first move is always to hold it still, not to start reverting code."
+    }
+  },
+  {
+    "id": "ETO-B-025",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Reading high context recall against low context precision",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A public transit authority's rider-support assistant answers from a 60,000-document corpus of policies and timetables, retrieving the top 20 chunks per query. The eval reports context recall 0.93, context precision 0.41, faithfulness 0.88, answer relevance 0.86. Human reviewers say the answers usually contain a correct core plus one or two confidently stated conditions that belong to a different route or a different fare zone. What does this metric pattern indicate, and what should the next eval measure?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Faithfulness at 0.88 shows the generator is fabricating the extra conditions; tighten the grounding instruction and re-measure faithfulness on the same set."
+      },
+      {
+        "key": "B",
+        "text": "Low precision alongside high recall is the expected shape for large-k retrieval and is harmless, since the generator ignores irrelevant context; push recall toward 0.99."
+      },
+      {
+        "key": "C",
+        "text": "The chunks are too small to carry a complete condition, which is what depresses precision; the next eval should sweep chunk size against answer correctness."
+      },
+      {
+        "key": "D",
+        "text": "The evidence is present but heavily diluted and the generator is pulling in adjacent material; sweep k downward, tracking precision, correctness and lost recall."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Recall at 0.93 says retrieval is finding what the answer needs, so nothing is missing. Precision at 0.41 says roughly six in ten chunks in the window are off-target, and the human description — correct core plus conditions from a neighbouring route — is precisely what dilution looks like when the distractor material is topically similar. The lever is k, and the experiment has to be a sweep rather than a single change, because cutting k trades recall for precision and the team needs to see where answer quality peaks before recall starts to fall away.",
+      "distractors": {
+        "A": "The extra conditions are not fabricated — they were retrieved, from real documents about other routes. That makes them faithful to the context, which is why faithfulness sits at 0.88 while the answers are still wrong. Grounding instructions cannot fix a grounding that is genuine but irrelevant.",
+        "B": "This is the belief the item is built to test. Long contexts full of plausible near-misses measurably degrade answers, and the reviewers are describing exactly that. Chasing recall from 0.93 to 0.99 would add more marginal chunks and make the dilution worse.",
+        "C": "Chunk size is a real lever, but nothing in the pattern points to it. Undersized chunks typically show up as low recall or as answers that truncate a condition mid-clause, not as confident statements about the wrong route."
+      },
+      "concept": "Precision and recall trade against each other through k, and the operating point is an empirical question that must be swept, not argued. High recall with low precision means the answer's failure is dilution, and dilution failures are invisible to faithfulness because the distracting content really is in the context.",
+      "tip": "When human review says the wrong detail is confidently stated and faithfulness is high, the wrong detail was retrieved. That combination points at context precision every time, and the tuning knob it implicates is how much you retrieve."
+    }
+  },
+  {
+    "id": "ETO-B-026",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Failure class invisible to final-answer-only scoring",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Which failure mode is structurally invisible to an evaluation that scores only an agent's final answer?",
+    "options": [
+      {
+        "key": "A",
+        "text": "An answer that reads fluently but states a fact the source record contradicts."
+      },
+      {
+        "key": "B",
+        "text": "An answer that violates the JSON schema the downstream service requires of every payload."
+      },
+      {
+        "key": "C",
+        "text": "A run that reaches the right answer after an unauthorised or wasteful intermediate step."
+      },
+      {
+        "key": "D",
+        "text": "An answer that arrives after the caller's request timeout has already elapsed."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Outcome scoring reduces a run to its last message, so anything that happened before that message is discarded. A run that queries a record it should not have touched, calls a write tool out of order, or burns twenty redundant steps produces an artefact indistinguishable from a clean run — same answer, same score. This is the specific reason agent systems need trajectory-level assertions: the operational and compliance risk of an agent lives in what it did, and outcome metrics grade only what it said.",
+      "distractors": {
+        "A": "Factual error is precisely what final-answer scoring is for, whether by reference comparison or by a judge. It is the visible case, not the invisible one.",
+        "B": "Schema violations are the easiest thing to catch at the outcome layer — a validator on the final payload decides it deterministically, with no judge required.",
+        "D": "Elapsed time is recorded alongside the response and is checkable without any view of the intermediate steps. It is a property of the run's timing, not of its hidden path."
+      },
+      "concept": "Score the outcome to know whether the system is useful; score the trajectory to know whether it is safe and affordable. Right-answer-wrong-path is the failure class that only trajectory evaluation can see, and it is the one that produces incidents rather than complaints.",
+      "tip": "Ask what data each option needs. If it can be decided from the final message plus its timestamp, outcome scoring sees it. If deciding it requires the intermediate steps, it is the trajectory-only case."
+    }
+  },
+  {
+    "id": "ETO-B-027",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Precondition for advancing to the next canary ramp step",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "What should be true before a team advances a canary to its next ramp step?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The current step has run for the calendar duration fixed in the rollout plan, regardless of how much traffic it received."
+      },
+      {
+        "key": "B",
+        "text": "Every guardrail has enough exposure at this step to be judged against its threshold, and all are within it."
+      },
+      {
+        "key": "C",
+        "text": "The primary metric shows a statistically significant improvement over the control at the current ramp step."
+      },
+      {
+        "key": "D",
+        "text": "The candidate has produced no errors of any kind at the current step — no 5xx responses and no failed tool calls."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "A ramp step is a decision point, and the decision is whether anything is going wrong at the current exposure. That requires two things: enough traffic through the step for each guardrail to be evaluable — not merely observed to be flat — and all of them inside their pre-agreed bands. Sample accumulation is the part teams skip, because a green dashboard over a handful of requests looks the same as a green dashboard over a meaningful sample, and the low-frequency failure modes are exactly the ones that appear only when exposure grows.",
+      "distractors": {
+        "A": "Calendar time is a proxy for exposure and a poor one. A weekend step or an off-peak window can pass its duration with a fraction of the traffic the plan assumed, promoting the candidate on almost no evidence.",
+        "C": "Canary cohorts are usually far too small to demonstrate a win, and demanding one blocks changes whose benefit is cost or latency rather than quality. The ramp is a harm-detection mechanism; proving benefit is what the full experiment is for.",
+        "D": "Zero errors is unattainable in any real service — the incumbent has a non-zero baseline too. The comparison that matters is candidate against control, not candidate against perfection."
+      },
+      "concept": "Progressive rollout is a sequence of gated observations, not a timer. Before the first request is routed, define the exposure each step must accumulate, the guardrails evaluated at that step, the thresholds they are evaluated against, and the automatic action on breach. A ramp whose promotion criteria are decided while it is running has already lost the property that made it safer than a straight cutover.",
+      "tip": "Options that gate a ramp on elapsed time rather than accumulated volume are almost always wrong. Traffic, not clock, determines whether you have seen enough to promote."
+    }
+  },
+  {
+    "id": "ETO-B-028",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Making a red-team programme measurable rather than anecdotal",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A health insurer is standing up an ongoing red-team programme against its member-services assistant, which retrieves plan documents and can call a claims-status tool. The CISO's complaint about the previous ad-hoc effort is that its output was a slide of anecdotes with no way to tell whether the system was getting safer. Which THREE practices most directly make the programme's output measurable across releases? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Retire an attack from the corpus once the system has blocked it in two consecutive runs, keeping the suite focused on the unsolved weaknesses."
+      },
+      {
+        "key": "B",
+        "text": "Record the model version, prompt version and guardrail configuration with every run, so a change in results is attributable to a known difference."
+      },
+      {
+        "key": "C",
+        "text": "Fix the scope and the number of attempts per harm category before each engagement, so a zero-success category reflects coverage rather than effort."
+      },
+      {
+        "key": "D",
+        "text": "Score the programme on the count of novel attacks discovered per engagement, to keep the team incentivised toward creative coverage of the taxonomy."
+      },
+      {
+        "key": "E",
+        "text": "Execute every attack end to end against the deployed stack, recording whether a guardrail intercepted it and whether the model itself complied."
+      }
+    ],
+    "correct": [
+      "B",
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "Measurability needs a stable denominator, a stable subject, and a resolution fine enough to act on. Fixing scope and attempt counts per category gives the denominator, so a clean category means you tried and failed to break it rather than that nobody looked. Versioning the model, prompt and guardrails gives the stable subject, without which a movement between releases cannot be attributed to anything. Recording guardrail interception separately from model compliance gives the resolution: a system where the filter catches everything and the model would comply with all of it is one config change away from being wide open.",
+      "distractors": {
+        "A": "Retiring blocked attacks destroys the time series and removes the regression value. A blocked attack is the asset — it is what proves the defence still holds after the next prompt change. Corpora grow; they do not get pruned for success.",
+        "D": "Novel-attack count is a vanity metric and a gameable one: it rewards volume of variants over depth in the categories that matter, and it goes down when the programme is doing well. Robustness is measured on the system, not on the red team's output."
+      },
+      "concept": "A red-team programme becomes an engineering control when its results are comparable release over release. That needs pre-registered scope and effort per category, full version capture of everything under test, and layer-resolved outcomes so you know which defence actually stopped each attack.",
+      "tip": "Distinguish practices that produce comparable numbers from practices that produce activity. Anything measuring the team's output rather than the system's behaviour is the wrong metric, however energetic it sounds."
+    }
+  },
+  {
+    "id": "ETO-B-029",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Pinning the corpus snapshot for a RAG regression gate",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "Why should a RAG regression suite that gates application code changes run against a pinned corpus snapshot rather than the live index?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Because otherwise a score movement cannot be attributed — index content churn and the code change under test are confounded."
+      },
+      {
+        "key": "B",
+        "text": "Because querying the live index from CI adds retrieval load that competes with production traffic at peak hours."
+      },
+      {
+        "key": "C",
+        "text": "Because embedding vectors drift over time, and a snapshot keeps the stored vectors numerically stable from one run to the next."
+      },
+      {
+        "key": "D",
+        "text": "Because documents added after the eval set was authored may not have been reviewed for use in a test environment."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "A gate exists to answer one question: did this change make things worse? That question is only answerable if the change is the only thing that moved. An index refreshed daily alters what retrieval returns for the same query, so a red build could mean a bad prompt edit or an ingested document that outranks the one the eval expected — and the team cannot tell which. Pinning the snapshot makes the code the sole variable. Corpus changes then get their own scheduled evaluation, where the code is held fixed and the content is the variable.",
+      "distractors": {
+        "B": "Load isolation is a genuine operational reason to use a separate index, and worth doing. It explains why not to query the production cluster; it does not explain why the content must be frozen, which is the attribution requirement.",
+        "C": "Stored vectors do not drift on their own. They change when documents change or when the embedding model changes, and both are content-and-configuration events that pinning captures as a side effect rather than the reason for it.",
+        "D": "Review status of ingested content is a data-governance matter handled at ingestion. It has nothing to do with whether the suite can attribute a score change to the commit under test."
+      },
+      "concept": "A gate must vary one thing. In a RAG system the variables are code, prompt, model version and corpus, so pin three and move one. Corpus refreshes deserve their own evaluation on a fixed code baseline, because content regressions are as real as code regressions and are otherwise invisible.",
+      "tip": "Whenever a question asks why to freeze something in an eval, the answer is nearly always attribution rather than performance, cost or governance. Look for the option that names the confound."
+    }
+  },
+  {
+    "id": "ETO-B-030",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Confounds in an online model-tier comparison with a latency gap",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A telehealth provider A/B tests replacing Sonnet with Haiku for its symptom-intake summariser. Assignment is sticky at the clinician level across about forty clinicians, and the primary metric is edits per summary over four weeks. Median response time in the treatment arm falls from 6.1 to 2.4 seconds. Which TWO threats to the comparison should be resolved before the result is acted on? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Sticky assignment invalidates the randomisation, because each of the forty clinicians contributes many correlated observations to one arm only."
+      },
+      {
+        "key": "B",
+        "text": "The result cannot be read unless edits are normalised by summary length, since the two tiers produce summaries of very different average lengths."
+      },
+      {
+        "key": "C",
+        "text": "With only about forty clinicians, differences in individual editing habits can swamp the treatment effect unless assignment is stratified or a pre-period baseline is used as a covariate."
+      },
+      {
+        "key": "D",
+        "text": "A two-second response instead of a six-second one changes how clinicians work through the summary, so edits per summary captures latency as well as quality."
+      },
+      {
+        "key": "E",
+        "text": "Behavioural metrics such as edits per summary require at least a full quarter of exposure before any model comparison can be interpreted at all."
+      }
+    ],
+    "correct": [
+      "C",
+      "D"
+    ],
+    "explanation": {
+      "correct": "Both threats come from the design meeting reality. Forty clinicians is a small randomisation pool and editing behaviour varies enormously between individuals, so a chance imbalance in who landed where can produce or erase the entire effect; stratifying on a pre-period edit rate, or using it as a covariate, is what makes the comparison stable. Separately, a summary that appears in two seconds instead of six is consumed differently — clinicians stay with it, read more of it, and correct in place rather than moving on — so the metric is measuring the latency change and the quality change together and cannot attribute either.",
+      "distractors": {
+        "A": "Sticky assignment is the correct choice, not a defect. Clinicians switching arms between patients would give an incoherent experience and blend the treatments; the resulting correlation within a clinician is handled in analysis, not avoided by re-randomising.",
+        "B": "Length normalisation would replace the metric the practice cares about with a ratio that is harder to reason about. If a tier produces longer summaries that need more edits, that is part of the effect being measured, not a nuisance to divide out.",
+        "E": "There is no fixed minimum duration for a behavioural metric. Required exposure depends on the effect size and the variance of the metric, and a blanket quarter-long rule would be arbitrary in both directions."
+      },
+      "concept": "When two arms differ in latency as well as output, the experiment is testing a bundle, and the metric attributes the bundle. Either accept that you are measuring the deployed experience as a whole, or hold latency constant so the quality difference is isolated. Small randomisation pools need stratification, not more time.",
+      "tip": "Look for a second thing that changed alongside the treatment. Model swaps almost always move latency and cost as well as quality, and any behavioural metric downstream of the user will absorb all three."
+    }
+  },
+  {
+    "id": "ETO-B-031",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "What a recorded-response test suite still verifies",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A test suite replays previously recorded model responses instead of calling the API. What does such a suite still verify?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The deterministic code around the model — output parsing, schema validation, tool dispatch and retries."
+      },
+      {
+        "key": "B",
+        "text": "That the current prompt still elicits the expected refusal and formatting behaviour from the model in use."
+      },
+      {
+        "key": "C",
+        "text": "That switching to a newer model version has not degraded the output quality on these cases."
+      },
+      {
+        "key": "D",
+        "text": "That the live retrieval stage still returns the chunks that the reference answers depend on."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Replay removes the model from the test, and everything the test can still prove is on the other side of that boundary. That is a genuinely valuable surface: parsers break on unusual outputs, schema validation drifts from the schema, tool dispatch mishandles an unexpected tool name, and retry paths are almost never exercised in live runs. Replayed suites are fast, free and deterministic, which is why they belong on every push — provided nobody mistakes them for evidence about the model, which requires a live eval running on its own schedule.",
+      "distractors": {
+        "B": "The recorded response was produced by the old prompt. Replaying it under a new prompt tells you what the parser does with yesterday's output, not what the model does with today's instruction.",
+        "C": "No request reaches the new model version, so it contributes nothing to the result. This is the most dangerous misreading, because a fully green replay suite feels like release assurance.",
+        "D": "Retrieval is stubbed out along with everything else in a replayed run. Retrieval quality needs its own evaluation against a pinned corpus."
+      },
+      "concept": "Replay tests the integration; live evals test the model. Run both, on different triggers and with different owners, and be explicit about which guarantee each one provides — a build that is green only on replay has verified none of the probabilistic behaviour.",
+      "tip": "Ask which components a test actually executes. Anything mocked or replayed is untested by definition, however thorough the assertions wrapped around it look."
+    }
+  },
+  {
+    "id": "ETO-B-032",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Production traffic shaped by the system it is used to evaluate",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A carmaker's owner-app assistant has been live for eighteen months. To refresh its eval, the team samples 500 recent production conversations, has them labelled, and measures 0.94 — against 0.81 on the two-year-old set built before launch. Support-ticket volume in the assistant's topic areas is unchanged over the same period, and the team is preparing to retire the old set. What is the most likely explanation for the gap?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The assistant genuinely improved over eighteen months of iteration, and the older set over-weights defects that were fixed in its first few months."
+      },
+      {
+        "key": "B",
+        "text": "Production traffic has adapted — users reformulate what fails and stop asking what it cannot do — so a sample under-represents the failures that remain."
+      },
+      {
+        "key": "C",
+        "text": "Recent traffic is drawn from a narrower seasonal window, so the new set covers fewer distinct intents than the pre-launch set did."
+      },
+      {
+        "key": "D",
+        "text": "The new cases were drawn after the fixes were made, so they were effectively part of development and can no longer measure generalisation."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Flat ticket volume is the detail that decides this. If the assistant had genuinely got thirteen points better at the tasks users bring it, the demand it deflects should have moved; instead users are still escalating at the same rate while the assistant scores near-perfectly on what they now ask it. That is the signature of a traffic distribution shaped by the system: eighteen months of users learning which phrasings work, giving up on the topics that fail, and taking those elsewhere. The queries that would expose the remaining weaknesses are no longer in the stream being sampled.",
+      "distractors": {
+        "A": "Real improvement is the comfortable reading and cannot be ruled out entirely, but it does not fit unchanged ticket volume. Improvement large enough to move an eval by thirteen points should show up somewhere in the downstream workload.",
+        "C": "A narrower intent mix would be visible directly in the sample and is easy to check. It would also usually reduce coverage rather than raise the score, since the intents that drop out are not systematically the hard ones.",
+        "D": "This confuses two different things. Cases drawn from production after the fixes shipped were never used to develop those fixes, so they are not contaminated in the sense meant; the problem is which cases production still contains."
+      },
+      "concept": "A deployed system censors its own input distribution. Sampling only live traffic to build an eval creates survivorship bias that grows with tenure, and the score rises without anything improving. Counter it by sampling abandonment, retries, escalations and the channels users switch to when the assistant fails.",
+      "tip": "When a refreshed eval jumps and no downstream operational metric moved with it, suspect the sample rather than the system. Ask what the users who gave up are doing, because they are not in your logs."
+    }
+  },
+  {
+    "id": "ETO-B-033",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Attributing a block to the guardrail layer versus the model layer",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A pharmacy chain's adversarial run reports 40 of 40 attacks blocked for its patient-messaging assistant. Reading the traces, the safety engineer sees that in 31 cases an input classifier rejected the request and the model was never invoked; in the remaining 9 the model itself declined. Leadership is being told the assistant is fully resistant in this category. What should the engineer do next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Report the 40 of 40 result as it stands, since from the patient's perspective the system did block every attempt in this harm category."
+      },
+      {
+        "key": "B",
+        "text": "Tighten the input classifier so that it also catches the 9 attacks that reached the model, making the outer layer the single point of enforcement."
+      },
+      {
+        "key": "C",
+        "text": "Re-run the suite in a non-production environment with the input classifier disabled, and record both layers' refusal rates separately."
+      },
+      {
+        "key": "D",
+        "text": "Remove the input classifier, since the model refused unaided in the cases that reached it and the extra hop adds latency and false positives."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The headline conceals the fact that 31 of the 40 results say nothing whatsoever about the model, because it never saw the input. If the classifier is retuned, its threshold moved to cut false positives, or a new input channel bypasses it, the organisation would discover the model's actual behaviour in production. Running the suite with the outer layer off, in an isolated environment, measures the inner layer directly and turns one aggregate into two numbers that can each be tracked. Defence in depth is only defence if you know the depth.",
+      "distractors": {
+        "A": "The user-facing outcome is correct today, and that is exactly why the report is misleading. It presents a result that depends on one layer's current configuration as though it were a property of the system, and it will be quoted back after the classifier changes.",
+        "B": "Concentrating enforcement in the outer layer is the opposite move. It raises false positives on legitimate clinical questions and makes the classifier a single point of failure, while leaving the model's own behaviour unmeasured and unimproved.",
+        "D": "Nine refusals is a small and unrepresentative sample of the model's behaviour — they are the attacks the classifier happened to miss, not a random draw. Removing a working layer on that evidence inverts the risk decision."
+      },
+      "concept": "Measure each defensive layer independently as well as end to end. Layered systems produce flattering aggregates that hide which layer is doing the work, and a per-layer breakdown is what tells you whether a configuration change to one control silently removes all protection.",
+      "tip": "A perfect score in a safety report should prompt the question \"which component earned it?\" If the trace shows most attempts never reached the model, the model's resistance is simply unmeasured, not proven."
+    }
+  },
+  {
+    "id": "ETO-B-034",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Making a failing CI eval run attributable to the change under test",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "Which TWO practices most directly make a failing eval run in CI attributable to the change under test? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Pin the model version the job uses rather than resolving a floating alias at run time."
+      },
+      {
+        "key": "B",
+        "text": "Re-run the job automatically up to three times and report the best of the three results."
+      },
+      {
+        "key": "C",
+        "text": "Raise the job's concurrency so the suite finishes sooner and developers see the result while the change is fresh."
+      },
+      {
+        "key": "D",
+        "text": "Record the prompt template version, corpus snapshot id and eval-set version in the run artefact alongside the score."
+      },
+      {
+        "key": "E",
+        "text": "Run the job only against the merge commit, never against the branch head."
+      }
+    ],
+    "correct": [
+      "A",
+      "D"
+    ],
+    "explanation": {
+      "correct": "Attribution is a matter of controlling and recording every input other than the diff. Pinning the model closes the largest uncontrolled variable, since an alias can be repointed by someone outside the team between two runs and produce a score movement no commit explains. Recording the prompt, corpus and eval-set versions in the artefact closes the rest and makes the run reconstructible weeks later, when the question is whether last month's regression came from the code or from the eval set someone extended at the same time.",
+      "distractors": {
+        "B": "Best-of-three is attribution running backwards. It hides real regressions behind resampling, biases every reported score upward, and makes the number depend on how many attempts the job happened to make.",
+        "C": "Concurrency shortens the feedback loop, which is worth doing for adoption. It changes nothing about what the result can be attributed to, and aggressive concurrency can itself introduce throttling-related failures that look like quality regressions.",
+        "E": "Restricting to merge commits delays discovery until after integration, which makes attribution harder rather than easier — the merge commit contains someone else's change too."
+      },
+      "concept": "An eval result is a measurement of a configuration, not of a commit. Pin every input the team does not intend to vary and stamp the artefact with all of their versions; without that, a score series across releases is uninterpretable the moment anything upstream moves.",
+      "tip": "Scan CI options for anything that resamples, retries or takes the best result. Those improve build colour and destroy signal, and they are reliably the wrong answer on attribution questions."
+    }
+  },
+  {
+    "id": "ETO-B-035",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Breadth of regression evidence for a targeted prompt fix",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A hotel group fixes a system prompt to correct date-format errors in booking-change requests. On the 120-case date-handling set the candidate scores 0.96 against a 0.74 baseline, and the team proposes shipping on that evidence alone. The assistant also handles cancellations, loyalty queries and group bookings from the same system prompt. What must the gate additionally require?",
+    "options": [
+      {
+        "key": "A",
+        "text": "A non-regression run over the rest of the suite, covering the other capabilities that are driven by the same system prompt."
+      },
+      {
+        "key": "B",
+        "text": "Evidence that the improvement on the date set is statistically significant rather than a sampling artefact of 120 cases."
+      },
+      {
+        "key": "C",
+        "text": "A 1% canary for twenty-four hours, on the basis that live booking traffic will surface anything the offline suite missed."
+      },
+      {
+        "key": "D",
+        "text": "Human review of twenty sampled outputs from the date-handling set, to confirm the automated score reflects a real improvement."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Everything the assistant does reads the same system prompt, so an edit made for one capability is applied to all of them. Rewording an instruction about dates changes token positions, emphasis and interaction with other rules, and the classic outcome is a fixed date bug alongside a quietly broken cancellation flow. The gate has to see the capabilities the change could reach, not just the one it targeted. That is the difference between evidence that the fix works and evidence that the release is safe.",
+      "distractors": {
+        "B": "A move from 0.74 to 0.96 across 120 cases is not a sampling artefact under any reasonable analysis, so significance testing here confirms what is already obvious and leaves the actual risk unexamined.",
+        "C": "A short, small canary is a poor substitute for offline breadth: at 1% for a day, low-frequency capabilities such as group bookings may generate almost no traffic, and it exposes real guests to a change nobody tested on their flow.",
+        "D": "Human confirmation on the same slice adds confidence about a result that is not in doubt. It samples from the set that already passed, so it cannot say anything about the capabilities that were never measured."
+      },
+      "concept": "Scope the regression evidence to the blast radius of the change, not to its intent. A shared system prompt, a shared retrieval index and a shared model version are all global surfaces — editing any of them requires evidence across everything downstream of it.",
+      "tip": "When a stem tells you other capabilities share the same prompt, that sentence is the question. A large improvement on the targeted slice is set dressing designed to make shipping feel justified."
+    }
+  },
+  {
+    "id": "ETO-B-036",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Sustainable scoring design for variable-length agent trajectories",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A customs brokerage runs a tariff-classification agent with eight tools; runs take between three and fifteen steps, and several orderings are legitimate for the same shipment. The team has 400 eval cases and wants trajectory scoring that tells them why runs fail, without a maintenance burden that grows every time a tool is added. Which scoring design is most sustainable?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Author a reference trajectory for each of the 400 cases and score every run by edit distance between the recorded run and its reference."
+      },
+      {
+        "key": "B",
+        "text": "Score each case against order-and-precondition assertions plus required-call and forbidden-call sets, leaving unconstrained steps unscored."
+      },
+      {
+        "key": "C",
+        "text": "Have a judge read each full trajectory and rate its reasonableness on a five-point scale, gating the release on the mean rating."
+      },
+      {
+        "key": "D",
+        "text": "Gate on the step count alone against a per-case maximum, on the grounds that runs which wander are the ones that end up wrong."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Constraint-based scoring encodes only what the business actually requires — this evidence must be gathered before a classification is issued, this tool must never run against an unverified consignee, this lookup must appear at least once — and stays silent about everything else. That is what makes it survive a variable step count and multiple legitimate orderings, and it is why adding a ninth tool costs a few assertions rather than 400 edits. Each failure also names the violated rule, which is precisely the diagnostic the team asked for.",
+      "distractors": {
+        "A": "Four hundred reference trajectories is a corpus that has to be re-authored whenever a tool signature changes, and edit distance punishes valid alternative orderings as heavily as genuine errors. It suits short, deterministic flows, not an eight-tool agent with a legitimate range of paths.",
+        "C": "A judge over long traces is expensive, high-variance and hard to act on — a mean rating tells you the paths got worse without saying which rule was broken. Judged trace review is defensible as a sampled diagnostic, not as a gate.",
+        "D": "Step count is a useful efficiency counter but a bad correctness gate. A short run that skipped a required verification passes, and a long run that handled a genuinely complex shipment correctly fails."
+      },
+      "concept": "Score trajectories against invariants, not against exemplars. Assert the small set of orderings, preconditions, required calls and forbidden calls that the domain genuinely demands, and leave the rest of the path free — that is what keeps the suite maintainable as the agent's tool surface grows.",
+      "tip": "Wherever a stem stresses that several paths are legitimate, any exact-match or reference-trajectory option is out. Variable-length, multi-path agents need constraint checks and aggregate counters."
+    }
+  }
+]

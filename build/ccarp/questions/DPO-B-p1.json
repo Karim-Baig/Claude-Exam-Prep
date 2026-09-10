@@ -1,0 +1,719 @@
+[
+  {
+    "id": "DPO-B-001",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Correlating one decision across a five-step Claude chain",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A freight forwarder classifies customs declarations with a five-step chain: OCR extraction, a Haiku normalisation call, a tariff-rule retrieval, a Sonnet classification call, and a deterministic validator. Each of the five services emits structured logs with its own internally generated request id, retained 90 days. A customer disputes a single HS code assigned three weeks ago; an engineer spent two days grepping logs to reconstruct which retrieved rule the model saw. What change most directly prevents the next two-day reconstruction?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Increase log retention from 90 days to seven years so that a late-arriving dispute always has a complete body of evidence available to search through."
+      },
+      {
+        "key": "B",
+        "text": "Have every service log the full prompt and response payload it sent to Claude, so that any single log line can be interpreted without reference to the others."
+      },
+      {
+        "key": "C",
+        "text": "Mint one trace id at the edge, propagate it through all five steps, and persist it on the customer-visible classification record so a case number resolves straight to its spans."
+      },
+      {
+        "key": "D",
+        "text": "Collapse the five steps into a single Sonnet call with extended thinking, so each classification produces one log record instead of five that have to be stitched together."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The evidence already existed and was already retained; what was missing was a join key. Because each service generated its own request id, nothing tied the OCR output, the retrieved tariff rule and the model's classification to the same declaration. A trace id created once at the edge, carried through every hop, and written onto the business record turns a two-day grep into a single indexed lookup from the case number the customer quotes.",
+      "distractors": {
+        "A": "Retention was not the failure — the logs for a three-week-old decision were present. Extending retention multiplies storage and regulatory exposure for customs data while leaving the reconstruction just as slow.",
+        "B": "Full payload logging without a shared identifier still leaves the engineer grepping five stores for a needle, and it duplicates commercially sensitive shipment data into a logging system with different access controls.",
+        "D": "This changes the architecture to fix an observability gap, and it discards the deterministic validator that currently catches errors. Fewer log records is not the same as correlated ones."
+      },
+      "concept": "Observability for a multi-step AI chain depends on a correlation identifier minted once at the entry point, propagated through every hop, and persisted on the user-visible artefact. Without that join key, retention and verbosity only make the haystack larger.",
+      "tip": "When a stem says logs exist, are retained, and are still unusable, the missing thing is almost never volume or duration — it is the key that joins them."
+    }
+  },
+  {
+    "id": "DPO-B-002",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Minimum capture set for replaying a non-deterministic failure",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A Claude call in production produced a bad output that the team cannot reproduce from the user's original input. Which captured set is the minimum needed to attempt a faithful replay?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The user's original input text, the name of the prompt template that was in use at the time, and the wall-clock timestamp recorded for the request."
+      },
+      {
+        "key": "B",
+        "text": "The model's response text, its stop reason, and the input and output token counts recorded for the request."
+      },
+      {
+        "key": "C",
+        "text": "The deployed application version, the customer account identifier, and the distributed trace id attached to the request."
+      },
+      {
+        "key": "D",
+        "text": "The fully rendered prompt exactly as sent, the resolved model identifier, the sampling parameters, and every tool result injected mid-turn."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "A replay is only faithful if the model receives byte-for-byte what it received the first time. That means the rendered prompt after template substitution, retrieval injection and history assembly — not the raw user input — plus the model version that actually served the call, the sampling settings, and any tool output that entered the conversation mid-turn. Miss any of these and you are testing a different request that happens to have started from the same user text.",
+      "distractors": {
+        "A": "A template name plus raw input does not reconstruct the rendered prompt, because retrieval results, conversation history and injected variables all differ by request. A timestamp tells you when, not what was sent.",
+        "B": "These describe the outcome. They are useful for detecting that something went wrong and for comparing a replay's result, but none of them lets you re-issue the call.",
+        "C": "These are routing and lookup metadata. They help you find the record if the record exists; they are not themselves the record of what the model was given."
+      },
+      "concept": "Reproducing an LLM failure requires the inputs at the boundary of the model, not the inputs at the boundary of the application. Capture the rendered prompt, resolved model version, sampling parameters and injected tool results, or accept that the failure is unreproducible.",
+      "tip": "The word to watch for is *rendered*. Any answer that offers a template name instead of the resolved text is offering you a recipe when you needed the meal."
+    }
+  },
+  {
+    "id": "DPO-B-003",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Per-team Claude cost attribution behind a shared gateway",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A media group routes all Claude traffic through one shared internal gateway on a single provider account. Finance receives a single monthly invoice, and each of eight product teams insists its share is small. The gateway already authenticates callers with per-service API keys and logs status code and latency for every request. No product team has capacity to change its call sites this quarter. Which TWO changes give finance defensible per-team attribution? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Have finance divide the monthly invoice equally across the eight teams and true it up each quarter using a sampled traffic study."
+      },
+      {
+        "key": "B",
+        "text": "Record input, output and cache-read token counts per request at the gateway, keyed to the calling service key, and price them against the same rate table finance uses to reconcile the invoice."
+      },
+      {
+        "key": "C",
+        "text": "Require every team to add a `team` field to the request body so the gateway can group spend by owner without maintaining any extra state."
+      },
+      {
+        "key": "D",
+        "text": "Maintain a registry mapping each service key to an owning team and cost centre, and stamp that owner onto every request the gateway logs."
+      },
+      {
+        "key": "E",
+        "text": "Alert when the gateway's aggregate monthly spend crosses a threshold so that overruns surface before the invoice arrives rather than after."
+      }
+    ],
+    "correct": [
+      "B",
+      "D"
+    ],
+    "explanation": {
+      "correct": "Attribution needs two things the gateway does not yet have: a measure of consumption and an owner for it. Token counts per request, priced with the rate table finance already reconciles against, produce a figure that sums back to the invoice — which is what makes it defensible rather than an estimate. Mapping service keys to cost centres supplies the owner dimension. Both live entirely inside the gateway, so no product team has to touch a call site.",
+      "distractors": {
+        "A": "Equal division is the position finance is trying to escape, and a sampled study cannot be reconciled to the invoice line by line. It also rewards the heaviest consumer at the expense of the lightest.",
+        "C": "A field added to the request body is a call-site change, which the stem rules out. It is also self-reported and unauthenticated: a team can under-declare or omit it entirely.",
+        "E": "A useful control, but it answers a different question. A threshold alert on aggregate spend tells you the group is overspending without telling anyone whose traffic caused it."
+      },
+      "concept": "Cost attribution requires a metered quantity and an authenticated owner, joined at a point the consumer cannot bypass or misreport. Deriving the owner from the credential already presented at the gateway beats asking callers to declare it.",
+      "tip": "When a stem states a hard constraint like *no call-site changes*, treat it as an eliminator, not as colour. At least one attractive option will violate it."
+    }
+  },
+  {
+    "id": "DPO-B-004",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Why accepted-lines is a dishonest AI productivity metric",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A 140-engineer platform organisation rolled out AI coding assistance and now reports \"AI-assisted lines accepted per engineer per week\" to its VP as the headline adoption KPI. The figure has tripled in a quarter and is being used to justify the next year's licence spend. A staff engineer objects to the metric. Which objection is the strongest case for replacing it?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Line counts are not normalised across languages, so a team migrating from Java to Python would show a decline that has nothing to do with how much assistance it received."
+      },
+      {
+        "key": "B",
+        "text": "Accepted lines measure production volume, not delivered value; the figure rises when engineers accept verbose or duplicated code, and nothing in it separates that from real throughput."
+      },
+      {
+        "key": "C",
+        "text": "Acceptance events are recorded client-side and are lost when an editor session crashes, so the reported figure systematically understates the assistance engineers actually took."
+      },
+      {
+        "key": "D",
+        "text": "The metric covers only assistant users and omits engineers who call the API from their own scripts, so cross-team comparisons draw on an incomplete population."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The metric is not merely noisy — it is directionally wrong. Code is a liability the organisation maintains, so a metric that rewards more of it invites exactly the behaviour nobody wants: accepting bloated suggestions, duplicating instead of extracting, and leaving dead branches in place. Because it cannot distinguish a hundred useful lines from a hundred lines that will be deleted in review, tripling the number is not evidence of anything. Measure changes that reached production, review cycle time, and defect escape rate instead.",
+      "distractors": {
+        "A": "A real measurement flaw, but a calibration one. Fixing it by normalising per language would still leave a metric that rewards writing more code.",
+        "C": "Undercounting is a data-quality issue and would, if anything, make the tripling more impressive. It does not challenge whether the quantity is worth counting.",
+        "D": "Coverage gaps weaken comparisons between teams but do not touch the deeper problem that the counted quantity is not the thing the organisation values."
+      },
+      "concept": "An AI productivity metric must measure outcomes the organisation would pay for — merged change throughput, cycle time, defect escape, time to first meaningful contribution — not artefact volume. Volume metrics create an incentive to accept output the reviewer will later have to remove.",
+      "tip": "When several objections to a metric are all true, prefer the one saying the metric measures the wrong quantity over the ones saying it measures the right quantity imprecisely."
+    }
+  },
+  {
+    "id": "DPO-B-005",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Prompt library in the repository versus a runtime config store",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "Which property most distinguishes a prompt library kept as versioned code in the application repository from one kept in a runtime configuration store?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The template and the code that consumes it move together through review, CI evals and rollback, so a deployed build cannot pair new code with a stale prompt."
+      },
+      {
+        "key": "B",
+        "text": "Prompt changes take effect without a redeploy, shortening the loop between spotting a bad output in production and shipping a corrected instruction."
+      },
+      {
+        "key": "C",
+        "text": "Prompt text is encrypted at rest and access-controlled, so only reviewers holding repository permissions can read the instructions running in production."
+      },
+      {
+        "key": "D",
+        "text": "Per-prompt token cost is computed automatically at commit time, giving the team a spend forecast before a change is allowed to reach production."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The defining property is atomicity with the consuming code. A prompt that adds a required variable, changes an output schema, or assumes a new tool is only correct alongside the code that supplies or parses it. Keeping both in one commit means one review, one eval run, one artefact and one rollback. A runtime store decouples them, which is precisely what allows a hot-fixed prompt to drift out of step with the parser that reads its output.",
+      "distractors": {
+        "B": "This is the advantage of the runtime store, not of the repository, and it is the same mechanism that permits drift. Teams that want it usually pay for it with a separate compatibility contract.",
+        "C": "Repository storage confers neither encryption nor unusual access control; if anything a prompt in source control is readable by everyone with repo access. Confidentiality is orthogonal to versioning.",
+        "D": "Cost estimation at commit time is a CI check a team may choose to add under either storage model. It has nothing to do with where the prompt lives."
+      },
+      "concept": "Treat prompts as code when the prompt and its consuming logic form a single correctness unit. The value is one review boundary, one eval gate and one rollback unit — not the storage medium itself.",
+      "tip": "Ask what breaks if the two halves are versioned separately. If the answer is a parser mismatch, the prompt belongs in the same artefact as the parser."
+    }
+  },
+  {
+    "id": "DPO-B-006",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Rollout gates that measure availability instead of correctness",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A health insurer rolls out a Claude-drafted claim-denial explanation behind a percentage flag. The automation promotes 5% to 25% to 100% if, for 60 minutes at each stage, HTTP error rate stays under 0.5%, p95 latency stays under 3 seconds, and no pod restarts occur. In a staging rehearsal the feature was promoted all the way to 100% while producing fluent explanations that cited the wrong policy clause in roughly one denial in six. What is the fundamental defect in the gate?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Sixty minutes at 5% of traffic does not accumulate enough requests for the error-rate threshold to be statistically meaningful, so the first promotion is effectively unguarded."
+      },
+      {
+        "key": "B",
+        "text": "Percentage flags assign users at random, so the 5% cohort is unlikely to contain the unusual claim types on which the model's clause selection actually fails."
+      },
+      {
+        "key": "C",
+        "text": "A 3-second p95 threshold conceals the tail; some members wait long enough on p99 to abandon the flow before an explanation ever renders."
+      },
+      {
+        "key": "D",
+        "text": "Every signal in the gate measures whether the service responded. A wrong explanation is a successful response, so no promotion criterion can observe correctness at all."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "An AI feature can be fully available and completely wrong, and this gate is built entirely from availability signals. A fluent explanation citing the wrong clause returns HTTP 200 inside the latency budget with no restart — it satisfies every criterion perfectly. Promotion must be conditioned on a quality signal: a sampled grader on live outputs, a clause-citation check against the policy record, or a human review queue whose disagreement rate must stay under a threshold before the next stage unlocks.",
+      "distractors": {
+        "A": "A real weakness of short low-traffic windows, but widening the window only accumulates more of the wrong measurement. At any sample size, error rate stays near zero while the model is wrong.",
+        "B": "Cohort composition matters for finding rare failures, and stratifying the cohort is worth doing. It does not help here: the failure occurred in one case in six and the gate still could not see it.",
+        "C": "Tail latency is a genuine user-experience concern, but abandonment would show up in the funnel, not in clause accuracy. The rehearsal failure was correctness, not speed."
+      },
+      "concept": "Progressive delivery of an AI feature needs at least one gate that measures output quality, because the usual health signals are all satisfied by confident wrong answers. Availability gates protect the service; quality gates protect the user.",
+      "tip": "When a stem lists a gate's criteria and then describes a failure, check whether any listed criterion could possibly have moved. If none could, the defect is the choice of signal, not its threshold."
+    }
+  },
+  {
+    "id": "DPO-B-007",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "First diagnostic move when output degrades with no deploy",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "At 02:10 a telco's Claude-powered outage-notification summariser begins producing summaries that omit the affected region, which downstream systems use for routing. Error rate, latency and token usage are all normal. No deploy has shipped in 36 hours and the prompt template is pinned in the release artefact. The on-call engineer has the full trace of one bad request open. What is the most useful next step?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Roll back the most recent application deploy to restore known-good behaviour, then investigate the cause once summaries are correct again."
+      },
+      {
+        "key": "B",
+        "text": "Raise the summariser from Haiku to Sonnet and observe whether the region reappears, since the omission looks like a capability limit under load."
+      },
+      {
+        "key": "C",
+        "text": "Diff the rendered prompt in the bad trace against the rendered prompt from a known-good trace earlier the same day, field by field."
+      },
+      {
+        "key": "D",
+        "text": "Open a provider support ticket reporting a suspected model regression and hold all changes until the provider confirms or denies it."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Nothing the team controls in code changed, so the variable that moved is upstream data flowing into the prompt. Diffing rendered prompts across a good and a bad request localises that in minutes: it will show whether the region field arrived empty, arrived under a renamed key, or was pushed out of the template by an oversized incident list. Every other hypothesis is cheaper to test once you know whether the model was even given the region.",
+      "distractors": {
+        "A": "There is nothing to roll back to — the last deploy was 36 hours before the onset, and the behaviour was correct throughout that window. A rollback here burns time and adds a second change to reason about.",
+        "B": "Escalating the model tier is a guess made before establishing what the model received. If the region is absent from the prompt, no tier will invent it, and the team will have raised cost for nothing.",
+        "D": "Blocking on a third party while a routing-critical field is missing is not incident management. A provider ticket may be warranted later, but only after the team has ruled out its own inputs."
+      },
+      "concept": "When an AI feature degrades with no code change, suspect the inputs before the model. Comparing the rendered prompt of a failing request against a recent passing one is the fastest way to separate a data problem from a model problem.",
+      "tip": "\"No deploy in N hours\" is placed in a stem to eliminate rollback, not to reassure you. It is pointing at something that changed outside the deploy pipeline."
+    }
+  },
+  {
+    "id": "DPO-B-008",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Preventing runtime credentials from persisting in AI telemetry",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Within an AI feature's request path, which practice most directly prevents a live credential that appears at runtime from being persisted somewhere it can be read later?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Redact secret-shaped values from prompts, tool results and trace payloads before those payloads are written to the logging, tracing and eval stores."
+      },
+      {
+        "key": "B",
+        "text": "Rotate every service credential on a 30-day schedule so that any value which does leak has a strictly bounded window of usefulness to an attacker."
+      },
+      {
+        "key": "C",
+        "text": "Hold all credentials in a managed secrets manager and inject them into the container as environment variables at process start rather than committing them."
+      },
+      {
+        "key": "D",
+        "text": "Require a second reviewer on any commit touching a path on the repository's secrets-adjacent file list, so no credential change merges unnoticed."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The distinctive leak path in an AI system is that prompts, tool outputs and model responses are routinely persisted for debugging, tracing and eval capture — three stores with looser access control and longer retention than the runtime. A token a user pastes into a chat, or one a tool returns in an error body, travels straight into all three. Scrubbing at the write boundary is the only control that stops the value being written at all.",
+      "distractors": {
+        "B": "Rotation limits the blast radius after a leak; it does not stop the credential being written. Between rotations the logged value is live, and captured fixtures outlive rotation cycles anyway.",
+        "C": "Correct hygiene for credentials the application holds, and it prevents the repository leak. It does nothing about credentials arriving inside user input or tool responses at runtime.",
+        "D": "Review gates cover credentials that enter through source control. The leak here happens at runtime, in data that never passes through a pull request."
+      },
+      "concept": "AI systems duplicate their inputs into telemetry by design. Any secret-hygiene programme must therefore include redaction at the boundary where prompts, tool results and responses are written to logs, traces and eval fixtures.",
+      "tip": "Distinguish controls that stop the secret existing in a store from controls that limit the damage once it does. Stems asking what \"prevents\" persistence want the former."
+    }
+  },
+  {
+    "id": "DPO-B-009",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Shortening time-to-safe-prompt-change for new engineers",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A public-sector agency's grants-triage service has grown to 31 prompt templates, 9 tools and an evaluator step. New engineers take six to eight weeks before they can change a prompt without supervision. The recurring failure is identical: someone edits a template, unit tests pass, and an eval nobody knew existed regresses, discovered days later in the weekly report. The tech lead has one sprint of capacity. Which action produces the largest reduction in time-to-safe-change?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Write an architecture document covering all 31 templates, the 9 tools and how the evaluator scores each output, and require new joiners to read it in week one."
+      },
+      {
+        "key": "B",
+        "text": "Pair every new engineer with a senior for their first four weeks of prompt work so that risky edits are caught before they are proposed."
+      },
+      {
+        "key": "C",
+        "text": "Consolidate the 31 templates into roughly 8 by parameterising near-duplicates, so a newcomer has substantially less surface area to understand."
+      },
+      {
+        "key": "D",
+        "text": "Wire the eval suite into the pull-request check so that any template edit reports its own before-and-after scores directly on the diff."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The failure is a feedback-latency problem, not a knowledge problem: the signal that would have caught the regression exists but arrives days after the change and in a different artefact. Moving it onto the diff collapses the loop from days to minutes and makes the relationship between a template and its evals discoverable by doing rather than by reading. It also scales to every engineer, present and future, for the cost of one sprint.",
+      "distractors": {
+        "A": "A document describing 31 templates is stale within a quarter and does not fire when someone edits one. Documentation helps orientation; it does not intercept a specific bad change at the moment it is made.",
+        "B": "Pairing works but consumes senior capacity linearly with hiring, and it only transfers the tacit knowledge that a given template has evals. The organisation is still one distracted reviewer away from the same regression.",
+        "C": "Reducing surface area is worthwhile refactoring, and eight templates are easier to learn than 31. It does not tell an engineer that the template they just edited is graded by an eval they have never seen."
+      },
+      "concept": "Onboarding to an AI codebase is fastest when correctness feedback is automated and attached to the change, rather than documented and attached to the person. Put the eval where the diff is and the codebase teaches its own invariants.",
+      "tip": "When the stem describes the same mistake repeating across different people, the fix belongs in the pipeline, not in training. Individual remedies do not generalise to the next hire."
+    }
+  },
+  {
+    "id": "DPO-B-010",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Locating the fault in an agent that cites withdrawn data",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An energy retailer's tariff-comparison assistant is a Sonnet agent with four tools over a live tariff database. Across two weeks, about 3% of sessions end with the assistant confidently quoting a tariff withdrawn last year. No errors are logged, the final answers are well formed, and the team has complete traces including every tool call and every tool result. Where should the investigation start, and on what reasoning?",
+    "options": [
+      {
+        "key": "A",
+        "text": "At the model's final synthesis turn, because a confident wrong answer produced from correct inputs is by definition an instruction-adherence problem in the closing step."
+      },
+      {
+        "key": "B",
+        "text": "At the tool results inside the failing trajectories, because a withdrawn tariff reaching the answer most often means it was retrieved and handed to the model as current context."
+      },
+      {
+        "key": "C",
+        "text": "At the sampling parameters, because non-zero temperature is the mechanism by which two otherwise identical sessions can settle on different tariffs."
+      },
+      {
+        "key": "D",
+        "text": "At the deployed system prompt, comparing it against the version in the repository, because drift between the two explains behaviour changes with no accompanying code change."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The team has full trajectories, so the cheapest discriminating question is whether the withdrawn tariff was ever in the model's context. If it was — because the tool query lacks an effective-date filter, or the database retains withdrawn rows without a status field the tool surfaces — the model is faithfully reporting what it was told and no prompt work will fix it. Checking the inputs first is what separates a data-plane bug from a model-behaviour bug, and only one of those two is worth spending prompt-engineering time on.",
+      "distractors": {
+        "A": "This assumes the inputs were correct, which is exactly what has not been established. Starting at synthesis leads to prompt rewrites that cannot suppress a stale record the tool keeps returning as valid.",
+        "C": "Sampling variance explains why two runs differ; it does not explain where a specific withdrawn tariff came from. The model cannot sample its way to a tariff identifier that never entered its context.",
+        "D": "Prompt drift is a real production hazard and worth an automated check, but it predicts a broad behavioural shift rather than a narrow 3% slice that consistently involves stale records."
+      },
+      "concept": "In an instrumented agent, debug in data-flow order: verify what the model was given before reasoning about what it did with it. Traces exist so you can answer the input question without guessing.",
+      "tip": "A wrong fact that is specific and checkable — an identifier, a date, a clause — usually came from somewhere. Look for its source in the trace before treating it as fabrication."
+    }
+  },
+  {
+    "id": "DPO-B-011",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Span attributes that keep an LLM call explainable months later",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A team is instrumenting each Claude call in its chain as a span in an existing distributed tracing system. Beyond the standard timing and status fields the tracer already records, which TWO span attributes most improve the team's ability to explain a specific bad output months after it happened? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "A stable identifier for the prompt template together with its version, so the exact instruction text can be recovered from the repository at any later date."
+      },
+      {
+        "key": "B",
+        "text": "The endpoint's p95 latency over the preceding five minutes, sampled at the moment the call was issued, to give each span its own local baseline."
+      },
+      {
+        "key": "C",
+        "text": "The wall-clock duration of the call, broken out into time-to-first-token and total elapsed time so streaming behaviour can be analysed."
+      },
+      {
+        "key": "D",
+        "text": "The resolved model identifier actually served for the call, rather than the alias the client requested at call time."
+      },
+      {
+        "key": "E",
+        "text": "The full raw response body, stored inline as a span attribute so an investigator never has to follow a reference to a second store."
+      }
+    ],
+    "correct": [
+      "A",
+      "D"
+    ],
+    "explanation": {
+      "correct": "Months later, the two facts you cannot recover any other way are which instruction text was in force and which model actually served the request. A template identifier plus version resolves to exact text in the repository even after the template has been rewritten several times. Recording the resolved model rather than the requested alias matters because an alias points somewhere different over time, so a span that records only the alias silently loses the version that produced the behaviour you are investigating.",
+      "distractors": {
+        "B": "An aggregate computed over other requests does not belong on a span describing one request, and it is already derivable from the trace store. It adds cardinality without adding evidence about this call.",
+        "C": "Timing is valuable, but the stem explicitly asks what to add beyond the timing the tracer already captures, so this is not responsive.",
+        "E": "Inlining full response bodies inflates trace storage, pushes potentially regulated content into a system with its own retention and access rules, and often trips attribute size limits. Store the payload separately and reference it."
+      },
+      "concept": "Instrument LLM spans with the identifiers needed to reconstruct the request later — prompt template version and resolved model version — rather than with data the tracing system already has or with bulk payloads that belong in a purpose-built store.",
+      "tip": "An alias is a pointer, not a version. Any answer offering the requested alias where the resolved identifier is available is offering something that will mean something different next quarter."
+    }
+  },
+  {
+    "id": "DPO-B-012",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Trustworthiness properties of a production replay harness",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A logistics scale-up is building a replay harness so any production Claude request from the last 30 days can be re-run against a candidate prompt change before it ships. Which THREE properties must the harness have for its verdicts to be trustworthy? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "It replays the tool results captured at the original request time rather than re-invoking the live tools during the replay."
+      },
+      {
+        "key": "B",
+        "text": "It forces temperature to zero on every replay so the harness is deterministic and any two runs are exactly comparable."
+      },
+      {
+        "key": "C",
+        "text": "It pins the model identifier recorded on the original request, and reports explicitly when that version is no longer available to serve."
+      },
+      {
+        "key": "D",
+        "text": "It replays only requests that produced an error or a low user-feedback score, since successful requests carry no diagnostic value for a prompt change."
+      },
+      {
+        "key": "E",
+        "text": "It runs each case more than once and reports the spread, because one sample cannot distinguish a real regression from ordinary sampling variation."
+      }
+    ],
+    "correct": [
+      "A",
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "A replay is a controlled experiment, and each of these removes a confound. Re-invoking live tools would let a database that has moved on since the original request change the inputs, so the harness would be comparing two different questions. Pinning the recorded model version keeps the only intended variable the prompt, and being told when a version has aged out is better than being silently rehomed. Running each case repeatedly separates a genuine shift from the variance a stochastic decoder produces on its own.",
+      "distractors": {
+        "B": "Greedy decoding narrows variance but does not guarantee identical output across runs or serving revisions, and it changes the configuration under test away from the production one. A harness tuned this way can pass a prompt that then behaves differently at production sampling settings.",
+        "D": "Replaying only known failures makes regressions invisible. The cases a prompt change is most likely to break are the ones currently succeeding, so the passing set is the more important half of the corpus."
+      },
+      "concept": "A replay harness earns trust by holding everything except the change under test constant — frozen tool results, pinned model version — and by treating each result as a sample from a distribution rather than a fact. Include passing cases or you measure only fixes, never breakage.",
+      "tip": "Temperature zero is the most seductive wrong answer in any reproducibility item. It reduces variance; it does not create determinism, and it moves the test away from production settings."
+    }
+  },
+  {
+    "id": "DPO-B-013",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Flag mechanics for a reversible first AI exposure",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A grocery retailer is launching Claude-written product descriptions on its storefront. The team wants the first exposure limited to a cohort it can reason about, held stable per shopper, and reversible within seconds if merchandising objects. Which flag design fits?",
+    "options": [
+      {
+        "key": "A",
+        "text": "A build-time constant compiled into the release binary, flipped by cutting and shipping a new build to the affected storefront regions."
+      },
+      {
+        "key": "B",
+        "text": "A server-side flag evaluated per request, made stable per shopper by a bucketing hash, defaulting to off and changeable without a deploy."
+      },
+      {
+        "key": "C",
+        "text": "A client-side flag written to local storage on first app launch, so a shopper keeps the same assignment across sessions and devices."
+      },
+      {
+        "key": "D",
+        "text": "An environment variable read once at process start, toggled by rolling the fleet with a new value set in the deployment manifest."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Three requirements point at the same mechanism. Reversal in seconds rules out anything requiring a build or a restart. A cohort you can reason about requires the assignment to be computed server-side from a stable hash, so the same shopper sees the same experience and the exposed set is auditable. Defaulting to off means a configuration-service outage fails closed to the existing descriptions rather than exposing everyone.",
+      "distractors": {
+        "A": "A compiled constant makes rollback a release, not a config change. Minutes at best, and it couples the kill switch to the deployment pipeline that may itself be degraded.",
+        "C": "Local storage is client-controlled and per-device, so assignment is neither stable across a shopper's devices nor reversible for users who have already cached it. Merchandising cannot turn it off centrally.",
+        "D": "Reading once at process start means a change takes effect only as instances recycle, giving a slow and uneven rollback where some of the fleet still serves the feature."
+      },
+      "concept": "A feature flag intended as a kill switch must be evaluated at request time from a source that can be changed without deploying or restarting, and must default to the safe state. Anything read at build or boot time is a release mechanism, not a control.",
+      "tip": "\"Reversible in seconds\" is the discriminator. Walk each option and ask how long the slowest path from decision to effect actually is."
+    }
+  },
+  {
+    "id": "DPO-B-014",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Limits of temperature zero as an audit reproducibility strategy",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A quant research desk must be able to justify any Claude-generated commentary attached to a trade, years after execution. An engineer proposes setting temperature to 0 and storing only the input text, arguing that the commentary is then a pure function of that input and can be regenerated on demand. Which assessment is correct?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Correct: greedy decoding makes the output a deterministic function of the prompt, so the input text plus the request timestamp is a sufficient audit record for the desk."
+      },
+      {
+        "key": "B",
+        "text": "Wrong parameter: determinism comes from pinning top_p and top_k rather than temperature, so those are the values the desk must fix and record alongside each input."
+      },
+      {
+        "key": "C",
+        "text": "Incomplete: temperature 0 removes sampling variance but not serving-side or model-version variance, so the stored output itself must be the audit record."
+      },
+      {
+        "key": "D",
+        "text": "Wrong approach: audit reproducibility is only achievable by self-hosting a pinned open-weights model, because no hosted service can offer identical regeneration across years."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Regeneration is the wrong foundation for an audit trail spanning years. Greedy decoding narrows one source of variation, but a hosted model is a moving target: versions are updated and eventually retired, and serving-side implementation details can shift results without any change the desk can see. The record the auditor needs is the artefact that was actually produced and acted on, stored immutably alongside the rendered prompt and resolved model version. Regeneration then becomes a diagnostic convenience rather than the control.",
+      "distractors": {
+        "A": "The determinism claim overreaches even for a single model version, and it collapses entirely once that version is retired. A timestamp records when the call happened, not what would come back if you made it again.",
+        "B": "Reassigning the determinism claim to different sampling parameters keeps the same flawed premise. No combination of decoding parameters makes a hosted model's output stable across version changes.",
+        "D": "Self-hosting shifts the problem rather than solving it — weights, runtime, hardware and kernels all have to be pinned — and it is a disproportionate response when storing the output satisfies the requirement directly."
+      },
+      "concept": "For long-horizon audit, store the output as the authoritative record rather than promising to regenerate it. Reproducibility of a hosted model is bounded by the lifetime of its version; immutable storage of the artefact is not.",
+      "tip": "Any stem promising a \"pure function of the input\" for a hosted model is signalling the trap. Ask what happens when the version behind the alias is retired."
+    }
+  },
+  {
+    "id": "DPO-B-015",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Classifying a prompt-library change as breaking for consumers",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "In a prompt library versioned alongside application code and consumed by several services, which change should be released as breaking rather than as a patch?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Adding a new required template variable, so an existing caller's render either fails outright or silently omits the context the instruction now assumes."
+      },
+      {
+        "key": "B",
+        "text": "Rewording an instruction for clarity while the set of template variables and the rendered output schema both stay identical for every caller."
+      },
+      {
+        "key": "C",
+        "text": "Appending two further few-shot examples to an existing example block, after the eval suite showed a measurable improvement on a known weak case."
+      },
+      {
+        "key": "D",
+        "text": "Raising the documented maximum input length for the template after testing confirmed that longer inputs still render and grade correctly."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Breaking means an unchanged consumer stops working. A new required variable changes the template's interface: every existing call site now supplies an incomplete argument set. The dangerous variant is the silent one, where the renderer substitutes an empty string and the prompt ships with a hole in it — no exception, no alert, just quietly worse output. Releasing this as a major version forces consumers to acknowledge the change instead of picking it up automatically.",
+      "distractors": {
+        "B": "Behaviour may shift slightly, which is why the change still runs through evals, but the interface is untouched. Every existing caller renders exactly as before with the same variables.",
+        "C": "Additional examples change quality, not the contract. Consumers pass the same variables and parse the same output shape, so this is an ordinary graded change.",
+        "D": "Relaxing a documented limit widens what callers may do without invalidating anything they already do. Loosening a constraint is backward compatible; tightening one would not be."
+      },
+      "concept": "Version a prompt library by its consumer contract: required variables, expected output schema, and assumed tool availability. Changes to that contract are breaking; changes to wording, examples or documented limits inside it are not.",
+      "tip": "Test each option by asking whether a caller that changes nothing keeps working. Quality shifts are not breakage; interface shifts are."
+    }
+  },
+  {
+    "id": "DPO-B-016",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Credentials captured into an eval fixture corpus",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A fintech captures sampled production requests into an eval fixture corpus so that prompt changes can be regression-tested against real traffic. Six months in, a security review finds fixtures containing live API tokens that customers had pasted into support chats, and the fixture repository is readable by all 200 engineers. Which remediation addresses the systemic problem rather than this instance of it?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Rotate every token discovered in the corpus, notify the affected customers, and record the exposure window in the incident register for the regulator."
+      },
+      {
+        "key": "B",
+        "text": "Restrict the fixture repository to the four engineers who maintain the eval suite, and require an access request with justification for anyone else."
+      },
+      {
+        "key": "C",
+        "text": "Add a scheduled scanner over the fixture repository that raises a ticket to the security team whenever a stored value matches a known credential pattern."
+      },
+      {
+        "key": "D",
+        "text": "Run secret detection and redaction at the capture boundary, so a value that looks like a credential is never written into the fixture store in the first place."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The systemic defect is an unfiltered pipe from production conversations into a long-lived, widely readable store. Until that pipe filters, every remediation downstream is repeated cleanup: new tokens arrive with every capture cycle. Redacting at the capture boundary is the only control that changes what gets written, and it preserves the corpus's value because a placeholder token exercises the same prompt path as a live one.",
+      "distractors": {
+        "A": "Necessary incident response, and the regulator will expect it, but it addresses the tokens already exposed. Tomorrow's capture run produces a fresh set.",
+        "B": "Narrowing access reduces who can read the secrets without stopping them being stored. It also degrades the corpus's purpose, since eval fixtures exist to be run against by the teams making prompt changes.",
+        "C": "Detection after the write shortens the exposure window but concedes that live credentials land in the store. It also produces a queue of tickets whose only resolution is the rotation cycle already described."
+      },
+      "concept": "Any pipeline that captures production traffic into a durable corpus needs sanitisation at the capture boundary. Controls applied after the write can only shorten exposure; they cannot prevent it, and captured corpora typically outlive credential rotation cycles.",
+      "tip": "When several options are all things a team should do, look for the one that changes what enters the system. Stems asking for the systemic fix are asking about the write path."
+    }
+  },
+  {
+    "id": "DPO-B-017",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "First action while an AI feature is actively causing harm",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A national newspaper's Claude-based headline-suggestion tool has for 40 minutes been producing suggestions that embed a competitor's brand name; two have already reached publication. The feature sits behind a server-side percentage flag currently set to 100%. Its prompt was updated 50 minutes ago; reverting that commit and completing a deploy takes about 12 minutes. The editor-in-chief has joined the incident call. What should the incident commander do first?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Revert the prompt commit and start the deploy, since the change 50 minutes ago is the obvious cause and the fix should go in at the root."
+      },
+      {
+        "key": "B",
+        "text": "Pull a sample of the last 40 minutes of suggestions to quantify how many contain the brand name, so the response is proportionate to the actual scope."
+      },
+      {
+        "key": "C",
+        "text": "Set the flag to 0% to stop new suggestions immediately, then work the prompt change and the two published headlines as parallel tracks."
+      },
+      {
+        "key": "D",
+        "text": "Ship a post-generation filter that blocks competitor brand names in suggestions, which fixes this class of failure rather than just this occurrence."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Harm is ongoing and reaching print, so the first move is the fastest available stop. The stem deliberately supplies both levers and their costs: the flag is server-side and immediate, the revert takes about 12 minutes of continued exposure. Cutting to 0% costs the newsroom a convenience feature and nothing else, and it converts the incident from active to contained, which is what lets the team investigate the prompt change and handle the two published headlines without a clock running.",
+      "distractors": {
+        "A": "Correct diagnosis, wrong ordering. Twelve more minutes of bad suggestions is twelve minutes of avoidable exposure when a zero-latency stop is sitting available, and a deploy under time pressure can itself fail.",
+        "B": "Quantifying scope matters for the editorial response and the eventual postmortem, but measuring while harm continues inverts the priority. The sample is still there once the feature is off.",
+        "D": "A useful defence in depth to build afterwards. As a first action it means writing, reviewing and deploying new code during an active incident — slower than the revert it is competing with, and with more ways to go wrong."
+      },
+      "concept": "Incident response for an AI feature follows the same order as any other: stop the harm with the fastest reversible control, then diagnose, then remediate. Feature flags earn their keep precisely because they decouple stopping from deploying.",
+      "tip": "When a stem hands you a deploy duration in minutes and a flag in the same breath, it is inviting you to compare time-to-stop. The flag almost always wins the first move."
+    }
+  },
+  {
+    "id": "DPO-B-018",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Choosing the reporting unit for AI spend chargeback",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A platform team is choosing the primary unit in which it reports Claude spend back to the product teams that consume it. Which unit best supports a budget conversation with those teams?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Cost per completed business task, such as per resolved support ticket or per document processed end to end."
+      },
+      {
+        "key": "B",
+        "text": "Cost per million tokens, since that is the unit the provider invoices in and it therefore needs no translation or assumptions."
+      },
+      {
+        "key": "C",
+        "text": "Cost per API request, since each request maps one to one onto a line already present in the gateway's access log."
+      },
+      {
+        "key": "D",
+        "text": "Cost per engineer per month, since headcount is the dimension the finance system already uses to allocate every other budget."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "A product team can only act on a unit it recognises. Cost per resolved ticket sits next to the value of resolving a ticket, so the conversation becomes whether the feature pays for itself and whether a cheaper tier or a shorter context would still clear the bar. It also stays honest when architecture changes: splitting one call into three raises requests and tokens while the per-task figure correctly reflects whether the change helped or hurt.",
+      "distractors": {
+        "B": "Tokens are the billing primitive, not a business quantity. A team told its token count has risen cannot tell whether that is growth, regression or a retry storm without translating it first.",
+        "C": "Per-request cost is unstable under exactly the changes teams make most often. Adding a routing step or a validation call inflates the count while the work delivered is unchanged.",
+        "D": "Headcount has no causal relationship with inference spend. A three-person team serving heavy traffic would look cheap and a large team on a light workload expensive."
+      },
+      "concept": "Report AI cost in the unit of work the consuming team is accountable for. Provider-native units are for reconciliation; business-task units are what make a budget conversation actionable and keep the figure stable across architectural change.",
+      "tip": "For cost-unit questions, ask which unit stays meaningful after the architecture changes. Per-token and per-request both move when nothing of value has."
+    }
+  }
+]

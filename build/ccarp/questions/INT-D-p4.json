@@ -1,0 +1,724 @@
+[
+  {
+    "id": "INT-D-055",
+    "domain": "Integration",
+    "topic": "When a central gateway is premature for a small team",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A six-person engineering team at a national charity runs one Claude-backed feature that drafts donor correspondence. There is one application, one environment and one credential. A consulting architect recommends they build a central gateway with quota enforcement, provider routing and an audit store. What should the team do?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Build the gateway now, because retrofitting one after the donor-correspondence feature is live would mean re-plumbing a running production integration."
+      },
+      {
+        "key": "B",
+        "text": "Self-host an open-source gateway cluster so quota enforcement, routing and audit exist without the charity building any of it in-house."
+      },
+      {
+        "key": "C",
+        "text": "Do neither, since with one application, one environment and one credential there is nothing that a gateway or its controls would add here."
+      },
+      {
+        "key": "D",
+        "text": "Keep the single application, resolve the credential at runtime, add request and response logging with cost visibility, and revisit a gateway later."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "A gateway earns its cost when there are several consumers whose credentials, spend and behaviour need to be governed centrally and who cannot be trusted to do it consistently. With one application there is no consistency problem to solve, and a six-person team would acquire a second production system to operate, patch and be paged for. What genuinely matters at this size — no secret in source, and enough logging to answer what was sent and what it cost — is a handful of changes inside the existing application, and it is exactly the groundwork that makes a gateway easy to introduce later.",
+      "distractors": {
+        "A": "The claim is backwards. One consumer is the cheapest moment to introduce a gateway, because there is a single call site to redirect. Difficulty grows with the number of integrations, not with time since launch.",
+        "B": "Adopting rather than building removes the development cost and keeps the operational one, which is the larger burden for a six-person team. A cluster to run, upgrade and monitor for a single caller is a poor trade.",
+        "C": "Two of the gateway's functions do apply regardless of scale: credentials must not live in code, and someone must be able to see what was sent and what it cost. The right conclusion is not to skip them but to satisfy them where the code already is."
+      },
+      "concept": "Shared infrastructure is justified by the number of things it makes consistent. With a single consumer, implement the properties the gateway would have provided inside the application and defer the component until a second consumer or a second hosting route creates the coordination problem.",
+      "tip": "Professional items sometimes reward declining the sophisticated answer. Check how many consumers exist before recommending a shared component; one consumer usually means the platform is not the problem yet."
+    }
+  },
+  {
+    "id": "INT-D-056",
+    "domain": "Integration",
+    "topic": "Claim-check pattern for large confidential queue payloads",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An engineering consultancy queues design-review requests for Claude analysis. Each request carries a specification document of around 30 MB plus client-confidential drawings, far above the broker's message size limit, so the team currently base64-encodes and splits documents across many messages with a reassembly step. Separately, the platform operations team can read message bodies on the broker but is not permitted to see client documents. What should the design change to?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Keep the chunking scheme but encrypt each chunk with a key held in the delivery team's vault that the operations team cannot access."
+      },
+      {
+        "key": "B",
+        "text": "Raise the broker's maximum message size, or move to a broker that supports large messages, so the chunking and reassembly step is no longer needed."
+      },
+      {
+        "key": "C",
+        "text": "Write the payload to an access-controlled object store and place only a reference, a content digest and a short-lived access grant on the queue for the worker."
+      },
+      {
+        "key": "D",
+        "text": "Keep the chunking scheme but compress each document first and add a reassembly checksum so that partial sets are detected before analysis."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Both problems have the same root: bulk confidential content is being carried by a component that is neither designed to store it nor scoped to see it. Putting the document in a store built for large objects and passing a reference makes the message small, removes the reassembly protocol and its partial-set failure modes, and moves access control to a system where it can be expressed properly — the operations team can read the queue and still see only an identifier. The digest gives the worker integrity verification, and the short-lived grant bounds how long the reference is useful if a message leaks.",
+      "distractors": {
+        "A": "Encryption resolves the confidentiality half properly and does nothing about size, chunking or reassembly. It is the closest miss because it looks like a complete answer to the more sensitive of the two problems.",
+        "B": "A larger size limit removes the chunking pain and leaves confidential documents sitting in the broker where the operations team can read them, with the broker now retaining tens of megabytes per message across its retention window.",
+        "D": "Compression and checksums make a brittle scheme slightly less brittle. The reassembly protocol, the partial-set handling and the confidentiality exposure all remain, and compression ratios on already-compressed drawings are poor."
+      },
+      "concept": "Message brokers carry control information, not payloads. When content is large or sensitive, store it in a system designed for it and put a reference, an integrity digest and a bounded access grant on the queue — the claim-check pattern.",
+      "tip": "Two symptoms — oversized messages and an over-broad reader — usually share one fix. Prefer the option that changes what travels on the queue over any option that changes the queue."
+    }
+  },
+  {
+    "id": "INT-D-057",
+    "domain": "Integration",
+    "topic": "Responding to a literal air-gap requirement for a hosted model",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A defence electronics manufacturer's security authority states that a proposed AI capability must run fully air-gapped, with no network dependency on an external party. A programme manager has already committed the capability to a customer milestone. As the architect, what is the right course of action?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Take the requirement back to the security authority and decompose it into the specific controls it protects, since no hosted route can satisfy a literal air-gap."
+      },
+      {
+        "key": "B",
+        "text": "Place a caching layer inside the enclave that serves previously seen responses, so the majority of requests never cross the enclave boundary during normal operation."
+      },
+      {
+        "key": "C",
+        "text": "Commit now to running a self-hosted model inside the enclave on the programme's own hardware, since only that satisfies the wording as written."
+      },
+      {
+        "key": "D",
+        "text": "Provision a private circuit and private endpoint and describe the resulting design as air-gapped in the security accreditation documentation."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Claude is delivered as a network service on every available route, so a literal air-gap and this capability are mutually exclusive, and the architect's first obligation is to say so rather than to engineer around a requirement nobody has tested. Requirements phrased as a solution — 'air-gapped' — almost always encode a set of underlying controls: no public internet path, no third-party retention, evidenced egress, auditability, sometimes a jurisdiction. Decomposing them lets the authority decide whether a controlled-egress design meets the intent, and if it does not, the programme learns now that a different class of solution is needed rather than at milestone review.",
+      "distractors": {
+        "B": "A response cache is not a boundary control. Cache misses still cross, cached answers to different questions are wrong answers, and the design still has an external network dependency — it has simply made the dependency intermittent.",
+        "C": "This may end up being the right destination and it is the wrong next move: it commits a defence programme to a substantial build before establishing whether the literal wording is the actual requirement, and it silently accepts a change in capability that nobody has agreed.",
+        "D": "Describing a private connection as an air-gap is a documentation misrepresentation to the body responsible for accrediting the system. Discovery of it costs the accreditation and the architect's credibility, and the technical control was never the point of the requirement."
+      },
+      "concept": "When a requirement is stated as a solution that the available technology cannot satisfy, escalate and decompose rather than reinterpret. Turn 'air-gapped' into its constituent controls, confirm intent with the authority that owns the requirement, and let the architecture follow from the agreed controls.",
+      "tip": "An impossible constraint in a stem is testing whether you will fudge it. The correct answer is usually the one that goes back to the person who wrote the constraint, not the cleverest workaround."
+    }
+  },
+  {
+    "id": "INT-D-058",
+    "domain": "Integration",
+    "topic": "Cross-account access to a centrally governed model platform",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A national broadcaster governs model access centrally: one platform cloud account holds the approved configuration, the private endpoints and the audit logging. Twelve product accounts need to call the model. Which TWO arrangements are sound? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Each product account provisions its own direct model access, and the platform account reconciles usage exports afterwards to confirm compliance."
+      },
+      {
+        "key": "B",
+        "text": "Each product workload assumes a role in the platform account scoped to model invocation, with a trust policy naming the product roles permitted to assume it."
+      },
+      {
+        "key": "C",
+        "text": "The platform account exposes its gateway on a private endpoint that product accounts connect to, keeping the path inside private address space."
+      },
+      {
+        "key": "D",
+        "text": "The platform account issues each product team a long-lived credential, which the team stores in its own account's secret manager and rotates on its own schedule."
+      },
+      {
+        "key": "E",
+        "text": "The platform account's role is granted permission to assume roles in each of the twelve product accounts so it can invoke the model on their behalf."
+      }
+    ],
+    "correct": [
+      "B",
+      "C"
+    ],
+    "explanation": {
+      "correct": "The two sound arrangements address the two dimensions of cross-account access. Role assumption with an explicit trust policy gives short-lived credentials, per-product scoping and a clear record of which product identity performed which action, without any secret crossing an account boundary. The private endpoint gives the corresponding network answer, so twelve product accounts reach a centrally governed component without any of them touching a public path. Together they let the platform account remain the single place where model configuration, egress and audit are enforced.",
+      "distractors": {
+        "A": "Reconciling exports after the fact is detection, not governance. Product accounts with their own direct access can use unapproved configurations, unapproved regions and unlogged paths for as long as it takes the reconciliation to notice.",
+        "D": "Long-lived credentials distributed to twelve teams is the pattern central governance exists to eliminate. Each copy is a rotation obligation and a leak surface, and the platform account loses any ability to revoke access to one team without disrupting the others.",
+        "E": "The trust direction is inverted. The platform does not need to act inside product accounts, and granting it that power makes a compromise of the platform account a compromise of all twelve — the opposite of the containment the design is meant to provide."
+      },
+      "concept": "Cross-account access to a governed capability should flow inward via role assumption plus a private endpoint: callers assume a scoped role in the governing account and reach it privately. Never distribute long-lived secrets outward, and never grant the governing account standing power inside its consumers.",
+      "tip": "Check the direction of trust in every cross-account option. Consumers should reach into the platform; a platform reaching into consumers is a blast-radius inversion that looks convenient and is not."
+    }
+  },
+  {
+    "id": "INT-D-059",
+    "domain": "Integration",
+    "topic": "TLS-inspecting forward proxy breaking an SDK's certificate validation",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A chemical manufacturer routes all outbound traffic through a forward proxy that performs TLS inspection using a corporate certificate authority; the security standard permits no inspection bypasses. A new Claude integration fails at connection time with certificate validation errors, and a developer proposes disabling certificate verification in the SDK. What should the architect direct instead?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Install the corporate authority in the runtime's trust store so validation succeeds, and assess the proxy's logging and retention now that it sees plaintext."
+      },
+      {
+        "key": "B",
+        "text": "Configure the application to connect over plain HTTP to the proxy and let the proxy establish TLS onward, avoiding all certificate handling in the application."
+      },
+      {
+        "key": "C",
+        "text": "Disable verification for this destination only, since the corporate proxy already inspects and protects every connection leaving the estate."
+      },
+      {
+        "key": "D",
+        "text": "Pin the model provider's certificate in the application so the connection is validated against a known-good certificate rather than the proxy's."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The error is expected behaviour: the client is correctly refusing a certificate issued by an authority it does not trust. Trusting the corporate authority is the supported resolution and preserves validation, which is what stops the client accepting any other substituted certificate. The second half matters just as much and is routinely missed — inspection means the proxy holds plaintext prompts and responses, so its access logs, body capture settings and retention become part of the system's data-handling surface and need reviewing with the same seriousness as the model provider's.",
+      "distractors": {
+        "B": "Terminating in the clear inside the enterprise puts prompt content on the wire unencrypted between the application and the proxy and abandons end-to-end confidentiality for a configuration convenience.",
+        "C": "Disabling validation removes the client's only defence against a substituted certificate, including from anything on the path other than the sanctioned proxy. It also tends to spread: the flag set once for a destination usually becomes a default in the shared HTTP client.",
+        "D": "Pinning the provider's certificate guarantees failure in an inspected environment, because the certificate the client sees is always the proxy's. It also breaks on every provider certificate rotation, which is a self-inflicted outage."
+      },
+      "concept": "In a TLS-inspecting estate, the correct integration step is to trust the enterprise authority rather than to weaken validation — and to treat the inspection point as a component that sees plaintext, bringing its logging and retention inside the system's data-handling assessment.",
+      "tip": "Certificate errors behind a corporate proxy have one right answer and several tempting ones. The distinguishing detail is whether the option preserves validation; disabling or pinning both fail, for opposite reasons."
+    }
+  },
+  {
+    "id": "INT-D-060",
+    "domain": "Integration",
+    "topic": "Cutting over hosting routes without downtime or quality regression",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An insurance broker is moving a Claude-backed policy-comparison service from the first-party API to a cloud-hosted route. The service handles about two million calls a month, downtime is not acceptable, and the head of product's main worry is that a quality or latency regression would go unnoticed for weeks. All traffic already flows through the broker's gateway. What cutover approach should the architect propose?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Cut over in the pre-production environment first and promote to production once the full regression and evaluation suite passes against the new route."
+      },
+      {
+        "key": "B",
+        "text": "Mirror a sample of production traffic to the new route without serving its output, compare results and latency, then shift traffic by percentage with automatic rollback."
+      },
+      {
+        "key": "C",
+        "text": "Send every request to both routes and serve whichever response returns first, retiring the slower route once a clear winner emerges from the data."
+      },
+      {
+        "key": "D",
+        "text": "Perform a single cutover during a low-traffic weekend window, with a documented rollback to the previous route if problems are reported afterwards."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The stated fear is an invisible regression, so the design has to generate evidence before anything is at risk and keep generating it during the shift. Shadowing produces paired outputs on real production inputs — the only inputs that surface the long tail — while users continue to be served by the known-good route. Percentage shifting then bounds exposure at every step, and automatic rollback wired into the gateway's route configuration means the response is a config change measured in seconds rather than a deploy. The gateway already sits in the path, so all of this is available without touching the applications.",
+      "distractors": {
+        "A": "Pre-production validation is necessary and nowhere near sufficient. Synthetic traffic under-represents the real distribution of inputs, and the regression the product lead fears is precisely the kind that only appears in the tail of production data.",
+        "C": "Racing both routes doubles spend on every call, makes which model answered nondeterministic and therefore unreproducible for any given customer, and selects on latency, which is not the property under question.",
+        "D": "A window cutover concentrates all risk at one moment and relies on problems being reported. A quality regression is not reported on the night; it surfaces weeks later in complaints, which is the exact failure mode the stem asks you to prevent."
+      },
+      "concept": "Migrate a hosting route the way you migrate a model: shadow first on production inputs to gather comparative evidence, then shift by percentage with automated rollback at the routing layer. Speed of rollback matters more than speed of cutover.",
+      "tip": "When the stated risk is 'a regression we would not notice', the answer must include a comparison mechanism. Options that only control blast radius, without measuring anything, do not address the fear in the stem."
+    }
+  },
+  {
+    "id": "INT-D-061",
+    "domain": "Integration",
+    "topic": "Correlation identifier propagated across asynchronous hops",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An interaction begins as a synchronous API call, is placed on a queue, is processed by a model worker, and is delivered onward by a webhook. What does propagating one correlation identifier through every hop provide?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Ordering, since every component can sort work into identifier sequence when messages arrive out of order after the queue hop."
+      },
+      {
+        "key": "B",
+        "text": "Deduplication, since a repeated identifier lets each component recognise and discard any work it has already performed for that interaction."
+      },
+      {
+        "key": "C",
+        "text": "The ability to reconstruct one logical interaction end to end across components that never share a call stack, so an operator can trace a request."
+      },
+      {
+        "key": "D",
+        "text": "Authentication continuity, since downstream components can trust a request that carries an identifier issued by the authenticated entry point of the chain."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Once a request crosses a queue, the synchronous call chain that normally ties log lines together is gone: the API's logs, the worker's logs and the delivery logs are four disconnected streams with no shared context. A correlation identifier stamped at the entry point and carried through every hop is what restores that thread, and it is the difference between answering a support question in one query and reconstructing it from timestamps. It is a diagnostic construct, which is why it must be carried but need not be trusted.",
+      "distractors": {
+        "A": "Ordering comes from partitioning and sequence numbers. An identifier that merely labels an interaction says nothing about its position relative to other interactions.",
+        "B": "Deduplication is the job of an idempotency key, which is chosen for that purpose, checked against a durable store and bounded by a retention window. A correlation identifier is only carried, never used to make a decision, and confusing the two produces a dedupe mechanism with no guarantees.",
+        "D": "A correlation identifier is not a credential and must never be treated as one — it is typically visible in logs, headers and support tickets. Trust between components comes from authentication, not from a propagated label."
+      },
+      "concept": "Correlation identifiers exist for observability across boundaries where a call stack cannot reach. Keep them distinct from idempotency keys, which enforce exactly-once effects, and from tokens, which convey authority.",
+      "tip": "Three identifiers travel through async systems and candidates confuse them under time pressure: correlation for tracing, idempotency for deduplication, sequence for ordering. Match the identifier to the guarantee being asked about."
+    }
+  },
+  {
+    "id": "INT-D-062",
+    "domain": "Integration",
+    "topic": "Evolving an event contract consumed by many independent teams",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A postal service publishes a `parcel.exception` event consumed by eight independent teams. A Claude-generated `suggested_resolution` field is being added now, and a poorly named existing field will be renamed next quarter. The teams deploy on their own schedules. Which TWO practices keep consumers working through both changes? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Have consumers validate strictly against the exact published schema and reject messages containing unrecognised fields, so drift is detected immediately."
+      },
+      {
+        "key": "B",
+        "text": "Version the event contract and, for the rename, publish both the old and the new field for a documented overlap period before removing the old one."
+      },
+      {
+        "key": "C",
+        "text": "Coordinate a single release window in which the producer and all eight consumer teams deploy against the new schema simultaneously."
+      },
+      {
+        "key": "D",
+        "text": "Version the event contract and, for the rename, publish both the old and the new field for a documented overlap before removing the old one."
+      },
+      {
+        "key": "E",
+        "text": "Encode the schema version in the topic name and publish to a new topic for every field addition, migrating consumers each time."
+      }
+    ],
+    "correct": [
+      "B",
+      "D"
+    ],
+    "explanation": {
+      "correct": "The two changes have different shapes and each needs its own discipline. An added field is compatible if and only if consumers tolerate what they do not recognise, so the tolerance rule has to be part of the published contract rather than an assumption about how each team happens to parse. A rename is not additive, and the way to make a non-additive change safe across teams that deploy independently is to make it temporarily additive: emit both names, give consumers a documented window, then remove the old field once adoption is evidenced.",
+      "distractors": {
+        "A": "Strict rejection of unknown fields converts every additive change into a breaking one, which removes precisely the tolerance that lets a producer add a field without coordinating eight releases. It detects drift by causing an outage.",
+        "C": "A synchronised release across eight independently scheduled teams is the coordination cost that event-driven decoupling exists to avoid, and it fails whenever one team cannot make the window — which, with eight teams, is most windows.",
+        "E": "Creating a topic per field addition multiplies subscriptions, retention and operational surface for changes that are backward compatible by construction. Reserve new topics for genuinely incompatible contracts."
+      },
+      "concept": "Make event contracts additive by default and require consumers to ignore unknown fields; handle non-additive changes by publishing old and new together for a documented overlap, then removing the old. Coordination windows and strict validation both trade away the independence that events were adopted for.",
+      "tip": "Distinguish additive from non-additive changes before evaluating options. The correct pair usually contains one rule that makes additions free and one procedure that makes a breaking change temporarily additive."
+    }
+  },
+  {
+    "id": "INT-D-063",
+    "domain": "Integration",
+    "topic": "What must be recoverable in an AI feature's disaster recovery plan",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A car-rental group is writing the disaster-recovery design for its Claude-based damage-assessment feature, with a 15-minute recovery point objective and a one-hour recovery time objective. Which THREE items must the design cover? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "The job and outbox tables, because in-flight submissions and unpublished events cannot be reconstructed from any other source after a regional loss."
+      },
+      {
+        "key": "B",
+        "text": "A warm standby capacity commitment from the model provider, contractually guaranteed to the group's one-hour recovery time objective and exercised quarterly."
+      },
+      {
+        "key": "C",
+        "text": "The credential, network and configuration path in the recovery region — identity, private endpoint and model identifier mapping — proven by an exercise."
+      },
+      {
+        "key": "D",
+        "text": "The prompt template library, replicated synchronously to the recovery region because it cannot be rebuilt after a regional loss."
+      },
+      {
+        "key": "E",
+        "text": "The audit store of requests and responses, because it is the only record of what was actually sent and returned and cannot be regenerated."
+      }
+    ],
+    "correct": [
+      "A",
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "Recovery planning turns on what is regenerable and what is not. In-flight job state and unpublished outbox rows exist nowhere else, so losing them loses customer submissions and silently drops events downstream systems are waiting for. The audit store is unrecoverable by definition — a re-run produces a different response, so it would be a fabrication rather than a restoration. And the third item is the one teams omit: a replicated database in a region where the workload has no identity, no private endpoint and no valid model identifier mapping cannot serve traffic, and an unexercised path will not come up inside an hour.",
+      "distractors": {
+        "B": "An organisation's recovery objectives are its own commitments and cannot be imposed on a provider. The correct response to provider unavailability is a failover design the organisation controls — another region or route within its residency scope — not an expectation of a bespoke standby.",
+        "D": "Prompt templates live in version control and are deployed with the application, so they are rebuilt by a normal deployment into the recovery region. Treating regenerable, source-controlled artefacts as recovery state inflates the plan and distracts from the items that genuinely cannot be recreated."
+      },
+      "concept": "Classify every piece of state as regenerable or not. Protect what cannot be recreated — in-flight work, unpublished events, audit records — and treat identity, network and configuration in the recovery region as part of the recoverable system, verified by exercise rather than assumed.",
+      "tip": "Recovery multi-selects hide their answer in the word 'regenerable'. Anything rebuilt by a deploy is not recovery state; anything that would have to be re-run against a model definitely is."
+    }
+  },
+  {
+    "id": "INT-D-064",
+    "domain": "Integration",
+    "topic": "Authenticating external clients of a partner-facing AI API",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A market-research agency exposes an asynchronous Claude-backed transcript-analysis API to forty client organisations. Each client received a static API key by email at onboarding; almost none have ever rotated one, and two keys have turned up in client-side code. What should the agency move to?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Add per-client source-address allowlisting so a leaked key is unusable from anywhere except the client's registered corporate network ranges."
+      },
+      {
+        "key": "B",
+        "text": "Keep the static keys but mandate 90-day rotation in the client agreement and remind each client by email when a key is due to age out."
+      },
+      {
+        "key": "C",
+        "text": "Keep the shared secret but require clients to sign each request with an HMAC over the body and a timestamp rather than presenting the key as a bearer token."
+      },
+      {
+        "key": "D",
+        "text": "Issue per-client credentials through a standard client-credentials flow with short-lived scoped tokens, self-service rotation and a deprecation date for the static keys."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Two failures need fixing: a credential that never expires and rotation that depends on forty organisations acting voluntarily. A client-credentials flow addresses both structurally — the long-lived secret is exchanged for a short-lived token, so a leaked token dies on its own, and rotation becomes an action a client can take in a portal at 2am during their own incident rather than a support ticket. Scoping each client's tokens to their own data limits what any leak reaches, and a published deprecation schedule is what actually removes the static keys rather than leaving them alongside the new mechanism forever.",
+      "distractors": {
+        "A": "Source allowlisting is brittle for clients running in elastic cloud environments, generates continual support load as addresses change, and is a network control layered over a credential problem it does not solve.",
+        "B": "Contractual rotation obligations on external parties are unenforceable in practice and unverifiable at scale. The stem already demonstrates that clients do not rotate; a policy restating the expectation changes nothing about the credential's lifetime.",
+        "C": "Request signing is a genuine improvement over bearer presentation — the secret is not transmitted — but the same long-lived shared secret must still be distributed, stored and rotated by each client, and it can still be embedded in client-side code."
+      },
+      "concept": "For external consumers, prefer a standard token flow with short-lived, scoped credentials and self-service rotation. Long-lived shared secrets externalise your security posture to the least diligent partner, and no contractual clause changes that.",
+      "tip": "When a stem shows that clients do not do something they are supposed to, discount every option whose effectiveness depends on them starting. The answer changes the mechanism, not the instruction."
+    }
+  },
+  {
+    "id": "INT-D-065",
+    "domain": "Integration",
+    "topic": "Clock skew causing webhook freshness rejections",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A credit union receives signed webhooks from its core banking vendor and rejects any delivery whose signed timestamp falls outside a 30-second freshness window. Since a data-centre migration, about 4% of deliveries are rejected as stale; the vendor's retries eventually succeed, so nothing is lost but processing is delayed. An engineer finds that the receiving hosts' clocks drift by as much as 45 seconds from a reliable reference. What should be done next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Widen the freshness window to five minutes so that normal clock drift on the receiving hosts no longer causes rejections."
+      },
+      {
+        "key": "B",
+        "text": "Stop checking the timestamp and rely on the signature alone, which already proves the delivery came from the core banking vendor."
+      },
+      {
+        "key": "C",
+        "text": "Restore reliable time synchronisation on the receiving hosts and alert on clock offset, leaving the window as it is."
+      },
+      {
+        "key": "D",
+        "text": "Ask the vendor to include a monotonic sequence number so the receiver can accept out-of-window deliveries it has not already seen."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The freshness window is doing exactly what it was built to do; the fault is that the receiver's notion of now is wrong by more than the window is wide. Fixing time synchronisation removes the cause and restores a control that was silently degraded across the whole estate — clock drift of this size will also be corrupting log ordering, certificate validity checks and any other time-sensitive logic on those hosts. Alerting on offset matters because drift returns quietly after the next migration or hypervisor change, and this failure mode is invisible until something rejects on it.",
+      "distractors": {
+        "A": "Widening the window trades away replay protection to accommodate a defect, and it leaves 45 seconds of drift affecting everything else on those hosts. It is the change most likely to be made under time pressure and the one that hides the real problem.",
+        "B": "A signature proves origin and integrity, not recency. Removing the timestamp check makes a captured delivery replayable indefinitely, which for a financial integration is a significant regression.",
+        "D": "A sequence number gives ordering and duplicate detection, neither of which is the failing property, and it requires a vendor-side change for a fault entirely inside the credit union's estate."
+      },
+      "concept": "Timestamp-based freshness checks assume synchronised clocks. When they start failing, verify the clocks before touching the window — widening a security parameter to accommodate an infrastructure defect weakens the control and leaves the defect affecting everything else.",
+      "tip": "A symptom that starts immediately after an infrastructure migration is rarely a protocol problem. Look for the environmental assumption the old environment satisfied and the new one does not."
+    }
+  },
+  {
+    "id": "INT-D-066",
+    "domain": "Integration",
+    "topic": "Deduplication window shorter than the redelivery horizon",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An online betting operator generates settlement explanations from queued events. The consumer deduplicates on an idempotency key held in an in-memory cache with a one-hour time-to-live. The upstream broker escalates its retry backoff and can redeliver as late as 24 hours after the first attempt, which happens after long partner outages. Duplicate settlement explanations have appeared following two such outages. What is the correct fix?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Switch the cache from time-based expiry to least-recently-used eviction so that keys survive for as long as the cache's capacity allows."
+      },
+      {
+        "key": "B",
+        "text": "Increase the cache's memory allocation so that idempotency keys are not evicted under load during the busiest settlement periods."
+      },
+      {
+        "key": "C",
+        "text": "Shorten the broker's maximum retry horizon to one hour so a redelivery can never arrive after the deduplication window has closed."
+      },
+      {
+        "key": "D",
+        "text": "Move the deduplication key to durable storage outliving the maximum redelivery horizon, and enforce uniqueness on the terminal database write."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "A deduplication window is only a guarantee if it is at least as long as the longest possible gap between deliveries of the same message, and here it is one twenty-fourth of it. Extending the window in durable storage removes the routine failure, but the more important half is the uniqueness constraint on the terminal write: it makes correctness a property of the database rather than of a cache's availability, retention and eviction behaviour. With that in place, a cache miss costs a wasted attempt instead of producing a duplicate settlement explanation.",
+      "distractors": {
+        "A": "Removing time-based expiry makes retention depend on traffic volume, which is unpredictable and unbounded. Correctness would hold only while the working set happens to fit, and would fail silently during the busiest periods.",
+        "B": "More memory addresses eviction under pressure and not expiry. Keys are being removed because their time-to-live elapsed, and a larger cache expires them on exactly the same schedule.",
+        "C": "Truncating the retry horizon fixes the mismatch by discarding recoverability. Events that fail during a partner outage longer than an hour would then be lost rather than delivered late, which is a worse outcome for settlement data."
+      },
+      "concept": "Deduplication state must outlive the maximum redelivery horizon of the transport, and the durable guarantee should sit at the point of the terminal write — a uniqueness constraint — with any cache in front of it treated purely as a performance optimisation.",
+      "tip": "Compare the two time windows the stem gives you. When a retention period is shorter than a retry horizon, that mismatch is the item, and the strongest answer moves the guarantee to durable state rather than lengthening the cache."
+    }
+  },
+  {
+    "id": "INT-D-067",
+    "domain": "Integration",
+    "topic": "Removing live provider calls from continuous integration",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A semiconductor fab's yield-analysis service runs its full test suite on every pull request, around 120 a week, and every run makes live Claude calls. Pipelines are slow, intermittently fail on transient provider errors, cost more than the team expected, and require a production-capable credential to be available to CI. What should the team adopt?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Keep the live calls but cache responses keyed on a hash of the request, so repeated test runs mostly hit the cache instead of the provider."
+      },
+      {
+        "key": "B",
+        "text": "Point continuous integration at the cheapest model tier so the cost of live calls across 120 pull requests a week becomes acceptable to the team."
+      },
+      {
+        "key": "C",
+        "text": "Use a recorded stub of the provider by default so pipelines are deterministic and need no credential, plus a scheduled suite against the real provider."
+      },
+      {
+        "key": "D",
+        "text": "Mock the provider in unit tests only, and keep the integration tests calling the live provider so real behaviour is always exercised on every pull request."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Four separate complaints — speed, flakiness, cost and credential exposure — all trace to the same cause, and stubbing by default resolves all four at once: pipelines become fast and deterministic, no credential needs to exist in CI, and cost drops to nothing. The scheduled real-provider suite is the necessary counterweight, because a stub can drift from the provider's actual behaviour and a team that never calls the real thing outside production will discover the difference there. Separating the two lanes gives each the properties it needs.",
+      "distractors": {
+        "A": "A response cache still requires a credential in CI and still calls the provider on every miss, so new and changed tests remain slow and flaky. It reduces one symptom while leaving the credential and determinism problems untouched.",
+        "B": "A cheaper tier addresses one of the four complaints and makes another worse, because CI would then exercise a different model from production. The pipeline is still slow, still flaky and still needs a credential.",
+        "D": "This is the status quo with a label. The integration tests are where the slowness, the flakiness, the cost and the credential requirement live, so exempting only unit tests changes almost nothing."
+      },
+      "concept": "Keep model providers out of the default test path: stub at the contract boundary for determinism and credential hygiene, and schedule a separate, small, real-provider suite to detect drift. Fast feedback and real-behaviour verification are different jobs and should not share a pipeline.",
+      "tip": "When a stem lists several complaints, count how many each option resolves. The correct answer usually addresses all of them plus adds the compensating control the stub creates a need for."
+    }
+  },
+  {
+    "id": "INT-D-068",
+    "domain": "Integration",
+    "topic": "When polling is the correct contract instead of webhooks",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Under which condition should a partner integration deliver results by polling rather than by webhook?",
+    "options": [
+      {
+        "key": "A",
+        "text": "When the producer wants to avoid managing per-consumer delivery secrets, since a polling consumer needs no shared credential of its own."
+      },
+      {
+        "key": "B",
+        "text": "When the consumer cannot expose a reachable, authenticated inbound endpoint, so a cursor-based polling contract is the only option."
+      },
+      {
+        "key": "C",
+        "text": "When event volume is very high, because polling scales better than maintaining a delivery queue and retry schedule for each consumer."
+      },
+      {
+        "key": "D",
+        "text": "When the consumer requires the lowest achievable notification latency, since a poll returns immediately whereas a webhook must be queued for delivery."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Webhooks are usually the better contract — lower latency, less wasted work — but they require the consumer to run something the producer can reach and authenticate to. Plenty of enterprise consumers cannot: no inbound path through the firewall, no public endpoint, no appetite for operating a receiver. Polling with a durable cursor is the honest answer for them, and it is genuinely robust, since the consumer controls when it reads and can resume from its own position after any outage. The cost is latency between polls and load from consumers that poll while nothing has changed.",
+      "distractors": {
+        "A": "Polling consumers still authenticate to the producer's API, so credentials exist either way. What changes is the direction of the call, not whether a secret is needed.",
+        "C": "High volume argues for push, not poll. Polling load scales with the number of consumers multiplied by their poll frequency regardless of whether anything happened, which is worst precisely when consumer count is high.",
+        "D": "Polling latency is bounded below by the poll interval, so it is structurally worse for notification latency than a push that fires on the event. The reasoning inverts how the two contracts behave."
+      },
+      "concept": "Choose push when the consumer can host an authenticated endpoint and latency matters; choose polling with a durable cursor when it cannot. The deciding factor is the consumer's ability to receive, not the volume or urgency of the events.",
+      "tip": "Polling-versus-webhook items are decided by consumer capability. Options arguing polling wins on latency or scale are inverting the trade-off and can be eliminated on sight."
+    }
+  },
+  {
+    "id": "INT-D-069",
+    "domain": "Integration",
+    "topic": "Isolating interactive traffic from bulk work on shared capacity",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A recruitment platform serves all tenants from one provider account. An enterprise tenant launched a bulk CV-screening job that consumed most of the available concurrency for forty minutes. During that period p95 latency for interactive candidate searches rose from 1.5 to 9 seconds — for every tenant, including recruiters at the tenant running the bulk job. Contracts commit to an interactive p95. What should the platform team implement?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Provision a separate provider account per enterprise tenant, so tenants are physically isolated from one another's concurrency consumption."
+      },
+      {
+        "key": "B",
+        "text": "Apply a uniform per-tenant concurrency cap, sized so that no single tenant can consume more than its equal share of the account's total concurrency budget."
+      },
+      {
+        "key": "C",
+        "text": "Place all requests in a single queue processed strictly first-in-first-out, so every tenant and every request is treated identically."
+      },
+      {
+        "key": "D",
+        "text": "Separate workload classes: a reserved lane with admission control for interactive traffic, and a lower-ceilinged lane for bulk work on spare capacity."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The detail that decides this is that the bulk tenant's own recruiters were also degraded, which means the contention is between workload classes rather than between tenants. Reserving a lane for interactive traffic protects the property the contracts are written about, and letting bulk work run only on spare capacity means it still completes, just without the right to displace a person waiting for a search result. Fair-share within the bulk lane then stops one tenant's backfill from starving another's — the tenant dimension still matters, but underneath the class dimension.",
+      "distractors": {
+        "A": "Account-per-tenant is heavy operationally — separate quota, credentials, configuration and monitoring per enterprise — and still does not stop a tenant's bulk job from degrading that tenant's own interactive users, which the stem explicitly reports.",
+        "B": "Per-tenant caps address contention between tenants and leave contention within a tenant untouched, so the bulk job would still degrade its own recruiters. Uniform caps also strand capacity, since a quiet tenant's allocation cannot be used by a busy one.",
+        "C": "Strict first-in-first-out is the worst option here: it puts a one-second interactive search behind however many bulk items were enqueued first, converting a latency problem into an unbounded one. Fairness in ordering is not fairness in outcome."
+      },
+      "concept": "Isolate by workload class before isolating by tenant. Interactive traffic needs reserved capacity and admission control; bulk work should be best-effort against spare capacity. Fair-share between tenants is a second dimension applied within a class, not a substitute for the class boundary.",
+      "tip": "Notice who was affected. When the noisy tenant's own users are also degraded, tenant-level isolation cannot be the answer, and the item is really about workload classes."
+    }
+  },
+  {
+    "id": "INT-D-070",
+    "domain": "Integration",
+    "topic": "Legacy character encoding faults in a mainframe extract",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A water utility extracts customer-complaint free text from a mainframe file for Claude summarisation. The file is fixed-width, defined by a COBOL copybook, encoded in EBCDIC, and includes packed-decimal numeric fields. The first production run produces garbled summaries containing numbers that do not appear anywhere in the source data. Which TWO explanations are the likely causes? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "The file was transferred in binary mode and the text fields were never transcoded from EBCDIC, so the model received bytes read as the wrong character set."
+      },
+      {
+        "key": "B",
+        "text": "Packed-decimal fields were read as character data, so numeric values reached the prompt as unprintable bytes that the model rendered as plausible figures."
+      },
+      {
+        "key": "C",
+        "text": "Sampling settings were left at their provider defaults, producing wording that varies across successive runs of the same complaint extract."
+      },
+      {
+        "key": "D",
+        "text": "The copybook defines fixed-width records with no delimiters, so the model cannot parse the extract into named fields without separators being inserted first."
+      },
+      {
+        "key": "E",
+        "text": "The extract exceeded the model's context window, so the middle of each complaint record was silently dropped before the call was made."
+      }
+    ],
+    "correct": [
+      "A",
+      "B"
+    ],
+    "explanation": {
+      "correct": "Both symptoms are byte-level, and both are classic mainframe extraction faults. Text that was never transcoded from EBCDIC produces exactly the garbling described, because every character maps to a different code point in the receiving character set. Packed decimal is worse in a subtle way: two digits are stored per byte with a sign nibble, so reading it as characters yields unprintable bytes with no valid textual meaning. Given something unparseable in a field the prompt describes as a number, a model will produce something that looks like one — hence figures that appear nowhere in the source.",
+      "distractors": {
+        "C": "Sampling variability produces different wordings of a broadly correct summary across runs. It does not produce garbled characters, and it cannot invent numeric values that were never legible in the input.",
+        "D": "Fixed-width records without delimiters are perfectly readable once decoded, and in any case field extraction is the pipeline's responsibility using the copybook, not something the model should be asked to infer. This describes the format, not a fault.",
+        "E": "Oversized input is a condition the pipeline must handle explicitly; nothing quietly removes the middle of a record on its own. Truncation also produces missing text rather than garbled characters and invented numbers."
+      },
+      "concept": "Legacy extracts fail below the prompt layer. Transcode text to a known character set and decode packed and binary numeric fields using the copybook before anything reaches the model — a model given unreadable bytes will produce fluent output rather than an error, which makes encoding faults look like model faults.",
+      "tip": "Numbers in the output that exist nowhere in the input point at a data-preparation fault, not a model one. Check encoding and field decoding before you touch the prompt."
+    }
+  },
+  {
+    "id": "INT-D-071",
+    "domain": "Integration",
+    "topic": "Keeping bulk document content out of the gateway data path",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A publishing house's manuscript-assessment service works on books of 40 to 80 MB. It splits each book into 200 KB slices and pushes every slice through the company's central model gateway, so a single assessment carries an entire manuscript across the gateway in several hundred calls. The gateway now dominates memory usage in its cluster, its audit store is growing far faster than forecast, and p99 gateway latency has degraded for the six other teams that share it. What should the architect change?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Grant the manuscript service a direct path to the provider that bypasses the gateway, since its payload profile is unlike everyone else's."
+      },
+      {
+        "key": "B",
+        "text": "Increase the gateway's memory limits and expand the audit store's capacity so the manuscript workload fits comfortably alongside the other six teams."
+      },
+      {
+        "key": "C",
+        "text": "Have the application extract the relevant sections before the call, and have the gateway audit a digest and a reference, not the body."
+      },
+      {
+        "key": "D",
+        "text": "Compress request bodies in transit so that both the gateway's memory footprint and the audit store's growth rate are meaningfully reduced."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "A shared gateway is a control plane and the workload has turned it into a bulk data pipe, which is why one team's payload profile is degrading six others. Selecting the relevant content before the call attacks the cause: only the passages that matter cross the gateway, instead of every slice of every book, so memory pressure and the noisy-neighbour latency effect both disappear, and it is also the right thing to do for the model. Auditing a digest and a reference preserves the reproducibility property — the exact content is retrievable and provably unaltered — without the audit store holding a second copy of every manuscript.",
+      "distractors": {
+        "A": "A bypass removes the manuscript service from credential custody, quota attribution and audit — the three reasons the gateway exists — and sets a precedent that any team with an inconvenient payload can opt out of governance.",
+        "B": "Scaling to fit accepts that the gateway is a document pipe and pays for it forever, in memory, in audit storage and in the latency the other six teams continue to absorb. It also does nothing about pushing every slice of every manuscript to the model.",
+        "D": "Compression reduces bytes on the wire and not much else: the gateway still buffers the decompressed body to inspect and audit it, and manuscript text compresses well only until it is stored expanded in the audit store."
+      },
+      "concept": "Keep bulk content out of shared control-plane components. Select or reference content before the call, and let the audit trail hold a digest plus a pointer into a store built for large objects rather than a copy of the payload.",
+      "tip": "When one team's payload profile degrades a shared component for everyone, the fix reduces what flows through the component. Options that enlarge it or exempt the team both leave the shared-fate problem intact."
+    }
+  },
+  {
+    "id": "INT-D-072",
+    "domain": "Integration",
+    "topic": "Safely replaying a large dead-letter backlog with external side effects",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A dental care network's appointment-recall pipeline consumes about five events per second. A defective prompt-template deployment made the model worker throw on every message for five hours, and roughly 90,000 events are now in the dead-letter queue. The template has been rolled back and the workers are healthy. Each successfully processed event sends an SMS to a patient. The team proposes replaying the dead-letter queue immediately. What should the engineer do next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Replay a bounded sample through the normal idempotent path, confirm no duplicate patient messages appear, then drain the rest at a throttled rate."
+      },
+      {
+        "key": "B",
+        "text": "Replay all 90,000 messages now through the normal consumer path, since the template defect is fixed and the events have already waited more than five hours."
+      },
+      {
+        "key": "C",
+        "text": "Raise consumer concurrency substantially so the 90,000-message backlog clears quickly and the pipeline returns to real-time processing."
+      },
+      {
+        "key": "D",
+        "text": "Purge the dead-letter queue and rely on the next scheduled recall run to pick up the affected patients on its normal weekly cycle."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "A replay of this size is a production change with two distinct hazards, and the sample addresses both before committing. It verifies that the idempotency path actually holds — the workers threw partway through processing, so some events may have had effects recorded before failing, and the only way to know is to run a few and look. Throttling then matters because the pipeline normally handles five events per second and the backlog represents five hours of arrivals; released at once it is a burst against the model, the SMS provider and the patients themselves, several of whom would receive a cluster of messages at whatever hour the drain happens.",
+      "distractors": {
+        "B": "This treats the rollback as sufficient evidence. It does not establish that replay is duplicate-safe, and it converts five hours of accumulated events into a single burst against downstream services that were never sized for it.",
+        "C": "Raising concurrency is the same burst with more force, and it competes with live traffic for the same model capacity, so the pipeline's real-time work degrades while the backlog drains.",
+        "D": "Purging discards 90,000 patient recalls on the assumption that a later run regenerates them, which depends on the recall logic being able to re-derive events it has already emitted. If it cannot, the failure is silent and the patients simply never hear from the practice."
+      },
+      "concept": "Treat a bulk replay as a controlled release: verify idempotency on a sample first, then drain at a rate the downstream can absorb. A dead-letter backlog is stored load, and returning it to the system all at once is a self-inflicted traffic spike with real-world side effects.",
+      "tip": "When each processed message causes an external effect a person notices, the replay rate is part of the answer. Options that clear the backlog fastest are optimising the wrong variable."
+    }
+  }
+]

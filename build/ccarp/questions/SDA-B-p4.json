@@ -1,0 +1,455 @@
+[
+  {
+    "id": "SDA-B-055",
+    "domain": "Solution Design & Architecture",
+    "topic": "Machine-readable capability contracts for an agent registry",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A platform team hosts twenty specialist agents used by several product orchestrators. Each agent is described by a one-line prose summary, and orchestrators choose between them by reading those summaries. Product teams report invocations that fail deep inside a branch because the agent required an input the caller did not have, and two agents whose summaries read almost identically are picked interchangeably despite very different cost and tool scope. What should the platform team publish instead?",
+    "options": [
+      { "key": "A", "text": "A machine-readable capability contract per agent — schemas, preconditions, tool scope and cost class — checked at the boundary." },
+      { "key": "B", "text": "Longer and more carefully written prose descriptions spelling out each agent's inputs, limitations, cost and typical use cases." },
+      { "key": "C", "text": "A convention that orchestrators attempt the cheapest plausible agent first and fall back to the next one when that attempt fails." },
+      { "key": "D", "text": "A consolidation of the twenty agents into five broader ones, removing most of the choices a calling orchestrator has to make." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Both complaints are consequences of an interface that only a model can read and nothing can check. A declared contract makes selection decidable — two agents that read alike are distinguishable by their schemas, tool scope and cost class — and it moves failure from deep inside a branch to the moment of invocation, where the caller still has context and options. Publishing preconditions and rejecting invocations that violate them is what turns a catalogue of prose into a platform other teams can build against.",
+      "distractors": {
+        "B": "Better prose improves the odds of a good choice without making a bad one detectable. Nothing validates that the caller actually has the inputs, and near-identical agents stay near-identical because the differences that matter are structural, not descriptive.",
+        "C": "Try-and-see makes every mis-selection cost a full branch execution, and it is unusable for agents with side effects. It also hides selection defects in retry statistics rather than surfacing them.",
+        "D": "Consolidation reduces the number of choices and coarsens every one of them, folding distinct tool scopes and cost profiles into shared agents. It treats the symptom — too many options — rather than the missing contract."
+      },
+      "concept": "In a system where agents are shared across callers, each agent is a published interface and needs a declared contract: input and output schemas, preconditions, tool scope, and cost and latency class. Selection and validation then happen against the contract instead of against a description, and failures surface at the boundary.",
+      "tip": "When callers keep making wrong choices from a catalogue, the answer is usually a machine-checkable contract rather than better documentation. Ask what a program, not a reader, could verify."
+    }
+  },
+  {
+    "id": "SDA-B-056",
+    "domain": "Solution Design & Architecture",
+    "topic": "Why subagent invocations should be stateless",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Why should a subagent invocation be designed to carry no state from previous invocations of the same agent?",
+    "options": [
+      { "key": "A", "text": "Because a stateful agent's growing history would be replayed into the orchestrator's context window on every one of its later calls." },
+      { "key": "B", "text": "Because state carried between invocations cannot be serialised into a structured schema the caller is able to inspect." },
+      { "key": "C", "text": "Because an agent that holds state between calls cannot be given a tool allowlist narrower than its caller's." },
+      { "key": "D", "text": "Because a stateless invocation is a pure function of its brief, so it can be retried, parallelised and replayed reproducibly." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Everything an orchestrator wants to do with a branch depends on its invocations being independent of one another. Retry assumes a second attempt is equivalent to the first; parallel fan-out assumes concurrent invocations do not interfere; replay for debugging or audit assumes the brief fully determines the run. Hidden carry-over breaks all three at once and does so silently, because the failures look like nondeterminism. Where genuine continuity is needed, it belongs in an external store keyed by the entity and loaded into the brief, so the dependency is explicit.",
+      "distractors": {
+        "A": "The branch's history would accumulate in its own context, not the caller's. Isolation means the orchestrator's window is unaffected by whatever the branch retains.",
+        "B": "State can be serialised perfectly well. The objection is not about representation; it is about invocations depending on each other in ways the caller cannot see or control.",
+        "C": "Tool scope is configured per invocation and is unrelated to whether the agent retains anything between calls."
+      },
+      "concept": "Make each subagent invocation a pure function of its brief. Retry, parallelism, caching and replay all rest on that property. Continuity across requests belongs in an external store, retrieved into the brief explicitly, so that what a run depends on is always visible in what it was given.",
+      "tip": "Statelessness questions are really questions about which operations become safe. Look for the option that names retry, parallelism or reproducibility rather than one about memory or cost."
+    }
+  },
+  {
+    "id": "SDA-B-057",
+    "domain": "Solution Design & Architecture",
+    "topic": "Fencing side effects from a branch the caller abandoned",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A rail operator's disruption-compensation system fans out to several subagents, one of which can issue refunds. During a major incident the orchestrator hit its per-branch deadline, treated the refund branch as failed, degraded gracefully and told the passenger a manual review would follow. Ninety seconds later the abandoned branch completed and issued the refund anyway; some passengers were then refunded twice by the manual process. What must the design add?",
+    "options": [
+      { "key": "A", "text": "A longer deadline on the refund branch specifically, so that slow refunds complete before the orchestrator gives up on it." },
+      { "key": "B", "text": "Cancellation propagated to the branch on deadline, plus a fencing token so the refund tool rejects a write from an abandoned branch." },
+      { "key": "C", "text": "A nightly reconciliation job that detects duplicate refunds after the fact and reverses the second payment to the passenger." },
+      { "key": "D", "text": "A rule that the manual review process must wait until every dispatched branch has finished or timed out before it begins." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Deadlines on the caller's side stop the caller waiting; they do nothing to the work already in flight, so a branch with side effects can still act on a decision the orchestrator has moved past. Two things close that. Cancellation gives the branch the chance to stop cheaply. The fencing token is what makes the guarantee real: the refund tool validates that the token still matches the orchestrator's current view of the request, so a write from an abandoned branch is refused at the point of effect rather than depending on the branch behaving well.",
+      "distractors": {
+        "A": "Any finite deadline has an outside. A longer one shrinks the window in which the race occurs and leaves the failure mode intact, while making every degraded response slower during exactly the incidents that produced the timeout.",
+        "C": "Detect-and-reverse means real money moves twice and is clawed back from passengers during a service failure. Reconciliation is a sensible backstop and an unacceptable primary control for an irreversible-feeling external action.",
+        "D": "Blocking the fallback on the branch the orchestrator gave up on removes the point of degrading gracefully. The passenger waits for the slow path anyway, and a hung branch stalls the manual process indefinitely."
+      },
+      "concept": "Timing out a branch is a decision by the caller, not a fact about the branch. Where a branch can change external state, pair the deadline with cancellation and a fencing token validated at the system of record, so that only work the orchestrator still recognises can take effect.",
+      "tip": "When a stem shows an action landing after the caller stopped waiting, the answer must invalidate the late write, not merely wait longer or clean up afterwards."
+    }
+  },
+  {
+    "id": "SDA-B-058",
+    "domain": "Solution Design & Architecture",
+    "topic": "Preventing retry amplification across agent levels",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A wholesale distributor's ordering assistant has three levels: orchestrator, coordinator agents, and worker agents. Each level retries a failed call three times. When one downstream inventory service degrades, a single user request can produce dozens of attempts against it, and the service's recovery is delayed by the load. Which TWO changes address the amplification? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Retry at exactly one level and have the other levels propagate a typed failure upward without attempting their own retries." },
+      { "key": "B", "text": "Add jitter to the backoff at every level so retries from different branches do not synchronise into bursts." },
+      { "key": "C", "text": "Keep retries at every level but lengthen the timeout at each, so fewer calls are declared failed in the first place." },
+      { "key": "D", "text": "Give the request one retry budget, decremented wherever in the tree a retry is attempted, so total attempts are bounded." },
+      { "key": "E", "text": "Increase the retry count at the worker level so transient failures are resolved before they reach a coordinator." }
+    ],
+    "correct": ["A", "D"],
+    "explanation": {
+      "correct": "Retries at independent levels multiply: three at each of three levels is up to twenty-seven attempts for one logical call. Both fixes attack the multiplication rather than the individual policies. Choosing one level to own retries collapses the product to a sum, and the natural choice is the level closest to the fault, with everything above it propagating typed failures. A request-scoped retry budget then bounds the total regardless of where in the tree attempts are made, which is what protects a degraded dependency from a system that has grown another layer since the policy was written.",
+      "distractors": {
+        "B": "Jitter spreads attempts over time and is worth having. It does not reduce how many attempts occur, so the degraded service still receives the full multiplied load, merely less synchronised.",
+        "C": "Longer timeouts hold connections open against a struggling dependency and lengthen every failure path. The number of retry layers is unchanged, so the amplification survives.",
+        "E": "More attempts at the deepest level increases the multiplier at the point where it is already largest, and it does so precisely when the dependency is least able to serve them."
+      },
+      "concept": "In a layered agent system, retries compose multiplicatively. Assign retry responsibility to one level, have all others propagate typed failures, and bound total attempts with a request-scoped budget. Backoff and jitter shape the timing of attempts; only ownership and budgets limit their number.",
+      "tip": "Count the multiplier before choosing. If a stem tells you every level retries, the answer must remove a layer of retrying or cap the total — options that tune backoff are shaping a number they never reduce."
+    }
+  },
+  {
+    "id": "SDA-B-059",
+    "domain": "Solution Design & Architecture",
+    "topic": "Normalising heterogeneous branch outputs at source",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A container shipping line assesses port-call risk with three subagents. One returns a numeric score from one to five, one returns a paragraph of narrative, and one returns a list of flags with no severity. The aggregator's prompt has grown into a set of special-case rules for translating each format, and adding a fourth branch has been deferred twice because of the work involved. Operations wants comparable risk across branches. What should change?",
+    "options": [
+      { "key": "A", "text": "Have the aggregator convert each branch's output into a common form as its first step, leaving the three branches unchanged." },
+      { "key": "B", "text": "Rank the three branches by historical reliability and let the most reliable branch's format define the result for all of them." },
+      { "key": "C", "text": "Define one return contract every branch must satisfy — a severity on a shared scale, a rationale and evidence references." },
+      { "key": "D", "text": "Drop the narrative branch, since a paragraph of prose cannot be compared against a numeric score or a list of flags." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Comparability has to be produced where the judgement is made. Only the branch that read the evidence can place its finding on a shared severity scale honestly; anything downstream is guessing at the strength of a conclusion from its wording. Pushing the contract to the branches also makes the aggregator generic, which is what unblocks the fourth branch: adding one becomes a matter of satisfying an existing contract rather than extending a translation table. The rationale and evidence references keep the narrative branch's value without keeping its format.",
+      "distractors": {
+        "A": "Central translation preserves the coupling that is causing the pain — the aggregator still needs per-branch knowledge, so every new branch edits it. It also inserts an interpretive step that can misjudge severity, with no access to the evidence behind the text.",
+        "B": "Reliability ranking answers a question about trust, not about format. Adopting one branch's shape discards the others' information rather than making it comparable, and it needs its own ranking to be maintained and justified.",
+        "D": "Removing a branch to simplify aggregation trades information for convenience. The narrative branch presumably contributes findings the others miss; the problem is its return format, which is a contract issue."
+      },
+      "concept": "Every branch in a fan-out should return the same schema, with any scale or vocabulary defined once and applied at source. A per-branch translation layer in the aggregator couples it to each branch and makes adding branches expensive; a shared return contract makes the aggregator indifferent to how many there are.",
+      "tip": "\"Adding another branch keeps getting deferred\" is a coupling symptom. The answer is nearly always to standardise the interface rather than to improve the component that keeps absorbing the differences."
+    }
+  },
+  {
+    "id": "SDA-B-060",
+    "domain": "Solution Design & Architecture",
+    "topic": "Tiered aggregation for very wide fan-out",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A facilities-management firm runs a nightly compliance sweep with one subagent per site across 400 sites. Each branch returns a structured finding capped at roughly 800 tokens, so the full set is far more than one aggregation call can hold. The aggregate must state, for every site, whether it passed, and must not silently omit any site. Currently the aggregator is fed as many returns as fit and the rest are dropped. What should the design do?",
+    "options": [
+      { "key": "A", "text": "Aggregate in tiers — 20 groups of 20 into the same schema, then the 20 group results — carrying site counts at every level." },
+      { "key": "B", "text": "Move the aggregation to a model with the largest available context window and feed it all 400 site returns in a single call." },
+      { "key": "C", "text": "Sample 50 sites each night for aggregation and rotate the sample, so the whole estate is covered over a period of weeks." },
+      { "key": "D", "text": "Reduce each branch's return to a single pass or fail token so that all 400 fit inside one aggregation call." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The requirement is total coverage of 400 sites with no silent omission, and no single call can see them all, so aggregation has to be a reduction rather than one step. Grouping into 20 aggregations of 20 and then combining the 20 results keeps every level inside a comfortable context, and holding the same schema at each level means the final result is the same shape as a group result. Carrying counts is what makes the coverage requirement enforceable: if the counts do not sum to 400, the run fails loudly instead of quietly reporting on a subset.",
+      "distractors": {
+        "B": "This bets the requirement on headroom. Even where the volume fits, a single call over hundreds of thousands of tokens of homogeneous findings attends poorly to material in the middle, so the sites most likely to be under-reported are the ones nobody is watching.",
+        "C": "Sampling changes what the system promises. A nightly compliance sweep that covers an eighth of the estate is a different control from the one described, and it cannot state a pass or fail for every site tonight.",
+        "D": "A bare verdict per site fits and destroys the finding. Compliance exceptions need enough detail to be acted on, and a pass or fail with no rationale is not something an estate team can work from."
+      },
+      "concept": "When fan-out width exceeds what one aggregation can hold, reduce in tiers with the same schema at every level and carry counts so completeness is checkable. This differs from a relay hierarchy: each tier here performs a real reduction that the level above genuinely cannot do, rather than passing material along slightly smaller.",
+      "tip": "Distinguish a tiered reduction from a pointless relay layer. Ask whether the intermediate level does work the level above could not do itself; at 400 branches it plainly cannot, at nine branches it plainly can."
+    }
+  },
+  {
+    "id": "SDA-B-061",
+    "domain": "Solution Design & Architecture",
+    "topic": "Orchestrator that wraps a single subagent",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An orchestrator's only behaviour is to call one subagent and return its output unchanged, and no further branches are planned. What should the architect do?",
+    "options": [
+      { "key": "A", "text": "Keep the orchestrator so that additional branches can be added later without restructuring the call path or its clients." },
+      { "key": "B", "text": "Keep the orchestrator because it is where the subagent's output schema is validated before returning." },
+      { "key": "C", "text": "Keep the orchestrator because it is where the request's correlation id and tracing spans are attached." },
+      { "key": "D", "text": "Remove the orchestrator and call the agent directly, since the layer isolates nothing and decides nothing." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Components that only forward buy nothing and cost a model call, a round trip and a second context establishment on every request. None of the reasons to introduce a boundary apply: there is no context being isolated, no privilege being narrowed, no choice being made and nothing to aggregate. Removing it makes the feature cheaper and faster and leaves one less prompt to version, monitor and evaluate. If a second branch is genuinely needed later, introducing the orchestrator then is a small change made with real requirements in hand.",
+      "distractors": {
+        "A": "Speculative structure is paid for on every request between now and a change that may never come. The stem says no further branches are planned, and adding the layer later is cheap precisely because the interface is already defined.",
+        "B": "Schema validation is a few lines of code at the call site. Using a model call to enforce a schema is both more expensive and less reliable than validating the response directly.",
+        "C": "Correlation ids and tracing are attached wherever the request enters the system. They do not require an intervening agent, and an extra hop makes the trace longer rather than more informative."
+      },
+      "concept": "Introduce an orchestrator when there is something to orchestrate: several branches, a selection decision, an aggregation, or a privilege boundary. A single-child orchestrator is latency and cost with a diagram attached. Structure should follow a present requirement, not an anticipated one.",
+      "tip": "\"We might add more later\" is the standard justification for a layer that does nothing. Judge the design on what it does today, and note how cheap the change is if the future arrives."
+    }
+  },
+  {
+    "id": "SDA-B-062",
+    "domain": "Solution Design & Architecture",
+    "topic": "Re-testing a multi-agent split after a model upgrade",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A national statistics office splits its survey-methodology review into four subagents. The split was introduced eighteen months ago because a single agent lost track of the review checklist once the questionnaire and prior-wave documentation were loaded together. The team has now migrated to a substantially more capable model and is planning further work on the orchestration layer, including a new aggregation contract. What should they do first?",
+    "options": [
+      { "key": "A", "text": "Proceed with the planned orchestration work, since the split has been stable in production for eighteen months." },
+      { "key": "B", "text": "Re-run the single-agent baseline on the current eval set with the new model, to see whether the original constraint still binds." },
+      { "key": "C", "text": "Add a fifth subagent to cover the new documentation types introduced since the original four-way design." },
+      { "key": "D", "text": "Move the four subagents to a cheaper tier now that the orchestrator is stronger, and measure the cost saving." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The split exists to work around a specific, named limitation — instruction retention with two large documents in one window — and that limitation is exactly the sort of thing a capability change moves. Before investing in more orchestration machinery, it is worth an inexpensive experiment to find out whether the workaround is still needed, because if it is not, the coming work is being built on a premise that has expired. Either outcome is useful: the baseline either retires a whole layer of coordination or documents the justification for keeping it.",
+      "distractors": {
+        "A": "Stability shows the design works, not that it is still necessary. Eighteen months of production is an argument for confidence in the current system and no evidence at all about the alternative, which has not been measured since the model changed.",
+        "C": "Extending the fan-out deepens the commitment to a decomposition whose premise is unverified. If the single-agent baseline now passes, the fifth branch is work that should never have been done.",
+        "D": "Tier changes for the branches optimise inside the existing structure. That is a reasonable follow-up and it presumes the structure, which is the thing in question."
+      },
+      "concept": "Architectural workarounds should record the constraint that motivated them and be re-tested when that constraint could have changed — a model upgrade, a context-handling improvement, a data-volume reduction. Otherwise systems accumulate coordination machinery defending against limits that no longer exist.",
+      "tip": "When a stem gives you the original reason for a design and then tells you something relevant has changed, the next step is to re-measure the premise before building further on it."
+    }
+  },
+  {
+    "id": "SDA-B-063",
+    "domain": "Solution Design & Architecture",
+    "topic": "Properties of an actionable inter-agent error contract",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "Which THREE properties should an inter-agent error contract have so that a caller can act on a failure without inspecting it manually? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "Every failure maps to one generic error type, so callers have a single, simple handling path." },
+      { "key": "B", "text": "Every failure is classified as either retryable or terminal by the agent that observed it." },
+      { "key": "C", "text": "Each error class states the expected caller response — retry, degrade, or abort the request." },
+      { "key": "D", "text": "The failing agent's full transcript is attached to the error so the caller can diagnose the cause." },
+      { "key": "E", "text": "The error carries a correlation id that resolves to the full detail in logs, rather than the detail itself." }
+    ],
+    "correct": ["B", "C", "E"],
+    "explanation": {
+      "correct": "An error is actionable when the caller can branch on it without reading it. Retryable versus terminal is the first and most consequential distinction, because it decides whether another attempt can possibly help. Naming the expected response per class moves the policy out of each caller's ad-hoc judgement and into the contract, which is what stops five orchestrators inventing five different behaviours. Carrying a correlation id rather than the detail keeps the error small enough to travel through a context window while leaving the full picture recoverable for whoever investigates later.",
+      "distractors": {
+        "A": "A single generic type is the status quo this contract replaces: undifferentiated failures force identical handling, so a transient timeout and a permanent authorisation refusal receive exactly the same response.",
+        "D": "A full transcript floods the caller's context with material it cannot act on, and it can carry content the callee read — including untrusted input — straight into the caller's window. Reference the detail; do not ship it."
+      },
+      "concept": "Design inter-agent errors as typed values a caller can switch on: a class, a retryable-or-terminal flag, a stated expected response, and a reference to the detail. Errors that arrive as prose or as one undifferentiated type push the classification work onto every caller, and each will do it differently.",
+      "tip": "For error-contract items, ask what the caller does differently as a result of each property. Anything that only helps a human reading afterwards belongs in logs, not in the error."
+    }
+  },
+  {
+    "id": "SDA-B-064",
+    "domain": "Solution Design & Architecture",
+    "topic": "Fan-out repeated inside an iterative refinement loop",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A media-monitoring firm's brand-sentiment agent runs a refinement loop: on each iteration it fans out to eight source subagents, reads their returns, refines its interpretation, and iterates. Typical runs take four to six iterations. Review of the traces shows each iteration sends the eight branches a slightly reworded brief and receives substantively the same material back, because the underlying sources do not change during a run. Cost per report is roughly five times the original estimate. What should change?",
+    "options": [
+      { "key": "A", "text": "Fan out once at the start and run the refinement loop over the eight returns without re-invoking the branches." },
+      { "key": "B", "text": "Move the eight source subagents to the cheapest available tier, since they only gather material rather than reason over it." },
+      { "key": "C", "text": "Cap the refinement loop at three iterations, bounding the number of fan-outs performed for each sentiment report." },
+      { "key": "D", "text": "Cache each branch's return keyed on the brief text, so repeated invocations within a run are served from the cache." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The traces establish that retrieval is invariant during a run while the reasoning is what changes, so gathering belongs outside the loop and refinement inside it. Hoisting the fan-out turns a multiplicative cost — iterations times branches — into an additive one, and it removes the coordination overhead of the thirty to fifty branch invocations a report currently makes. It also makes the loop cleaner to reason about, because each iteration now operates on a fixed body of evidence rather than on material that could shift underneath it for reasons unrelated to the refinement.",
+      "distractors": {
+        "B": "A cheaper tier reduces the unit price of calls that should not be happening. Thirty to fifty branch invocations per report is the defect; making each one cheaper leaves the structure and most of the overhead in place.",
+        "C": "Capping iterations bounds the waste and also truncates the refinement, which is the part of the loop that is doing useful work. It treats a structural inefficiency as if it were a budget problem.",
+        "D": "Caching keyed on brief text fails on precisely the described behaviour: each iteration rewords the brief, so keys differ while the work is the same. It also leaves the round trips in place even when it does hit."
+      },
+      "concept": "Separate gathering from reasoning when the gathered material is stable for the duration of a run. Fan-out inside a loop multiplies coordination cost by iteration count for no additional information; collect once and iterate over what you hold.",
+      "tip": "Multiply before you choose. When a stem gives you iterations and branch count, compute the invocation count — a five-times cost overrun with a loop around a fan-out is almost always structural rather than a pricing problem."
+    }
+  },
+  {
+    "id": "SDA-B-065",
+    "domain": "Solution Design & Architecture",
+    "topic": "Retiring rarely invoked specialist agents",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An accountancy firm's advisory assistant has grown to fourteen specialist subagents. Nine of them are invoked on fewer than one per cent of requests, yet each carries a prompt to maintain, an evaluation set to keep current, a version to track and a monitoring dashboard. Quality on the rare paths is unmeasured because the volume is too low to score. What should the architect do?",
+    "options": [
+      { "key": "A", "text": "Keep all fourteen, since removing any specialist would reduce the assistant's coverage of the unusual requests it handles." },
+      { "key": "B", "text": "Keep the nine rare specialists but move them to the cheapest available tier, since they handle so little traffic." },
+      { "key": "C", "text": "Fold the rare specialists into one general agent with their tools, keeping separate agents only where volume supports them." },
+      { "key": "D", "text": "Generate the nine rare agents' prompts automatically from a shared template so each one costs far less to maintain." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Every agent carries a fixed cost that has nothing to do with how often it runs, and the nine rare ones are consuming that cost while producing too little traffic to be evaluated — so nobody can say whether they work. Consolidating them keeps the capability, since the tools and knowledge move with them, and concentrates traffic into one path that can actually be measured and improved. Specialisation is worth its overhead where volume justifies a separate contract, a separate eval set and separate monitoring; below that threshold it is fragmentation.",
+      "distractors": {
+        "A": "This assumes coverage lives in the agent roster. The capability is in the tools and the instructions, both of which survive consolidation; what is lost is nine separate components nobody can measure.",
+        "B": "Tier choice affects the marginal cost of the calls, which is already negligible at this volume. The cost that hurts is maintenance and unmeasurability, and a cheaper tier makes the second worse.",
+        "D": "Templated prompts reduce the effort of writing nine agents while leaving nine agents to version, monitor and evaluate. It industrialises the fragmentation rather than reducing it."
+      },
+      "concept": "Each agent in a system has a fixed carrying cost — prompt, contract, evaluation set, monitoring, version. Justify that cost with traffic sufficient to measure the agent's quality. Below that threshold, prefer one general agent with the right tools over many specialists nobody can evaluate.",
+      "tip": "When a stem lists the per-component upkeep alongside a tiny traffic share, it is pointing at consolidation. Coverage arguments are the standard counter and usually confuse capability with component count."
+    }
+  },
+  {
+    "id": "SDA-B-066",
+    "domain": "Solution Design & Architecture",
+    "topic": "Persistent subagent memory shared across requests",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A broadband provider added a customer-history subagent that keeps a persistent memory so it can recall context between calls. Support staff have begun seeing it reference another customer's outage history and, on one occasion, another customer's address, because the memory accumulates across every request the agent serves. The recall of prior interactions is genuinely valuable to agents handling repeat callers. How should this be redesigned?",
+    "options": [
+      { "key": "A", "text": "Partition the agent's persistent memory by customer and instruct it to read only the partition matching the current caller." },
+      { "key": "B", "text": "Clear the agent's persistent memory on a nightly schedule so accumulated context cannot grow large enough to leak." },
+      { "key": "C", "text": "Run a separate long-lived instance of the agent for each customer, each holding only that customer's memory." },
+      { "key": "D", "text": "Keep the agent stateless and hold history in a store keyed by customer, retrieved into the brief for each request." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The valuable thing is the history, not the agent remembering it. Moving it into a store keyed by customer keeps the recall while making the isolation a property of the query rather than of the model's behaviour: a request can only contain the history that was fetched for that customer. It also restores the properties a stateless invocation gives you — retry, parallelism, replay — and puts the history somewhere it can be retained, audited and deleted under whatever policy applies, which in-agent memory cannot offer.",
+      "distractors": {
+        "A": "This makes a data-isolation guarantee depend on the model reading from the right partition. Partitioning is right; enforcing it inside the agent's own memory is the wrong place, because a violation is silent and only visible when someone notices a stray address.",
+        "B": "Periodic clearing reduces how much can leak and not whether leaking is possible. Two customers served between clears are enough, and it deletes the repeat-caller history that motivated the feature.",
+        "C": "An instance per customer multiplies long-lived state across the customer base, with lifecycle, cost and residency questions for each. It also gives up statelessness while solving a problem an external keyed store solves without any of that."
+      },
+      "concept": "Keep agents stateless and put durable memory in an external store keyed by the entity it belongs to, retrieved into the brief per request. Then isolation is enforced by the query, the data has an owner and a retention policy, and the agent keeps the retry and replay properties that in-agent memory quietly removes.",
+      "tip": "Cross-entity leakage in an agent with memory is a state-placement problem. Options that keep the state inside the agent and add discipline around it are all variants of the same defect."
+    }
+  },
+  {
+    "id": "SDA-B-067",
+    "domain": "Solution Design & Architecture",
+    "topic": "Trading fan-out width against branch depth under a fixed budget",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A genomics laboratory's variant-interpretation system runs under a fixed per-request budget. The budget affords either eight branches doing a shallow pass over eight genomic regions, or three branches doing a thorough pass over three. Currently it runs eight shallow. A review of 120 failed interpretations found 96 were incorrect conclusions about regions the system had examined, and 24 concerned regions it never looked at. Which change does the evidence support?",
+    "options": [
+      { "key": "A", "text": "Keep eight branches and cut the per-branch budget further so a ninth and tenth genomic region can be added." },
+      { "key": "B", "text": "Keep eight branches and add a verification agent over the aggregate interpretation, funded from the same fixed budget." },
+      { "key": "C", "text": "Move to three thorough branches on the regions with the highest clinical yield, since most failures come from insufficient depth." },
+      { "key": "D", "text": "Keep eight branches and escalate to a human curator whenever any one of them reports low confidence in its call." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The failure breakdown answers the question directly: 96 of 120 failures — four in five — happened on regions that were examined, so they are depth failures, and only 24 are coverage failures. Under a fixed budget, spending it on breadth is optimising against the smaller error class. Reallocating to fewer, deeper branches attacks the dominant one, and prioritising by clinical yield limits what the narrower coverage costs. The general move is to let the observed error distribution decide how a fixed budget is divided, rather than an intuition that more coverage is safer.",
+      "distractors": {
+        "A": "Spreading the same budget across ten regions makes each pass shallower still, worsening the class responsible for 96 of the 120 failures in order to slightly reduce the class responsible for 24.",
+        "B": "A verifier funded from the same budget takes resource from the branches, making them shallower, and it reviews conclusions without access to the depth of evidence that would reveal them as wrong. Verification helps when conclusions are checkable from the aggregate; these are not.",
+        "D": "Confidence-triggered escalation depends on shallow branches recognising their own insufficiency, which is the weakest signal available here — a shallow pass that missed the evidence has no reason to report low confidence."
+      },
+      "concept": "Under a fixed budget, width and depth are in direct competition, and the error distribution decides the split. Coverage failures argue for more branches; failures within covered ground argue for fewer, deeper ones. Measure which class dominates before rebalancing, because intuition reliably favours coverage.",
+      "tip": "When a stem hands you a failure breakdown, the arithmetic is the answer. Compute the ratio first and discard every option that improves the smaller class."
+    }
+  },
+  {
+    "id": "SDA-B-068",
+    "domain": "Solution Design & Architecture",
+    "topic": "Attributing quality loss to aggregation rather than branches",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "Quality has fallen in a fan-out-and-synthesise design, and the team must decide whether to invest in the branches or in the aggregation step. Which TWO observations would indicate the aggregation step is the source of the loss? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Branch outputs each score as correct when reviewed individually, yet the final answer contradicts them." },
+      { "key": "B", "text": "Branches frequently return typed error results to the aggregator rather than findings." },
+      { "key": "C", "text": "Aggregate latency on most requests is dominated by the single slowest branch in the fan-out." },
+      { "key": "D", "text": "Replaying a stored set of branch outputs through the aggregator gives materially different answers on different runs." },
+      { "key": "E", "text": "Branch outputs regularly exceed the size budget set out in their own return contract." }
+    ],
+    "correct": ["A", "D"],
+    "explanation": {
+      "correct": "Attribution needs observations that hold the branches fixed. Individually correct branch outputs contradicted by the final answer localise the fault precisely: the inputs to aggregation were right and the output was not. Replaying a stored set of branch outputs is the stronger test still, because it removes branch variability entirely — if identical inputs yield materially different answers, the instability is in the aggregation step itself, whether from prompt ordering, assembly, or the synthesis prompt.",
+      "distractors": {
+        "B": "Frequent typed errors are a branch or dependency problem. They may degrade the aggregate by starving it of inputs, but the fault lies upstream of the step in question.",
+        "C": "Latency attribution says nothing about quality. A slow branch sets the request's duration and can be perfectly accurate.",
+        "E": "Oversized returns indicate branches not honouring their contract. That will pressure the aggregator's context and the defect and the fix both belong to the branches."
+      },
+      "concept": "To attribute quality loss in a multi-agent system, hold one stage fixed and vary the other. Score branch outputs independently against their own contracts, then replay a stored set through the aggregator. Fault localisation requires stage-level captures; end-to-end scores can only tell you that something is wrong.",
+      "tip": "In attribution items, prefer observations that are experiments over observations that are symptoms. Replaying stored intermediates is the strongest available evidence and is easy to overlook."
+    }
+  },
+  {
+    "id": "SDA-B-069",
+    "domain": "Solution Design & Architecture",
+    "topic": "Assigning write ownership of an entity to one branch",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A wholesaler's ERP data-cleansing system runs branches in parallel over customer records. In a postmortem, two branches — one deduplicating and one standardising addresses — both amended the same customer record within the same second, in incompatible ways. The last write won, the other change was lost, and the audit trail shows two conflicting amendments with no indication which was intended. The parallelism is needed to finish the nightly window. What should the team do next?",
+    "options": [
+      { "key": "A", "text": "Partition write ownership so one branch owns each record, with other branches emitting proposals for it to apply." },
+      { "key": "B", "text": "Take a row-level lock on each customer record for the duration of the amendment a branch is making." },
+      { "key": "C", "text": "Add optimistic concurrency control so the second writer detects the conflicting version and retries against the updated record." },
+      { "key": "D", "text": "Order the branches so that deduplication always runs before address standardisation across the whole nightly job." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The lost update is only half the incident; the other half is that two agents both believed they were responsible for the same record, and the audit trail cannot say what was intended. Single-writer ownership resolves both, because every amendment to a record then has one accountable source and a coherent history, while other branches contribute proposals that are applied — or rejected — deliberately. It also preserves the parallelism, since branches still run concurrently and only the write to a given record is funnelled.",
+      "distractors": {
+        "B": "Locking serialises the two writes and leaves both branches convinced they own the record. The second amendment still overwrites the first with an incompatible value; the audit trail is just as ambiguous, and the nightly window now contends on locks.",
+        "C": "Optimistic concurrency turns a silent lost update into a detected conflict, which is real progress, and then the retrying branch reapplies its own change over the other's. Detection without a resolution rule reproduces the same outcome more slowly.",
+        "D": "A global ordering constrains the whole job to serialise two concerns that only conflict on the small subset of records both touch, and it says nothing about the next pair of branches added to the pipeline."
+      },
+      "concept": "Where parallel agents can write the same entity, assign each entity exactly one writing agent and route everything else through it as proposals. Locks and version checks make concurrent writes safe at the storage layer; they do not decide which change should win, and in agent systems that decision needs an owner.",
+      "tip": "Separate the storage-level problem from the design-level one. If two components both consider themselves responsible for a record, concurrency primitives make the collision orderly without making it correct."
+    }
+  },
+  {
+    "id": "SDA-B-070",
+    "domain": "Solution Design & Architecture",
+    "topic": "Orchestrator re-reading the evidence its branches consumed",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A mortgage servicer's hardship-review system uses four subagents to read bank statements, correspondence, arrears history and affordability models, each returning a structured assessment. Because an early pilot produced two poor recommendations, the orchestrator was changed to re-read all four underlying document sets itself before deciding. Cost per review roughly doubled, latency rose, and the orchestrator now hits context pressure on large cases. Recommendation quality is unchanged. What should the architect do?",
+    "options": [
+      { "key": "A", "text": "Keep the re-reading but restrict it to the two document sets implicated in the two original poor recommendations." },
+      { "key": "B", "text": "Remove the wholesale re-reading and rely on branch assessments, with a code-level consistency check and sampled spot-checks." },
+      { "key": "C", "text": "Keep the re-reading and move the orchestrator to a model with far more context headroom to relieve the pressure on large cases." },
+      { "key": "D", "text": "Remove the re-reading and add a fifth reviewing agent that repeats the four assessments independently and compares the results." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Re-reading everything undoes the isolation the branches exist to provide, and the stem states plainly that it bought no quality — twice the cost, more latency, context pressure, same recommendations. The distrust that motivated it is still worth addressing, but not by duplicating the work: a code-level check that the four assessments are mutually consistent catches the contradictions a synthesis step can otherwise paper over, and spot-checks against returned evidence references verify branches at a sampled cost rather than on every case.",
+      "distractors": {
+        "A": "Halving the duplication halves a cost that the evidence says produces nothing, and it fixes the sample of failures that happened to occur in the pilot rather than a mechanism. The orchestrator still re-reads large documents it delegated away.",
+        "C": "More headroom accommodates the duplicated reading rather than questioning it. The team would be paying twice for the same evidence on a bigger model, with latency unchanged and no quality gain.",
+        "D": "A full independent repeat is the most expensive verification available and reintroduces the same duplication under another name. Redundant execution is justified where errors are costly and rare and no cheaper check exists; here consistency checks and sampling are both available."
+      },
+      "concept": "If an orchestrator re-reads the material its branches consumed, the boundary has been cancelled and only its overhead remains. Verify branches by contract — cross-branch consistency checks in code and sampled audits against returned evidence references — rather than by repeating their work.",
+      "tip": "\"Cost doubled, quality unchanged\" in a stem is a verdict, not background. Any option that preserves the mechanism responsible is wrong even if it makes the mechanism cheaper."
+    }
+  },
+  {
+    "id": "SDA-B-071",
+    "domain": "Solution Design & Architecture",
+    "topic": "Responsibilities that must stay with the orchestrator",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A team is drawing the responsibility boundary between its orchestrator and its specialist subagents. Which TWO responsibilities must sit with the orchestrator rather than being pushed into the branches? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "The domain reasoning that is specific to each specialist's subject area." },
+      { "key": "B", "text": "The request-level budget and deadline all branches must collectively operate inside." },
+      { "key": "C", "text": "The decision about which branches to invoke for a given incoming request." },
+      { "key": "D", "text": "The credentials used to reach the underlying data source behind each specialist." },
+      { "key": "E", "text": "Retrying a branch's own internal tool call after a transient network error." }
+    ],
+    "correct": ["B", "C"],
+    "explanation": {
+      "correct": "Both of these are properties of the request as a whole, and nothing inside a branch can see the whole request. A budget and deadline that must hold across all branches can only be allocated and enforced where the branch set is known, which is why per-branch allowances fail to bound anything. Likewise, choosing which branches to run requires comparing them against each other and against the request, a comparison no individual branch is positioned to make. Everything a branch can decide with only its own brief in view should be left to the branch.",
+      "distractors": {
+        "A": "Specialist reasoning is exactly what the branch exists for, and pulling it upward would require the orchestrator to hold the context each specialist works from — which is the design the fan-out replaced.",
+        "D": "Credentials belong with the agent that uses them, scoped to its own data source. Centralising them gives the orchestrator authority it does not need and dissolves the privilege boundary between agents.",
+        "E": "A transient tool error inside a branch is best handled where the tool is called, with the caller seeing a typed failure only if the branch's own retry budget is exhausted. Lifting it upward makes the orchestrator responsible for the internals of every specialist."
+      },
+      "concept": "Keep request-scoped concerns — budget, deadline, branch selection, aggregation and final termination — with the orchestrator, and keep everything decidable from a single brief inside the branch. The test is whether the decision requires seeing more than one branch or the request as a whole.",
+      "tip": "Apply one question to each responsibility: can it be decided correctly by something that sees only one branch? If yes, it belongs to the branch; if no, it belongs to the orchestrator."
+    }
+  },
+  {
+    "id": "SDA-B-072",
+    "domain": "Solution Design & Architecture",
+    "topic": "Applying a multi-agent path to only part of the traffic",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A postal operator handles parcel exceptions with a five-agent investigation flow that queries three back-end systems. It meets its quality bar but averages nine seconds against a five-second SLO for the agent-facing console, and unit cost is under pressure at volume. Analysis of a month of traffic shows 60% of exceptions are one of four routine types resolvable from a single system lookup, and the remaining 40% genuinely require correlating all three systems. What is the strongest architecture?",
+    "options": [
+      { "key": "A", "text": "Keep the five-agent flow for all traffic and negotiate the console SLO up to ten seconds on the basis of the quality it delivers." },
+      { "key": "B", "text": "Keep the five-agent flow for all traffic and move every agent to the fastest available tier to bring the average within the SLO." },
+      { "key": "C", "text": "Replace the five-agent flow entirely with a single agent holding all three system tools, accepting some quality loss on complex exceptions." },
+      { "key": "D", "text": "Resolve the four routine types inline with a single agent and one lookup, routing only the complex 40% into the multi-agent flow." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The traffic is not one workload, and the current design pays the coordination cost of the hard case on every request including the 60% that need a single lookup. Splitting the paths lets the majority meet the SLO comfortably and cheaply while preserving the multi-agent flow where correlating three systems genuinely requires it — and that path can then be held to its own, honestly negotiated target rather than an average that describes neither population. This is the general shape of the answer whenever a stem gives you a traffic distribution with two clearly different difficulty profiles.",
+      "distractors": {
+        "A": "Renegotiating the SLO to accommodate the slow path imposes it on the 60% of exceptions that never needed it, degrading the console experience for the bulk of the work and leaving unit cost untouched.",
+        "B": "A faster tier compresses model time inside a flow whose cost is largely coordination and back-end calls, and it lowers quality on precisely the complex cases that justify the flow. The routine 60% still pay for five agents.",
+        "C": "Collapsing to one agent fixes latency and cost by giving up the quality bar the system currently meets, on the 40% of cases where the investigation is doing real work. The stem offers no reason to accept that loss for the whole population."
+      },
+      "concept": "Choose topology per traffic segment, not per system. When a distribution shows a large easy majority and a smaller hard minority, an inline single-agent path plus a multi-agent path for the hard cases usually beats any single design, and it lets each path carry its own latency, cost and quality targets.",
+      "tip": "A stated traffic split in a stem is an instruction to stop looking for one design. Averages across two populations satisfy neither, and the option that treats them separately is usually the intended answer."
+    }
+  }
+]

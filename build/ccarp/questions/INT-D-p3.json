@@ -1,0 +1,719 @@
+[
+  {
+    "id": "INT-D-037",
+    "domain": "Integration",
+    "topic": "Data residency and retention commitments as separate controls",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A legal team asks whether the organisation's data-residency obligation is satisfied simply by securing a commitment from the model provider that inputs and outputs are not retained after a request completes. What is the correct answer?",
+    "options": [
+      {
+        "key": "A",
+        "text": "No, because retention commitments concern only whether data is used to train models, which is a question separate from both retention and residency."
+      },
+      {
+        "key": "B",
+        "text": "Yes, provided the payload is encrypted in transit and at rest with a key the organisation controls, since encrypted data falls outside residency rules."
+      },
+      {
+        "key": "C",
+        "text": "Yes. If nothing is retained, no data comes to rest in any jurisdiction, so a residency rule has nothing to attach to once the call has completed."
+      },
+      {
+        "key": "D",
+        "text": "No. Retention governs whether a copy persists; residency governs the jurisdiction of processing, which must be established independently."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "These are two independent axes and both usually have to be satisfied. A retention commitment answers 'is there still a copy afterwards'; residency answers 'in which jurisdiction did the processing and any storage happen'. Processing itself is a regulated activity in most residency regimes, so a request served outside the permitted region is a breach whether or not anything survived it. In practice the organisation needs both: a regional endpoint choice for residency, and a retention position covering what the provider and the organisation's own systems keep.",
+      "distractors": {
+        "A": "Training use and retention are distinct commitments and neither one is 'the other'. The reasoning also does not reach the question asked, which is whether retention resolves residency — it does not, but not for this reason.",
+        "B": "Data the organisation can decrypt remains its data wherever it is processed, and the model must see plaintext to respond. Encryption is a security control, not a jurisdictional one.",
+        "C": "This conflates storage with processing. Most residency regimes attach to the act of processing personal data, not only to the persistence of it, so a transient call served in another jurisdiction is still a transfer."
+      },
+      "concept": "Treat residency, retention and training-use as three separate commitments with three separate evidence trails. Satisfying one says nothing about the others, and an architecture review should be able to point at the specific mechanism enforcing each.",
+      "tip": "Whenever a stem offers one control as a substitute for another, ask what question each control actually answers. If they answer different questions, the substitution is wrong however attractive it sounds."
+    }
+  },
+  {
+    "id": "INT-D-038",
+    "domain": "Integration",
+    "topic": "DNS resolution silently bypassing a private service endpoint",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A pharmacy chain's in-store systems reach a cloud-hosted Claude service over a private circuit and a private service endpoint. A network review finds that traffic from a subset of stores is leaving through the corporate internet proxy instead, even though the private path is up and the routes are correct. What is the most likely cause and the right remediation?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The private circuit is saturated at those sites and traffic is overflowing to the internet path; increase circuit bandwidth and reprioritise the traffic class."
+      },
+      {
+        "key": "B",
+        "text": "The corporate proxy has the service's public addresses in its allowlist; remove those entries so the proxy rejects the traffic from those stores."
+      },
+      {
+        "key": "C",
+        "text": "TLS validation fails against the private endpoint, so clients retry over the proxy; install the endpoint's certificate chain in the store systems' trust stores."
+      },
+      {
+        "key": "D",
+        "text": "Those sites' resolvers still return the service's public address; make private DNS authoritative for that hostname everywhere and add an egress deny."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Private connectivity is a two-part control and the review has confirmed only one part. Routing determines where packets go once the client has an address; DNS determines which address the client uses. When resolution for the service hostname is inconsistent across sites, the clients that receive the public answer take the public path and everything looks healthy. The remediation has two halves for a reason: making private resolution authoritative removes the cause, and the egress deny converts any future recurrence into a visible failure rather than a silent, compliant-looking bypass.",
+      "distractors": {
+        "A": "Circuits do not overflow to an alternative path by themselves; saturation shows up as loss and latency on the private path, not as traffic appearing at the proxy. Nothing in the finding suggests a capacity problem.",
+        "B": "Removing proxy allowlist entries is a partial version of the egress deny, but on its own it turns the misconfigured stores into an outage without fixing why they resolved to the public address. Fix the resolution, then enforce the deny.",
+        "C": "A TLS failure produces errors, not a transparent switch to another egress. Clients do not generally retry a certificate failure over a different route, and the stem reports working traffic rather than failing traffic."
+      },
+      "concept": "A private path is only as private as its name resolution. Verify that every client population resolves the service hostname to the private endpoint, and pair that with a default-deny on public egress so a resolution mistake fails loudly instead of quietly restoring internet routing.",
+      "tip": "When traffic takes the wrong path but everything is 'up', suspect DNS before routing. Silent bypass with no errors is the signature of a client that resolved to a perfectly valid public address."
+    }
+  },
+  {
+    "id": "INT-D-039",
+    "domain": "Integration",
+    "topic": "Per-tenant residency routing in a multi-tenant SaaS",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A payroll SaaS serves customers in the EU, the UK and Australia. Each contract commits that the customer's employee data is processed and stored in that customer's own region. The product currently runs one deployment with one Claude integration, and a `region` column on the tenant table. Users frequently travel and log in from anywhere. What architecture meets the commitments?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Keep the single deployment and enforce the commitment with row-level filtering on the tenant's region column plus a separate encryption key held per region."
+      },
+      {
+        "key": "B",
+        "text": "Keep one deployment for processing but replicate each tenant's stored records into a regional database, so storage is resident while inference stays centralised."
+      },
+      {
+        "key": "C",
+        "text": "Deploy an independent data plane per residency zone and route each request to the zone named by the tenant's residency attribute, keeping control metadata global."
+      },
+      {
+        "key": "D",
+        "text": "Deploy per-region stacks and route each request to the region geographically closest to the user, since that minimises latency and keeps data near where it is used."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The commitment is per tenant, so the tenant record must be the routing authority and the routing decision must happen before any personal data is handled. Independent regional data planes make the guarantee structural: there is no code path in the EU stack that can reach Australian employee data, which is a far stronger assurance than a filter that is one bug away from failing. Keeping only non-personal control-plane metadata global preserves a single operational view without putting employee data anywhere it should not be. Travelling users are a red herring — residency follows the tenant, not the person's current location.",
+      "distractors": {
+        "A": "Row-level filtering places the entire commitment on application logic that a single defective query, a support tool or an analytics job can bypass, and all processing still happens in one region regardless of what the column says. Per-region keys protect confidentiality, not location.",
+        "B": "Splitting storage from processing satisfies half the commitment. The contract covers processing as well, and centralised inference means every tenant's payroll data is handled in one region regardless of where the rows live.",
+        "D": "This is the most tempting wrong answer because it sounds like good geo-routing. It routes on the wrong attribute: a Sydney-based administrator of an EU tenant would have EU employee data processed in Australia, breaching that tenant's contract."
+      },
+      "concept": "Residency in multi-tenant systems is a routing decision driven by a tenant attribute, resolved at the edge before any personal data is touched, and enforced by physically separate data planes rather than by in-process filtering. User location never determines residency.",
+      "tip": "Look for the attribute the commitment is written against. If the contract binds the tenant and an option routes on user location or network proximity, it is wrong no matter how well engineered it is."
+    }
+  },
+  {
+    "id": "INT-D-040",
+    "domain": "Integration",
+    "topic": "Cloud commitment drawdown and cost attribution in route selection",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A mining group has a large multi-year committed spend agreement with one public cloud and mature cost allocation built on that cloud's resource tagging, feeding monthly showback by cost centre. A new Claude workload is being planned; the engineering team has no technical preference between routes. What should most influence the recommendation, and what does it imply?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Nothing commercial should drive it; pick the first-party API for the most direct relationship with the model provider and negotiate a separate agreement for it."
+      },
+      {
+        "key": "B",
+        "text": "Model spend will be small next to the group's infrastructure bill, so the decision should be deferred until three months of usage data exists."
+      },
+      {
+        "key": "C",
+        "text": "Consumption should draw down the existing cloud commitment and inherit the established tagging and showback model, pointing at that cloud's managed service."
+      },
+      {
+        "key": "D",
+        "text": "Build a chargeback service that ingests the provider's usage export and maps it to cost centres, which makes the route choice commercially neutral."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "When there is no technical differentiator, the decision is correctly made on the commercial and operational axes, and two of them point the same way here. Spend that lands on the existing cloud bill counts against a commitment the group has already made, which changes the effective cost of the workload without changing anything about it. Inheriting the tagging model means attribution works on day one rather than being rebuilt, and finance sees AI spend in the same report as everything else — which is what makes it governable rather than an unexplained line item.",
+      "distractors": {
+        "A": "Directness of relationship is a real consideration for support and contract terms, but declaring commercial factors out of scope discards the strongest available signal in a decision the stem says is technically balanced. It also adds a new vendor agreement and a new invoice to reconcile.",
+        "B": "Deferring guarantees the decision is made later by whoever ships first, under time pressure, and reversing a hosting route after production integrations exist is expensive. Small early spend is exactly when the choice is cheap to make well.",
+        "D": "A bespoke chargeback pipeline is real engineering, needs ongoing maintenance as usage schemas change, and still leaves the spend outside the commitment. It recreates an attribution capability the organisation already has rather than reusing it."
+      },
+      "concept": "When hosting routes are technically equivalent for the workload, decide on procurement and operations: commitment drawdown, invoicing and vendor count, and whether existing cost attribution works without new engineering. These are the factors that persist for the life of the system.",
+      "tip": "A stem that explicitly says the team has no technical preference is telling you the answer is not technical. Look for the option that reuses an existing organisational capability."
+    }
+  },
+  {
+    "id": "INT-D-041",
+    "domain": "Integration",
+    "topic": "Overlapping credential validity during rotation",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Why do teams provision a second concurrently valid credential for a service before rotating the one currently in use?",
+    "options": [
+      {
+        "key": "A",
+        "text": "It provides a fallback if the provider rejects the primary credential during an incident, so the service can immediately retry the call with the other."
+      },
+      {
+        "key": "B",
+        "text": "It makes rotation a rolling operation: the new credential is deployed and verified while the old one is still accepted, and only then is the old one revoked."
+      },
+      {
+        "key": "C",
+        "text": "It doubles the throughput available to the service, since request quota is generally allocated per credential rather than per account."
+      },
+      {
+        "key": "D",
+        "text": "It allows two teams to share the same service integration without either team seeing the credential value the other one holds."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Rotation with a single credential has an unavoidable window in which some running instances hold a value the provider no longer accepts, and that window is as long as the slowest deployment in the fleet. Overlapping validity removes the window entirely: the change becomes an ordinary rolling deploy, it can be verified instance by instance, and it can be rolled back if something is wrong because the old credential still works. Revocation then becomes a separate, deliberate step taken once the fleet is confirmed clean.",
+      "distractors": {
+        "A": "A credential is not a redundancy mechanism. If the provider rejects a valid credential the fault is elsewhere, and retrying with a second one mostly obscures the real failure while doubling the exposure surface.",
+        "C": "Treating extra credentials as a throughput lever is a misconception worth unlearning; capacity is an account-level property and minting keys does not create it. It also encourages credential sprawl for the wrong reason.",
+        "D": "Separate credentials per team is a legitimate isolation pattern, but that is not what dual validity during rotation is for, and it does not explain why the two exist only temporarily."
+      },
+      "concept": "Design credentials so that rotation never requires a synchronised change. Two concurrently valid values, rolled out and verified independently, turn a coordinated cutover into a routine deploy — and make emergency revocation survivable.",
+      "tip": "Ask what the second credential is for and when it goes away. The rotation answer is the one where the overlap is temporary and revocation is the final step."
+    }
+  },
+  {
+    "id": "INT-D-042",
+    "domain": "Integration",
+    "topic": "Preventing raw credentials in research and notebook environments",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A biotechnology company's research group runs Claude experiments from personal laptops and a shared notebook server. An audit finds credentials pasted into notebook cells, present in shell history, and committed to the internal git server. Which TWO controls prevent a raw credential from being present in a researcher's environment or repository in the first place? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Enable secret scanning on the git server as a pre-receive check, so a push containing a credential is rejected rather than reported afterwards."
+      },
+      {
+        "key": "B",
+        "text": "Run a nightly scan of the notebook server's filesystem that alerts the platform team when a string resembling a credential is found."
+      },
+      {
+        "key": "C",
+        "text": "Provide a shared client library and notebook kernel that obtain a short-lived token from the platform's identity service at session start."
+      },
+      {
+        "key": "D",
+        "text": "Issue one credential per researcher so that any leak can be attributed to an individual and revoked without disrupting the rest of the group."
+      },
+      {
+        "key": "E",
+        "text": "Rotate the shared research credential monthly and circulate the new value on the research group's private chat channel each cycle."
+      }
+    ],
+    "correct": [
+      "A",
+      "C"
+    ],
+    "explanation": {
+      "correct": "The stem asks specifically about prevention, which narrows the field sharply. A managed kernel that mints a short-lived token at session start removes the credential from the researcher's world altogether — there is nothing to paste into a cell, nothing to land in shell history, and nothing durable to commit. A pre-receive scan is the other preventive control because it acts before the object is accepted into the repository; the same scanner run after the fact only tells you a secret is already in history and needs revoking.",
+      "distractors": {
+        "B": "A nightly filesystem scan is a detective control operating up to a day after the fact. It is a reasonable safety net and it prevents nothing — by the time it alerts, the credential has existed on disk, possibly in a notebook that has already been shared.",
+        "D": "Per-researcher credentials improve attribution and limit blast radius, which is worthwhile, but each one is still a raw long-lived secret sitting in the environment the audit was complaining about. It multiplies the artefact the stem asked you to eliminate.",
+        "E": "Distributing a shared secret over chat guarantees it is copied into every researcher's environment, persists in message history, and is unattributable. Monthly rotation slightly shortens the life of a credential that this control has just published to a searchable channel."
+      },
+      "concept": "Prevent secret sprawl by removing the secret, not by policing it. Broker short-lived tokens through tooling researchers already use, and block credentials at the point of entry into shared systems; treat scanning after the fact as revocation triggering, not as prevention.",
+      "tip": "When a multi-select says 'in the first place', sort every option into preventive or detective before judging quality. Good detective controls are the most common near-miss in this item shape."
+    }
+  },
+  {
+    "id": "INT-D-043",
+    "domain": "Integration",
+    "topic": "Budget enforcement policy in a shared model gateway",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A ride-hailing company's gateway tracks per-team monthly model budgets and alerts on breach. One team's runaway backfill consumed most of the company's monthly model spend in six hours overnight; the alert fired at 03:00 and nobody acted until morning. The CFO wants hard caps. The platform team is worried, because a hard cap could cut off the driver-safety escalation flow that shares the same provider account. What enforcement design should the platform team propose?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Enforce per-team hard caps and a spend-rate circuit breaker, reserve a floor for the safety-critical class, and require break-glass to raise any cap."
+      },
+      {
+        "key": "B",
+        "text": "Enforce per-request cost limits so that no individual call can be unexpectedly expensive, keeping the monthly team budgets advisory as they are today."
+      },
+      {
+        "key": "C",
+        "text": "Apply one company-wide hard cap set slightly above the historical monthly peak spend, so no single team's backfill can exhaust the account."
+      },
+      {
+        "key": "D",
+        "text": "Keep alert-only enforcement but route budget alerts to a 24-hour on-call rota with an explicit response runbook and a 15-minute acknowledgement target."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The incident has two independent failures and the design has to answer both. The monthly ceiling was the wrong instrument because the damage was done in six hours, so a rate-based breaker is needed to catch a burn rate that no monthly figure would have flagged in time. And an enforcement mechanism that can starve a safety-critical flow is not acceptable, so priority classes with a reserved floor are what make hard enforcement safe to turn on. Break-glass keeps the control from becoming an outage during a legitimate surge, while leaving a record of who overrode it.",
+      "distractors": {
+        "B": "Per-request limits bound the cost of a single call and say nothing about the aggregate. A backfill issuing a very large number of individually cheap calls passes every per-request check while producing exactly this outcome.",
+        "C": "A single company-wide cap is enforcement without isolation: the offending team still consumes the shared pool, and when the cap trips it trips for the safety flow too. It converts one team's defect into a company-wide incident.",
+        "D": "Improving the human response does not change the fact that most of a month's budget was spent in six hours. Any control whose effectiveness depends on someone waking up and acting within minutes will eventually fail the same way."
+      },
+      "concept": "Budget controls need three properties: a rate dimension as well as a total, isolation so one consumer cannot spend another's allocation, and a priority class with a reserved floor so enforcement never starves critical traffic. Alerts are telemetry, not enforcement.",
+      "tip": "When an overspend happened in hours against a monthly budget, the examinable point is that the control measured the wrong dimension. Look for the option that adds rate, not the one that raises or lowers the total."
+    }
+  },
+  {
+    "id": "INT-D-044",
+    "domain": "Integration",
+    "topic": "Central gateway versus per-service sidecar proxy",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A platform team is choosing between a shared central gateway and a per-service sidecar proxy for outbound model traffic. Which statement correctly characterises the trade-off?",
+    "options": [
+      {
+        "key": "A",
+        "text": "A sidecar cannot hold credentials or enforce policy, so it is only useful for collecting metrics; enforcement always requires a central component in the path."
+      },
+      {
+        "key": "B",
+        "text": "Sidecars remove the need to define policy centrally, because each service team owns and enforces the rules appropriate to its own workload."
+      },
+      {
+        "key": "C",
+        "text": "The gateway concentrates credentials, policy and observability in one operated component but sits in every request path; the sidecar trades that for fleet-wide rollouts."
+      },
+      {
+        "key": "D",
+        "text": "A central gateway is unsuitable for latency-sensitive workloads, because the additional in-region hop dominates end-to-end response time for short prompts."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The two topologies trade the same two properties in opposite directions. Centralising puts one component in every request path, which is what makes uniform policy, single-point credential custody and complete telemetry easy — and what makes an outage total. Distributing removes the shared failure domain and the shared latency, but the enforcement point is now replicated across the fleet, so changing a rule means shipping a new sidecar version everywhere and living with version skew while it propagates. Which trade is right depends on how often policy changes and how much correlated failure the organisation can tolerate.",
+      "distractors": {
+        "A": "Sidecars routinely hold credentials and enforce policy — that is their main purpose in service-mesh deployments. The claim that enforcement requires a central component confuses where policy is defined with where it is applied.",
+        "B": "Policy is still defined centrally in a sidecar deployment; only enforcement is distributed. Letting each service invent its own rules would forfeit the reason for having a proxy at all.",
+        "D": "An in-region proxy hop is small next to model inference time, so it rarely dominates anything. Latency is a real consideration for a poorly placed gateway, not a categorical disqualifier."
+      },
+      "concept": "Central gateway and sidecar differ in where enforcement runs, not in what can be enforced. Centralised gives instant policy change and a shared failure domain; distributed gives failure isolation and a rollout lag on every change.",
+      "tip": "Trade-off recall items are usually decided by finding the option that states a cost on both sides. Options presenting one topology as having no downside are almost always the distractors."
+    }
+  },
+  {
+    "id": "INT-D-045",
+    "domain": "Integration",
+    "topic": "Components required for a private path from on-premises",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An enterprise requires that model traffic originating in its own data centre reach a cloud-hosted Claude service without traversing the public internet. Which combination is required?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Mutual TLS between the on-premises client and the service endpoint, with the client certificate issued by the enterprise's own internal certificate authority and pinned."
+      },
+      {
+        "key": "B",
+        "text": "A private circuit between the data centre and the cloud, a private service endpoint in the virtual network, and DNS returning that private address on-premises."
+      },
+      {
+        "key": "C",
+        "text": "A site-to-site VPN across the public internet using strong ciphers and perfect forward secrecy, plus certificate pinning on every on-premises client."
+      },
+      {
+        "key": "D",
+        "text": "A static egress address registered on the provider's source allowlist, with all other outbound traffic from the data centre denied by policy."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Keeping traffic off the internet needs a private path for every hop and a name resolution that actually selects it. The private circuit covers the data centre to cloud segment, the private service endpoint gives the managed service an address inside the enterprise's own address space so the last hop stays on the cloud backbone, and correct DNS is what makes clients use it — without that, everything is provisioned and unused. All three are necessary; any one alone leaves a segment on the public path or a client resolving past it.",
+      "distractors": {
+        "A": "Mutual TLS authenticates both ends of a connection and says nothing about the network it crosses. It is a strong control layered on top of a path decision, not a substitute for one.",
+        "C": "A VPN encrypts traffic that is still carried across the public internet. That satisfies confidentiality, which is a different requirement from the one stated, and it is a common substitution in review documents that auditors reject.",
+        "D": "Source allowlisting constrains who may connect to a public endpoint. The traffic remains on the internet in both directions, so the stated requirement is unmet regardless of how tight the allowlist is."
+      },
+      "concept": "Private connectivity is three things together: a private circuit, a private endpoint for the managed service, and DNS that resolves to it. Encryption and authentication controls protect traffic on a path; they never change which path it takes.",
+      "tip": "Sort private-networking options into 'changes the path' and 'protects the traffic'. Requirements phrased as 'must not traverse the public internet' are only answered by the first kind."
+    }
+  },
+  {
+    "id": "INT-D-046",
+    "domain": "Integration",
+    "topic": "Enriching a nightly SFTP flat-file feed from a legacy system",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A port authority receives a nightly fixed-width file of roughly 90,000 cargo movements over SFTP from a terminal-operating system that cannot be modified. An acknowledgement file must be returned by 05:00. The business wants Claude to normalise free-text cargo descriptions. The inbound file occasionally arrives late, and occasionally the transfer is still in progress when the pipeline starts reading. What design should the team adopt?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Require the terminal-operating system to publish movements to an API instead, removing the nightly file transfer and its timing problems entirely."
+      },
+      {
+        "key": "B",
+        "text": "Gate processing on the sender's completion marker, enrich asynchronously keyed on file digest plus row identifier, and pass rows through unnormalised if 05:00 is reached."
+      },
+      {
+        "key": "C",
+        "text": "Begin reading rows as soon as the file appears so enrichment overlaps the transfer, and re-read the tail if the final row count looks short."
+      },
+      {
+        "key": "D",
+        "text": "Enrich each row synchronously inside the file reader so the acknowledgement file can be written as soon as the last of the 90,000 rows is read."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Three constraints have to be reconciled: a file whose arrival is not atomic, a hard acknowledgement deadline, and an enrichment step with variable latency. The completion marker makes the trigger reliable rather than racy. Keying on file digest plus row identifier means a re-run after a partial failure re-processes nothing that already succeeded, which matters when 90,000 rows can take most of the window. Deriving the acknowledgement from the pipeline's own state, with an unnormalised pass-through when time runs out, keeps the contractual deadline independent of whether the model finished — the deadline is the hard requirement and the enrichment is not.",
+      "distractors": {
+        "A": "The stem states the source system cannot be modified. Proposing to change it is not a design for the problem given, and it leaves the port authority with no solution for tonight's file.",
+        "C": "Reading a file that is still being written is the defect the stem describes, and a short row count is not a reliable detector — a fixed-width file can be readable and complete-looking while more records are still arriving.",
+        "D": "Row-at-a-time synchronous enrichment ties the deadline directly to model throughput for 90,000 records, with no way to degrade. One slow night or one provider hiccup misses the acknowledgement."
+      },
+      "concept": "For file-based legacy feeds, make the trigger explicit rather than inferred, make row processing idempotent on a content-derived key, and keep any contractual deadline independent of the enrichment by defining a degraded pass-through. The legacy contract is the hard constraint; the model output is the enhancement.",
+      "tip": "A stem that mentions partially written files is asking about the trigger; a stem that mentions a hard deadline is asking about degradation. When both appear, the correct option addresses both."
+    }
+  },
+  {
+    "id": "INT-D-047",
+    "domain": "Integration",
+    "topic": "Required elements of an async job status resource",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A benefits agency is publishing an asynchronous Claude-backed eligibility-explanation API to about 30 internal consuming teams. Which THREE elements must the job status resource expose for consumers to be able to behave correctly? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "The job's current position in the processing queue, so each consuming team can display an accurate estimated wait to its own users."
+      },
+      {
+        "key": "B",
+        "text": "A machine-readable failure classification separating retryable conditions from permanent ones, so consumers do not resubmit work that can never succeed."
+      },
+      {
+        "key": "C",
+        "text": "An explicit distinction between terminal and non-terminal states, so a consumer knows when to stop polling and can tell 'still working' from 'finished'."
+      },
+      {
+        "key": "D",
+        "text": "The full prompt sent to the model for that job, so each consuming team can audit exactly what was asked on its claimants' behalf."
+      },
+      {
+        "key": "E",
+        "text": "A documented retention period for the job record and its result, so consumers know how long a handle stays resolvable and what a missing handle means."
+      }
+    ],
+    "correct": [
+      "B",
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "These three are what a consumer's control flow depends on. Without a terminal-state distinction a client either polls forever or stops too early. Without a failure classification every consumer invents its own heuristic, and the ones that guess wrong retry permanent failures indefinitely against a shared service. Without a documented retention window a missing handle is ambiguous — the consumer cannot tell an expired job from one that never existed — and thirty teams will each assume a different lifetime. All three are contract-level guarantees, which is why they belong in the published resource rather than in each consumer's assumptions.",
+      "distractors": {
+        "A": "Queue position is a useful courtesy and not a correctness requirement. It exposes internal scheduling that will change, becomes meaningless the moment work is partitioned or prioritised, and consumers who build on it acquire a dependency on the provider's internals.",
+        "D": "Returning the constructed prompt to consumers exposes internal implementation and, in a benefits context, is likely to expose personal data to teams that should not see it. Auditability is served by the provider's own audit store with controlled access, not by echoing prompts through the status resource."
+      },
+      "concept": "An async status resource is a contract about control flow: it must say whether to keep waiting, whether a failure is worth retrying, and how long the handle remains meaningful. Anything beyond that is convenience and usually leaks internals consumers will come to depend on.",
+      "tip": "Test each option by asking what a consumer would get wrong without it. If the answer is 'their progress bar is less accurate' rather than 'their retry logic is incorrect', it is not a must-have."
+    }
+  },
+  {
+    "id": "INT-D-048",
+    "domain": "Integration",
+    "topic": "Fan-out to multiple consumers of one business event",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A rail operator's disruption service makes a direct HTTP call to a Claude-based passenger-message generator whenever a disruption is declared. Three more teams now want the same trigger: crew notification, social-post drafting, and station display copy. The disruption service team is being asked to add three more outbound calls, and is resisting because it is already paged when the message generator is slow. What should the architect propose?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Add the three calls to the disruption service but issue them from a background thread pool so the declaring transaction is never delayed by them."
+      },
+      {
+        "key": "B",
+        "text": "Publish the disruption event once to a topic and let each consumer subscribe with its own queue, retry policy and failure isolation."
+      },
+      {
+        "key": "C",
+        "text": "Have each of the four consumers poll the disruption service's API every thirty seconds for disruptions declared since the previous poll."
+      },
+      {
+        "key": "D",
+        "text": "Have the passenger-message generator call the three new consumers once it has finished, keeping the disruption service's integration surface unchanged."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The producer's complaint is the diagnosis: it is coupled to the availability and latency of something it does not own, and each new consumer adds another. Publishing once to a topic inverts that — the producer's obligation ends when the event is durably published, and each consumer takes delivery on its own queue where a slow or broken consumer affects only itself. Adding a fifth consumer later becomes a subscription, with no change to the disruption service and no new page for its team.",
+      "distractors": {
+        "A": "Backgrounding the calls hides the latency from the declaring transaction but leaves the disruption service owning four integrations, four retry policies and four failure modes. The team's objection is about ownership, not about blocking.",
+        "C": "Polling every thirty seconds adds latency to a time-critical disruption workflow, puts steady load on the producer from four consumers, and still leaves each consumer needing its own cursor and de-duplication.",
+        "D": "Chaining consumers behind the message generator makes it the de facto event router, so its failures now suppress crew notification and station copy too. It also creates an ordering dependency that has no business meaning."
+      },
+      "concept": "When a second consumer appears for an event, replace the point-to-point call with a publish-subscribe boundary. The producer's responsibility should end at durable publication; delivery, retry and failure containment belong to each consumer independently.",
+      "tip": "Watch for the producer team being paged for a downstream's behaviour. That symptom names the coupling, and the answer is always to move the fan-out out of the producer."
+    }
+  },
+  {
+    "id": "INT-D-049",
+    "domain": "Integration",
+    "topic": "Autoscaling on the wrong signal for an IO-bound model consumer",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A food-delivery company runs order events through a stream into enrichment workers that call Claude, then into a downstream scoring service. During a Friday surge the worker pool autoscaled on CPU utilisation, which stayed low because workers spend most of their time awaiting model responses. The pool grew rapidly, model rejections climbed, retries multiplied, and the scoring service was overwhelmed. What is the correct remediation?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Scale the worker pool on in-flight model concurrency and consumer lag, with a hard ceiling on total concurrency set from the account's sustainable capacity."
+      },
+      {
+        "key": "B",
+        "text": "Scale the downstream scoring service in proportion to the worker pool so it can absorb whatever throughput the enrichment workers produce."
+      },
+      {
+        "key": "C",
+        "text": "Increase the number of stream partitions so more enrichment workers can process order events in parallel and the Friday surge drains faster."
+      },
+      {
+        "key": "D",
+        "text": "Raise the CPU utilisation target on the worker autoscaler so that it adds replicas far less aggressively during a Friday surge."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The autoscaler was reading a signal that is structurally uninformative for this workload: an IO-bound worker waiting on a model call looks idle, so low CPU was interpreted as spare capacity when the real constraint was a fixed external service rate. Scaling on in-flight concurrency and lag measures the thing that is actually saturated, and the hard ceiling is what converts an unbounded feedback loop into a bounded one. Allowing lag to grow is the correct response to a surge against fixed capacity — the backlog is visible, bounded and drains, whereas the retry amplification was neither.",
+      "distractors": {
+        "B": "Scaling the scoring service treats the last symptom in the chain. The excess load it is absorbing is largely retry amplification that should not have been generated, and the model rejections remain unaddressed.",
+        "C": "More partitions is more parallelism against the same fixed model capacity. It accelerates the same failure and adds partition rebalancing during a surge, which is the worst time for it.",
+        "D": "Adjusting the threshold on a signal that does not track the bottleneck slows the wrong loop down. CPU will still be low at any target while workers wait on the model, so the pool still grows for the wrong reason."
+      },
+      "concept": "Autoscale on the signal that reflects the actual bottleneck. For workers whose limiting resource is an external service's rate, that is in-flight concurrency and queue lag, bounded by a hard ceiling — never CPU, which reads as idle precisely when the system is most saturated.",
+      "tip": "Low CPU plus a growing replica count plus rising downstream errors is the signature of an autoscaler fighting an IO bound. The fix changes the metric, not the threshold."
+    }
+  },
+  {
+    "id": "INT-D-050",
+    "domain": "Integration",
+    "topic": "Isolating a failing webhook destination from healthy ones",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A travel-booking platform delivers 'itinerary summary ready' webhooks to corporate travel partners. One partner's endpoint has returned server errors for six hours; about 14,000 deliveries for that partner are queued and retrying every thirty seconds. Those retries are now consuming most of the shared delivery worker pool, and deliveries to healthy partners are running hours late. What should the on-call engineer do next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Move the failing partner's deliveries onto their own bounded queue behind a circuit breaker with a long backoff and a periodic probe."
+      },
+      {
+        "key": "B",
+        "text": "Disable webhook delivery for that partner entirely and notify their operations contact to pull the missed itinerary summaries manually."
+      },
+      {
+        "key": "C",
+        "text": "Discard queued deliveries for the failing partner that are older than an hour, since the itinerary data will be stale by the time the endpoint returns."
+      },
+      {
+        "key": "D",
+        "text": "Scale the delivery worker pool up sharply so there is enough capacity for both the failing partner's retries and the healthy partners."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The incident is not that one partner is down — that is expected and the retry policy exists for it — but that one partner's failure is consuming a shared resource and degrading everyone else. Per-destination isolation with a circuit breaker is the standard containment: it caps the resources any single destination can consume, stops hammering an endpoint that has been failing for six hours, and replaces per-delivery retries with a cheap periodic probe. Nothing is lost, healthy traffic recovers immediately, and the backlog drains when the circuit closes.",
+      "distractors": {
+        "B": "Turning delivery off and asking a human to reconcile abandons the guarantee the webhook contract provides and creates manual work at both ends. It is what a dead-letter store with operator replay exists to avoid.",
+        "C": "Discarding undelivered business events is a data-loss decision taken under pressure, likely against the partner agreement, and staleness is the partner's judgement to make. Park them; do not delete them.",
+        "D": "Adding capacity so a dead endpoint can be retried faster spends money to make no progress, and it only defers the problem to the next partner outage. The shared pool is the design flaw; enlarging it preserves it."
+      },
+      "concept": "Give every delivery destination its own bounded resource pool and circuit breaker. Without per-destination isolation, one unhealthy receiver becomes a shared-capacity incident, and the retry policy that protects that receiver becomes the mechanism that harms everyone else.",
+      "tip": "When a single failing dependency degrades unrelated traffic, the answer is a bulkhead, not more capacity. Look for the option that contains the failure rather than the one that outruns it."
+    }
+  },
+  {
+    "id": "INT-D-051",
+    "domain": "Integration",
+    "topic": "Bounded synchronous facade over an asynchronous pipeline",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A hospital group's clinician portal cannot manage background jobs: its front-end framework can only issue a request and render a response. The internal Claude pipeline behind the requested feature is queue-based, with p50 of 2 seconds and p95 of 12 seconds, and the portal's HTTP client times out at 15 seconds. What should the platform team expose?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The existing asynchronous contract, with guidance that the portal team implement polling, since that is the correct client-side pattern for long work."
+      },
+      {
+        "key": "B",
+        "text": "A synchronous endpoint that bypasses the pipeline and calls the model directly, so the queue's latency variability is removed from the portal's path."
+      },
+      {
+        "key": "C",
+        "text": "A synchronous endpoint that submits to the pipeline and blocks until the job completes, however long the queue and the model take."
+      },
+      {
+        "key": "D",
+        "text": "A facade that submits to the pipeline, waits up to a deadline inside the portal's timeout, and returns either the result or a resolvable handle."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "A bounded wait gives the portal the synchronous experience it can actually implement while keeping the system honest about the tail. Most requests return inside the deadline at p50 and p95, so the common case is a single call; the minority that exceed it get a handle rather than a timeout, and re-requesting is a plain HTTP call the framework can make. Critically, the deadline sits inside the portal's own timeout, so the facade always controls how the wait ends rather than letting a client-side abort orphan work the pipeline is still doing.",
+      "distractors": {
+        "A": "This is correct in the abstract and unavailable in fact. The stem states the constraint; a platform team that answers a client limitation with a recommendation to remove the limitation has not delivered anything.",
+        "B": "Bypassing the pipeline discards its queueing, concurrency limits, retries and audit capture for one caller, and duplicates that logic in a second code path. Latency variability comes mostly from the model, not the queue.",
+        "C": "Blocking indefinitely means the portal's 15-second timeout decides the outcome, and it decides it by abandoning a request the pipeline is still processing. The user sees an error while the work completes invisibly and is never delivered."
+      },
+      "concept": "When a client cannot manage jobs, wrap the async pipeline in a bounded synchronous wait rather than choosing between blocking forever and refusing. Always return a resolvable handle when the deadline expires, so slow work is retrievable instead of lost.",
+      "tip": "Compare the stated p95 with the client timeout. When most requests fit and the tail does not, the answer is a bounded wait with a fallback handle, not a change of contract in either direction."
+    }
+  },
+  {
+    "id": "INT-D-052",
+    "domain": "Integration",
+    "topic": "Real work items in a mid-life hosting route migration",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A professional-services firm has run Claude on the first-party API for eighteen months. A new group CIO mandates that third-party AI services be consumed through the group's primary cloud. Which TWO items represent genuine migration work the plan must budget for? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Re-running the firm's evaluation suite against the new route and re-establishing pinned model identifiers, which differ between hosting routes."
+      },
+      {
+        "key": "B",
+        "text": "Rebuilding the retrieval index, because embeddings produced under one hosting route cannot be used with another and would all need regenerating."
+      },
+      {
+        "key": "C",
+        "text": "Renegotiating the firm's retention and residency position from scratch, because commitments of that kind are unavailable on cloud-hosted routes."
+      },
+      {
+        "key": "D",
+        "text": "Rewriting the firm's entire prompt library, because prompt syntax and system-message structure differ between the two hosting routes."
+      },
+      {
+        "key": "E",
+        "text": "Rebuilding the identity and credential path, since authentication moves from a provider key to the cloud's identity model, along with the network route."
+      }
+    ],
+    "correct": [
+      "A",
+      "E"
+    ],
+    "explanation": {
+      "correct": "Migration cost concentrates where the route is genuinely different. Authentication and network path change completely — provider-issued credentials give way to the cloud's identity model, and the endpoint moves inside a different connectivity story — and that touches every deployment, every environment and the secrets tooling around them. The second real item is verification: identifiers differ per route, so pins must be re-established, and the only responsible way to sign off a route change is to re-run the evaluation suite on the target rather than assume equivalence. Those two items are where the schedule goes.",
+      "distractors": {
+        "B": "Retrieval and embeddings belong to the firm's own pipeline and are unaffected by where inference is hosted. The index would only need rebuilding if the embedding model itself changed, which is a separate decision.",
+        "C": "Retention and residency posture must certainly be re-established for the new route — but the reason given is false, and the option's claim that such commitments cannot exist on a cloud-hosted route is not something the firm should plan around. Verify the position on the target route rather than assume it is unavailable.",
+        "D": "Prompts are content sent to the same model family, not route-specific syntax. Budgeting a prompt rewrite would spend the migration's largest line item on work that does not exist."
+      },
+      "concept": "A hosting route change is an identity, network and verification project. Anything above the API boundary — prompts, retrieval, orchestration, business logic — should be unaffected, and a migration plan that budgets for rewriting them has misdiagnosed what differs.",
+      "tip": "Sort migration items by whether they sit above or below the API call. Below the boundary is real work; above it, be suspicious of any claim that the route dictates how you build."
+    }
+  },
+  {
+    "id": "INT-D-053",
+    "domain": "Integration",
+    "topic": "Propagating clinician identity into the system of record",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A hospital group's Claude assistant answers clinicians' questions over patient records. Its backend authenticates to the records system with one service account holding broad read access, retrieves records, and filters them in application code according to the signed-in clinician's care-team membership. A risk review flags the design. What should change?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Exchange the clinician's authenticated session for a delegated token and call the records system on their behalf, so it applies its own authorisation."
+      },
+      {
+        "key": "B",
+        "text": "Keep the current retrieval and add an output check that removes any record the signed-in clinician is not entitled to see before the response is returned."
+      },
+      {
+        "key": "C",
+        "text": "Keep the service account but create one per clinical department, so the breadth of standing read access is reduced to that department's records."
+      },
+      {
+        "key": "D",
+        "text": "Include the clinician's role and care-team membership in the prompt and instruct the model to withhold any records outside their entitlement."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The records system already holds the authoritative access rules and already enforces them for every other consumer; the assistant has quietly become a second, weaker implementation of them. Delegating the clinician's identity restores a single point of enforcement, means the assistant can only ever retrieve what that clinician could retrieve directly, and produces access logs in the records system attributed to the actual person. It also removes the standing broad-access credential that made a filtering bug catastrophic rather than merely wrong.",
+      "distractors": {
+        "B": "An output filter is the same flawed control moved later in the pipeline. The unauthorised records have already been retrieved and have already entered the model's context, so a leak now depends on the filter being perfect rather than on access never having been granted.",
+        "C": "Departmental service accounts narrow the blast radius by a constant factor and change nothing structural. Entitlement here is per care team and per patient, so the assistant is still retrieving records the requester may not see and still deciding for itself which to reveal.",
+        "D": "Authorisation must never be delegated to the model. Instructions in a prompt are guidance, not enforcement, and any injected or ambiguous content in the retrieved records can influence whether they are followed."
+      },
+      "concept": "Retrieve with the end user's identity, not the application's. When a system of record already enforces authorisation, propagate a delegated identity to it rather than granting the application broad access and re-implementing entitlement checks above it.",
+      "tip": "Two classic wrong answers appear together in identity items: filter after retrieval, and ask the model to withhold. Both accept unauthorised data into the pipeline; the correct answer stops it being fetched."
+    }
+  },
+  {
+    "id": "INT-D-054",
+    "domain": "Integration",
+    "topic": "Audit capture silently dropping oversized request bodies",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A pension administrator's gateway writes every model request and response body to an audit store, supporting a regulator-facing commitment that any interaction can be reproduced for seven years. A routine review finds that for the past three weeks any body exceeding a configured size limit was silently dropped, with only metadata retained. About 12% of interactions are affected. What should the architect do next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Reconstruct the missing records by replaying the affected requests against the model and storing the resulting outputs as the audit record for those interactions."
+      },
+      {
+        "key": "B",
+        "text": "Migrate the audit store to object storage with no practical size limit, and treat the historical gap as immaterial given that 88% of interactions were captured."
+      },
+      {
+        "key": "C",
+        "text": "Raise the configured size limit generously, add an alert for any future occurrence, and close the finding as remediated in the control register."
+      },
+      {
+        "key": "D",
+        "text": "Change the gateway to reject rather than serve any interaction whose audit record cannot be written in full, and raise the gap as a reportable control failure."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Two things are wrong and both need the next action. Structurally, an audit control that degrades silently is not a control: if the commitment is that every interaction is reproducible, then an interaction that cannot be recorded must not be served, so the gateway has to fail closed. Procedurally, three weeks of missing records against a regulator-facing commitment is a control failure that has to be reported through the proper channel, with the affected interactions identified from the metadata that was retained — deciding internally that it is acceptable is precisely the judgement the architect is not entitled to make.",
+      "distractors": {
+        "A": "Replaying produces new outputs from a new call, which is not what happened and cannot be represented as the record of what happened. Fabricating audit evidence turns a control gap into a far more serious integrity problem.",
+        "B": "The storage change is sensible engineering paired with an unacceptable conclusion. Materiality against a regulatory commitment is not an engineering judgement, and a 12% gap over three weeks is not obviously immaterial to anyone assessing it.",
+        "C": "Raising the limit fixes the immediate trigger and leaves the design that failed silently in place — the next cause will be a store outage or a throttled write, and the same gap reappears. It also quietly disposes of a reportable gap without reporting it."
+      },
+      "concept": "An auditability commitment implies a fail-closed audit path: if the record cannot be written, the interaction does not proceed. Silent degradation is the worst failure mode for a control, because the system reports health while the obligation goes unmet — and a discovered gap is a reportable event, not an engineering ticket.",
+      "tip": "When a stem pairs a regulator-facing commitment with a silent failure, expect two obligations in the answer: make it fail loudly in future, and disclose what already happened. Options doing only one are incomplete."
+    }
+  }
+]

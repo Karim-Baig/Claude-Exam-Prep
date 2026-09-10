@@ -1,0 +1,724 @@
+[
+  {
+    "id": "GSR-B-055",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Adding a subprocessor that sees customer prompt content",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A Swedish HR software vendor processes customer employee data through a Claude-based assistant. Its data processing agreement gives customers thirty days' notice of new subprocessors and a right to object. The platform team wants to add a specialist third-party reranking service that will receive retrieved text fragments containing employee names and case details, to improve answer quality. The team has scheduled it into next sprint's release. What should the architect raise?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Because the reranker sees only text fragments rather than complete employee records, it is a technical component of the retrieval stack rather than a subprocessor, and the notice process does not apply."
+      },
+      {
+        "key": "B",
+        "text": "Notice is required only where the new subprocessor operates from a different country than the existing ones, so the obligation turns on where the reranking service is hosted."
+      },
+      {
+        "key": "C",
+        "text": "The reranker is a new subprocessor processing customer personal data, so the notice period and objection right must run before it goes live, and the architecture must be able to operate without it."
+      },
+      {
+        "key": "D",
+        "text": "The obligation is met by updating the published subprocessor list on the vendor's website on the day the change is released, since that is how customers are informed of the current chain."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Two things follow from the contractual commitment, and only one of them is administrative. The notice clock has to run before the reranker sees any customer data, which puts a floor under the release date that a sprint boundary does not. The harder consequence is architectural: the vendor has promised customers they may object, so the platform must be able to serve an objecting tenant without that component. A design where reranking is load-bearing and unconditional turns a contractual right into something the vendor cannot honour, and that is discovered at the worst possible moment.",
+      "distractors": {
+        "A": "Receiving fragments of personal data is receiving personal data, and a service that processes it on the vendor's behalf is a subprocessor whatever the architecture diagram labels it. Component granularity has never been a scoping criterion.",
+        "B": "Location affects transfer analysis, not whether the notice and objection process applies. A domestic subprocessor added without notice breaches the commitment exactly as a foreign one would.",
+        "D": "Publishing a list at go-live provides no notice period and no opportunity to object, which is the entire content of the commitment. A change log is not a notification mechanism."
+      },
+      "concept": "A subprocessor objection right is a runtime requirement, not a contract term. Any component that receives customer personal data must be capable of being disabled per tenant, or the organisation has sold a right it cannot deliver. Build per-tenant component toggles before the chain grows.",
+      "tip": "When a stem quotes a contractual right customers hold, check whether the architecture could actually honour it. The compliance step is usually obvious; the design consequence is the item."
+    }
+  },
+  {
+    "id": "GSR-B-056",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Health details volunteered into an ordinary retail conversation",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A UK retailer's Claude assistant answers product questions on its website. Reviewing transcripts, the team finds that customers routinely volunteer health information - 'I need this chair because of my back condition', 'is this suitable for a diabetic diet' - and that the assistant's summariser writes a short interest profile back to the CRM for personalisation. The lawful basis analysis done at launch covered ordinary personal data only. What is the correct assessment?",
+    "options": [
+      {
+        "key": "A",
+        "text": "No additional condition applies, because the customer volunteered the information unprompted and the retailer neither requested it nor asked any health question."
+      },
+      {
+        "key": "B",
+        "text": "The data is not special category in the retailer's hands, because the retailer has no intention of inferring health status and uses the detail only for product relevance."
+      },
+      {
+        "key": "C",
+        "text": "Retention in the transcript is incidental processing outside the framework, because the assistant does not act on the health information when it generates its answer to the customer."
+      },
+      {
+        "key": "D",
+        "text": "Health details in the transcripts are special category data requiring an additional condition; the options are to establish one or to stop retaining and deriving from them."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The category follows the content, not the intent or the route by which it arrived. Once health details sit in retained transcripts and, worse, get distilled into a personalisation profile, the retailer is processing special category data and needs a condition that a retail personalisation use case will struggle to supply. That makes this an architecture problem: the realistic fix is to stop the data becoming durable - do not persist raw free text, filter health signals out of the summarisation step, and block health-derived attributes from reaching the CRM - so the volunteered content is used in the moment and not accumulated.",
+      "distractors": {
+        "A": "How the data arrived is irrelevant to its classification. Volunteering is not a condition for processing, and treating unsolicited disclosure as self-authorising would make the category meaningless in any conversational channel.",
+        "B": "Intent does not reclassify data. A record stating a customer has a back condition is health information regardless of what the retailer plans to do with it, and the profile write shows the retailer is in fact deriving from it.",
+        "C": "Storage is processing. The claim that the assistant does not act on the information is also contradicted by the stem, which says a profile is written back for personalisation."
+      },
+      "concept": "Open conversational channels collect categories of data the use case never intended. Assume special category content will arrive, and design the retention and derivation path so it does not become durable - filtering at summarisation and blocking derived attributes is usually cheaper than finding a condition for processing it.",
+      "tip": "When a stem mentions that a summariser writes attributes back to a profile, that write is the exposure. Free text in a transcript is bad; a derived attribute in a customer record is the thing that turns it into systematic processing."
+    }
+  },
+  {
+    "id": "GSR-B-057",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Processor obligation on discovering a breach",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Under GDPR, what must a processor do when it becomes aware of a personal data breach affecting a controller's data?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Notify the relevant supervisory authority directly within the statutory deadline, acting on the controller's behalf."
+      },
+      {
+        "key": "B",
+        "text": "Notify the controller without undue delay, leaving the risk assessment and any onward notification to the controller."
+      },
+      {
+        "key": "C",
+        "text": "Assess the likely risk to individuals and notify those individuals directly where that risk is high."
+      },
+      {
+        "key": "D",
+        "text": "Notify the controller only where the processor's own assessment concludes the breach is likely to result in a risk to individuals."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The split is deliberate: the processor reports upward without applying a threshold, and the controller - who knows the data subjects, the context and the consequences - decides what follows. For an AI vendor this shapes the incident runbook concretely. There is no internal triage gate that justifies waiting, the notification must carry enough detail for the controller to run its own assessment against a clock that has already started, and the contract usually specifies a far shorter internal deadline than the controller's own external one.",
+      "distractors": {
+        "A": "A processor notifying the authority in its own name would displace the controller's accountability and would be made without the context needed to characterise the risk. The controller owns the relationship with the regulator.",
+        "C": "Communicating with affected individuals is the controller's decision and the controller's message. A processor contacting a customer's data subjects directly would be both outside its remit and damaging to the customer relationship.",
+        "D": "There is no risk threshold on the processor's duty to inform the controller. Building one into a vendor's runbook is a common and serious design error, because it puts the assessment in the hands of the party without the context to make it."
+      },
+      "concept": "Processors report every breach upward promptly and without applying a materiality filter; controllers assess risk and handle external notification. When designing an AI platform's incident process, make the upward notification unconditional and fast, and keep the judgement calls on the controller's side of the line.",
+      "tip": "Breach items usually test the split of duties rather than the deadlines. If an option has the processor exercising judgement about whether to tell the controller, it is wrong."
+    }
+  },
+  {
+    "id": "GSR-B-058",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Real patient content pasted into a shared prompt repository",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A US health system's platform team keeps its prompt templates in a Git repository that all of engineering can read, that is mirrored into an internal code search tool, and whose CI pipeline prints rendered templates into build logs retained for ninety days. An engineer materially improved discharge-summary quality by adding three few-shot examples copied from real patient charts, with the patient names replaced by initials. The change passed code review and has been live for two months. What is the correct assessment?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Real clinical content in a template is protected health information across source control, its mirrors, the build logs and every clone; replace the examples with synthetic content and add a CI check."
+      },
+      {
+        "key": "B",
+        "text": "The examples are acceptable because prompt templates are configuration rather than clinical data, and the repository is already covered by the organisation's existing information security controls and access reviews."
+      },
+      {
+        "key": "C",
+        "text": "The examples are acceptable now that names have been reduced to initials, since removing direct identifiers satisfies the minimum necessary standard for a development artefact of this kind held in source control."
+      },
+      {
+        "key": "D",
+        "text": "The exposure is adequately managed by narrowing repository access to the platform team and requiring a second reviewer on any change touching prompt files before it merges."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The stem names four distribution channels and every one of them is hard to claw back. Git history keeps the content after any later edit, the code search mirror has its own index, the build logs live for ninety days, and every clone on every laptop is a copy nobody can enumerate. Two months of that is not a configuration issue; it is a disclosure with an unknown boundary. The forward fix has to be preventive rather than procedural, because code review demonstrably did not catch it - synthetic examples as the standard, and an automated check that fails the build when clinical-looking content appears in a template.",
+      "distractors": {
+        "B": "Calling it configuration describes the file's role, not its contents. The security controls on a repository readable by all of engineering, mirrored and logged, are not the controls appropriate to clinical records regardless of how the file is classified.",
+        "C": "Initials are not de-identification, and free-text clinical narrative re-identifies through dates, conditions, procedures and facility references. Minimum necessary also concerns the amount of data used for a purpose, which does not authorise its distribution through the software supply chain.",
+        "D": "Both measures are sensible going forward and neither addresses what has already happened across history, mirrors, logs and clones. Human review is also the control that already failed once here."
+      },
+      "concept": "Prompt templates are code, and code fans out through history, mirrors, logs and clones. Treat any real regulated content in a template as a disclosure into the entire software supply chain, standardise on synthetic few-shot examples, and enforce it with an automated pre-merge check rather than reviewer vigilance.",
+      "tip": "Count the copies a stem describes. When it lists mirrors, build logs and clones, it is telling you that access restriction going forward cannot be the answer, because the content has already spread."
+    }
+  },
+  {
+    "id": "GSR-B-059",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Answering a questionnaire that asks for GDPR certification",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A logistics scale-up is closing its largest enterprise deal. The prospect's security questionnaire asks: 'Is your AI platform GDPR certified and SOC 2 compliant?' Sales wants both answered yes so the deal can progress this quarter. The scale-up holds a SOC 2 Type II report scoped to security for its core platform, which does not cover the new Claude-based module. How should the architect answer?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Answer yes to both and attach the SOC 2 report, since it evidences the security controls that data protection law requires and therefore covers the second question for the new module too."
+      },
+      {
+        "key": "B",
+        "text": "Decline to answer until the organisation has obtained formal GDPR certification from the relevant supervisory authority, and tell sales the deal must wait until it is issued."
+      },
+      {
+        "key": "C",
+        "text": "State what is held and what it covers - the report's scope and observation period, and that the new module sits outside it - and answer the data protection question by describing measures and roles."
+      },
+      {
+        "key": "D",
+        "text": "Answer yes to the SOC 2 question and, for the data protection question, refer the prospect to the model provider's published compliance page, since the provider processes the data on the scale-up's behalf."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The question contains a false premise and a scope trap, and both have to be corrected rather than answered around. There is no general certification that makes an organisation compliant with data protection law, so claiming one is a misrepresentation that the buyer's legal team will identify during contracting. The scope point is the more dangerous of the two: answering yes to SOC 2 when the module being purchased sits outside the report's boundary is exactly the kind of statement that turns into a contractual dispute after an incident. Stating scope plainly loses nothing that survives diligence anyway.",
+      "distractors": {
+        "A": "A security attestation and a data protection framework answer different questions, and asserting that one covers the other is a claim the buyer will test. The scope gap makes the SOC 2 half misleading as well.",
+        "B": "This treats a non-existent artefact as a prerequisite and blocks the deal for something that can never be obtained. Buyers routinely accept a clear description of measures; they do not accept an invented certification.",
+        "D": "The provider's posture is relevant to one link in the chain. The scale-up is the party the customer is contracting with and, for this data, the accountable one, so pointing at a vendor page does not answer the question asked."
+      },
+      "concept": "Assurance artefacts have types, scopes and periods, and regulatory frameworks have no general certification. Answer diligence questions by naming the artefact, its scope boundary and its period, and describe measures where no artefact exists - overstated scope is the most common source of later contractual exposure.",
+      "tip": "Watch for questionnaire stems where the question itself is malformed. The correct answer usually corrects the premise rather than choosing between yes and no."
+    }
+  },
+  {
+    "id": "GSR-B-060",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Allocating PCI requirements between a SaaS and its cloud provider",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A payments-adjacent SaaS runs a Claude-based dispute-handling workflow on a managed cloud platform, with model inference through the cloud provider's endpoint. Some flows transmit truncated card data and one legacy flow still transmits full account numbers. The assessor has asked how requirements are divided between the SaaS and the cloud provider. The engineering lead's answer is that the cloud provider handles infrastructure security. What should the architect produce?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The cloud provider's published shared responsibility model, which sets out the division authoritatively and is sufficient documentation for the assessment of this environment."
+      },
+      {
+        "key": "B",
+        "text": "The cloud provider's attestation, since a service provider is responsible for every requirement relating to infrastructure it operates and no further documentation is needed from the SaaS."
+      },
+      {
+        "key": "C",
+        "text": "A statement that no allocation is needed for most requirements, because the SaaS itself never stores account numbers and only storage triggers assessment responsibility."
+      },
+      {
+        "key": "D",
+        "text": "A written responsibility matrix agreed with the provider mapping each applicable requirement to the SaaS, the provider or both, with provider evidence for every inherited control."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Inherited controls only count when the boundary is written down and the provider's own assessment actually covers them. A generic responsibility model tells you the vendor's general philosophy; it does not tell an assessor who is accountable for a specific requirement in this specific deployment, and the shared items - patching, logging, key management, access review - are where gaps hide because each party assumes the other has it. Producing the matrix also forces the legacy full-account-number flow into the open, because someone has to be named as accountable for the requirements it triggers.",
+      "distractors": {
+        "A": "A published model is marketing-level guidance written for every customer. It is not an agreed allocation for this deployment, and assessors do not accept it as evidence of who performs which control.",
+        "B": "Attestations state that a provider met requirements within its own scope. They do not establish that the provider's scope covers what this customer needs to inherit, and the boundary is exactly what is in dispute.",
+        "C": "Transmission and processing bring systems into scope alongside storage, and the stem states that account numbers are transmitted in at least one flow. This answer would exclude most of the environment on a false premise."
+      },
+      "concept": "When regulated workloads run on managed infrastructure, produce an explicit requirement-by-requirement responsibility matrix agreed by both parties, and hold the provider evidence supporting every inherited control. Shared responsibility diagrams describe philosophy; matrices survive assessment.",
+      "tip": "Any option offering a vendor's generic published document as compliance evidence is almost always wrong. The exam-relevant artefact is the bilateral, deployment-specific allocation."
+    }
+  },
+  {
+    "id": "GSR-B-061",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "General-purpose model duties versus downstream system duties",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A French ERP vendor is embedding a general-purpose model into a new module that screens supplier invoices for anomalies and recommends payment holds. Its legal counsel's position is that because the model provider bears the obligations attaching to general-purpose models, the ERP vendor inherits a compliant position and needs only to pass through the provider's documentation to customers. What should the architect say?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Counsel is right for a different reason: since the ERP vendor did not train the model, it holds no obligations under the AI Act at all and its only duties arise under data protection law."
+      },
+      {
+        "key": "B",
+        "text": "The ERP vendor has its own obligations for the system it places on the market, determined by what that system is used for; the provider's documentation is an input to those duties, not a discharge of them."
+      },
+      {
+        "key": "C",
+        "text": "Both parties owe an identical obligation set for the finished module, which the Act allocates jointly, so either party performing the work satisfies the requirement for both of them."
+      },
+      {
+        "key": "D",
+        "text": "The ERP vendor's obligations are determined by the scale of the underlying model, so embedding a smaller general-purpose model reduces the module's obligation set proportionately."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Two layers, two obligation sets. The upstream duties exist largely so that downstream builders can meet their own - the documentation and information a model provider supplies is the raw material for the system-level assessment, not a substitute for it. The ERP vendor is placing a product on the market with a defined purpose, and the obligations that attach follow from that purpose and its effects. Passing documentation to customers without doing the system-level work leaves the vendor with an unassessed product and customers who believe the assessment has been done.",
+      "distractors": {
+        "A": "Building a system on someone else's model and selling it makes you responsible for the system. Reaching the same conclusion by a cleaner-sounding route does not make the conclusion less wrong.",
+        "C": "The Act allocates duties to roles rather than pooling them. Assuming joint performance leaves both parties believing the other has covered the same requirement, which is how obligations end up unmet by everyone.",
+        "D": "Model scale bears on the upstream provider's own duty set in some respects. It does not scale the obligations attaching to the system built on top, which follow from that system's use and effects."
+      },
+      "concept": "In layered AI supply chains, obligations attach at each layer to the party that places that layer on the market. Upstream documentation is an input you consume, not a compliance position you inherit, and the assessment must be redone at the level where the intended purpose is defined.",
+      "tip": "When a stem has someone claiming to inherit compliance from a supplier, the answer is nearly always that the duty attaches to whoever defines the use. Inheritance of compliance is a recurring wrong answer in this domain."
+    }
+  },
+  {
+    "id": "GSR-B-062",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Screening a proposed feature against prohibited practices",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A Dutch contact-centre operator's product team proposes a feature that infers each caller's emotional state from the live transcript and displays a running frustration score to the agent handling the call. Those inferred scores are then aggregated per agent and presented to supervisors as a per-worker measure of the emotional tone each agent's calls produce, used in individual coaching and performance conversations. The team has drafted a design and asks the architect to review the guardrails, the bias evaluation plan and the human-review step. All employees and callers are in the EU. What should happen next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Approve the design to proceed to build with the proposed guardrails and bias evaluation, and classify the feature formally once measured accuracy is available from the pilot."
+      },
+      {
+        "key": "B",
+        "text": "Treat it as a high-risk employment system and begin the conformity workstream, since anything producing per-worker measures for supervisors sits in that tier."
+      },
+      {
+        "key": "C",
+        "text": "Screen the proposal against the prohibited practices list before any further design work, because emotion inference used to characterise workers in the workplace is among the most restricted areas."
+      },
+      {
+        "key": "D",
+        "text": "Consult the works council first and let their response determine the design, since employee representation is the binding constraint and the Act governs systems sold externally rather than used internally."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The review being requested assumes the feature is permissible and skips straight to how well it will be built. The caller-facing score on its own is one question; the per-agent aggregate is another, because it turns inferred emotion into a standing measure of individual workers in the workplace, and that is one of the areas the Act treats most restrictively. So the screening question comes before guardrails, evaluation and oversight - because if the practice sits in the prohibited tier there is no control set that rescues it, and everything the team builds is waste. Screening costs a legal review and a week; discovering it after a quarter of engineering costs the quarter, and discovering it after launch costs considerably more.",
+      "distractors": {
+        "A": "Measuring accuracy first inverts the order. Whether the practice is permitted does not depend on how well it performs, and a highly accurate prohibited feature is worse than an inaccurate one, not better.",
+        "B": "This assumes the tier below the one that may actually apply and commits the team to a conformity programme for a feature that may not be deployable at all. It also overstates the rule, since not every per-worker measure lands in that tier.",
+        "D": "Collective consultation is a genuine and separate obligation here. It is not a substitute for the tier screening, and the premise that the Act only reaches externally sold systems is wrong - internal deployment is squarely covered."
+      },
+      "concept": "Screen against the prohibited tier at proposal stage, before design. Prohibited practices are the only category where no combination of guardrails, oversight, accuracy or documentation produces a compliant outcome, which makes early screening the highest-return governance step in the lifecycle.",
+      "tip": "When a team asks you to review guardrails, check first whether the feature should exist. Next-step items often plant a reasonable-looking request that skips the gate before it."
+    }
+  },
+  {
+    "id": "GSR-B-063",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Allocating AI risk duties across three lines of defence",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A Canadian insurer is allocating responsibilities for its Claude-based claims assistant across a three-lines-of-defence structure, and the operating model must be signed off before the system leaves pilot. Which THREE allocations are correct? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "The claims business owner in the first line owns the risk, operates the controls embedded in the process, and performs day-to-day monitoring of output quality."
+      },
+      {
+        "key": "B",
+        "text": "Independent model validation is placed in the first line so validators have direct access to the development team's context, tooling and release cadence."
+      },
+      {
+        "key": "C",
+        "text": "The third line owns remediation of the control weaknesses it identifies, since it has the clearest understanding of each deficiency it raised."
+      },
+      {
+        "key": "D",
+        "text": "The second line sets AI risk policy and standards and independently challenges the first line's risk assessment, control design and monitoring thresholds."
+      },
+      {
+        "key": "E",
+        "text": "Internal audit in the third line provides independent assurance over the design and effectiveness of the whole framework, including the second line's own activities."
+      }
+    ],
+    "correct": [
+      "A",
+      "D",
+      "E"
+    ],
+    "explanation": {
+      "correct": "The model works because ownership, challenge and assurance sit with different people. The business owns the risk it creates and runs the controls closest to it, which for an AI system means output quality monitoring and the escalation path when something looks wrong. The second line writes the standard the first line must meet and pushes back on its self-assessment. The third line checks that the whole arrangement functions, and its remit deliberately extends over the second line - otherwise policy-setting is never independently tested.",
+      "distractors": {
+        "B": "Placing validation in the first line destroys the independence that gives validation its value. Proximity to tooling is a genuine practical benefit and is solved by access arrangements, not by moving the function under the team it challenges.",
+        "C": "Audit identifies and reports; management remediates. If the third line owns fixes, it ends up auditing its own work at the next cycle, which is the same independence failure as the first-line validation error in a different place."
+      },
+      "concept": "Ownership, challenge and assurance must sit in separate lines, and the boundary is broken as easily by moving validation down as by moving remediation up. When adding AI systems to an existing risk operating model, map each new activity to a line before allocating headcount.",
+      "tip": "Independence failures in these items come in pairs: one option pulls an oversight function into the business, another pushes an execution duty into audit. Look for both."
+    }
+  },
+  {
+    "id": "GSR-B-064",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Monitoring signals that should trigger re-validation",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A bank's validated Claude-based trade-finance document checker has been live four months. Monitoring covers a weekly automated quality score on a sampled set, input drift, and the rate at which operators override the system. The quality score has been flat. The override rate has fallen from eighteen percent to three percent. Traffic from a newly onboarded commodities business now makes up thirty percent of volume, up from zero. No configured threshold has been breached and the monthly report is green. What should the architect conclude?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Monitoring is measuring the wrong things: a third of traffic now falls outside the validated population and the collapsing override rate suggests oversight is weakening, so re-validation is needed."
+      },
+      {
+        "key": "B",
+        "text": "A flat quality score across a substantially increased and more varied volume is positive evidence that the system generalises, so continuing the current monitoring is the proportionate response."
+      },
+      {
+        "key": "C",
+        "text": "The falling override rate shows operators have built appropriate confidence in a system that has proved itself over four months, which is the outcome the deployment was intended to produce."
+      },
+      {
+        "key": "D",
+        "text": "The commodities traffic should be added to the sampled quality set at the next quarterly review, which will surface any degradation without disrupting the current monitoring cadence."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Two things in the stem are invisible to the configured thresholds and both are serious. Validation covered a population that no longer describes a third of the traffic, so the system is operating partly outside the scope it was approved for, and a sampled quality score drawn from the old mix will stay flat while saying nothing about the new one. The override collapse is worse, because it is the metric that would otherwise catch this: if operators have stopped disagreeing, the human control the validation relied on has quietly stopped working, and the two trends together are the classic pattern of automation complacency masking scope drift.",
+      "distractors": {
+        "B": "The score is flat because the sample has not moved with the traffic. Reading stability from a measurement that does not cover the new population confuses the absence of evidence for evidence of absence.",
+        "C": "A sixfold fall in disagreement over four months is not calibration, it is disengagement, and the timing coincides with a new population the operators have least experience of. Confidence should be evidenced by accuracy on that population, not inferred from silence.",
+        "D": "Waiting a quarter leaves the system running outside its validated scope for another three months, and it treats the sampling gap as the only issue while ignoring what the override trend is saying about the oversight control."
+      },
+      "concept": "Ongoing monitoring must include population composition and human oversight behaviour, not just output quality. Scope drift and complacency are the two failures that keep quality dashboards green, because a stale sample cannot see a new population and a disengaged reviewer generates no signal at all.",
+      "tip": "When a stem tells you every threshold is green and then hands you two moving numbers, the item is about what the thresholds do not measure. Percentage-of-traffic and override-rate shifts are the usual pair."
+    }
+  },
+  {
+    "id": "GSR-B-065",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Removing secrets from audit logs without losing reproducibility",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A payments company logs the full rendered prompt, all tool call arguments and the complete completion for every request, in order to reconstruct decisions for its regulator. A security review has found live session tokens and full account numbers in those logs, which are retained for seven years and readable by the platform support rota. The team must fix this without losing the ability to reconstruct a decision. Which THREE changes achieve both? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Truncate every logged prompt to its first two thousand characters, which bounds both storage growth and the amount of sensitive content retained in the archive."
+      },
+      {
+        "key": "B",
+        "text": "Replace credentials, session tokens and API keys in tool call arguments with a reference to the secret's identifier and version, so the log records which credential was used without holding it."
+      },
+      {
+        "key": "C",
+        "text": "Store regulated data elements such as account numbers as a token plus a salted hash, so the record can prove which value was used without holding the value."
+      },
+      {
+        "key": "D",
+        "text": "Remove the model version and decoding parameters from the log, since configuration metadata gives an attacker useful information about the system's internals."
+      },
+      {
+        "key": "E",
+        "text": "Record retrieved document identifiers and content hashes instead of full document bodies, with the bodies resolvable from the versioned corpus on request."
+      }
+    ],
+    "correct": [
+      "B",
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "Each of these substitutes a verifiable reference for a sensitive value, which is what lets both requirements hold at once. A secret identifier and version says which credential was in play without being usable. A token plus hash lets an investigator confirm that the account number in dispute is the one the decision used, without the log becoming a store of account numbers. Document identifiers plus content hashes preserve the exact retrieval outcome and prove the corpus has not shifted underneath it, while moving the bulk content to a store with its own access controls and lifecycle.",
+      "distractors": {
+        "A": "Truncation destroys the very thing the log exists for, since the instructions and retrieved context that determined the outcome are usually not in the first two thousand characters. It also removes sensitive content only by accident, leaving whatever happens to appear early.",
+        "D": "Model version and decoding parameters are the configuration half of reproducibility and are not meaningfully sensitive. Removing them makes every stored decision unreproducible in exchange for no security benefit."
+      },
+      "concept": "Reproducibility needs a faithful reference to what was used, not a copy of it. Replace secrets and regulated values with identifiers, versions and hashes that can be verified against an authoritative store, and keep bulk content out of long-retention logs while keeping its fingerprint in them.",
+      "tip": "Test each option against both constraints in the stem. Options that satisfy security by deleting information - truncation, dropping metadata - fail the reproducibility half and are the standard distractor shape here."
+    }
+  },
+  {
+    "id": "GSR-B-066",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Data residency compared with data sovereignty",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In a deployment discussion, what distinguishes a data residency requirement from a data sovereignty requirement?",
+    "options": [
+      {
+        "key": "A",
+        "text": "They are interchangeable descriptions of the same constraint, with sovereignty the term preferred in public sector procurement documents."
+      },
+      {
+        "key": "B",
+        "text": "Residency applies to personal data, while sovereignty applies to classified or state-secret material held for government."
+      },
+      {
+        "key": "C",
+        "text": "Residency is a contractual commitment made by a supplier, while sovereignty is a technical control implemented by the customer in its own environment."
+      },
+      {
+        "key": "D",
+        "text": "Residency constrains where data is stored and processed; sovereignty additionally concerns whose law and which authorities can reach it."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The distinction has real architectural consequences. Residency is satisfiable with a region selection and a check that no processing hop leaves it. Sovereignty is not, because a provider incorporated elsewhere may be reachable by a foreign authority even for data that never leaves the country - so the questions become who operates the infrastructure, who holds the keys, who can be compelled, and whether support personnel abroad have access paths. Teams that treat a sovereignty requirement as a region setting deliver something that fails the customer's actual test.",
+      "distractors": {
+        "A": "They routinely appear in the same conversation and mean different things. Treating them as synonyms is how a solution that satisfies a location requirement gets sold against a legal-reach requirement.",
+        "B": "Both concepts apply across data types. Sovereignty concerns are raised as often about ordinary commercial and personal data as about classified material, particularly in regulated and public sector buying.",
+        "C": "Both are requirements that can be met through a combination of contractual and technical means. Neither is inherently one or the other, and framing residency as merely contractual understates what it demands of the architecture."
+      },
+      "concept": "Residency is a location constraint; sovereignty is a jurisdictional-reach constraint covering who operates, who holds keys and who can compel disclosure. Establish which one a customer means before designing, because the second is not satisfied by choosing a region.",
+      "tip": "If a requirement mentions foreign authorities, compelled access or operator nationality, it is a sovereignty requirement. Region pinning alone will not answer it."
+    }
+  },
+  {
+    "id": "GSR-B-067",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Preventing an assistant from signalling a suspicious activity report",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A UK bank's Claude assistant helps front-line staff answer customer queries during calls, retrieving from a case-notes corpus. That corpus includes notes on accounts under financial crime investigation, including where a suspicious activity report has been submitted. The financial crime team has raised that disclosing the existence of such a report - even indirectly - is an offence. The platform team proposes several mitigations. Which is correct?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Instruct the model in the system prompt never to mention or allude to financial crime investigations, and add an output filter that blocks the relevant terminology before anything is displayed."
+      },
+      {
+        "key": "B",
+        "text": "Allow retrieval of investigation notes but require the agent to confirm their authorisation in the interface before the assistant will surface that content on the call."
+      },
+      {
+        "key": "C",
+        "text": "Partition the corpus so investigation content is not retrievable at all in the customer-facing context, enforced by entitlement at retrieval time rather than by any instruction to the model."
+      },
+      {
+        "key": "D",
+        "text": "Redact the substance of investigation notes while leaving a placeholder showing that a restricted note exists, so the agent knows to escalate rather than answer the query."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The only reliable control is that the content never enters the context, because once it does the leak channel is not limited to the model naming the report. A hedged answer, an unusual refusal, a change of tone, or a suggestion to transfer the call all convey the same signal to an attentive listener, and none of them are things an output filter recognises. Enforcing entitlement at retrieval keeps the decision in a deterministic component that can be tested and audited, and it means the agent's own authorisation - not the model's compliance with an instruction - determines what is reachable.",
+      "distractors": {
+        "A": "Instructions and keyword filters both operate after the sensitive content is already in context, and neither addresses inference from behaviour. A model that suddenly cannot discuss an account is itself informative, which is the specific harm here.",
+        "B": "An in-interface confirmation is a self-assertion, not an entitlement check, and it puts a front-line agent under call-handling pressure in charge of a decision with criminal consequences. The authorisation should be a property of the account, evaluated by the system.",
+        "D": "The placeholder is the disclosure. Telling an agent mid-call that a restricted note exists on this customer conveys precisely the fact that must not be conveyed, and it does so more clearly than a leaked sentence would."
+      },
+      "concept": "Where the existence of information is itself the secret, redaction and output filtering are inadequate, because absence, refusal and behavioural change all leak. The control must exclude the content from retrieval entirely, enforced deterministically by entitlement in the retrieval layer.",
+      "tip": "Ask whether the harm is disclosing the content or disclosing that content exists. When it is the latter, every option that leaves a marker or a refusal behind is wrong, including the ones that look most careful."
+    }
+  },
+  {
+    "id": "GSR-B-068",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Export-controlled technical data in an engineering assistant",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An aerospace supplier wants a Claude assistant over its engineering documentation so designers can ask questions across drawings, stress reports and test results. Part of that corpus is export-controlled technical data. The platform would run in a multi-region cloud, and the vendor's support organisation - which can access support tooling touching the environment - is staffed across several countries. What should the architect require?",
+    "options": [
+      {
+        "key": "A",
+        "text": "No additional measures, since the data remains inside the company's own cloud account throughout and the existing identity and access controls already restrict who can read the documents."
+      },
+      {
+        "key": "B",
+        "text": "Keep controlled material out of the general assistant, and where it must be included serve it from a deployment with restricted infrastructure locations and support personnel access, evidenced."
+      },
+      {
+        "key": "C",
+        "text": "That the documents be marked and users instructed not to paste controlled content into prompts, with periodic reminders and spot checks on the stored transcripts."
+      },
+      {
+        "key": "D",
+        "text": "That the corpus be encrypted at rest with company-managed keys, which removes the concern because the content is unreadable to anyone without access to the key material."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Export control turns on who can access the technical data, and access by unauthorised persons - including a provider's support staff of the wrong nationality, or infrastructure in the wrong location - can itself be the controlled event, with no data ever being deliberately sent anywhere. That makes the relevant properties of the deployment its personnel access model and its infrastructure geography, neither of which the standard multi-region service constrains. The evidencing requirement matters as much as the restriction, since the supplier will have to demonstrate the control rather than assert it.",
+      "distractors": {
+        "A": "Ownership of the cloud account does not bound who can reach the environment. Provider support paths and multi-region placement are precisely the access routes that account-level controls do not address.",
+        "C": "User instruction fails on the retrieval design rather than on discipline: an assistant indexing the corpus surfaces controlled content without anyone pasting anything. Spot checks also detect after the fact, which is too late for an access-based control.",
+        "D": "The content must be decrypted to be processed, so encryption at rest does not prevent access at inference or through support tooling. It protects storage media, which is not where the exposure in this design sits."
+      },
+      "concept": "For access-based control regimes such as export control, the governing questions are who can technically reach the data and from where - including vendor support personnel and infrastructure placement. Segregate controlled corpora into a deployment with an evidenced personnel and location boundary rather than relying on account ownership or encryption at rest.",
+      "tip": "When a stem mentions the vendor's support organisation and its staffing geography, that clause is the control question. Ordinary access-control answers ignore the support path entirely."
+    }
+  },
+  {
+    "id": "GSR-B-069",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Settling terms before customer transcripts are used for tuning",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A Brazilian bank wants to tune a model on two years of its own customer service transcripts through its model provider, expecting better handling of local product terminology. The privacy and procurement teams ask what must be settled before any transcript leaves the bank's environment. Which TWO points must be resolved first? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Whether the tuned model will beat prompt engineering on cost and quality per request at the bank's projected volumes."
+      },
+      {
+        "key": "B",
+        "text": "Whether the bank's observability retention matches the provider's, so that latency before and after tuning can be compared over the same window."
+      },
+      {
+        "key": "C",
+        "text": "Whether the bank has a documented purpose and basis covering the use of customer transcripts for model tuning, distinct from the basis on which the conversations were handled."
+      },
+      {
+        "key": "D",
+        "text": "Whether the resulting tuned artefact is available only to the bank, and what happens to both the artefact and the training data at contract end or on termination."
+      },
+      {
+        "key": "E",
+        "text": "Whether the original transcripts can be regenerated from the tuned model, since if they cannot the training data ceases to be personal data and no further analysis is needed."
+      }
+    ],
+    "correct": [
+      "C",
+      "D"
+    ],
+    "explanation": {
+      "correct": "Both are gating questions because both become unfixable once the data has moved. Tuning is a different purpose from servicing a customer conversation, so the bank needs a recorded basis and purpose for it, reflected in its notices and processing record - retrofitting that after two years of transcripts have been transferred is not a position anyone wants to defend. The exclusivity and exit terms are the other irreversible piece: who may use the artefact, whether it is segregated from anything shared, and what is deleted on termination determine whether the bank can ever unwind the arrangement.",
+      "distractors": {
+        "A": "This is a real and important architectural comparison, and it belongs to the decision about whether to tune at all. It is not a condition that must be settled before data egress, and answering it does not make the transfer lawful.",
+        "B": "Matching observability retention is an engineering measurement concern. It has no bearing on the lawfulness of the transfer or on the bank's ability to exit the arrangement.",
+        "E": "Inability to reconstruct training examples does not remove the fact that identifiable data was processed to produce the artefact, and memorisation risk means the premise is not reliably true either. This reasoning would excuse the transfer using a property of its output."
+      },
+      "concept": "Before regulated data leaves your boundary for model tuning, settle the two irreversible items: a recorded purpose and basis for the tuning use, and contractual terms on artefact exclusivity, segregation and deletion at exit. Everything else can be revisited; these two cannot.",
+      "tip": "Sort options by reversibility. Multi-select items about data egress usually key on the decisions that cannot be unwound once the transfer happens."
+    }
+  },
+  {
+    "id": "GSR-B-070",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "One assistant across jurisdictions with conflicting requirements",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A global manufacturer is rolling out one Claude-based HR assistant to employees in the EU, the United States, China and Brazil. Legal has produced a matrix showing a local data localisation requirement in one jurisdiction, a collective consultation requirement in another, and a state privacy law elsewhere granting an opt-out from certain automated processing. The programme sponsor wants a single global deployment on one date. Which TWO positions should the architect hold? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Apply the strictest requirement found in any jurisdiction to all of them - localisation everywhere, opt-out everywhere - since a most-restrictive baseline is compliant by construction."
+      },
+      {
+        "key": "B",
+        "text": "Design jurisdiction-specific behaviour - data location, retention, feature availability and disclosure text - as per-region configuration rather than a code fork."
+      },
+      {
+        "key": "C",
+        "text": "Publish one global privacy notice covering every jurisdiction, since a single document eliminates the risk of inconsistent disclosures between regions and teams."
+      },
+      {
+        "key": "D",
+        "text": "Accept that some jurisdictions may need a separate deployment or a later launch where configuration cannot satisfy them, and plan the rollout in waves."
+      },
+      {
+        "key": "E",
+        "text": "Route all traffic through the single region with the strongest privacy protections, on the basis that a higher standard automatically satisfies the weaker regimes."
+      }
+    ],
+    "correct": [
+      "B",
+      "D"
+    ],
+    "explanation": {
+      "correct": "The sponsor wants one deployment and one date, and only one of those is achievable. A single codebase is achievable if divergence is expressed as configuration - which region processes, how long records live, which features are enabled, what disclosure text renders - because that keeps one system to maintain while letting behaviour differ. The single date is not, because a localisation requirement may demand separate infrastructure and a consultation requirement runs on a timetable the programme does not control. Naming that early converts a slipped global launch into a planned wave.",
+      "distractors": {
+        "A": "Requirements do not merely differ in strictness; they conflict. A localisation rule and a duty to produce records elsewhere cannot both be satisfied by picking the stricter one, and over-restriction can itself breach an obligation such as employee access to a service.",
+        "C": "Disclosure content and format requirements differ by jurisdiction, so a single notice typically under-discloses somewhere while confusing everyone. Consistency of substance is worth pursuing; a single document is not.",
+        "E": "Strong protection in one region does not satisfy another region's requirement that data stay inside its own borders. Localisation is a location rule, and no level of protective control substitutes for it."
+      },
+      "concept": "Multi-jurisdiction AI rollouts need configurable per-region behaviour over a single codebase, plus an explicit acceptance that some requirements cannot be met by configuration at all. The most-restrictive-baseline heuristic fails whenever two requirements genuinely conflict, which localisation rules regularly do.",
+      "tip": "The strictest-common-denominator option appears in almost every multi-jurisdiction item and is almost always wrong. Look for a pair of requirements in the stem that cannot both be satisfied by the same design."
+    }
+  },
+  {
+    "id": "GSR-B-071",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "The controller duty that cannot be contracted away",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Which responsibility remains with the controller and cannot be transferred to a processor by contract?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Accountability for the processing - being able to demonstrate that it complies, including having chosen a processor offering sufficient guarantees."
+      },
+      {
+        "key": "B",
+        "text": "Implementing the technical and organisational security measures appropriate to the risk on the systems that hold the data."
+      },
+      {
+        "key": "C",
+        "text": "Carrying out the operational steps needed to answer a data subject request against records the processor holds in its own systems."
+      },
+      {
+        "key": "D",
+        "text": "Maintaining and updating the record of the processing activities carried out on the data as those activities change."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Execution can be delegated; answerability cannot. A controller may have a vendor run the encryption, extract the records for a rights request and even maintain documentation as a service, and it will still be the controller who has to demonstrate to a regulator that the processing is lawful and that the vendor was properly chosen and overseen. That is why vendor selection and ongoing oversight are compliance activities rather than procurement ones, and why 'our provider handles that' is never a complete answer to a supervisory question.",
+      "distractors": {
+        "B": "Processors have their own security obligations and are routinely contracted to implement measures on the controller's behalf. The work is delegable even though the controller remains answerable for whether it is adequate.",
+        "C": "Processors are required to assist with rights requests, and the extraction work against systems they operate is commonly performed by them. What cannot move is responsibility for the response being correct and timely.",
+        "D": "Both roles have record obligations, and processors frequently maintain documentation for customers as part of the service. Delegating the upkeep does not shift who must produce and stand behind it."
+      },
+      "concept": "Distinguish delegable execution from non-delegable accountability. Outsourcing an AI capability moves work and risk exposure but never moves answerability, which makes vendor selection, contractual terms and ongoing oversight part of the controller's own compliance posture.",
+      "tip": "In controller-processor items, three options will describe work a vendor plausibly performs and one will describe answerability. The odd one out is the answer."
+    }
+  },
+  {
+    "id": "GSR-B-072",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Assembling an examination package for sampled AI decisions",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A US bank examiner has given a commercial lending team two weeks' notice of a request for twenty-five specific credit files where the Claude-assisted memo system was used, together with evidence that the documented controls operated for each. The system went live nine months ago and no such package has ever been produced. Five separate artefacts are involved - the decision record, the rendered model inputs, the resolved model version, the reviewer's action, and the control evidence - and they live in four different systems. What should the architect do first?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Export all twenty-five decision records from the log immediately and send them to the examiner, following up with the control evidence as it is gathered over the following days."
+      },
+      {
+        "key": "B",
+        "text": "Ask the examiner to reduce the sample to five files, explaining that the system is new and the package has to be assembled manually across four systems."
+      },
+      {
+        "key": "C",
+        "text": "Convene model risk, compliance and engineering to agree a response plan and divide the twenty-five files among the three teams to work through in parallel."
+      },
+      {
+        "key": "D",
+        "text": "Assemble one complete file end to end across all five artefacts, because doing one reveals which artefact is missing or slow to obtain and whether two weeks is achievable."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The unknown here is not effort but feasibility. Four systems and five artefacts that have never been joined together will have at least one weak link - a reviewer action recorded only in a workflow tool that purges, a model version resolved from an alias nobody snapshotted, control evidence that exists as a screenshot someone took once. Building a single complete file surfaces that within hours, and the answer changes everything: if an artefact simply does not exist for past decisions, no amount of parallel effort produces it and the bank needs to tell the examiner early rather than on day thirteen.",
+      "distractors": {
+        "A": "Sending the easy half first sets an expectation the team may not be able to meet, and it forecloses the chance to present a coherent package. An incomplete initial submission also invites follow-up questions that consume the remaining window.",
+        "B": "Asking for scope reduction before knowing whether the constraint is volume or capability is a weak opening. If one artefact is missing entirely, five files fail for the same reason twenty-five do, and the request has spent credibility for nothing.",
+        "C": "Coordination is necessary and is not the first step. Dividing work across three teams before anyone has proved the package can be assembled parallelises an unvalidated process, and each team will hit the same blocker independently."
+      },
+      "concept": "When a regulator samples, prove the pipeline on one case before scaling the effort. A single end-to-end assembly converts an unknown-feasibility problem into a known-effort problem and surfaces missing artefacts while there is still time to escalate them honestly.",
+      "tip": "Stems that count the artefacts and the systems they live in are pointing at integration risk, not workload. The first step is a vertical slice, never a parallel split."
+    }
+  }
+]

@@ -1,0 +1,456 @@
+[
+  {
+    "id": "CPE-B-037",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Providing an escape value in a constrained enumeration",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A parcel carrier classifies delivery-failure reasons into eight permitted values. Audits show that genuinely novel reasons — a new access-control system at a business park, for example — are being forced into the nearest of the eight, and operations only discovers the pattern months later. Which change to the output contract addresses this?",
+    "options": [
+      { "key": "A", "text": "Expand the enumeration from eight to twenty values so more real cases have a home." },
+      { "key": "B", "text": "Allow the field to hold free text whenever none of the eight permitted values applies to the case." },
+      { "key": "C", "text": "Add an explicit 'none of these' value with a short free-text field explaining the case." },
+      { "key": "D", "text": "Instruct the model to leave the field empty whenever none of the eight values fits." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "A closed set with no exit forces every input into it, so the model's only compliant move on a novel case is to mis-classify. An explicit escape value keeps the field typed and countable while giving the novel case somewhere legitimate to go, and the paired explanation turns those rows into the evidence operations needs to decide whether a ninth value is warranted. The enumeration stays clean and the surprises become visible.",
+      "distractors": {
+        "A": "Twenty values makes the boundary between neighbouring values harder for the model and for analysts, and it still has no exit — the twenty-first real reason gets forced in exactly as the ninth is now.",
+        "B": "Free text on the same field destroys the enumeration for every downstream aggregation, because a value that is sometimes typed and sometimes prose cannot be grouped reliably.",
+        "D": "An empty field is indistinguishable from an extraction failure or a truncated response, so the very cases operations most needs to see become the ones that look like defects."
+      },
+      "concept": "Every closed enumeration exposed to open-world input needs a defined escape value with a reason field. Without one the model must mis-classify to comply, and the mis-classification is silent; with one the residual category becomes the signal that the taxonomy needs to change.",
+      "tip": "When a stem says wrong values are being discovered late, ask what the model was supposed to do with a case that fits nothing. A contract with no legal answer produces an illegal one."
+    }
+  },
+  {
+    "id": "CPE-B-038",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Label order effects in a few-shot block",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A recruitment-compliance team classifies interview notes as compliant, borderline or non-compliant. The prompt carries nine examples grouped for readability: three compliant, then three borderline, then three non-compliant. Evaluation shows a marked skew toward non-compliant on ambiguous notes, and reviewers report the model's justifications echoing the wording of the last two examples. Accuracy on unambiguous notes is fine.",
+    "options": [
+      { "key": "A", "text": "Interleave the examples so the classes alternate rather than run in blocks, then re-check the ambiguous subset." },
+      { "key": "B", "text": "Remove the borderline class and treat those notes as compliant unless a human reviewer disagrees on review." },
+      { "key": "C", "text": "Add three more compliant examples at the end so the final run of the block is compliant rather than non-compliant." },
+      { "key": "D", "text": "State after the examples that the three classes occur with roughly equal frequency in live production notes." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Grouping by class puts a run of identically labelled cases immediately before the input, and on genuinely ambiguous notes — where the evidence does not settle the answer — that recency dominates. The echoed justifications are the tell. Interleaving removes the systematic ordering without touching example content or count, and because the effect was measured only on the ambiguous subset, that same subset is what must confirm the fix.",
+      "distractors": {
+        "B": "Collapsing the taxonomy discards the distinction the compliance team exists to make, and it converts a prompt-ordering defect into a permanent loss of signal plus more reviewer workload.",
+        "C": "Putting a compliant run last swaps one recency bias for the opposite one, which will look like an improvement on this eval and skew the other way on the next distribution of ambiguous notes.",
+        "D": "A frequency claim is a prior stated in prose competing with nine concrete demonstrations arranged in blocks. It also risks encouraging the model to balance its outputs rather than judge each note."
+      },
+      "concept": "Example order is part of the prompt's behaviour, not its formatting. Grouping examples by label creates a recency effect that shows up first on ambiguous inputs; interleave classes, and evaluate ordering changes on the ambiguous slice where the effect lives.",
+      "tip": "'Accuracy on unambiguous notes is fine' localises the defect to cases where the model has to fall back on something other than evidence. That is where prompt artefacts like ordering show up."
+    }
+  },
+  {
+    "id": "CPE-B-039",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Output contract placement relative to the example block",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A brokerage's research-summary prompt states its output contract near the top, then carries six examples written eight months ago that include a 'sentiment' line the contract no longer contains. Outputs include the stale line about a third of the time, and the consuming service ignores unknown keys, so nobody noticed until an audit compared outputs against the published contract.",
+    "options": [
+      { "key": "A", "text": "Configure the consuming service to reject unknown keys so any mismatch surfaces immediately." },
+      { "key": "B", "text": "Update the examples to match the current contract and restate the contract after the example block." },
+      { "key": "C", "text": "Move the output contract to the end of the prompt and leave the six examples as they are." },
+      { "key": "D", "text": "Add a line instructing the model to emit only the fields that the contract lists, and no others." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Six demonstrations of an old shape are a stronger statement about the output than a contract written thousands of tokens earlier, so the examples have to be corrected — that is the source of the stale line. Restating the contract after the examples then makes the authoritative definition the last thing the model reads, which is where an output specification belongs. Both halves are needed: one removes the contradiction, the other prevents the next one drifting unnoticed.",
+      "distractors": {
+        "A": "Strict rejection is a worthwhile hardening and belongs on the backlog, but as the fix it converts a silent prompt defect into a third of requests failing in production while the prompt still disagrees with itself.",
+        "C": "Moving the contract without fixing the examples leaves six worked demonstrations of the wrong shape in the prompt. Position helps at the margin; it does not overrule a demonstration.",
+        "D": "The prompt already says what the contract is. Adding a second sentence to that effect leaves the contradiction with the examples in place, which is what the model is resolving in favour of the older, more concrete statement."
+      },
+      "concept": "Examples are part of the output contract, so any contract change must update them in the same commit. Keep the authoritative specification after the examples where it reads last, and never rely on a lenient consumer to hide a mismatch.",
+      "tip": "'The consuming service ignores unknown keys' explains why the defect survived eight months. Tolerant consumers hide prompt drift; they are context, not the fix."
+    }
+  },
+  {
+    "id": "CPE-B-040",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Which prompt changes are breaking for consumers",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A media-rights platform versions its prompts semantically and has agreed with its four consuming teams that a major version bump requires coordinated release, while minor bumps ship freely. A prompt owner has four pending edits. Which TWO of these must be treated as breaking and released with coordination? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Rewording an instruction for clarity, leaving the output structure untouched." },
+      { "key": "B", "text": "Renaming a field in the output contract from 'rights_holder' to 'licensor'." },
+      { "key": "C", "text": "Adding two few-shot examples covering an edge case reported last month." },
+      { "key": "D", "text": "Changing the set of values an enumerated output field is allowed to take." },
+      { "key": "E", "text": "Moving the policy section above the example block inside the prompt text." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "Breaking means a consumer that was correct before is incorrect after, without changing anything on its side. A renamed field silently disappears from every consumer keyed on the old name, and altering an enumeration invalidates any switch, mapping table or dashboard grouping built on the previous set — including consumers that merely display the value. Both change the interface rather than the behaviour behind it, which is exactly what a coordinated release exists for.",
+      "distractors": {
+        "A": "Clarity edits change how well the prompt performs, not what shape the response takes, so no consumer's parsing or mapping breaks. It still deserves an eval run, which is a different control from release coordination.",
+        "C": "New examples may shift quality and should be measured, but they do not alter the contract. Treating every quality change as breaking would make coordinated release meaningless.",
+        "E": "Section order affects the model's reading of the prompt and possibly the reusable prefix; it is invisible at the interface, so consumers have nothing to adapt to."
+      },
+      "concept": "Version a prompt against its output interface. Field names, types, enumerations and required-ness are the breaking surface; wording, examples and internal ordering are behavioural changes that need evaluation but not consumer coordination.",
+      "tip": "Test each edit with one question: could a consumer that changed nothing now be wrong? If the answer is no, it is not breaking, however large the diff looks."
+    }
+  },
+  {
+    "id": "CPE-B-041",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Retrieved procedure text competing with the prompt's policy",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A telecom support assistant retrieves internal standard operating procedures to answer agent questions. The system prompt says that any account credit above a threshold must be escalated to a supervisor. Several retrieved SOPs, written for humans, contain imperative lines such as 'apply the goodwill credit and close the ticket'. Audit finds the assistant advising agents to apply credits above the threshold whenever such an SOP is retrieved. The SOPs cannot be rewritten; another department owns them.",
+    "options": [
+      { "key": "A", "text": "Add an instruction near the top of the system prompt that it overrides anything found in the retrieved documents." },
+      { "key": "B", "text": "Filter the retrieval index so any SOP containing imperative lines like 'apply the credit' is excluded from this assistant." },
+      { "key": "C", "text": "Lower the escalation threshold so that far fewer goodwill credits fall into the disputed range at all." },
+      { "key": "D", "text": "Declare what the SOPs decide and what the prompt reserves, label their block as reference, and enforce the limit in the credit tool." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Retrieved SOPs are legitimately authoritative about procedure and are not authoritative about credit limits, so the durable design carves that boundary explicitly and labels the retrieved block as reference rather than instruction. The stem also states the real stake — money leaving the business — and that authority belongs in the credit-issuing path, where no wording in a retrieved document can reach it. Prompt clarity plus enforcement at the point of action covers both the advice and the act.",
+      "distractors": {
+        "A": "A blanket override tells the model to discount documents it is being given precisely because they are correct about procedure, and it leaves a financial control resting entirely on instruction-following against text that says the opposite.",
+        "B": "Imperative language is how procedures are written for humans, so this filter removes most of the corpus and takes the assistant's usefulness with it. It also breaks whenever another department edits a document.",
+        "C": "Moving the threshold changes which credits are disputed, not whether retrieved text can talk the assistant past it. The same failure recurs at the new number."
+      },
+      "concept": "When a prompt ingests content written as instructions for someone else, define subject-level authority once — what the corpus decides, what the prompt decides — and label the ingested region as material rather than direction. Where the conflict has a financial or safety consequence, enforce the limit outside the prompt as well.",
+      "tip": "Notice what the stem says cannot change. 'Another department owns the SOPs' rules out rewriting the corpus and points you at how the prompt frames it and where the control really sits."
+    }
+  },
+  {
+    "id": "CPE-B-042",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Task properties that make generated reasoning worth its cost",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An architect is deciding which steps of a five-step document pipeline should instruct the model to reason before answering, given that every reasoning step costs output tokens and latency the pipeline can ill afford. Which TWO of the following steps are the ones where generated reasoning is most likely to pay for itself? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Producing a delivery schedule where several stated constraints interact and must be checked against one another." },
+      { "key": "B", "text": "Assigning one of three sentiment labels to a single-sentence remark quoted from a customer email." },
+      { "key": "C", "text": "Computing a total liability from figures the model must first locate and extract from the document." },
+      { "key": "D", "text": "Answering a question whose answer depends on a fact that appears nowhere in the prompt or the retrieved material." },
+      { "key": "E", "text": "Emitting the pipeline's final consolidated record in the strict JSON schema the store requires." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "Reasoning pays when the answer is derived rather than recognised. Constraint satisfaction requires holding several conditions against each other, and a calculation over extracted figures has intermediate values that must exist somewhere before the total can be right — in both cases the emitted tokens are doing the work rather than describing it. Those are the steps where the token and latency cost buys accuracy the pipeline cannot get otherwise.",
+      "distractors": {
+        "B": "A short single-label judgement is close to a one-step recognition task. Reasoning about it mostly produces narration, and on a tight pipeline budget that is cost without return.",
+        "D": "Reasoning rearranges what is available; it does not supply missing knowledge. Asked to derive an answer it has no basis for, a model reasons its way to a confident wrong one, which is worse than a fast wrong one.",
+        "E": "Format conformance is a constraint on the output, not a derivation. Schema adherence is bought with a typed contract or prefill, and generated deliberation about formatting is pure overhead."
+      },
+      "concept": "Instruct reasoning where the answer must be constructed — multi-constraint problems, arithmetic over extracted values, multi-hop inference — and not where it must be recognised or merely formatted. Reasoning is a derivation aid, never a knowledge source.",
+      "tip": "For each candidate step, ask whether a competent human would need scratch paper. If they would answer at a glance, or if they would need a reference book they do not have, reasoning is not the lever."
+    }
+  },
+  {
+    "id": "CPE-B-043",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "A prompt version that passes evals but changes register",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A bereavement-services provider ships a prompt version that raises factual accuracy on entitlement questions from 82% to 91% on the regression suite. Within four days, front-line staff escalate that replies have become clipped and procedural, and two families have complained about tone. The suite has no tone assertions; tone was previously judged 'obviously fine' and never measured. The accuracy gain is real and wanted. What should the team do next?",
+    "options": [
+      { "key": "A", "text": "Roll back to the previous prompt version and re-open the accuracy work later with tone explicitly in scope." },
+      { "key": "B", "text": "Add tone cases to the suite with a rubric drawn from the escalated transcripts, then iterate on both dimensions." },
+      { "key": "C", "text": "Instruct the model to be warmer and more empathetic, and ship it unmeasured since tone wording cannot affect accuracy." },
+      { "key": "D", "text": "Treat the two complaints as anecdotal until a larger sample of tone feedback has accumulated over the quarter." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The suite optimised the only dimension it could see and a real quality attribute regressed unmeasured — so the first job is to make tone visible, using the escalated transcripts as the seed cases and a rubric that says what acceptable looks like for this audience. Only then can the team keep nine points of accuracy without trading away something families notice. Fixing the measurement gap before iterating is what stops the same blind spot recurring on the next version.",
+      "distractors": {
+        "A": "Reverting discards a substantial, wanted gain to fix a problem that has not been characterised, and with tone still unmeasured the next attempt runs into exactly the same wall.",
+        "C": "Adding a tone sentence and shipping unmeasured repeats the original error in the opposite direction. Tone instructions can and do move factual behaviour, especially around hedging, so the accuracy claim is untested.",
+        "D": "Two family complaints in a bereavement service is not a sample-size problem. Waiting accumulates harm in exactly the interaction where the organisation can least afford it."
+      },
+      "concept": "An eval suite defines what a prompt is optimised for; anything unmeasured is free to regress. When production surfaces a dimension the suite lacks, encode it as cases before iterating, so the next version is judged on both.",
+      "tip": "When a stem tells you a metric improved and a stakeholder is unhappy, the answer is usually about the missing metric rather than about reverting or arguing with the stakeholder."
+    }
+  },
+  {
+    "id": "CPE-B-044",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Shared prompt fragments across a large prompt family",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An engineering platform team owns forty task prompts across six services. Each begins with the same eleven lines of house style, safety phrasing and citation format — copied, and now diverged: nineteen variants exist and a mandated citation change last quarter reached thirty-one of the forty. Teams also insist their prompts stay individually readable and independently testable, since each is owned by the service team that uses it.",
+    "options": [
+      { "key": "A", "text": "Move the eleven lines into one system prompt shared by all forty tasks at runtime, and reduce each task prompt to its task-specific instruction." },
+      { "key": "B", "text": "Nominate one prompt as canonical and require the other thirty-nine to be reviewed against it every quarter by their owners." },
+      { "key": "C", "text": "Extract the shared lines into a versioned fragment included by version and rendered in full, so each prompt stays readable and testable." },
+      { "key": "D", "text": "Generate all forty prompts from a single template with per-task variables, so only the template has to be maintained." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Include-by-version gives the platform team one place to change the citation format and gives service teams a prompt they can read and test as it will actually be sent, because the fragment is resolved at render. Pinning the version is what makes the arrangement safe across forty consumers: a fragment change does not silently alter thirty-nine prompts overnight, and each team adopts the new version when its own tests pass.",
+      "distractors": {
+        "A": "One shared system prompt centralises the text but couples all forty tasks to a single artefact and one blast radius, and it splits each prompt across two places, which is the opposite of the readability the teams asked for.",
+        "B": "A quarterly manual reconciliation is the process the divergence already defeated — thirty-one of forty is what best-effort propagation looks like, and the review cadence guarantees drift between cycles.",
+        "D": "Forty genuinely different tasks are not one template with variables. Forcing them into one produces a template of conditionals that no service team can read, own or test independently."
+      },
+      "concept": "Treat prompts as a codebase: factor genuinely shared text into versioned fragments, include by explicit version rather than by 'latest', and render the assembled artefact for review and testing. Copy-paste reuse and manual reconciliation both fail at the scale where they matter.",
+      "tip": "Count the constraints the stem states — one change reaching every prompt, individual readability, independent testability. The right option satisfies all three; each distractor drops one."
+    }
+  },
+  {
+    "id": "CPE-B-045",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "The failure mode chain-of-thought cannot repair",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Instructing a model to reason before answering is least likely to help when the errors are caused by:",
+    "options": [
+      { "key": "A", "text": "The information the answer depends on being absent from the prompt and the retrieved context." },
+      { "key": "B", "text": "Several stated constraints having to be held and reconciled against one another." },
+      { "key": "C", "text": "Arithmetic performed over several figures the model must first extract from a document." },
+      { "key": "D", "text": "A multi-hop question whose answer requires two separately retrieved facts to be combined." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Reasoning reorganises and works over what is available; it cannot introduce a fact the context does not contain. Asked to derive an answer from an absent premise, a model will usually produce a fluent derivation to a confident wrong conclusion, which is harder to detect than a short wrong answer. Missing information is a retrieval or context problem and has to be fixed there.",
+      "distractors": {
+        "B": "Reconciling interacting constraints is a canonical case for working through the problem, because each constraint has to be held against the others rather than judged at a glance.",
+        "C": "Arithmetic benefits clearly, since the intermediate values have to be written down somewhere before a total can reliably be right.",
+        "D": "Multi-hop composition is exactly where step-by-step derivation helps: each hop is stated before the next depends on it."
+      },
+      "concept": "Chain-of-thought is a derivation aid, not a knowledge source. Match the intervention to the failure: missing facts need retrieval or context, wrong shape needs a contract, and only genuinely derivational errors need reasoning.",
+      "tip": "'Least likely to help' items reward classifying the failure first. Three options here describe derivation; one describes absence of input, and absence is never fixed by thinking harder."
+    }
+  },
+  {
+    "id": "CPE-B-046",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Specifying the reader rather than the performer",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An agricultural insurer generates loss-assessment narratives read by two very different audiences: field adjusters, who want technical specifics and units, and policyholders, who receive a plain-language version. One prompt with the persona 'You are an experienced agricultural loss adjuster' serves both, and reviewers say policyholder versions are too technical while adjuster versions omit measurements the adjusters need.",
+    "options": [
+      { "key": "A", "text": "Split into two prompts carrying two personas: an experienced adjuster and a customer-service representative." },
+      { "key": "B", "text": "Keep the single prompt and add 'adapt your language to the reader' to the end of the persona paragraph." },
+      { "key": "C", "text": "Remove the persona entirely and rely on the worked examples alone to convey the register for each audience." },
+      { "key": "D", "text": "Parameterise the reader — identity, prior knowledge and required action — and state the content each needs." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The persona describes who is writing, and both audiences are being served by the same writer, so it cannot discriminate between them. Making the reader an explicit parameter — prior knowledge, purpose, what must be actionable afterwards — is what determines register and, crucially, content: the adjuster version's missing measurements are a content requirement, not a tone one. One template with a reader parameter also keeps the shared loss logic in one place.",
+      "distractors": {
+        "A": "Two personas fork the loss-assessment logic into two prompts that must now be kept in step, and it still frames the difference as who is speaking rather than who is being addressed and what they need.",
+        "B": "'Adapt to the reader' leaves the model to infer which reader, from a prompt that does not say. It is the instruction least likely to fix an output that is already wrong in both directions.",
+        "C": "Deleting the persona removes the small amount of framing that is working and leaves the audience unstated, so examples would have to carry a distinction the prompt never names."
+      },
+      "concept": "Specify the audience, not just the speaker. Reader identity, assumed knowledge and the action the reader must take afterwards drive register and required content far more reliably than a persona biography, and they parameterise cleanly for multi-audience outputs.",
+      "tip": "Watch for a stem where one output is too technical and another is missing detail. A single speaking-voice control cannot move two audiences in opposite directions."
+    }
+  },
+  {
+    "id": "CPE-B-047",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Risks of using a stop sequence to trim trailing commentary",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A conveyancer's summarisation step occasionally appends 'Let me know if you would like more detail.' after the summary. An engineer proposes adding 'Let me know' as a stop sequence. What is the strongest objection an architect should raise?",
+    "options": [
+      { "key": "A", "text": "Stop sequences increase latency because the server must scan every token of the output stream for them." },
+      { "key": "B", "text": "The phrase can occur in legitimate summary content, cutting the response off mid-summary with no sign it is short." },
+      { "key": "C", "text": "Stop sequences apply only to the system prompt text and so cannot affect what the assistant generates." },
+      { "key": "D", "text": "The trailing sentence is harmless, because every downstream consumer of a conveyancing summary tolerates extra prose." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "A stop sequence is a blunt string match with no notion of where the model is in its output, so any legitimate occurrence — a quoted clause from a client letter, for example — truncates the summary at that point. The consumer receives a shorter summary that looks complete, which is the worst class of failure for a legal document: silent, plausible and content-losing. That risk is what the design review needs to surface.",
+      "distractors": {
+        "A": "Whatever the scanning overhead, it is not the material concern next to silent truncation, and the objection would not change the decision on its own.",
+        "C": "This is simply not how stop sequences work; they terminate generation of the assistant's response, which is the whole reason the engineer proposed one.",
+        "D": "Tolerance downstream is not the issue — the team has already decided the trailing sentence is unwanted — and dismissing the requirement does not evaluate the proposed mechanism."
+      },
+      "concept": "Stop sequences are appropriate for delimiters you control and that cannot occur in content — a closing tag, a sentinel token. Using natural-language phrases as stop sequences risks silent mid-content truncation that is indistinguishable from a complete response.",
+      "tip": "For any truncation mechanism, ask what happens when the trigger appears legitimately. If the answer is a plausible-looking short output, that is the objection."
+    }
+  },
+  {
+    "id": "CPE-B-048",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Separating the example block from the live input",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In a prompt that carries worked examples and then the record to be processed, the primary reason to enclose the examples in their own labelled block is to:",
+    "options": [
+      { "key": "A", "text": "Reduce the number of tokens that the examples contribute to every rendered request." },
+      { "key": "B", "text": "Ensure the example block is cached separately from the rest of the assembled prompt." },
+      { "key": "C", "text": "Stop the model treating example content as part of the live record, and let instructions name the block." },
+      { "key": "D", "text": "Guarantee that the model reproduces the wording and sentence shapes of the examples in its answer." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Without a boundary the examples and the live record are one undifferentiated run of text, and the most common consequence is the model summarising, extracting from, or answering about content that belonged to a demonstration. A labelled block makes the roles explicit and gives the instruction something to point at, which also makes the template lintable and safe to reorder later.",
+      "distractors": {
+        "A": "A wrapper adds tokens rather than removing them; the cost is small and justified by clarity, but it is not a reduction.",
+        "B": "Caching follows prefix position, not labelling. Wrapping a block in tags does not give it independent reuse.",
+        "D": "Reproducing example wording verbatim is a failure mode to be avoided, not an objective. Examples should demonstrate the decision and the shape, not supply the sentences."
+      },
+      "concept": "Every functionally distinct region of a prompt — instruction, reference material, examples, live input, output contract — should be separable and nameable. The boundary prevents role confusion and gives the instruction text a stable way to refer to each region.",
+      "tip": "Ask what goes wrong without the boundary. If the answer is 'the model may act on the wrong region', that is the reason the boundary exists."
+    }
+  },
+  {
+    "id": "CPE-B-049",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Controls a strict consumer needs beyond asking for JSON",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A national museum's cataloguing service writes model output straight into a collections database with mandatory fields. The prompt asks for JSON and defines every field. Which TWO controls must exist between the model and the database, in addition to the prompt asking for JSON? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "A retry that re-issues the request with a different temperature on each attempt until something parses." },
+      { "key": "B", "text": "A line in the prompt explaining that malformed JSON will break the cataloguing pipeline downstream." },
+      { "key": "C", "text": "Validation of the response against the schema at the service boundary, before the record is written." },
+      { "key": "D", "text": "A repair step that quietly fixes trailing commas and unquoted keys and passes the record on unlogged." },
+      { "key": "E", "text": "A defined path for responses that fail validation — an explicit error or a dead-letter queue a human works." }
+    ],
+    "correct": ["C", "E"],
+    "explanation": {
+      "correct": "A prompt asking for JSON is a request, and a mandatory-field database needs a guarantee, so something must check conformance before the write and something must own the responses that fail. Validation at the boundary is what stops a malformed or incomplete record entering the collection; a defined failure path is what keeps those cases visible and recoverable rather than dropped. Neither is optional once a durable store is downstream.",
+      "distractors": {
+        "A": "Varying temperature until something parses is sampling roulette: it eventually returns a parseable record with no assurance the record is right, and it hides the failure rate behind retries.",
+        "B": "Telling the model the business consequence of a malformed response does not add a check. The pipeline's integrity cannot rest on the model's understanding of what depends on it.",
+        "D": "Silent repair changes data on its way into a permanent catalogue and destroys the evidence that anything was wrong, so systematic prompt defects never surface as failures."
+      },
+      "concept": "Format instructions are best-effort; enforcement lives at the boundary. Any pipeline writing model output to a durable store needs schema validation before the write and an explicit, monitored path for what fails — repair-in-silence is the anti-pattern.",
+      "tip": "When a stem puts a durable store downstream, look for the pair 'check it' and 'what happens when the check fails'. Options that make failures disappear are wrong even when they keep the pipeline green."
+    }
+  },
+  {
+    "id": "CPE-B-050",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "What an unambiguous output contract must state",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A construction group feeds extracted purchase-order data from site paperwork into cost reporting. Records validate against the schema, yet reconciliation keeps failing: some orders show a delivery date the paperwork never carried, and currency amounts from continental European suppliers occasionally land an order of magnitude out. Which TWO additions to the prompt's output contract address these failures? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "A maximum word count of 200 words for any free-text field in the extracted record." },
+      { "key": "B", "text": "An explicit statement of what to emit when a value is absent from the source document." },
+      { "key": "C", "text": "The name and contact details of the team that owns the downstream cost-reporting system." },
+      { "key": "D", "text": "Canonical formats for dates, currency and units, including the decimal and thousands convention." },
+      { "key": "E", "text": "A self-assessed confidence score per field, which reporting uses to decide whether to accept the record." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "Both failures are contract gaps rather than schema gaps. A date the paperwork never carried is what a model produces when the contract never says what absence looks like, so it supplies something plausible to satisfy a field; naming the absence value removes the incentive. The order-of-magnitude currency errors point straight at comma-versus-period conventions on continental invoices, which only a stated canonical format and decimal convention resolves.",
+      "distractors": {
+        "A": "Length limits on free text neither cause nor cure a fabricated date or a misread decimal separator; both failures are in typed fields.",
+        "C": "Ownership metadata is useful in a service catalogue and tells the model nothing about how to represent a value it has extracted.",
+        "E": "Self-reported confidence is not a calibrated measurement and makes a poor accept-or-reject gate; here it would add a field to argue about while leaving both underlying ambiguities in the contract."
+      },
+      "concept": "An output contract must define absence and representation, not just field names and types. State the null or unknown convention explicitly, and pin canonical formats for dates, currencies, units and separators — schema validation cannot detect a well-formed value that means something else.",
+      "tip": "Two symptoms usually mean two keys, one each. Map 'value that was never in the source' to absence handling and 'magnitude wrong on foreign documents' to format convention."
+    }
+  },
+  {
+    "id": "CPE-B-051",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Stable ordering of a collection variable in a template",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A template interpolates a customer's open support tickets as a list. The renderer takes them from a query with no ORDER BY, so the same customer's prompt is assembled in a different order on different requests. Which consequence should most concern the prompt owner?",
+    "options": [
+      { "key": "A", "text": "Identical inputs produce different prompts, so behaviour cannot be attributed and no prefix is reused." },
+      { "key": "B", "text": "The rendered prompt exceeds the template's declared token budget more often than before." },
+      { "key": "C", "text": "The model refuses to process a ticket list whose ordering the template never specifies." },
+      { "key": "D", "text": "Template variables must be listed alphabetically for the renderer to substitute them correctly in order." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "An unordered collection makes the prompt itself non-deterministic for the same logical input, which undermines the two things a prompt owner relies on: reproducing a reported case exactly, and attributing an output change to the prompt version rather than to row order. It also means no two requests for the same customer share a prefix, so the invariant portion of the prompt is re-processed every time.",
+      "distractors": {
+        "B": "The same tickets in a different order occupy essentially the same tokens. Order changes the arrangement, not the size.",
+        "C": "There is no such refusal behaviour; the model will happily process a list in whatever order it is given, which is precisely why the instability is easy to miss.",
+        "D": "Alphabetical ordering of variable names is not a renderer requirement and has nothing to do with the order of items inside a value."
+      },
+      "concept": "Give every collection interpolated into a prompt a deterministic order defined by the template contract. Non-deterministic rendering makes reproduction, bisection and prefix reuse impossible, and the defect is invisible in review because every individual prompt looks correct.",
+      "tip": "Reproducibility questions often hide in the renderer rather than the prompt text. If the same input can produce two different prompts, nothing downstream of it can be measured cleanly."
+    }
+  },
+  {
+    "id": "CPE-B-052",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Versioning sampling settings together with the prompt",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A veterinary telemedicine platform stores prompt text in a versioned registry, while temperature and top-p are set per service in environment configuration. A prompt version that scored well in the offline suite behaves noticeably differently in the triage service, and an investigation finds the suite ran at one temperature and the service at another. Nobody considers either setting wrong; they were configured by different teams a year apart.",
+    "options": [
+      { "key": "A", "text": "Standardise every service and the offline suite on temperature zero so the variable is eliminated entirely." },
+      { "key": "B", "text": "Make the sampling settings part of the versioned prompt artefact, so a version identifies text and settings together." },
+      { "key": "C", "text": "Record the temperature used in each eval report so reviewers can account for the difference when reading results." },
+      { "key": "D", "text": "Run the suite at four temperatures and publish the resulting range of scores for each prompt version." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "An eval result is a claim about a configuration, not about a string, so if the settings are not part of the version the claim does not transfer to production. Binding text and sampling settings into one artefact makes the suite exercise what the triage service will actually run and makes any future settings change a versioned, reviewable event rather than an environment variable somebody edits. That is what restores meaning to the score.",
+      "distractors": {
+        "A": "Deterministic decoding is a legitimate default for some steps and a poor global mandate, and the stem says neither setting is considered wrong. It also leaves the settings outside the artefact, so the next divergence is a configuration edit away.",
+        "C": "Documenting the discrepancy makes it legible to whoever reads the report carefully. It does not prevent the suite and production from testing different systems, which is the defect.",
+        "D": "A range of scores across temperatures is useful characterisation work and still does not tell anyone which configuration production will use, so the mismatch survives."
+      },
+      "concept": "The versioned unit is the prompt plus everything that changes its behaviour: text, fragments, examples, output contract and sampling settings. Anything that affects results but lives outside the artefact will eventually diverge between evaluation and production.",
+      "tip": "When offline and production results disagree and no bug is found in either, look for a parameter that belongs to the experiment but is stored somewhere else."
+    }
+  },
+  {
+    "id": "CPE-B-053",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Structuring examples as turn pairs versus a text block",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A vehicle-leasing company is building a multi-turn negotiation assistant. Its examples currently sit in the system prompt as a block of transcript text under a heading, and the model frequently produces both sides of the exchange — writing the customer's next line as well as its own. The examples themselves are considered good; the team wants the same demonstrations without the role bleed.",
+    "options": [
+      { "key": "A", "text": "Prefix each line of the transcript with the speaker's name so the roles are unambiguous within the block." },
+      { "key": "B", "text": "Reduce the examples to the assistant's turns only, dropping the customer lines from each transcript." },
+      { "key": "C", "text": "Add an instruction that the model must never write the customer's side of the conversation under any circumstances." },
+      { "key": "D", "text": "Carry the examples in the message list as alternating user and assistant turns before the live conversation." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "A transcript pasted into the system prompt is one long block of text that the model may continue in kind, which is what writing the customer's line is. Expressing the same demonstrations as actual user and assistant messages puts the role boundary into the structure of the request rather than into prose the model has to interpret, and it keeps the examples intact — which the team wants, since the content is not the problem.",
+      "distractors": {
+        "A": "Speaker labels are still text inside a text block. They make the transcript readable and give the model no structural reason to stop at the end of its own turn.",
+        "B": "Stripping the customer lines removes the context each assistant reply was responding to, which is most of what a negotiation example teaches.",
+        "C": "This is a prohibition against a behaviour the prompt's own structure is encouraging. It may reduce the rate and leaves the model reading a continuous transcript that invites continuation."
+      },
+      "concept": "For conversational behaviour, demonstrate with real turn structure rather than transcript text. Message roles are a structural signal about where a response begins and ends; a pasted dialogue is prose the model may simply carry on writing.",
+      "tip": "Role bleed in a multi-turn assistant is almost always a structural symptom. Look for the option that changes how the example is carried, not what it says."
+    }
+  },
+  {
+    "id": "CPE-B-054",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Regression traced to a shared fragment owned elsewhere",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A tax authority runs eleven assistants that all include a shared 'source citation' fragment owned by a central platform team and referenced as 'latest'. Overnight the platform team released a fragment change; this morning three of the eleven services show citation-format failures in production, the other eight look normal, and the platform team reports its own tests passed. The eleven services have separate eval suites of varying quality. What should be done next?",
+    "options": [
+      { "key": "A", "text": "Pin all eleven services to the previous fragment version, then have each team evaluate the new one before adopting it." },
+      { "key": "B", "text": "Ask the platform team to revert the fragment release, since its change is what caused the failures." },
+      { "key": "C", "text": "Have the three failing services override the shared fragment with their own local copy of the previous text." },
+      { "key": "D", "text": "Add citation-format assertions to the eight passing services' suites before deciding anything, so the true blast radius is known." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Referencing a shared fragment as 'latest' is what allowed one team's release to change eleven prompts at once, so the immediate move is to pin — that stops the three failures and also protects the eight that may be failing in ways their weaker suites do not detect. Pinning restores each service's control over when it adopts a change, and per-suite evaluation before adoption is what converts a shared fragment from a hazard into an asset.",
+      "distractors": {
+        "B": "A revert restores today and leaves the coupling intact, so the platform team is blocked from ever changing the fragment and the same incident recurs at the next release. It also assumes the new fragment is wrong rather than wrongly adopted.",
+        "C": "Local copies of shared text is the divergence problem that shared fragments exist to solve, and three forks created under incident pressure will not be reconciled afterwards.",
+        "D": "Improving the eight suites is the right follow-up and the wrong first action: it leaves three services failing in production while the team writes tests."
+      },
+      "concept": "Shared prompt fragments must be consumed by explicit version, never by a moving pointer. A 'latest' reference gives the fragment owner an unreviewed deployment path into every consumer, and consumers with uneven eval coverage will not all notice.",
+      "tip": "When one upstream change breaks some consumers and not others, treat the silent consumers as unverified rather than healthy. The next-step answer usually protects them too."
+    }
+  }
+]

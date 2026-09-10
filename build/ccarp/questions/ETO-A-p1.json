@@ -1,0 +1,455 @@
+[
+  {
+    "id": "ETO-A-001",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Stratified sampling of production traffic for an eval set",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A freight-forwarding company runs a Claude step that routes inbound customer emails into 14 exception categories. Two of those categories — customs hold and damaged goods — are 3% of volume between them but account for almost all the operational cost of a misroute. The team is building a 400-item eval set from last quarter's 1.2 million emails. Which sampling approach best supports the decisions this eval has to inform?",
+    "options": [
+      { "key": "A", "text": "Draw a uniform random sample of 400 emails across all 14 categories, so the headline accuracy is an unbiased estimate of production accuracy." },
+      { "key": "B", "text": "Take the 400 most recent emails from the end of the quarter, so the set reflects the newest customer phrasing and the seasonal exception mix." },
+      { "key": "C", "text": "Over-sample the two high-cost categories to a fixed quota, record the sampling weights, and report per-category and volume-weighted scores." },
+      { "key": "D", "text": "Sample the 400 emails the current router scored with the lowest routing confidence, since misroutes concentrate where the model is least certain." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The eval exists to tell the team whether misroutes on customs hold and damaged goods are under control. At 3% of volume, a uniform sample of 400 puts roughly 12 items in those two categories combined — not enough to distinguish 50% accuracy from 85%. Quota sampling those categories buys enough items to measure them; keeping the sampling weights lets you reconstruct a volume-weighted overall figure that still projects to production. Reporting both numbers keeps the high-stakes slice visible instead of letting 97% of low-cost traffic average it away.",
+      "distractors": {
+        "A": "A uniform sample does give an unbiased overall estimate, which is why it is the reflex answer. But the estimate the business actually needs — accuracy on the two expensive categories — is the one it cannot produce at this size. Unbiasedness is worthless if the standard error swamps the effect.",
+        "B": "Recency ordering is convenience sampling. It confounds any distribution shift with whatever was happening in the last few days, cannot be projected to the quarter, and still leaves the rare categories with a handful of items.",
+        "D": "Low-confidence sampling is hard-negative mining. It is a good way to build a debugging set, but the score is not projectable to production and it systematically misses confidently-wrong outputs, which in a router are the ones that reach a customer unchallenged."
+      },
+      "concept": "Sample an eval set for the decision it must support, not for statistical tidiness. When error cost is concentrated in a rare slice, stratify to give that slice enough items to measure, keep the weights, and report stratum-level and weighted-overall figures side by side. A single blended number over an imbalanced population hides exactly the failures that matter.",
+      "tip": "When a stem tells you a category is small in volume but large in consequence, it is signalling stratification. The giveaway is doing the arithmetic: 3% of 400 is 12 items, which is not a measurement."
+    }
+  },
+  {
+    "id": "ETO-A-002",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Purpose of a frozen holdout split in an eval suite",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In an eval suite, keeping a frozen holdout split that is never inspected during prompt iteration primarily protects against which failure?",
+    "options": [
+      { "key": "A", "text": "Drift in the judge model's grading standard between releases as the judge prompt is revised." },
+      { "key": "B", "text": "Run-to-run variation in scores caused by sampling non-determinism in the model's outputs." },
+      { "key": "C", "text": "Label noise introduced by disagreement between the human annotators who wrote the references." },
+      { "key": "D", "text": "Reporting a score that reflects tuning to the specific eval items rather than task skill." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Every time you look at an eval item and change the prompt in response, you transfer a little information from that item into the prompt. Over enough iterations the score on the inspected set stops estimating task performance and starts estimating how well the prompt has been fitted to those particular items. A split you never open is the only clean estimate of generalisation you have, which is why it is opened once, late, and then retired.",
+      "distractors": {
+        "A": "Judge drift is a real hazard, but a holdout does not detect it — the held-out items are graded by the same drifted judge. Judge drift is controlled by pinning the judge configuration and periodically re-validating it against human labels.",
+        "B": "Output non-determinism is handled by sampling each item several times and reporting variance, or by fixing generation settings. A holdout tells you nothing about it, since the same variance applies on both splits.",
+        "C": "Label noise lives in the annotation process. Holding items back does not clean them; the holdout inherits the same noisy labels and the same disagreement rate as the development split."
+      },
+      "concept": "A holdout measures generalisation, not correctness of measurement. Anything that biases the instrument — judge drift, noisy labels, output variance — affects both splits equally and needs a different control. Use holdouts against overfitting to items, and grader validation against overfitting of the grader.",
+      "tip": "Match the control to the failure. If a proposed remedy would produce the same distortion on both sides of a split, that split cannot be the remedy."
+    }
+  },
+  {
+    "id": "ETO-A-003",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Quantifying position bias in a pairwise LLM judge",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A streaming-media company compares two prompt variants for episode-summary generation using a pairwise LLM judge: the judge sees the transcript plus two candidate summaries labelled Summary 1 and Summary 2 and picks a winner. Variant B is always rendered second. Across 500 comparisons variant B wins 61%. Shipping B means retiring a prompt that three downstream teams depend on, so the eval lead wants to know how much of that margin is real before committing. What is the most direct way to find out?",
+    "options": [
+      { "key": "A", "text": "Increase the comparison count from 500 to 2,000 so the interval around the 61% tightens and the margin is either confirmed or collapses." },
+      { "key": "B", "text": "Re-run all 500 comparisons with the presentation order swapped, and count only the pairs where the judge picks the same variant both times." },
+      { "key": "C", "text": "Add an explicit instruction to the judge prompt stating that presentation order is arbitrary and must not influence the verdict, then re-run." },
+      { "key": "D", "text": "Replace the pairwise protocol with independent absolute scoring of each summary against the rubric, and compare the two variants' mean scores." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "With one variant permanently in the second slot, the win rate confounds quality with whatever preference the judge has for a position. Running the mirrored order and keeping only order-consistent verdicts separates the two: the consistency rate is a direct measurement of how large the position effect is, and the consistent subset gives an estimate that the effect cannot explain. It costs one more grading pass over a set you have already generated, which is cheap relative to retiring a prompt three teams depend on.",
+      "distractors": {
+        "A": "More comparisons shrink random error. Position preference is systematic, so a larger sample produces a tighter confidence interval around a biased number — a more confident wrong answer. Sample size is the fix for noise, never for bias.",
+        "C": "Telling a judge to ignore order costs nothing and is worth doing, but there is no evidence that the instruction removes the effect, and this item is specifically about verifying the result already in hand. Adopting an unverified mitigation and re-running leaves you in the same epistemic position.",
+        "D": "Absolute scoring does eliminate position from future runs, and is a reasonable long-term protocol change. It does not quantify the bias in the 61% the team is holding, and it gives up the sensitivity of pairwise comparison, which is usually what you want when the quality gap between two variants is small."
+      },
+      "concept": "Judges have systematic preferences tied to how candidates are presented — order, length, formatting. Any of these can be measured by permuting the presentation and checking verdict stability. Consistency under permutation is the evidence; instructions telling the judge to be fair are a hope. Larger samples never correct a systematic effect.",
+      "tip": "Read pairwise-judge stems for whether one variant always occupies one slot. If it does, the win rate is not yet a measurement, and the answer will involve swapping and re-grading rather than collecting more data."
+    }
+  },
+  {
+    "id": "ETO-A-004",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Rubric defects that make judge scores undecidable",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A legal-services firm grades Claude-generated contract-clause summaries with an LLM judge on a 1–10 quality scale. In the release review, two reviewers looking at the same judge output disagree about whether a score of 7 means the summary is shippable to a client. Which changes to the grading design most directly resolve that disagreement? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Replace the 1–10 scale with a small number of levels, each carrying a written anchor and a worked example of what that level looks like." },
+      { "key": "B", "text": "Move the judge to the highest-capability model tier and re-grade the release sample, so the scores it emits are more reliable." },
+      { "key": "C", "text": "Have the judge answer the shipping question directly — whether the summary omits an obligation, deadline or party — rather than inferring it from a score." },
+      { "key": "D", "text": "Sample the judge five times per item and report the mean score to one decimal, so a single unlucky grade cannot move the verdict." },
+      { "key": "E", "text": "Have the judge emit the numeric score first and its written justification afterwards, so a long justification cannot drag the score around." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "The disagreement is about meaning, not measurement error. An unanchored 1–10 scale has no shared definition of any point on it, so two competent readers legitimately map 7 to different decisions. Written level anchors with examples give the number a referent. Better still, asking the judge the decision-relevant question directly removes the translation step altogether: a criterion like whether an obligation was dropped is checkable, arguable against the text, and maps onto shipping without interpretation.",
+      "distractors": {
+        "B": "A stronger judge produces a better-considered 7. It does not tell anyone what a 7 means. Model tier is the lever for grader accuracy, not for the interpretability of the scale the grader is writing onto.",
+        "D": "Averaging reduces variance around the score, so the team would argue about 7.2 instead of 7. The ambiguity is in the definition of the scale, and no amount of repeated sampling supplies a definition.",
+        "E": "This inverts the recommended ordering. When a judge commits to a score before articulating its analysis, the text that follows becomes a rationalisation of a number already chosen rather than the reasoning that produced it. Reasoning first, verdict last, is the ordering that improves grade quality."
+      },
+      "concept": "A rubric score is only useful if a reader can convert it into an action without guessing. Prefer few levels with explicit anchors over a wide unanchored scale, and prefer asking the judge the decision question directly over inferring a decision from a continuous score. Interpretability problems are fixed by definition, not by precision.",
+      "tip": "When the symptom is humans disagreeing about what a grade means, ignore every option about judge strength, sampling or variance — those address noise. Look for the option that changes what the grade is defined to be."
+    }
+  },
+  {
+    "id": "ETO-A-005",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Mixing exact-match and model-graded scoring across fields",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A hospital group extracts four fields from discharge summaries: medical record number, discharge date, primary ICD-10 diagnosis code, and a free-text follow-up instruction. The eval scores all four with case-insensitive exact match against a human-curated reference and reports one blended accuracy figure, currently 68%. Clinicians reviewing the same outputs say they would accept nearly all of them. What is the most likely explanation and the right correction?",
+    "options": [
+      { "key": "A", "text": "The reference labels are stale relative to the current discharge-summary template; refresh them against recent charts and keep the single blended figure." },
+      { "key": "B", "text": "Exact match is too strict across the board; replace it with token-level F1 on all four fields so near-misses like a transposed digit get partial credit." },
+      { "key": "C", "text": "Output sampling is introducing variation; pin the generation settings so the four extracted strings stop drifting between runs of the same summary." },
+      { "key": "D", "text": "The free-text field has many correct phrasings; keep exact match on the three deterministic fields, rubric-grade the fourth, and report per-field results." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Three of these fields have exactly one correct string — an MRN, a date, a code — and exact match is the right, cheap, fully reproducible grader for them. The fourth is prose with an open set of acceptable renderings, and exact match scores nearly all of it wrong, which is precisely the gap between 68% and what clinicians see. Grading each field with the method its answer space demands, and reporting the fields separately, restores both the accuracy of the number and the ability to see which field is actually failing.",
+      "distractors": {
+        "A": "Label refresh is sound hygiene, but it does not explain why clinicians accept output the eval rejects — stale labels would make the clinicians unhappy too. It also preserves the blended figure, which is the reason nobody can see where the loss is.",
+        "B": "Fuzzy scoring on an MRN or an ICD-10 code is actively unsafe. Codes one character apart denote different conditions, and token-level partial credit would score a clinically wrong code as mostly right. Never loosen the grader on a field whose answer space is exact.",
+        "C": "Deterministic generation removes run-to-run variation, not paraphrase diversity. A follow-up instruction rendered identically on every run can still be worded differently from the reference, and exact match will fail it every time with perfect consistency."
+      },
+      "concept": "Pick the grader per field, not per task. Deterministic answer spaces get exact match; open answer spaces get rubric-based model grading; nothing gets a fuzzy matcher on a field where a near-miss is a real error. Report component scores rather than a blend, or the composite will hide which component moved.",
+      "tip": "A large gap between eval score and expert acceptance almost always means the grader is wrong, not the model. Check whether one field's answer space is open before touching the prompt."
+    }
+  },
+  {
+    "id": "ETO-A-006",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Sample size required to detect a five-point accuracy gain",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An insurance claims team wants to establish whether a redesigned prompt lifts first-pass accuracy from roughly 85% to roughly 90%. They plan a conventional two-sided test at the 5% level with 80% power, comparing two independently drawn samples of fresh claims. Their existing eval set holds 200 items. What does the arithmetic imply about this plan?",
+    "options": [
+      { "key": "A", "text": "200 items per arm is adequate, because a 5-point difference is comfortably larger than the roughly ±3-point margin of error at that sample size." },
+      { "key": "B", "text": "They need on the order of 700 items per arm; at 200 the study is badly underpowered and a null result would carry almost no information." },
+      { "key": "C", "text": "Around 100 items per arm is enough, since both proportions sit far from 50% where the variance of a proportion is at its maximum." },
+      { "key": "D", "text": "Sample size is not the binding constraint: with a fixed eval set both variants are scored on the same items, so the comparison is exact and no test applies." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "For two independent proportions the required size per arm is about (1.96 + 0.84)² × [p₁(1−p₁) + p₂(1−p₂)] / d². With p₁ = 0.85, p₂ = 0.90 and d = 0.05 that is 7.85 × (0.1275 + 0.09) / 0.0025 ≈ 683. Two hundred items per arm reaches roughly a third of that, so power sits well below 40%. The consequence matters more than the number: at that power, failing to find a difference is the expected outcome whether or not the difference is real, so a null result cannot be used to reject the redesign.",
+      "distractors": {
+        "A": "The margin quoted is wrong. At n = 200 and p ≈ 0.875 the standard error is about 2.3 points, so the margin on one arm is roughly ±4.6 points — and the standard error of the difference between two arms is larger than either arm's, not smaller.",
+        "C": "It is true that variance peaks at p = 0.5, but the effect is modest here: moving from 0.5 to 0.875 reduces p(1−p) from 0.25 to about 0.11. That factor of roughly two does not buy the factor of seven that 100 items per arm would require.",
+        "D": "Even on a fixed item set the estimate carries sampling uncertainty with respect to the population of claims the system will actually see. A paired design does materially reduce the required size by removing between-item variance, which is a real and useful point — but it changes the test, it does not remove the need for one."
+      },
+      "concept": "Small differences need large samples, and the requirement scales with the inverse square of the effect: halving the effect you want to detect quadruples the items. Before running a comparison, compute the detectable effect at your current size. If the effect you care about is below it, the run will not answer the question and the budget should go to more items or a paired design.",
+      "tip": "The distinguishing move is recognising that a null result from an underpowered study is uninformative, not reassuring. Teams routinely ship on the strength of not having found a problem in a study that could never have found one."
+    }
+  },
+  {
+    "id": "ETO-A-007",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Chance-corrected agreement between two annotators",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Two annotators independently label the same 100 eval outputs pass or fail and agree on 94 of them. Which statistic reports how much of that agreement exceeds what random labelling with the same marginal rates would produce?",
+    "options": [
+      { "key": "A", "text": "Raw percentage agreement over the 100 labelled items" },
+      { "key": "B", "text": "F1 score, treating the first annotator's labels as ground truth" },
+      { "key": "C", "text": "Cohen's kappa on the two annotators' pass/fail labels" },
+      { "key": "D", "text": "Pearson correlation between the two annotators' label vectors" }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Kappa subtracts the agreement two raters would reach by chance given their observed marginal rates, then rescales what is left against the maximum possible improvement over chance. That correction is what makes it informative on skewed tasks: when almost everything is a pass, two raters agree often for reasons that have nothing to do with the task, and only the chance-corrected figure shows whether they are actually tracking the same distinction.",
+      "distractors": {
+        "A": "Raw agreement is the 94% itself — the input to the correction, not the correction. It has no reference to base rates, so on a task where 95% of items are passes it stays high even for raters who cannot distinguish the classes at all.",
+        "B": "Designating one annotator as ground truth begs the question. When neither rater is authoritative, an asymmetric metric measures how well the second imitates the first, not how reliably the construct is being applied.",
+        "D": "Correlation measures association, not agreement. Two raters who apply the same ordering with a constant offset correlate perfectly while agreeing on nothing, and on heavily skewed binary labels the coefficient is unstable."
+      },
+      "concept": "Whenever agreement is reported on a task with a dominant class, ask for a chance-corrected figure. Raw agreement is inflated by base rate; kappa and Krippendorff's alpha are not. The same applies to judge–human agreement, where the human is not ground truth either but a second rater.",
+      "tip": "Recall items about agreement almost always turn on the phrase corrects for chance. Raw agreement, correlation and one-sided F1 all fail that test for different reasons."
+    }
+  },
+  {
+    "id": "ETO-A-008",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "High raw agreement with low kappa on a judge validation",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A tax-software company validates its LLM judge against human reviewers on a 100-item sample drawn at random from production. The judge and the humans each mark about 95 of the 100 outputs acceptable. Judge–human raw agreement is 94%, but Cohen's kappa comes out at 0.37. The plan was to sign off today and run the judge unsupervised over roughly 30,000 outputs a week. What should the team do next?",
+    "options": [
+      { "key": "A", "text": "Build a second validation sample enriched with failing and borderline outputs, and re-measure agreement on the unacceptable class." },
+      { "key": "B", "text": "Sign off. 94% raw agreement on a randomly drawn production sample clears any reasonable bar for an unsupervised grader." },
+      { "key": "C", "text": "Shift the judge's decision threshold so it marks more outputs unacceptable, lifting kappa out of the fair range into substantial agreement." },
+      { "key": "D", "text": "Report Krippendorff's alpha in place of kappa, since it handles skewed label distributions without penalising genuinely high raw agreement." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "With a 95% acceptable base rate, a grader that approves everything scores 95% raw agreement. The 94% figure therefore says almost nothing, and the kappa of 0.37 is the signal: the two raters coincide mostly where coincidence is free. The entire value of this judge lies in catching the unacceptable minority, and the sample contains roughly five such items — too few to characterise. Enriching a validation sample with failures and near-misses puts items where the decision is actually being made, at the cost of a sample that no longer estimates the production pass rate, which is fine because a separate representative run already does that.",
+      "distractors": {
+        "B": "This is the trap the numbers were constructed to catch. Raw agreement on a base rate of 95% is dominated by the majority class; the kappa is telling you that after removing chance agreement, most of the apparent concordance disappears.",
+        "C": "Moving a threshold until a statistic improves is fitting the metric rather than the task. It would raise the flag rate and the reviewer workload without any evidence that the judge separates the classes better than before.",
+        "D": "Alpha is also chance-corrected and would land in a similar place; it does not rescue an agreement estimate built on five minority-class items. The constraint is the composition of the sample, not the choice of coefficient."
+      },
+      "concept": "Validate a grader where the grader has to work. On a skewed task, a representative sample spends nearly all its items on the easy majority class and leaves the decision boundary unmeasured. Draw a second, enriched sample for the minority class, and keep the representative sample for estimating rates rather than for validating the instrument.",
+      "tip": "High raw agreement plus low kappa is a stock exam pattern meaning the base rate is doing the work. The response is always to change what is in the sample, not to change the statistic or the threshold."
+    }
+  },
+  {
+    "id": "ETO-A-009",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Diagnosing verbosity bias in an LLM judge",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A telco replaced the prompt behind its customer-support reply drafts. The offline LLM judge, which scores drafts against a five-criterion rubric, rates the new prompt materially higher. Six weeks after rollout, customer satisfaction and handle time are both flat. Someone notices the new prompt's replies average roughly three times the length of the old ones. Before rolling back or re-tuning, what is the most informative diagnostic to run?",
+    "options": [
+      { "key": "A", "text": "Add a rubric criterion penalising any reply longer than a fixed word cap, then re-score both prompts and compare the adjusted totals." },
+      { "key": "B", "text": "Drop the offline judge and use customer satisfaction as the primary quality metric, since it reflects the outcome the business cares about." },
+      { "key": "C", "text": "Increase the judge samples per item from one to five and report the median, to rule out grading noise as the source of the apparent gain." },
+      { "key": "D", "text": "Plot judge score against reply length across both prompts, then re-score a length-matched subset to see whether the score gap survives." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Two explanations fit the evidence: the new prompt is genuinely better and the benefit has not reached the customer metrics yet, or the judge is rewarding length. Holding length constant discriminates between them, and it is cheap because the drafts already exist. If the gap collapses on the length-matched subset, the judge is the problem and the rubric needs a length-independent formulation. If the gap survives, the judge is defensible and the investigation moves to why the improvement is not landing in the customer journey.",
+      "distractors": {
+        "A": "This applies a fix before establishing there is something to fix, and a hard word cap is a blunt instrument — some support cases legitimately require a long reply, and the cap would score those down for being correct.",
+        "B": "Satisfaction is a lagging production signal confounded by everything else in the journey, and it cannot be run against a candidate prompt before shipping. Offline evals exist precisely because you need a pre-deployment signal; the answer to a biased offline metric is a better offline metric.",
+        "C": "Repeated sampling addresses random variation. A three-fold length difference producing a consistent score gap is a systematic pattern, and the median of several biased grades is just as biased as the mean of them."
+      },
+      "concept": "LLM judges tend to reward length, structure and confident phrasing independently of substance. Suspect it whenever an offline win fails to reproduce downstream. The diagnostic is to hold the suspected confound constant — length-matched pairs, format-normalised outputs — and see whether the effect survives, before rewriting the rubric.",
+      "tip": "An offline metric moving while the downstream metric does not is the classic signature of a biased grader. Look in the stem for a surface property that changed alongside the prompt; that property is usually the confound."
+    }
+  },
+  {
+    "id": "ETO-A-010",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Evidence that a judge can replace human reviewers",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "An energy utility wants to retire the manual review step on its Claude-generated outage notifications and rely on an LLM judge to gate publication. The regulator expects the utility to be able to justify the change. Which pieces of evidence would actually establish that the judge can stand in for the human reviewers? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "The judge attaching a self-reported confidence to each verdict, averaging above 0.9 across the full eval set." },
+      { "key": "B", "text": "Judge–human agreement on a sample enriched with the failure modes the reviewers currently catch, reported as a chance-corrected statistic." },
+      { "key": "C", "text": "Two independent runs of the same judge prompt at a fixed low temperature producing near-identical verdicts on every notification." },
+      { "key": "D", "text": "The judge and the human reviewers arriving at the same overall pass rate, within a point, across the full eval set." },
+      { "key": "E", "text": "Blind grading of outputs from both the incumbent and the candidate prompt, showing the judge's errors are not skewed toward either one." }
+    ],
+    "correct": ["B", "E"],
+    "explanation": {
+      "correct": "Two properties matter. First, accuracy where it counts: agreement with the humans on the failure types the humans exist to catch, reported chance-corrected so a skewed base rate cannot inflate it. Second, absence of directional error: a judge whose mistakes fall disproportionately on one system will manufacture a preference, which is the specific way a grader misleads a comparison. Grading blind across both prompts and checking the error distribution tests exactly that. Together they cover is it right and is it fair, which is what a regulator will ask.",
+      "distractors": {
+        "A": "A model's stated confidence is not a calibrated probability unless it has been shown to be one against outcomes. High average confidence is consistent with a judge that is confidently and uniformly wrong; it is a self-report, not evidence.",
+        "C": "Run-to-run stability is reproducibility, not accuracy. A judge that applies the same mistaken standard every time is perfectly consistent. Reproducibility is necessary for a defensible pipeline and worth having, but on its own it says nothing about whether the standard is correct.",
+        "D": "Identical marginal pass rates can coexist with total disagreement item by item: the judge could fail every item the humans passed and pass every item they failed, and both rates would still match. Marginal equality is not agreement."
+      },
+      "concept": "Validating a grader means demonstrating accuracy on the decision boundary and the absence of systematic directional error. Consistency, self-reported confidence and matching aggregate rates are each compatible with a badly wrong grader. When a grader is used to choose between systems, error symmetry across those systems is as important as raw accuracy.",
+      "tip": "In grader-validation items, discard every option that could be true of a grader applying a wrong standard perfectly consistently. That one filter usually removes three of the five."
+    }
+  },
+  {
+    "id": "ETO-A-011",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Reporting metrics for a rare positive class",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A public-sector benefits agency uses a Claude step to flag applications for manual fraud investigation. Roughly 1.5% of applications are ultimately confirmed fraudulent, and the investigation team can work a bounded number of cases per week. The eval report currently leads with 98.7% overall accuracy and the programme board is satisfied. The eval lead is asked to make the report actually decision-useful. What should it lead with instead?",
+    "options": [
+      { "key": "A", "text": "Overall accuracy with a 95% confidence interval and the sample size behind it, so the programme board can see how precisely the figure is estimated." },
+      { "key": "B", "text": "AUC-ROC, which is threshold-independent and therefore not distorted by the 1.5% confirmed-fraud base rate in the population." },
+      { "key": "C", "text": "Precision and recall on the fraud class at the operating threshold, plus the flag rate and the weekly caseload it implies for investigators." },
+      { "key": "D", "text": "Cohen's kappa between the model's flags and the investigators' final fraud determinations, as a chance-corrected agreement figure." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "A model that flags nothing scores 98.5% accuracy here, so the headline figure is almost entirely a restatement of the base rate. The board's real questions are how many genuine fraud cases slip through, how much investigator time is spent on false flags, and whether the flag volume fits the team's capacity — which are recall, precision and flag rate at the threshold the system actually runs at. Tying the flag rate to capacity converts the metric into an operational constraint rather than a number.",
+      "distractors": {
+        "A": "An interval around a metric that is dominated by the majority class gives you a precisely estimated non-answer. Quantifying uncertainty is good practice, but not on a statistic that cannot distinguish the deployed system from one that never fires.",
+        "B": "AUC-ROC is threshold-independent, but that is a drawback here: the system runs at one threshold under a capacity ceiling, and the board needs the numbers at that threshold. ROC curves are also optimistic under heavy imbalance because the false-positive rate has a very large denominator; a precision-recall view is the honest one.",
+        "D": "Kappa is a sensible chance-corrected agreement figure and would be far more informative than accuracy, but it collapses two different costs — missed fraud and wasted investigator hours — into one scalar, and it says nothing about whether the resulting caseload is workable."
+      },
+      "concept": "When the positive class is rare, accuracy tracks the base rate and hides the system. Report class-conditional metrics at the deployed operating point, and translate them into the resource the organisation actually spends: reviewer hours, escalation volume, queue depth. A metric a stakeholder cannot act on is not a metric.",
+      "tip": "Any stem quoting an accuracy figure close to one minus the rare-class rate is inviting you to notice the coincidence. Compute the trivial baseline before believing the headline."
+    }
+  },
+  {
+    "id": "ETO-A-012",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Grading a task with no single reference answer",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An eval task has a large space of equally acceptable outputs and no single reference answer. Which grading approach fits, and what does adopting it oblige you to build?",
+    "options": [
+      { "key": "A", "text": "Model-graded rubric scoring, which obliges you to validate the grader against human judgements before its scores can be trusted." },
+      { "key": "B", "text": "Embedding similarity to a single chosen reference, which obliges you to select an embedding model and calibrate a cut-off." },
+      { "key": "C", "text": "Exact match against the modal human answer, which obliges you to collect several independent human answers per item first." },
+      { "key": "D", "text": "Human review of every item by a subject-matter expert, which obliges you to build no additional grading tooling or annotation guidelines." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "When correctness cannot be reduced to a string, the grader has to encode a judgement, and the only scalable way to do that is a rubric applied by a model. The obligation that comes with it is the one teams skip: a model grader is itself an untested component, and its scores mean nothing until you have measured its agreement with human judgement on a sample and shown that its errors are not directional. Adopting model grading without adopting grader validation just moves the unmeasured risk one layer down.",
+      "distractors": {
+        "B": "Similarity to one reference reintroduces the problem it was meant to solve: a correct answer expressed differently scores low, and the cut-off has to be tuned per task with no principled basis. It is usable as a coarse filter, not as the grade.",
+        "C": "Choosing a modal answer as the single reference collapses an open answer space back to one string. The extra annotation buys you a more defensible choice of reference and no relief from the underlying mismatch.",
+        "D": "Full human review is a legitimate grading method, and for small high-stakes sets it is the right one. The claim that it needs no tooling is what makes this wrong: it needs annotation guidelines, multiple raters on a subset, and an agreement measure, or the labels are unaudited opinion."
+      },
+      "concept": "Open answer spaces force model-graded evaluation, and model-graded evaluation forces grader validation. Treat the judge as a component with its own accuracy requirement, its own version, and its own regression risk. An eval whose grader has never been checked against humans reports a number of unknown meaning.",
+      "tip": "Options phrased as method plus obligation are testing whether you know the hidden cost of the method. The wrong ones usually pair a plausible method with an obligation that is understated or absent."
+    }
+  },
+  {
+    "id": "ETO-A-013",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Why the eval precedes the prompt in eval-driven development",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A manufacturing company is starting a Claude feature that reads maintenance work orders and drafts parts-order requests for a planner to approve. The engineer proposes to build the prompt first, spend a week spot-checking outputs until it feels right, and then write an eval to lock the behaviour in. The tech lead pushes back. What is the strongest technical argument against the proposed ordering?",
+    "options": [
+      { "key": "A", "text": "The eval must exist first so its items can be reused as the few-shot examples inside the prompt, keeping test cases and prompt in sync." },
+      { "key": "B", "text": "Without an eval the team cannot measure per-request latency and cost, and those are the constraints that will decide whether the feature ships." },
+      { "key": "C", "text": "Manual spot-checking is invalid because human reviewers cannot apply a quality standard consistently; only a model grader produces reproducible scores." },
+      { "key": "D", "text": "An eval written after the prompt codifies whatever the prompt already does, so it cannot say whether that behaviour clears the bar the business needs." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The order determines what the eval is capable of measuring. Written first, from the task and the planner's acceptance criteria, an eval is an independent target and the prompt is judged against it. Written afterwards by the same engineer who has been staring at the outputs, it inherits the prompt's assumptions, its coverage gaps and its failure modes, and it will pass on day one by construction. The team ends up with a suite that detects change from the current behaviour but never established that the current behaviour is good enough.",
+      "distractors": {
+        "A": "Using eval items as few-shot examples is contamination, not synchronisation. Once an item is in the prompt, the score on that item measures recall of the example rather than generalisation, and the suite silently stops being an eval.",
+        "B": "Latency and cost are measured by instrumenting the calls; no labelled eval set is required for either. This mislocates the problem, and it would still be true if the eval were written first.",
+        "C": "Human review is the reference standard that model graders are validated against, so this has the dependency backwards. Human judgement needs guidelines and an agreement check to be reliable, but it is not intrinsically less valid than a model grader."
+      },
+      "concept": "Write the eval from the requirement, not from the implementation. An eval authored after the system encodes the system's behaviour as the definition of correct, which makes it useful for detecting drift and useless for deciding whether to ship. The acceptance threshold should be set before anyone has seen what the first prompt scores.",
+      "tip": "Watch for the option that sounds like eval-first orthodoxy but gives a bad reason, such as reusing eval items in the prompt. Reasoning matters as much as conclusion in this exam."
+    }
+  },
+  {
+    "id": "ETO-A-014",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Separating real gain from fitting to a reused eval set",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An ed-tech company has iterated its assignment-feedback prompt against the same 60-item eval set for four months. Pass rate on that set has climbed from 71% to 94% across about forty prompt revisions, each one made after reading the items that failed. Teacher complaints about unhelpful feedback have not moved over the same period. The team is preparing to present the 94% to their board. What should they do first?",
+    "options": [
+      { "key": "A", "text": "Freeze the prompt and present the 94%; it is above the internal target, and further revisions at this point only add regression risk." },
+      { "key": "B", "text": "Draw a fresh sample from the same population, score the current prompt on it blind, and treat the gap between the two scores as the fitted share of the gain." },
+      { "key": "C", "text": "Conclude that the eval measures a different construct than the teachers care about, and replace the metric with a teacher-satisfaction proxy scored by the judge." },
+      { "key": "D", "text": "Increase the judge samples per item and report the median pass rate, since the 23-point climb may be an artefact of grading variance." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Forty revisions selected by looking at which of 60 items failed is a tuning loop, and the score on those items has stopped being an unbiased estimate of anything. The fresh sample is the only measurement that distinguishes a genuine 23-point improvement from a fitted one, it is cheap, and it must happen before the number reaches a board. The gap between the two scores is itself the useful output: it quantifies how much the team's reported metric has decoupled from the task and tells them how much of the suite to rebuild.",
+      "distractors": {
+        "A": "This ships an unvalidated number to the people least able to challenge it. The flat complaint trend is direct evidence that the eval score and the user experience have separated, and freezing the prompt does nothing about that.",
+        "C": "Construct mismatch is a real possibility and worth investigating second, but adopting it now means abandoning the suite on a hunch and replacing it with an unvalidated proxy. Test the cheaper and more likely explanation first.",
+        "D": "Grading variance is random and would show as noise around a level, not a monotone 23-point climb tracking forty deliberate revisions. Repeated sampling is the wrong instrument for a trend this shaped."
+      },
+      "concept": "Any item you inspect and respond to becomes part of your training loop, whether or not gradients are involved. A suite iterated against for months reports optimistically by an amount only a fresh draw can measure. Rotate or hold back items, cap how many revisions a given split absorbs, and quote holdout scores externally.",
+      "tip": "A large eval gain with no movement in the outcome the eval is supposed to predict has three standard causes: overfitting to items, a biased grader, or a construct mismatch. Overfitting is cheapest to test, so test it first."
+    }
+  },
+  {
+    "id": "ETO-A-015",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Tiered grading to control judge cost on a large suite",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A retail marketplace evaluates generated product descriptions on a 4,000-item suite. Generation runs on a cheaper tier; grading uses a rubric judge on the highest tier, and grading now costs several times more than generation on every run, which the team performs before each prompt change. The eval lead must cut grading spend without losing the ability to detect a two-point change in pass rate. What is the soundest redesign?",
+    "options": [
+      { "key": "A", "text": "Reduce the suite to the 1,000 items the current prompt most often fails, since items that already pass carry no information about further improvement." },
+      { "key": "B", "text": "Move the rubric judge down to the generation tier and accept noisier grades, since random error averages out across 4,000 items." },
+      { "key": "C", "text": "Run deterministic checks first — schema validity, banned terms, attribute coverage — count those failures in code and send only the survivors to the judge." },
+      { "key": "D", "text": "Grade a random 400-item subsample on each run and extrapolate its pass rate to the full 4,000-item suite, refreshing the subsample each run." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "A large share of failures on a product-description task are objectively checkable: missing required attributes, invalid structure, prohibited claims. Those need no model at all, and detecting them in code is effectively free, exactly reproducible, and not subject to judge drift. The judge then spends its budget only on the subjective residue, where it adds something a rule cannot. The full 4,000 items still get scored, so the statistical resolution needed to see a two-point move is preserved — which is the constraint the other options break.",
+      "distractors": {
+        "A": "A failures-only set is a debugging set. It cannot detect a regression on behaviour that currently works, which is most of what a prompt change can break, and its pass rate is not comparable to anything the business tracks.",
+        "B": "A cheaper judge is not merely noisier; it can apply a systematically different standard, and averaging removes variance rather than bias. You would also have to re-validate the judge against humans and re-baseline every historical score before any comparison held.",
+        "D": "At 400 items the margin of error on a proportion near the middle of the range is roughly ±5 points, which puts a two-point change well inside the noise. Subsampling trades away exactly the resolution the stem says must be kept."
+      },
+      "concept": "Grade in tiers. Deterministic and programmatic checks first, model grading only on what genuinely requires judgement. This cuts cost, removes a slice of the result from judge variability altogether, and concentrates the expensive instrument where it earns its keep. Cut grading cost per item before cutting item count, because item count is what buys statistical resolution.",
+      "tip": "When a stem states both a cost ceiling and a minimum detectable effect, any option that shrinks the sample is disqualified on the second constraint. Look for the option that reduces cost per item instead."
+    }
+  },
+  {
+    "id": "ETO-A-016",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Interpreting overlapping intervals on two prompt variants",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A permitting agency evaluated two prompt variants over the same 300 eval items, but analysed each as an independent proportion. Variant A scored 82.0% (95% CI 77.6–86.4) and variant B scored 85.7% (95% CI 81.7–89.7). Variant B costs about 40% more per request because it uses a higher model tier. The intervals overlap, and the delivery lead has concluded there is no evidence of a difference. What should the eval lead do next?",
+    "options": [
+      { "key": "A", "text": "Re-analyse the existing results as a paired comparison over the shared items, testing only the items where the two variants disagree." },
+      { "key": "B", "text": "Accept the delivery lead's reading and keep variant A, since overlapping 95% intervals mean the difference is not statistically significant." },
+      { "key": "C", "text": "Ship variant B, since a 3.7-point gain measured over 300 items is a large enough effect to justify the 40% higher per-request cost." },
+      { "key": "D", "text": "Expand the suite from 300 to 1,200 items and re-run both variants as independent samples, halving each interval's width." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Both variants were run over the same items, so the data are paired and the independent-proportion analysis is discarding that structure. A paired test conditions on the items where the variants disagree and removes between-item difficulty variance, which is usually the dominant term. The correct analysis is already available at zero additional cost, and it can easily be conclusive where the unpaired presentation is not. Doing it before spending on more items or on a 40% unit-cost increase is the obvious ordering.",
+      "distractors": {
+        "B": "Overlapping intervals on two estimates do not imply that the interval on their difference contains zero — the inference is not valid in that direction. Reading significance off two separately-plotted intervals is one of the most common statistical errors in eval reporting.",
+        "C": "The point estimate may well be real, but committing to a permanent 40% unit-cost increase on an analysis the team has not yet done correctly is exactly what the eval exists to prevent. The paired test costs nothing and comes first.",
+        "D": "Quadrupling the item count roughly halves the interval width and costs four times the generation and grading. Spending that before extracting the power already present in the paired design is the expensive path to the same answer."
+      },
+      "concept": "When two systems are scored on the same items, analyse them as paired. Pairing removes item difficulty from the error term and often turns an inconclusive comparison into a decisive one without a single extra sample. And never infer non-significance from overlapping confidence intervals on two separate estimates; build the interval on the difference.",
+      "tip": "The load-bearing phrase is over the same items. If a stem says that and then reports two independent intervals, the intended answer is almost always to redo the analysis as paired rather than to collect more data."
+    }
+  },
+  {
+    "id": "ETO-A-017",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Reducing the variance of an estimated difference without more items",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "An airline's eval team must be able to detect a three-point change in pass rate on a rebooking-explanation task. The item count is capped by the annotation budget and cannot grow this quarter. Which changes reduce the variance of the estimated difference between two prompt variants, given that constraint? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Generate several outputs per item per variant and score the best one, so each variant is represented by its strongest response." },
+      { "key": "B", "text": "Relax the two-sided significance level from 0.05 to 0.10, so a smaller observed difference clears the threshold." },
+      { "key": "C", "text": "Run both variants over the identical item set and analyse the outcomes as paired rather than as two independent proportions." },
+      { "key": "D", "text": "Grade each item several times with the judge and take the majority verdict as that item's recorded outcome." },
+      { "key": "E", "text": "Report the difference with a bootstrap confidence interval resampled over items rather than a normal approximation." }
+    ],
+    "correct": ["C", "D"],
+    "explanation": {
+      "correct": "Two sources of variance are attackable without more items. Pairing removes between-item difficulty: when both variants face the same items, that variance cancels out of the difference and only the items where the variants diverge carry information. Repeated grading attacks measurement error inside each item — a single judge call is a noisy read of that item's true outcome, and a majority over several calls is a less noisy one. Both shrink the standard error of the difference directly, which is what makes a three-point effect visible at a fixed item count.",
+      "distractors": {
+        "A": "Best-of-k changes what is being estimated. It reports each variant's best-case output rather than the behaviour that will actually ship, inflates both arms by an unknown and unequal amount, and adds a selection step whose own variance is not accounted for.",
+        "B": "Loosening the threshold changes how much evidence you demand, not how much evidence you have. The estimate is exactly as uncertain as before; you have simply agreed to act on weaker grounds and doubled your false-positive rate.",
+        "E": "Bootstrapping is a different way to estimate the sampling distribution, and it is often the more honest one for awkward statistics. It reflects the variance in the data rather than reducing it, so the interval width is essentially unchanged."
+      },
+      "concept": "Sensitivity is driven by the standard error of the difference, and there are three ways to shrink it: more items, pairing to cancel item-level variance, and reducing per-item measurement noise. Only the last two are available when the item budget is fixed. Changing the significance level or the interval estimator moves the goalposts rather than the ball.",
+      "tip": "Sort statistical options into three buckets — reduces variance, changes the decision rule, changes the estimand. Only the first bucket answers a question phrased as reduce the variance, and there are usually exactly two of them."
+    }
+  },
+  {
+    "id": "ETO-A-018",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Decomposed binary criteria versus one composite score",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A grading rubric is rewritten to decompose quality into five independent binary criteria rather than one 1–5 overall quality score. What does that buy, and what does it cost?",
+    "options": [
+      { "key": "A", "text": "It removes the need to validate the grader against human labels, because binary criteria are objective checks rather than judgement calls." },
+      { "key": "B", "text": "It attributes each failure to a named criterion and raises rater agreement, at the cost of needing a rule for how the five combine into a ship decision." },
+      { "key": "C", "text": "It guarantees higher agreement with human reviewers on every criterion, at the cost of substantially more judge tokens per graded item." },
+      { "key": "D", "text": "It makes scores directly comparable across different grading tasks, at the cost of losing the ability to represent partial quality." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Decomposition narrows each judgement to one checkable question, which is why raters — human or model — agree more readily on it than on a holistic score, and it makes a failing item immediately diagnosable rather than just low-scoring. The cost is real and often overlooked: five binary results do not add up to a decision on their own. Someone has to decide whether any single failure blocks, whether some criteria are weighted, and whether a partial pass is shippable. That aggregation rule is now an explicit artefact that has to be agreed and versioned.",
+      "distractors": {
+        "A": "Binary phrasing does not make a criterion objective. Whether a summary preserves the client's intent is a binary question and still a judgement call. Any model grader needs validating against human labels regardless of its output format.",
+        "C": "It usually improves agreement but does not guarantee it, and the token cost of a decomposed rubric is a marginal concern. Naming the trivial cost while overstating the benefit inverts the actual trade-off.",
+        "D": "Decomposed criteria are typically less portable across tasks, since the criteria are written for a specific task. And decomposition preserves partial quality — four of five criteria passing is exactly the partial signal a single collapsed score would lose."
+      },
+      "concept": "Prefer several narrow checkable criteria over one holistic score when you need diagnosis and agreement. Accept that you have moved the difficulty rather than removed it: the aggregation rule becomes a first-class design decision that should be written down, agreed with the people who own the ship decision, and versioned alongside the rubric.",
+      "tip": "Options structured as benefit plus cost are frequently wrong on the cost half while sounding right on the benefit half. Read the second clause first."
+    }
+  }
+]

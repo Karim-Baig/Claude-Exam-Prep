@@ -1,0 +1,724 @@
+[
+  {
+    "id": "DPO-B-037",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Prompt drift between the served value and the repository",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A broadcaster's live-captioning summariser began producing noticeably shorter, less specific summaries about ten days ago. The repository shows no change to the prompt in six weeks. The system prompt is loaded at container start from a configuration service that any engineer can edit through a web console, and that console keeps no change history. What should the team do?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Diff the prompt as actually served against the repository copy, then move the prompt into the deployed artefact so the two cannot diverge again."
+      },
+      {
+        "key": "B",
+        "text": "Alert on mean summary length, so that the next regression of this kind surfaces within hours instead of after ten days of degraded captions."
+      },
+      {
+        "key": "C",
+        "text": "Roll the whole fleet so every container reloads the configuration service's current value and all instances are demonstrably serving the same prompt."
+      },
+      {
+        "key": "D",
+        "text": "Raise the summariser to a higher model tier until the cause of the shortening is understood, then step back down once the investigation concludes."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "An editable store with no history sitting in front of a value nobody has changed in the repository is the entire explanation for a behaviour change with no commit behind it. Establishing the divergence takes one request; the durable fix is removing the second, unreviewed source of truth so the prompt ships and rolls back with the code that depends on it. Until that happens, every future investigation starts by asking whether the repository is telling the truth.",
+      "distractors": {
+        "B": "A useful detector to add afterwards, but it monitors the symptom. The team would still be ten days into the next incident before anyone could say what changed or who changed it.",
+        "C": "A roll makes every instance consistent with the configuration service, which is exactly the value suspected of being wrong. Consistency with a bad source is not a fix.",
+        "D": "This spends money to mask an unknown cause. If the served prompt now asks for brevity, a stronger model will simply follow that instruction more reliably."
+      },
+      "concept": "Anything that changes model behaviour is a deployable artefact and belongs under the same review, versioning and rollback as code. A mutable configuration store with no audit trail in the prompt path guarantees that source control is not the system of record.",
+      "tip": "When a stem says behaviour changed but the repository shows no change, look for a second place the value can come from. The absence of a commit is a clue, not an alibi."
+    }
+  },
+  {
+    "id": "DPO-B-038",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Which artefact states a prompt's intended behaviour",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A new engineer needs to understand what a production prompt template is actually supposed to achieve before changing it. Which artefact conveys that most reliably?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The inline comments in the template file, written by whichever engineer most recently edited it."
+      },
+      {
+        "key": "B",
+        "text": "The commit history of the template, which shows every change along with the reasoning captured in each message."
+      },
+      {
+        "key": "C",
+        "text": "The eval set bound to the template, whose cases and expected outputs define the behaviour the prompt must produce."
+      },
+      {
+        "key": "D",
+        "text": "The architecture diagram for the service, which shows where the template sits in the chain, what feeds into it, and which downstream component consumes its output."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "An eval set is executable intent. It states, case by case, what the prompt is expected to do and what counts as doing it wrong, and it is the only artefact here that fails loudly when the engineer's change violates it. Comments and commit messages describe what someone believed at the time; the eval set is checked on every run, so it cannot quietly become untrue while the prompt evolves around it.",
+      "distractors": {
+        "A": "Comments record one author's intent at one moment and nothing enforces their accuracy. In a template edited by several people over a year they are usually the least current thing in the file.",
+        "B": "History explains how the prompt arrived where it is, which is useful context, but it does not state what the current version must achieve, and reconstructing intent from a year of diffs is slow.",
+        "D": "A diagram gives position and data flow. It tells the engineer what calls the template and what it feeds, not what a correct output from it looks like."
+      },
+      "concept": "In an AI codebase, the eval set is the specification. Prompts have no type signature and no compiler, so the executable statement of intended behaviour is the only documentation that stays honest as the system changes.",
+      "tip": "For \"what should a newcomer read\" items, prefer the artefact that is executed over the artefact that is written. Executed artefacts cannot silently go out of date."
+    }
+  },
+  {
+    "id": "DPO-B-039",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Investigating a regression confined to one tenant",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A B2B expense-management SaaS runs Claude-based receipt categorisation for 400 tenants on one shared deployment. One large tenant reports that categorisation accuracy collapsed last Tuesday. Platform-wide accuracy over the same period is flat, no deploy shipped that day, and the tenant's request volume is normal. Traces with rendered prompts are retained for every tenant. What is the most productive first line of inquiry?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Ask the tenant for ten miscategorised receipts and re-run them through the current system to see whether the failures reproduce today."
+      },
+      {
+        "key": "B",
+        "text": "Check whether this tenant resolves to a different model version or prompt variant, since large enterprise customers are frequently pinned to their own deployment configuration."
+      },
+      {
+        "key": "C",
+        "text": "Raise trace sampling for this tenant and wait for further failures to accumulate into a set large enough to analyse statistically."
+      },
+      {
+        "key": "D",
+        "text": "Diff this tenant's scoped inputs — their category taxonomy, custom rules and merchant list — across Monday and Tuesday, since a tenant-scoped effect implies a tenant-scoped cause."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The scope of the symptom localises the cause. One deployment, one model, one prompt and 400 tenants, of which exactly one regressed on a specific day: whatever changed has to be something that varies per tenant. In a multi-tenant categoriser that is the tenant's own configuration — their taxonomy, their custom rules, their merchant mappings — all of which are typically customer-editable and therefore change without any engineering deploy. The traces already hold the rendered prompts, so the diff is available immediately.",
+      "distractors": {
+        "A": "Reasonable evidence gathering, but it tests today's system rather than Tuesday's, and it starts from ten anecdotes when the team already has full traces for the entire tenant.",
+        "B": "The stem states a single shared deployment, so this hypothesis contradicts the given architecture. It is worth ruling out in an environment where per-tenant pinning exists, which this is not.",
+        "C": "The failures are already in the retained traces. Collecting more of them defers the investigation while the customer continues to receive bad categorisations."
+      },
+      "concept": "Let the blast radius drive the hypothesis. A regression confined to one tenant, region or cohort points at something scoped the same way — usually customer-controlled configuration or data — rather than at code, model or prompt, all of which are shared.",
+      "tip": "Read the scope statements carefully. \"Platform-wide accuracy is flat\" eliminates every shared-component explanation before you have considered a single one."
+    }
+  },
+  {
+    "id": "DPO-B-040",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Review checks a prompt diff cannot provide",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A team is writing the review checklist for pull requests that change a prompt template in a shared library. Reviewers already read the diff carefully for clarity, tone and instruction conflicts. Which TWO additional checks catch failure modes that reading the diff cannot surface? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "An eval report attached to the pull request comparing golden-set scores before and after the change."
+      },
+      {
+        "key": "B",
+        "text": "That the diff introduces no trailing whitespace or inconsistent indentation inside the template body."
+      },
+      {
+        "key": "C",
+        "text": "That the commit message explains the motivation in terms a future reader unfamiliar with the ticket will understand."
+      },
+      {
+        "key": "D",
+        "text": "The template rendered against a representative variable set, since the diff shows the source but not what the model receives."
+      },
+      {
+        "key": "E",
+        "text": "That every service consuming the shared template has had its product owner sign off on the change before it merges."
+      }
+    ],
+    "correct": [
+      "A",
+      "D"
+    ],
+    "explanation": {
+      "correct": "A prompt diff is source, and two important things live downstream of it. First, behaviour: a change that reads as an obvious improvement can lower scores on cases the reviewer has never seen, and only running the eval reveals that. Second, the rendered artefact: variable substitution, retrieved context and conditional blocks mean the text the model actually receives may contain a duplicated instruction or a collapsed section that is invisible in the template source.",
+      "distractors": {
+        "B": "Formatting is exactly what reading the diff does catch, and a linter catches it earlier still. It is also the least consequential class of prompt defect.",
+        "C": "Good hygiene, and reviewers should ask for it, but the motivation is readable from the pull request itself. It is a comprehension aid, not a detector of behaviour the reviewer cannot see.",
+        "E": "Blanket sign-off from every consumer converts prompt changes into a scheduling exercise without testing anything. The eval suite is what should speak for the consumers' interests."
+      },
+      "concept": "Reviewing a prompt requires evidence from execution, not just from reading: the rendered prompt as the model will receive it, and eval deltas on a golden set. Source review alone cannot detect behavioural regression or rendering defects.",
+      "tip": "Ask what a careful human reader physically cannot see in a diff. Anything downstream of substitution or downstream of the model's response needs a machine to surface it."
+    }
+  },
+  {
+    "id": "DPO-B-041",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Objecting to an AI-generated-code share as a target",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An engineering director at a payments company proposes a team OKR: by year end, 50% of merged lines of code should be AI-generated. The intent is to accelerate adoption of an assistant the company has already paid for. A principal engineer is asked to comment before the OKR is published to the organisation. What is the most substantive objection?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Attribution is unreliable: once an engineer edits a suggestion, the line is no longer cleanly assignable to the assistant or to the person who reshaped it."
+      },
+      {
+        "key": "B",
+        "text": "Targeting a share of AI-generated code rewards routing work through the assistant regardless of fit, and it is satisfiable without delivery improving at all."
+      },
+      {
+        "key": "C",
+        "text": "Fifty percent is an arbitrary figure; a baseline should be measured first and the target then set as a relative improvement over that measured baseline."
+      },
+      {
+        "key": "D",
+        "text": "The target belongs at individual rather than team level, so that adoption gaps between engineers become visible and can be addressed through coaching."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Publishing a metric as a target changes behaviour toward the metric, and this one can be hit by generating code where handwriting would be faster, by declining to delete generated code, or by choosing verbose generated solutions over concise written ones. None of those help the company, and all of them raise the number. The deeper problem is that the OKR encodes a means as an objective: adoption was supposed to produce faster, safer delivery, so the target should be the delivery outcome with adoption tracked as a diagnostic.",
+      "distractors": {
+        "A": "A genuine measurement problem, but fixing attribution would leave a well-measured target that still rewards the wrong behaviour. Accuracy is the lesser objection here.",
+        "C": "Correct process advice for setting any target, and worth saying. It argues about the number rather than about whether this quantity should be a target at all.",
+        "D": "Pushing the target to individuals sharpens exactly the incentive that makes it harmful, and adds surveillance pressure on top. This makes the proposal worse, not better."
+      },
+      "concept": "Adoption metrics are diagnostics, not objectives. Set targets on the outcome the tool was bought to improve — delivery throughput, cycle time, defect escape — and read adoption as an explanatory variable alongside it.",
+      "tip": "When several objections are valid, rank them: an objection that the metric is measured badly is weaker than an objection that the metric should not be a target."
+    }
+  },
+  {
+    "id": "DPO-B-042",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Limiting blast radius of a provider key held by CI",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An eval suite runs on every pull request in CI, calling the live provider API with an organisation-wide key stored as a CI secret. Which change most reduces the blast radius if that secret leaks?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Rotate the CI secret monthly and record each rotation in the change log so auditors can confirm the cadence is being maintained."
+      },
+      {
+        "key": "B",
+        "text": "Move the key into the organisation's secrets manager and have the CI job fetch it at start rather than holding it as a pipeline variable."
+      },
+      {
+        "key": "C",
+        "text": "Restrict the workflow so it does not execute on pull requests raised from forks, where untrusted code could read the environment."
+      },
+      {
+        "key": "D",
+        "text": "Issue CI its own key on a separate account with its own spend cap, and never share the production key with the pipeline at all."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Blast radius is about what the leaked credential can reach. An organisation-wide key leaked from CI grants whatever production traffic can do, on the production account, against the production budget. A dedicated key on a separate account with its own ceiling reduces the worst case to a bounded amount of eval traffic on an account with no production data path, and it can be revoked without touching the serving path. Every other option shortens the exposure or lowers the probability, but leaves the same key with the same reach.",
+      "distractors": {
+        "A": "Rotation caps how long a leaked value stays useful. Within the window it still has full organisational reach, and monthly is a long window for an automated abuser.",
+        "B": "Fetching at job start reduces where the value sits at rest, which is worthwhile, but the running job still holds the same key with the same permissions. The radius is unchanged.",
+        "C": "This closes a common and important exfiltration route, so it lowers the chance of a leak. It does nothing about the consequences once one happens by any other route."
+      },
+      "concept": "Reduce credential risk along two independent axes: likelihood of exposure and consequence of exposure. Least-privilege scoping with its own account and spend ceiling is the consequence lever, and it is the one automation pipelines most often skip.",
+      "tip": "\"Blast radius\" in a stem is asking about consequence, not probability. Rotation, scanning and fork restrictions all answer the probability question instead."
+    }
+  },
+  {
+    "id": "DPO-B-043",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Cutting tracing cost without losing investigability",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A retail energy platform instrumented its Claude chain with OpenTelemetry. Within a month the tracing bill exceeded the inference bill. Investigation finds three things: spans carry the full user question plus one attribute per retrieved document id; a per-request unique key is used as a tag on metrics; and each service samples independently at 20%, so most stored traces are partial. The team must cut tracing cost while keeping the ability to investigate a specific bad output. Which THREE changes achieve that? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Move the user question and the retrieved document list off the span into a payload store, leaving a reference identifier on the span."
+      },
+      {
+        "key": "B",
+        "text": "Remove the per-request unique key from metric tags, keeping it as a span attribute where high cardinality is expected and priced differently."
+      },
+      {
+        "key": "C",
+        "text": "Reduce span retention from 30 days to 7 days across every service so the stored volume falls immediately."
+      },
+      {
+        "key": "D",
+        "text": "Drop the tracing vendor and emit spans as structured application log lines instead, parsing them into a tree when an investigation needs one."
+      },
+      {
+        "key": "E",
+        "text": "Make the sampling decision once at the edge and propagate it, so a trace is either kept whole or not kept at all."
+      }
+    ],
+    "correct": [
+      "A",
+      "B",
+      "E"
+    ],
+    "explanation": {
+      "correct": "Each of these removes waste rather than capability. Bulk payloads on spans are the largest single contributor and belong in a store built for them, with the span holding a pointer. A unique key as a metric tag creates one time series per request, which is the classic cardinality explosion and is pure cost with no analytical value. Independent per-service sampling is the worst of both worlds: the platform pays to store fragments, and only about one trace in several is complete enough to investigate. Deciding once at the edge yields fewer, whole, usable traces.",
+      "distractors": {
+        "C": "This cuts cost by discarding exactly the capability the stem protects. Complaints routinely arrive weeks later, and a seven-day window means the trace is gone before anyone asks for it.",
+        "D": "Log lines lose the parent-child structure that makes a trace investigable, shifting the reconstruction work back onto the engineer. It also moves cost rather than removing it, since log ingestion is billed too."
+      },
+      "concept": "Tracing cost is driven by attribute payload size, metric cardinality and stored-span count. Attack those three before retention or coverage, because retention and coverage are the properties that make traces worth having.",
+      "tip": "When a stem sets a constraint of the form \"cut cost without losing X\", the wrong answers are the ones that cut cost by reducing X. Check each option against the protected property first."
+    }
+  },
+  {
+    "id": "DPO-B-044",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Coupling feature exposure to model version in one flag",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A public transport authority ships a Claude-based disruption-notice writer behind a single flag that both enables the feature and selects which model version serves it. Six weeks later the team wants to move to a newer model version, and operations has asked that any problem with the move be reversible without taking the notice writer offline. What change should the team make first?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Split the two decisions into independent flags, so the model version can be rolled forward or back while the feature stays enabled."
+      },
+      {
+        "key": "B",
+        "text": "Pin the flag to the new version in staging only and promote to production once staging has run clean for a full week under synthetic load."
+      },
+      {
+        "key": "C",
+        "text": "Create a new flag for each model version and retire the previous flag after cutover, so each version's exposure is independently controllable."
+      },
+      {
+        "key": "D",
+        "text": "Remove the flag and control the model version through the deployment artefact, since a version change is a code change and belongs in the release process."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "One flag encoding two independent decisions means the only way to undo the version move is to switch the feature off, which is precisely what operations has ruled out. Separating them gives two controls with different blast radii: a version selector that can revert to the previous model in seconds while notices keep flowing, and a kill switch that remains available for a feature-level problem. The change is small and must land before the version move, not after it.",
+      "distractors": {
+        "B": "Staging validation is worth doing and does not address the request. Operations asked for reversibility in production, which a clean staging week does not provide when the new version misbehaves on real traffic.",
+        "C": "Two flags controlling the same code path creates ambiguous precedence during cutover and leaves a retirement task that teams reliably forget. It multiplies flags without separating the two decisions cleanly.",
+        "D": "This removes the fast reversal entirely. A version rollback then requires a deploy, which is slower than the flag flip operations is asking to preserve."
+      },
+      "concept": "Give each independently reversible decision its own flag. Bundling feature exposure with model version, prompt variant or routing choice means any rollback of one forces a rollback of all, which is how kill switches end up costing more than the incident.",
+      "tip": "Count the decisions in the scenario, then count the controls. When there are more decisions than controls, the answer is usually to add one."
+    }
+  },
+  {
+    "id": "DPO-B-045",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "First check when behaviour shifts under a floating alias",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A team's outputs changed noticeably overnight with no deploy, no prompt edit and no change to input data. Their client requests the model by a floating alias rather than a pinned version. What should be established first?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Whether an environment change on the serving hosts altered the sampling temperature or the top_p value that the client attaches to each outgoing request."
+      },
+      {
+        "key": "B",
+        "text": "Which concrete model version the alias resolved to before and after the shift, using the version recorded on each response."
+      },
+      {
+        "key": "C",
+        "text": "Whether the provider's status page reports degradation in the region the service routes its requests into."
+      },
+      {
+        "key": "D",
+        "text": "Whether the prompt cache expired overnight, so the prefix was reprocessed and the output differs as a result."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "A floating alias is a pointer, and the whole point of the stem's setup is that the pointer can move without anything in the team's control changing. Every response carries the version that served it, so comparing yesterday's recorded version against today's either confirms the hypothesis outright or eliminates it in one query — and it is the only check here that can distinguish a version change from everything else. This is also the argument for pinning versions and promoting them deliberately.",
+      "distractors": {
+        "A": "Worth ruling out in general, but sampling parameters travel with the request from the client, and the stem says no deploy shipped. An overnight host change altering them is a stretch.",
+        "C": "A provider incident would usually show as errors or latency rather than as a clean, sustained shift in output character, and the status page cannot tell you which version you were served.",
+        "D": "Cache expiry changes cost and time to first token. The prefix that gets reprocessed is identical to the one that was cached, so the model's input is unchanged."
+      },
+      "concept": "Record the resolved model version on every response and treat an unpinned alias as an uncontrolled input. Behaviour changes with no corresponding change in your own artefacts should send you to the version record first.",
+      "tip": "Any stem that mentions a floating alias is telling you the version is a variable. That detail is never incidental scene-setting."
+    }
+  },
+  {
+    "id": "DPO-B-046",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Reducing cross-team ramp cost with a golden-path template",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A media company has eleven teams each building Claude-backed features independently. Engineers moving between teams find that no two services are instrumented, configured or evaluated the same way, and each internal move costs weeks of ramp. The platform team has capacity for one initiative this half. Which produces the most durable reduction in that cost?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Publish a standards document defining required instrumentation, prompt layout and eval conventions, then audit each team against it quarterly and track exceptions."
+      },
+      {
+        "key": "B",
+        "text": "Run a monthly cross-team guild where engineers walk through how their service is structured, building shared familiarity across the eleven teams over time."
+      },
+      {
+        "key": "C",
+        "text": "Ship a service template with tracing, prompt loading, eval wiring and cost tagging already in place, and migrate existing services onto it incrementally."
+      },
+      {
+        "key": "D",
+        "text": "Centralise all eleven services under the platform team so that a single group owns the conventions and can apply them uniformly across the estate."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "A template makes the convention the path of least resistance rather than an obligation to remember. Teams adopt it because it is faster than assembling the same wiring themselves, and every service that starts from it is legible to an engineer who has seen any other one. The document and the audit describe the same conventions but rely on continuous human effort to hold; the template encodes them once and enforces them by being the easiest option.",
+      "distractors": {
+        "A": "Standards without an implementation put the work on every team and the enforcement on a quarterly audit. Compliance decays between audits, and the document itself becomes another artefact that drifts.",
+        "B": "A guild spreads awareness of eleven different designs. It helps people navigate the divergence rather than reducing it, and it does nothing for the twelfth service.",
+        "D": "Centralisation removes team autonomy, creates a delivery bottleneck for eleven roadmaps, and is a reorganisation rather than an initiative one platform team can execute in a half."
+      },
+      "concept": "Convergence is achieved by making the standard path the cheapest path. A scaffold that arrives with observability, prompt handling, eval wiring and cost attribution already correct outperforms documentation and audit, because it is adopted for the adopter's benefit.",
+      "tip": "When a stem gives you a fixed, small capacity budget, prefer the option that changes defaults over the option that changes behaviour through policy. Defaults keep working when attention moves on."
+    }
+  },
+  {
+    "id": "DPO-B-047",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Making a chargeback report change behaviour",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A platform team publishes a monthly Claude spend report to eight consuming teams. It shows each team's total spend and the month-on-month change, and in six months no team has changed anything in response to it. The platform team wants the report to drive action rather than acknowledgement. Which THREE additions would most plausibly achieve that? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "A league table ordering the eight teams by absolute spend, so the heaviest consumers appear at the top of the first page."
+      },
+      {
+        "key": "B",
+        "text": "Cost per unit of business work for each team, so a team can see whether its spend per outcome is rising or falling."
+      },
+      {
+        "key": "C",
+        "text": "A breakdown by feature or endpoint within each team, so spend attaches to something the team can actually change."
+      },
+      {
+        "key": "D",
+        "text": "The provider's full rate card reproduced as an appendix, so teams can verify the platform team's arithmetic themselves."
+      },
+      {
+        "key": "E",
+        "text": "Each team's cache hit rate and mean input tokens per request, the two levers most directly under the team's own control."
+      }
+    ],
+    "correct": [
+      "B",
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "A report drives action when it answers three questions the reader has: is this good or bad, where is it coming from, and what can I do. A per-outcome unit answers the first, because a rising total on rising volume may be fine while a rising cost per document is not. A per-feature breakdown answers the second, since a team cannot act on a single number covering everything it runs. Hit rate and mean input tokens answer the third by naming levers the team owns.",
+      "distractors": {
+        "A": "Ranking by absolute spend mostly ranks teams by size and importance. The largest consumer is usually large for legitimate reasons, and the framing invites defensiveness rather than investigation.",
+        "D": "Verification material addresses trust in the numbers, which is not the stated problem. Teams are not disputing the report; they simply cannot act on it."
+      },
+      "concept": "Cost reporting changes behaviour only when it is normalised to an outcome, decomposed to something the owner controls, and paired with the specific levers available. Totals and rankings inform without enabling action.",
+      "tip": "For \"why does nobody act on this report\" items, test each addition by asking what a reader would do differently on Monday morning. Anything that only sharpens the diagnosis is not the answer."
+    }
+  },
+  {
+    "id": "DPO-B-048",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Proportionate first action on a single bad-content report",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "At 09:40 a children's-education platform receives a support ticket: a Claude-generated lesson summary shown to one class contained an inappropriate analogy, with a clear screenshot. Summaries are generated when a lesson is opened and cached for 24 hours, so that class can re-open the same text. The feature is enabled for 4,000 schools mid-term, no second instance has been reported, and the platform's incident policy requires action proportionate to observed harm. What should the on-call engineer do first?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Add the offending phrasing to the output blocklist and ship it, which stops that specific content being produced or served again anywhere."
+      },
+      {
+        "key": "B",
+        "text": "Pull the trace for that lesson and establish whether the source material contained the analogy, before taking any action that affects other schools."
+      },
+      {
+        "key": "C",
+        "text": "Disable the feature for all 4,000 schools until the cause is known, because the affected population is children and the content policy is strict."
+      },
+      {
+        "key": "D",
+        "text": "Purge the cached summary so the class cannot re-open it, then investigate the trace while the feature continues serving other schools."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "There is exactly one piece of known harm still live: a cached artefact that this class can open again for the rest of the day. Purging it takes seconds, affects nobody else, and ends the ongoing exposure — which is the definition of a proportionate first action. Everything else is diagnosis, and diagnosis proceeds better once the clock has stopped. The cache is easy to overlook precisely because generation has already finished and the model is no longer involved.",
+      "distractors": {
+        "A": "A blocklist entry for one phrase addresses a sample rather than a class of failure, requires a deploy, and leaves the cached copy served from storage where a generation-time filter may not even apply.",
+        "B": "Investigation is the right second step and the trace is the right place to start it. Doing it first leaves the offending summary retrievable by the affected class for up to 24 more hours at no benefit.",
+        "C": "Withdrawing the feature from 4,000 schools mid-term on one unreproduced report is the disproportionate response the stated policy is designed to prevent, and it does not remove the cached text either."
+      },
+      "concept": "Triage an AI content incident by asking where the bad output currently lives. Generated content is often persisted — caches, sent notifications, saved documents — so stopping generation does not stop delivery, and the cached copy is frequently the only live harm.",
+      "tip": "When a stem mentions caching or persistence of model output, that detail is the answer's hinge. Ask what is still reachable after the model stops being called."
+    }
+  },
+  {
+    "id": "DPO-B-049",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Verifying a fix for an intermittent failure with adequate power",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A logistics firm's address-normalisation step fails on roughly one run in thirty for a particular input. An engineer proposes a prompt fix, runs that input five times without seeing a failure, and marks the ticket resolved. The tech lead pushes back. What change to the verification would make the claim defensible?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Run the input enough times that seeing no failures would be unlikely under the original rate, and report the resulting confidence rather than a pass."
+      },
+      {
+        "key": "B",
+        "text": "Run the input five times against both the old and the new prompt and compare the failure counts between the two arms directly."
+      },
+      {
+        "key": "C",
+        "text": "Set temperature to zero for the verification run, so a single clean execution is sufficient to demonstrate the fix holds."
+      },
+      {
+        "key": "D",
+        "text": "Add the input to the regression suite and rely on the nightly run to surface the failure over the following weeks if the proposed fix has not in fact resolved anything."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "At a one-in-thirty failure rate, five clean runs happen about 84% of the time even if the fix did nothing, so the observation carries almost no information. Driving that probability below 5% takes on the order of ninety runs. The practical consequence is that verifying fixes to rare stochastic failures is a sample-size exercise, and the honest output is a bounded claim — the rate is now below some threshold with some confidence — rather than a declaration that the bug is gone.",
+      "distractors": {
+        "B": "A control arm removes the risk of crediting the fix for a change that never existed, which is a real improvement. Five runs per arm is still far too few to distinguish one-in-thirty from zero.",
+        "C": "Greedy decoding does not eliminate variability, and even if it did, a single deterministic run would only prove the fix works for that one path rather than across the distribution where the failure lives.",
+        "D": "Deferring to nightly runs is reasonable for ongoing monitoring but does not support closing the ticket today, and a single nightly execution has the same statistical power problem repeated slowly."
+      },
+      "concept": "Absence of failure in a small sample is not evidence of a fix when the base rate is low. Size the verification against the observed failure rate, and state results as a bounded rate with confidence rather than as a binary pass.",
+      "tip": "When a stem gives you a failure rate and a run count, do the arithmetic. A rate of one in thirty and a sample of five is the shape of an item testing statistical power."
+    }
+  },
+  {
+    "id": "DPO-B-050",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Where few-shot examples belong in a prompt library",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In a prompt library managed as versioned code, where should the few-shot examples used by a template live?",
+    "options": [
+      {
+        "key": "A",
+        "text": "In a shared examples database queried at render time, so that improvements to an example propagate to every template using it at once."
+      },
+      {
+        "key": "B",
+        "text": "Versioned in the same artefact as the template, because changing an example changes the prompt's behaviour."
+      },
+      {
+        "key": "C",
+        "text": "In the eval suite only, referenced by the template at build time, so that examples and test cases can never drift apart from one another."
+      },
+      {
+        "key": "D",
+        "text": "In a per-environment configuration file, so staging can be given richer examples than production without requiring a code change."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Few-shot examples are instructions in a different syntax: swapping one changes output format, tone and edge-case handling as surely as rewriting a sentence would. Anything with that effect must move through the same review, eval and rollback path as the template text, which means living in the same versioned artefact. Splitting them creates a prompt whose behaviour can change without the prompt changing.",
+      "distractors": {
+        "A": "A shared runtime store propagates an edit made for one template into every other template that references it, with no eval coverage for the unintended consumers. Reuse of examples is a benefit not worth that coupling.",
+        "C": "Examples and eval cases must be kept distinct. Drawing few-shot examples from the same pool the model is graded against means the eval measures recall of the examples rather than generalisation.",
+        "D": "Environment-specific examples guarantee that staging tests a prompt production never runs. Any difference in examples is a difference in behaviour, so this defeats the purpose of the staging run."
+      },
+      "concept": "Everything that reaches the model as part of the prompt — instructions, examples, output schemas, delimiters — belongs in one versioned artefact under one review and rollback boundary. Externalising any component creates behaviour changes with no corresponding version change.",
+      "tip": "Test each storage option by asking whether behaviour could change without a version changing. If yes, it is the wrong place, however convenient."
+    }
+  },
+  {
+    "id": "DPO-B-051",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Designing a recurring developer-experience signal",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A healthcare software company wants a recurring signal on whether AI assistance is improving developer experience, to sit alongside its delivery metrics rather than replace them. Previous attempts produced a number that moved without anyone being able to explain why. Which survey design is most likely to produce a usable signal?",
+    "options": [
+      {
+        "key": "A",
+        "text": "A single quarterly question asking each engineer to rate the assistant from one to ten, tracked as a trend line and reported to engineering leadership at the close of every quarter."
+      },
+      {
+        "key": "B",
+        "text": "An open-text quarterly prompt inviting engineers to describe their experience, coded into themes afterwards by two members of the platform team."
+      },
+      {
+        "key": "C",
+        "text": "A short, frequent survey about specific recent experiences — waiting time, confidence in unfamiliar code, friction in review — using identical items each cycle."
+      },
+      {
+        "key": "D",
+        "text": "An annual anonymous survey covering all developer tooling, so the assistant can be compared against every other tool in one consistent instrument."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The stated failure is a number that moves inexplicably, which is what a single global rating produces: it aggregates everything and attributes nothing. Asking about specific, recent, concrete experiences gives each movement a locus, so a decline in confidence on unfamiliar code points somewhere different from a rise in review friction. Keeping the items identical makes the series comparable, and frequency both shortens recall distance and gives enough points to distinguish a trend from a bad week.",
+      "distractors": {
+        "A": "A one-to-ten rating is exactly the instrument that produced the unexplainable number. It has no diagnostic structure, and it drifts with mood, recent incidents and whatever happened the day it was sent.",
+        "B": "Open text produces rich material and is worth running occasionally, but manual coding is slow, the categories shift between rounds, and the result does not form a comparable series.",
+        "D": "Annual cadence gives one data point a year with twelve months of recall bias, far too coarse to attribute anything to a tool whose usage pattern is still changing."
+      },
+      "concept": "Perceptual measures are useful when they are specific, recent, repeated with unchanged wording, and frequent enough to trend. A single satisfaction score is not a developer-experience measurement; it is a mood reading with a decimal point.",
+      "tip": "When a stem says a previous metric moved without explanation, the fix is decomposition into named, attributable items — not a better-worded version of the same aggregate."
+    }
+  },
+  {
+    "id": "DPO-B-052",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Overnight triage when the affected users are not yet online",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A bank's internal assistant for branch staff is exercised round the clock by a synthetic probe that submits reference questions every few minutes and checks the answers. At 23:50 the probe's answers begin arriving without the mandatory regulatory disclaimer that a post-processing step is supposed to append, and the quality monitor pages the on-call engineer automatically. Branches are closed and staff use the assistant only during branch hours, 08:00 to 18:00. The likely cause is a change that shipped at 18:00; the deploy pipeline requires two approvers and the second approver is unreachable overnight. What should the engineer do?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Disable the assistant with its feature flag now, record the flag state and the monitor's evidence, and hand a full brief to the morning team."
+      },
+      {
+        "key": "B",
+        "text": "Escalate to wake a second approver and revert the 18:00 deploy tonight, since a missing regulatory disclaimer is a compliance breach and cannot wait."
+      },
+      {
+        "key": "C",
+        "text": "Leave the assistant enabled, set an alarm for 07:00, and reassess before branches open so that no action is taken on incomplete information."
+      },
+      {
+        "key": "D",
+        "text": "Downgrade the page to a ticket for the owning team's business hours, since no user is affected while every branch is closed."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The flag makes the safe state free, so there is no reason to gamble on whether anyone acts before 08:00. Disabling now guarantees that no member of staff receives a non-compliant answer at opening regardless of who is awake, available or paged next, and it costs nothing while branches are closed. Waking an approver to force a deploy at midnight adds risk for no benefit against a deadline that is eight hours away, and the handover brief is what lets the morning team fix the cause properly rather than under pressure.",
+      "distractors": {
+        "B": "This treats urgency as if users were being harmed now. A midnight deploy with a half-awake approver and no daytime support is a materially riskier change than flipping a flag, and it buys nothing before 08:00.",
+        "C": "Relying on a single alarm and a single engineer to act in the hour before opening is a plan with no redundancy. If the alarm is missed or the engineer is unavailable, non-compliant answers reach staff.",
+        "D": "Correct that nobody is affected tonight, and wrong about what follows. Left enabled, the assistant is non-compliant the moment branches open, so business hours is exactly when it becomes an incident."
+      },
+      "concept": "Time-of-day changes the urgency of the fix, never the urgency of containment. When a reversible control makes the safe state cheap, take it immediately and let the diagnosis happen on a normal schedule with a rested team.",
+      "tip": "Watch for stems where the harm window opens later. The correct action is usually to reach the safe state now and defer only the repair, not to defer both."
+    }
+  },
+  {
+    "id": "DPO-B-053",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Why mental models of AI services go stale quickly",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Why does an engineer's mental model of an AI-integrated service typically go stale faster than for a conventional service of similar size?",
+    "options": [
+      {
+        "key": "A",
+        "text": "AI services tend to be written across more languages and runtimes, so knowledge decays as engineers move between the parts of the stack."
+      },
+      {
+        "key": "B",
+        "text": "AI services carry more third-party dependencies than conventional services of the same size, and the resulting churn invalidates knowledge that was entirely accurate a quarter ago."
+      },
+      {
+        "key": "C",
+        "text": "Behaviour depends on artefacts that move outside the code — prompts, retrieval corpora, model versions — so reading the code stops describing what the system does."
+      },
+      {
+        "key": "D",
+        "text": "AI services are usually newer, so they have accumulated fewer conventions and less documentation than the older services surrounding them."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "In a conventional service the code is a complete description of behaviour, so knowing the code is knowing the system. An AI service distributes behaviour across the code, the prompt, the retrieval corpus and the model version, and at least two of those routinely change on cadences that are nothing to do with the release pipeline. An engineer who read the code last month may be accurate about the code and wrong about the system, which is a specifically difficult failure to notice.",
+      "distractors": {
+        "A": "Polyglot stacks make onboarding broader rather than more perishable, and plenty of conventional services span as many runtimes without the same effect.",
+        "B": "Dependency churn affects every modern service equally. It is not distinctive to AI systems and does not explain behaviour changing with no repository change at all.",
+        "D": "Newness explains thin documentation, which is a real cost, but a young conventional service does not go stale in this way. Age affects how much there is to learn, not how quickly it expires."
+      },
+      "concept": "AI systems have behaviour-determining state outside version control. Onboarding and documentation must therefore point at the live artefacts — current prompt version, corpus snapshot, resolved model — rather than at a description written once.",
+      "tip": "Recall items asking what is distinctive about AI systems are looking for the property no conventional service shares. Anything true of every modern microservice is the wrong answer."
+    }
+  },
+  {
+    "id": "DPO-B-054",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Flag lifecycle and verifying kill switches still work",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A pharmaceutical company's platform team owns 34 feature flags across its AI features. Nineteen have sat at 100% for over six months. During an incident last quarter the team discovered that one kill switch no longer disabled anything, because the code path it guarded had been refactored away months earlier and nobody noticed. Which TWO practices address the underlying problem? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Rename every flag to include its creation date, so that stale flags are visible at a glance whenever anyone opens the management console."
+      },
+      {
+        "key": "B",
+        "text": "Require a second approver for any production flag change, so that no flag is flipped or removed without another engineer reviewing the intent."
+      },
+      {
+        "key": "C",
+        "text": "Give every flag an owner and an expiry date, and treat a flag past its expiry as a defect to be either removed or renewed deliberately."
+      },
+      {
+        "key": "D",
+        "text": "Move all 34 flags into deployment configuration so they are versioned alongside the code that reads them and cannot drift from it."
+      },
+      {
+        "key": "E",
+        "text": "Exercise each kill switch on a schedule in a production-like environment and assert that the guarded behaviour actually stops when it is flipped."
+      }
+    ],
+    "correct": [
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "Two distinct failures are in play. Nineteen permanent flags are accumulated debt: without an owner and an expiry, nothing ever forces the conversation about whether a flag still has a job, and the console becomes an inventory nobody reads. Separately, a kill switch is a safety control, and untested safety controls decay silently under refactoring. Firing it on a schedule and asserting the effect turns that decay into a failing test months before an incident depends on it.",
+      "distractors": {
+        "A": "A naming convention makes age visible without making anyone accountable for it. Visibility was never the constraint — 19 flags at 100% for six months were already obvious to anyone looking.",
+        "B": "Approval on changes governs the act of flipping a flag. Neither the accumulation of permanent flags nor the silent disconnection of a guard involves anybody flipping anything.",
+        "D": "Deployment configuration removes the ability to change a flag without a deploy, which destroys the property that makes a kill switch valuable. It also does not verify that the guarded path still exists."
+      },
+      "concept": "Feature flags are code with a lifecycle: owner, expiry, removal. Flags that also serve as safety controls need periodic execution proving they still have an effect, because refactoring can disconnect a guard without any test noticing.",
+      "tip": "When a stem describes both a pile of stale flags and one that silently stopped working, it is naming two problems. Look for one answer per problem rather than two answers to the louder one."
+    }
+  }
+]

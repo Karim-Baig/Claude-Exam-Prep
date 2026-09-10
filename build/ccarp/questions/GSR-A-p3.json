@@ -1,0 +1,719 @@
+[
+  {
+    "id": "GSR-A-037",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Tenant safety when caching a shared prompt prefix",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A legal-tech SaaS serves 200 law firms through a single gateway service that holds one API credential for all tenants. To cut cost the team wants to use prompt caching. The proposed prefix, assembled from a shared template, is: platform instructions, then the firm's practice-area policy, then a matter summary containing privileged client facts. A reviewer worries about cross-firm exposure through the cache. How should the prefix and the gateway be arranged?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Place only tenant-neutral platform instructions and shared policy before the cache breakpoint, keep firm and matter content after it, and scope cache identity per tenant rather than pooling it."
+      },
+      {
+        "key": "B",
+        "text": "Cache the full per-firm prefix including the matter summary, relying on the requirement that a prefix must match exactly for a cache hit to occur, which makes each firm's prefix effectively unique."
+      },
+      {
+        "key": "C",
+        "text": "Disable caching on any request containing client data and accept the resulting cost increase as the unavoidable price of keeping privileged material out of shared infrastructure."
+      },
+      {
+        "key": "D",
+        "text": "Append the firm identifier to the end of the prompt so that every firm's request is textually distinct, which keeps one firm's cached content from being reachable by another firm's call through the shared gateway."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Cacheable prefix content should be content you would be content to have shared among every caller that can reach that cache identity. Platform instructions and practice-area policy qualify; privileged matter facts do not. Putting the breakpoint after the shared block preserves most of the economic benefit, because the shared block is the long, stable part. Partitioning the gateway so tenants do not share one pooled credential removes the structural condition that makes a template assembly bug into a cross-firm disclosure rather than a formatting bug.",
+      "distractors": {
+        "B": "Exact-match behaviour is a cache mechanic, not an authorisation control. The risk in this design is that a bug in the shared template assembly produces a prefix that is not the one the tenant should have had, and no matching rule protects against the system building the wrong prefix.",
+        "C": "This concedes the cost target entirely when most of the cacheable content — the platform instructions and policy — carries no confidentiality issue at all. Caching is not all-or-nothing; the breakpoint position is the lever.",
+        "D": "Appending at the end has no effect on the cached prefix, which is determined by the leading portion. It is a change that feels like isolation and provides none."
+      },
+      "concept": "Decide cache breakpoints by data classification, not only by stability. Everything before a breakpoint is shared state within its cache scope, so it must be content whose exposure across that scope is acceptable. Then make the scope itself match your tenancy boundary rather than pooling tenants behind one credential.",
+      "tip": "When a stem mentions one credential shared across tenants, that detail is load-bearing. Any answer that leaves the pooling in place has only addressed half of a two-part problem."
+    }
+  },
+  {
+    "id": "GSR-A-038",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Trust inheritance across a multi-agent handoff",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A supply-chain platform runs an orchestrator that delegates supplier due-diligence research to a subagent. The subagent browses supplier websites and public registries, then returns a findings block. The orchestrator reads that block and can flag a supplier, release a hold, or open a payment run. A design review asks how injected content on a supplier's own site is prevented from steering the orchestrator. What is the correct principle to apply?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Treat the subagent's findings block as trusted, since the subagent runs inside the platform boundary under the same system prompt, the same safety policies and the same model version as the orchestrator."
+      },
+      {
+        "key": "B",
+        "text": "Label each subagent result with the trust level of the lowest-trust input that contributed to it, and require the orchestrator to apply untrusted-content handling and authorisation checks to anything so labelled."
+      },
+      {
+        "key": "C",
+        "text": "Run the research subagent on the higher-capability model tier, since it is the component directly exposed to hostile supplier pages and registry text and benefits most from stronger judgement."
+      },
+      {
+        "key": "D",
+        "text": "Have the subagent paraphrase its findings into its own prose before returning them, so that any injected wording is rewritten in the subagent's voice rather than passed through verbatim to the orchestrator."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Output cannot be more trustworthy than its least trustworthy input. A subagent that read a supplier's website produces content shaped by that website, so the orchestrator receiving it is receiving supplier-influenced material regardless of which component produced the sentences. Propagating a trust label through the handoff makes that explicit and lets the orchestrator apply the same handling it would to raw retrieved text — marking, no authority to trigger a payment run, and entitlement checks on any action it prompts.",
+      "distractors": {
+        "A": "Shared policies and a shared system prompt say nothing about the provenance of the data flowing between the two components. This is the assumption that turns a subagent into an untrusted-content laundering step.",
+        "C": "Tier choice moves the success rate of the attack somewhat and is a reasonable quality decision, but it leaves the orchestrator treating supplier-derived content as trusted, which is the finding under review.",
+        "D": "Paraphrase preserves meaning, and meaning is the payload. A rewritten instruction is still an instruction, and the paraphrase step gives no signal about whether one was present."
+      },
+      "concept": "In multi-agent designs, trust is a property of data lineage, not of which component last touched the data. Attach a trust level at ingestion, propagate it through every handoff as part of the message contract, and let the privileged component's authorisation rules read it.",
+      "tip": "Look for the moment untrusted content changes hands and becomes 'our subagent's findings'. That relabelling is where multi-agent systems silently lose their trust boundary."
+    }
+  },
+  {
+    "id": "GSR-A-039",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Building an eval corpus from real customer transcripts",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A national tax agency's contact-centre assistant has been in production for a year. The team wants a regression corpus built from real transcripts, because the failures worth guarding against are ones synthetic cases have not reproduced. Transcripts contain taxpayer identifiers, income figures and family circumstances. The eval corpus will live in the ML team's repository and be read by contractors. How should the corpus be produced and held?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Copy the transcripts into the eval repository unchanged and restrict access with a repository access-control list naming the ML team and the individual contractors cleared to read it."
+      },
+      {
+        "key": "B",
+        "text": "Abandon real transcripts and generate a wholly synthetic corpus mirroring the observed failure categories, so the regression suite reproduces the behaviours the team cares about without taxpayer data leaving production."
+      },
+      {
+        "key": "C",
+        "text": "Copy the transcripts unchanged but set a 30-day expiry on the eval corpus and purge the repository's history on each rotation, so any exposure created by the copy is bounded in time."
+      },
+      {
+        "key": "D",
+        "text": "De-identify at extraction with the production path's detector, verify with a sampled re-identification check, and hold the corpus under the source classification and retention rules until it passes."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "An eval corpus is a copy of production data that acquires a longer life, a wider audience and weaker controls than the original — which is exactly how derived datasets become the largest exposure in an AI programme. De-identifying at extraction keeps the transformation at the boundary, the sampled re-identification check turns 'we redacted it' into a measured claim, and holding the corpus at the source classification until that check passes means the default is safe rather than optimistic.",
+      "distractors": {
+        "A": "Access restriction is a control, but it leaves full taxpayer records duplicated into a developer repository with a different lifecycle, backup regime and contractor population from the production store.",
+        "B": "The stem states the value of this corpus is precisely the failures synthetic cases did not reproduce. Synthetic data is a useful complement and cannot substitute for the distribution you are trying to regression-test against.",
+        "C": "Expiry limits duration, not access or content, and it works against the purpose: a regression corpus that disappears after 30 days cannot detect regressions across releases."
+      },
+      "concept": "Derived datasets inherit the classification of their source until a verified transformation lowers it. Treat de-identification as a measured control with a stated recall, not a checkbox, and keep the derived copy under source controls until the measurement exists.",
+      "tip": "Whenever a stem moves production data into a development artefact, the answer is about the transformation and the classification that travels with it — not about who has repository access."
+    }
+  },
+  {
+    "id": "GSR-A-040",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Tool results and upstream errors as an injection channel",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An e-commerce operations agent calls internal and third-party APIs. Several third parties return verbose error bodies that echo request content and include free-text remediation guidance authored by the provider. These bodies are currently passed into the model's context verbatim as tool results. Which two changes reduce the injection surface? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Truncate every tool result to a fixed character budget so no single result can dominate the context window."
+      },
+      {
+        "key": "B",
+        "text": "Map upstream failures to an enumerated set of internal error codes with a bounded message drawn from a fixed vocabulary, and return that to the model instead of the provider's raw body."
+      },
+      {
+        "key": "C",
+        "text": "Retry every failed tool call up to three times before surfacing any error to the model, so transient faults never reach it."
+      },
+      {
+        "key": "D",
+        "text": "Apply the same untrusted-content marking and provenance labelling to tool results as the system already applies to retrieved documents."
+      },
+      {
+        "key": "E",
+        "text": "Convert tool results from JSON into prose before adding them to the context so the model parses them more reliably."
+      }
+    ],
+    "correct": [
+      "B",
+      "D"
+    ],
+    "explanation": {
+      "correct": "Normalising upstream errors into your own enumerated codes removes an attacker-influenced free-text channel entirely — the model sees a code you defined rather than prose a third party wrote. Marking tool results as untrusted with provenance closes the gap for the results you must pass through, and corrects a common asymmetry where teams carefully label retrieved documents while treating API responses as if they came from inside the trust boundary. One eliminates a channel; the other governs the channels that remain.",
+      "distractors": {
+        "A": "Truncation bounds token cost and context pressure. An instruction placed in the first two hundred characters of a response survives it intact.",
+        "C": "Retrying improves reliability against transient faults and is worth having for that reason. A deterministic failure whose body carries hostile content returns the same body on every attempt, so the retry simply delays its arrival in context.",
+        "E": "Prose conversion removes the structural cues that help the model distinguish data from instruction, so it slightly worsens the problem while adding a transformation step."
+      },
+      "concept": "Tool results are untrusted input on the same footing as retrieved documents, and third-party error bodies are the most overlooked instance because they arrive on a path built for debugging. Normalise external responses into shapes you define, and label whatever free text still crosses.",
+      "tip": "Ask which options change what the model can be told and which only change how much or how tidily it is told. Only the first kind reduces an injection surface."
+    }
+  },
+  {
+    "id": "GSR-A-041",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Sequencing a new guardrail from observation to enforcement",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A music streaming service has built a new output guardrail for its artist-support assistant. It performs well on the team's labelled set, but has never seen production traffic and the team has no estimate of its false-positive rate on real requests. A wrongful block is user-visible and the assistant handles a large share of artist queries. The change is built and merged behind a flag. What should the team do next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Enable enforcement globally at a deliberately conservative threshold and monitor the daily block rate, tightening it in a later release once real traffic data is available to tune against."
+      },
+      {
+        "key": "B",
+        "text": "Enable enforcement for a random 5% of users and compare their support-contact rate against the remaining 95%, using the difference as the estimate of how often the guardrail is blocking legitimate requests."
+      },
+      {
+        "key": "C",
+        "text": "Run it in monitor-only mode on live traffic, recording verdicts without acting on them, until false-positive and false-negative rates on real traffic are characterised — then enable enforcement, ramped by cohort."
+      },
+      {
+        "key": "D",
+        "text": "Enable it and rely on artist support tickets and in-product feedback to surface false positives, since real complaints from affected users are the most reliable signal of over-blocking."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Monitor-only gives the same measurement as an enforced rollout at zero user cost, because the verdicts are recorded either way and only the action differs. With no estimate of the false-positive rate, that is a strictly better first step: you learn the rate on your own distribution, tune the threshold against it, and only then expose anyone to blocks. The cohort ramp afterwards is what catches anything the shadow period's absence of user reaction could not reveal.",
+      "distractors": {
+        "A": "A conservative threshold chosen without production data is still a guess, and enabling globally makes every user the experiment. It also gives no comparison point for deciding what 'conservative' should have been.",
+        "B": "An enforced canary is the right instrument once the error rates are roughly known. Here it exposes 5% of artists to an uncharacterised block rate to learn something a shadow deployment would have told you for free.",
+        "D": "User reports are a slow, heavily biased sample — most wrongly blocked users leave rather than complain — and this treats production incidents as the measurement instrument."
+      },
+      "concept": "Guardrails support a rollout stage that most changes do not: the verdict can be computed and recorded without being acted on. Use shadow mode to characterise both error rates on real traffic before any user is affected, then ramp enforcement by cohort.",
+      "tip": "When a stem says the team has no estimate of a rate and the control can run without acting, the next step is to measure without acting. Canary and ramp options come after that, not instead of it."
+    }
+  },
+  {
+    "id": "GSR-A-042",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Safe completion as an alternative to a hard refusal",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In an output policy, what is a safe completion, and when is it preferred over a hard refusal?",
+    "options": [
+      {
+        "key": "A",
+        "text": "A response that withholds the problematic element while still serving the legitimate part of the request; preferred where most requests in the category are benign and refusal blocks real needs."
+      },
+      {
+        "key": "B",
+        "text": "A response generated by a smaller, cheaper model after the primary model declines; preferred where latency and cost matter more than the depth of the answer given."
+      },
+      {
+        "key": "C",
+        "text": "A refusal accompanied by the text of the policy clause that triggered it; preferred where the organisation needs an auditable record of each individual decision it declined."
+      },
+      {
+        "key": "D",
+        "text": "A pre-approved fixed response returned without any model call at all; preferred wherever the organisation needs the wording to be identical every time and independent of what the model would generate."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Categories are rarely uniformly harmful. A request may combine a legitimate need with one element the policy will not serve, and a whole-request refusal then costs a real user their answer while stopping nothing an adversary cannot get elsewhere. Serving the permissible part and withholding the rest keeps the false-positive cost low, which matters most in exactly the categories where benign requests dominate. Hard refusal remains correct where any partial engagement is itself the harm.",
+      "distractors": {
+        "B": "Model tier is a cost and capability decision that can apply to any response the system produces. It says nothing about the shape of the policy response or about which part of a request is being served.",
+        "C": "Quoting the triggering clause is a transparency practice that can accompany either response type. It does not make a refusal into a safe completion.",
+        "D": "A canned response is one possible implementation of a refusal or a deflection. Determinism is not what distinguishes a safe completion, which is a judgement about what part of the request can be served."
+      },
+      "concept": "Policy responses are a spectrum, not a binary. Choose the response type per category from the ratio of benign to harmful requests within it and from whether partial engagement is itself harmful. Blanket refusal is the correct design only where that ratio is genuinely adverse.",
+      "tip": "The distinguishing feature is that a safe completion still answers something. Options describing who generated the response or how it was stored are describing implementation, not policy shape."
+    }
+  },
+  {
+    "id": "GSR-A-043",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Semantic validation beyond schema for a generated payload",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A payroll provider's assistant produces JSON payloads for an adjustments API. Payloads are validated against a JSON Schema before dispatch. An incident review finds a payload that passed schema validation and applied an adjustment to an employee outside the requesting administrator's company, at an amount above that employee's per-period cap — a cap that varies by contract and cannot be expressed as a static range. What should be added?",
+    "options": [
+      {
+        "key": "A",
+        "text": "A deterministic business-rule layer between schema validation and dispatch that checks administrator authority, employee company membership and the contract-derived cap."
+      },
+      {
+        "key": "B",
+        "text": "Tighter JSON Schema constraints, including a maximum on the amount field, an enum on the adjustment type and a stricter pattern on the employee identifier so malformed values are rejected."
+      },
+      {
+        "key": "C",
+        "text": "A requirement that the assistant name the payroll policy rule permitting the adjustment, with the named rule looked up in the policy document and confirmed to exist before dispatch."
+      },
+      {
+        "key": "D",
+        "text": "Routing every adjustment above the median historical amount to human review before dispatch, so that unusually large changes always receive a second pair of eyes before they reach payroll."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Schema validation answers whether the payload is well-formed; it cannot answer whether this administrator may act on this employee for this amount, because those facts live in data the schema has no access to. The failure had two independent parts — a cross-company action and a cap breach — and both are ordinary authorisation and business-rule checks that belong in code between the model and the API. Placing them after schema validation and before dispatch makes them unavoidable regardless of what the model produced.",
+      "distractors": {
+        "B": "The stem states the cap varies by contract, so no static range expresses it, and a stricter identifier pattern still admits a well-formed identifier belonging to another company. Schema tightening cannot reach data-dependent rules.",
+        "C": "A justification produced by the same component that produced the payload is not independent evidence. It also verifies that a rule was cited, not that the rule applies to these parties and this amount.",
+        "D": "A median-based threshold is arbitrary relative to the actual limits, catches nothing about the cross-company problem, and pushes volume at reviewers who have no way to know the contract cap."
+      },
+      "concept": "Structured output validation has two layers with different jobs: schema for shape and type, and deterministic business rules for authority, ownership and limits. Only the second can use runtime data, and it is where authorisation for a generated action belongs.",
+      "tip": "When an incident involves both 'wrong entity' and 'wrong amount', notice that no output format constraint addresses either. Format options are there for candidates who stop reading at 'passed schema validation'."
+    }
+  },
+  {
+    "id": "GSR-A-044",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Keeping secrets out of the model's context window",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A platform team is building a deployment assistant. An engineer proposes pasting the target service's environment variables — which include database passwords and third-party API tokens — into the assistant's context so it can construct correct deployment commands. What should the design do instead?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Include the variables but annotate the sensitive ones with a `secret` marker so the assistant knows which values it must never echo back to the engineer."
+      },
+      {
+        "key": "B",
+        "text": "Include the variables and add an output filter that redacts anything matching known token and password formats before the response is displayed to the engineer."
+      },
+      {
+        "key": "C",
+        "text": "Keep secret values out of the context: expose them to the model as named handles that the tool layer resolves at call time."
+      },
+      {
+        "key": "D",
+        "text": "Include the variables but shorten the rotation period sharply, so any secret disclosed through the assistant is valid only briefly and the misuse window stays small."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "A secret placed in the context window is in the request payload, in whatever transcript store the platform keeps, in traces, and available to any output the model produces. Referring to a handle instead means the model can reason about which credential to use without ever holding the value, and resolution happens in the tool layer where secrets already live and where access is already controlled. The model gains nothing from the literal value; only the tool needs it.",
+      "distractors": {
+        "A": "Annotation is guidance to a probabilistic system about data it should never have been given, and it does nothing about the copies in logs and transcripts.",
+        "B": "Output filtering addresses only one of several exposure paths and misses secrets that are paraphrased, partially quoted or embedded in a generated command. The value has already been transmitted and stored regardless.",
+        "D": "Faster rotation reduces the window of a disclosure without preventing it, and it is an expensive operational burden adopted to compensate for a design that did not need the secret in context at all."
+      },
+      "concept": "Secrets belong to the execution layer, not the reasoning layer. Give the model identifiers and let the tool resolve them, so credentials never enter the context, the transcript, or the observability pipeline. This also keeps secret rotation invisible to the prompt.",
+      "tip": "Three of these keep the secret in context and add compensating controls afterwards. The one that removes it from context is the design answer; the rest are mitigations for a choice you did not have to make."
+    }
+  },
+  {
+    "id": "GSR-A-045",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Cross-tenant leakage through a shared agent memory store",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A customer-support platform hosts assistants for 60 consumer brands on shared infrastructure. To improve answers over time, the agent writes 'learned facts' distilled from conversation summaries into a memory store and retrieves from it on later turns. A tester using Brand A's assistant received a sentence describing an internal escalation process that only appears in Brand B's documentation. What change addresses this?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Partition the memory store by tenant, apply the caller's entitlement filter to memory retrieval as to document retrieval, and gate writes so tenant-specific detail is not persisted."
+      },
+      {
+        "key": "B",
+        "text": "Keep a single shared store but prefix each entry with its source tenant identifier and instruct the agent to use only entries whose prefix matches the brand it is currently serving."
+      },
+      {
+        "key": "C",
+        "text": "Expire memory entries after 30 days, so that any cross-tenant contamination is bounded in time and the store cannot accumulate an indefinite history of one brand's operational detail for another to find."
+      },
+      {
+        "key": "D",
+        "text": "Store memory entries as embeddings rather than as text, so the original wording of a brand's internal escalation process cannot be reconstructed by reading the store."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Memory is retrieval with a write path, and it has been built without either of retrieval's controls. Partitioning gives it the isolation boundary the document index already has; applying the same entitlement filter means one authorisation model governs both, rather than a second, weaker one appearing by accident. The write gate matters just as much — a store that accumulates tenant-specific operational detail becomes a growing disclosure liability even when reads are correctly scoped, because every new entry is a fact someone must have decided it was safe to keep.",
+      "distractors": {
+        "B": "A prefix the model is asked to respect is a convention, not a filter. The entries are still retrievable, still ranked against Brand A's queries, and still in the context window when the model decides whether the prefix matches.",
+        "C": "Expiry limits how long a leak persists in the store. It does nothing about the leak occurring, and 30 days is a long time in a live multi-brand platform.",
+        "D": "Embeddings are stored alongside the text they retrieve; the retrieval step returns content. Vector representation is a storage format, not a confidentiality boundary."
+      },
+      "concept": "Any component that persists derived content and serves it back — memory, summary caches, learned-fact stores, feedback corpora — is a retrieval system and needs the same tenancy partitioning, entitlement filtering and write governance as the primary index. These are the components that acquire those controls last, because they were built as an optimisation.",
+      "tip": "The phrase 'to improve answers over time' in a multi-tenant stem is almost always pointing at an unpartitioned write path. Look for where derived content is stored, not where source documents are."
+    }
+  },
+  {
+    "id": "GSR-A-046",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Hardening corpus ingestion against planted content",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A research consortium runs an assistant over a corpus that mixes staff-curated collections with documents contributed by 3,000 external member institutions. Some assistant workflows feed grant-eligibility decisions. Which three ingestion-side measures meaningfully reduce the risk from deliberately planted content? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Record provenance for every chunk — contributing institution, source system, ingestion timestamp — and carry it into the prompt so the origin of retrieved content is visible at generation time."
+      },
+      {
+        "key": "B",
+        "text": "Screen contributed documents at ingestion with an injection-pattern detector and route flagged items to human review before they are indexed."
+      },
+      {
+        "key": "C",
+        "text": "Separate the index by trust level, so workflows feeding eligibility decisions retrieve only from the staff-curated collection."
+      },
+      {
+        "key": "D",
+        "text": "Re-embed the entire corpus nightly, so any planted content is re-scored against the current embedding model and loses relevance."
+      },
+      {
+        "key": "E",
+        "text": "Store contributed documents in a write-once archive so their content cannot be altered after ingestion."
+      }
+    ],
+    "correct": [
+      "A",
+      "B",
+      "C"
+    ],
+    "explanation": {
+      "correct": "Provenance makes the trust level of retrieved text visible at the point it is used, which is what lets downstream handling differ by source. Ingestion screening with human review on flagged items puts a gate at the moment content enters, when review is cheap and one-off rather than per-query. Trust-tiered indexes are the strongest of the three for this corpus: the consequential workflow simply never retrieves contributed material, which removes the risk for the decisions that matter most while leaving the open corpus available for exploratory use.",
+      "distractors": {
+        "D": "Re-embedding recomputes vectors for unchanged text. The same passage retrieves for the same queries; nothing about relevance degrades because the embedding was recalculated.",
+        "E": "Immutability protects against post-ingestion tampering. The content in this threat was hostile when it arrived, so freezing it preserves the problem rather than preventing it."
+      },
+      "concept": "Corpus trust is set at ingestion and consumed at retrieval. Attach provenance, screen at the gate where review is affordable, and above all separate indexes by trust level so high-consequence workflows never draw on open contributions. Retrieval-time defences cannot recover trust the corpus never had.",
+      "tip": "When a stem names one workflow with real consequences, check whether an option can simply cut that workflow off from untrusted sources. Removing the exposure usually beats detecting it."
+    }
+  },
+  {
+    "id": "GSR-A-047",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Handling residual risk from an imperfect PII detector",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A market-research firm redacts personal data from open-ended survey responses before they are processed by an assistant and shared with client analysts. The detector's measured recall on a labelled internal set is 0.94. The delivery lead wants to describe the output to clients as 'personal data removed'. What is the correct engineering position?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Raise the detector's sensitivity until recall on the labelled set reaches 1.0, at which point the description becomes accurate and the delivery lead's wording can stand without qualification to a client or an audit."
+      },
+      {
+        "key": "B",
+        "text": "Treat the redacted corpus as still containing personal data: keep its classification and access controls, add an independent output-side scan, and report the measured recall rather than claiming removal."
+      },
+      {
+        "key": "C",
+        "text": "Run a second detector from a different vendor in series over the same responses, and treat agreement between the two on a given response as evidence that removal there is complete."
+      },
+      {
+        "key": "D",
+        "text": "Have an analyst manually review a 1% random sample of the redacted responses and, if that sample is clean, describe the whole corpus as clean to clients on the strength of the sampling."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "A recall of 0.94 means roughly one in seventeen instances survives, and at survey volume that is a substantial absolute number. The honest architecture follows from that: the corpus keeps its classification, so controls stay proportionate to what is actually in it; an independent second layer at the output reduces the residual; and the client is given a measured figure instead of a claim the measurement contradicts. This is also the position that survives a client audit, which a removal claim would not.",
+      "distractors": {
+        "A": "Recall of 1.0 on the set you tuned against is a sign of overfitting, not of coverage, and the false-positive cost of that sensitivity would destroy the analytical value of the responses.",
+        "C": "Two detectors reduce residual risk and are worth having, but their errors are correlated — both struggle on the same unusual constructions — and agreement between imperfect detectors is not proof of absence.",
+        "D": "A clean sample bounds the rate with some confidence; it does not clean anything, and at 1% it gives a weak bound precisely in the low-frequency regime that matters here."
+      },
+      "concept": "Detection-based privacy controls are statistical and should be reported as rates, never as guarantees. Set downstream classification, access and retention from the residual you expect to remain, and add an independent second layer at a different point in the pipeline rather than a second detector at the same one.",
+      "tip": "Any stem that gives you a recall figure below 1.0 and then offers a 'removed' claim is testing whether you convert the measurement into downstream handling. The answer keeps the controls and states the number."
+    }
+  },
+  {
+    "id": "GSR-A-048",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Tenant-supplied prompt fragments on a white-label platform",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A white-label conversational platform lets each of its 800 self-serve customers write their own persona and instruction text through a console. That text is composed into the system prompt alongside the platform's own safety rules. Customers can edit it at any time without review. Security asks how platform safety rules survive a customer whose text attempts to relax or override them. What is the sound design?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Compose the platform's safety rules after the customer's persona text in the system prompt, and repeat them at the end, so the later instructions take precedence over anything above."
+      },
+      {
+        "key": "B",
+        "text": "Require manual review and approval of each customer's prompt text before their assistant is activated, so no unreviewed instruction reaches production and every persona has been read by someone at the platform."
+      },
+      {
+        "key": "C",
+        "text": "Run each submitted prompt through the model at save time, asking whether the text attempts to relax or override the platform's safety rules, and reject any submission it flags."
+      },
+      {
+        "key": "D",
+        "text": "Validate customer text against a bounded template — length limits, permitted sections, disallowed constructs — and enforce platform safety with guardrails that run outside the model whatever the prompt says."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Customer prompt text is untrusted configuration: authored outside the platform, editable at any moment, and placed in the most privileged region of the request. The only controls that hold under those conditions run outside the model — input and output guardrails, tool authorisation, policy checks — because they are unaffected by anything the composed prompt says. Template validation then bounds what customers can inject into the prompt structure itself, which limits the blast radius of the part you cannot fully control.",
+      "distractors": {
+        "A": "Ordering influences behaviour but is not precedence in any enforceable sense. Relying on position means the platform's safety posture is a property of string concatenation.",
+        "B": "Manual review does not fit 800 self-serve customers editing continuously, and approval at activation says nothing about the text in force an hour later. It is a gate on the wrong event.",
+        "C": "This asks the model to adjudicate its own future instructions, with no boundary behind the judgement, and it can be satisfied by text that reads innocuously while still shifting behaviour."
+      },
+      "concept": "Treat customer-authored prompt content as untrusted configuration and never let a safety property depend on it. Platform guarantees must be enforced by components the tenant cannot influence, with prompt-side structure limited to a validated template.",
+      "tip": "The clue is 'editable at any time without review'. That kills every option gating on a submission event and every option depending on where text sits in the prompt."
+    }
+  },
+  {
+    "id": "GSR-A-049",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Prioritising one control after a red-team disclosure finding",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "Two weeks before launch, a red team shows that content planted in a merchant-controlled field on a parcel record caused a postal operator's tracking assistant to disclose a different customer's delivery address. The record contains several merchant-editable fields. The assistant reaches the tracking service with a shared read credential covering all parcels. The team has capacity for one substantial control before launch. Which should it be?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Ship an injection-pattern classifier over the merchant-editable fields and exclude flagged parcels from assistant handling until a human has reviewed the record and cleared it for use."
+      },
+      {
+        "key": "B",
+        "text": "Strip all merchant-editable fields from parcel records before they reach the assistant, and restore them after launch once a longer-term design has been agreed and implemented."
+      },
+      {
+        "key": "C",
+        "text": "Enforce the requesting customer's entitlements inside the tracking data service so the assistant cannot retrieve another customer's record at all, and treat injection hardening as follow-on work."
+      },
+      {
+        "key": "D",
+        "text": "Add a system-prompt rule that the assistant may discuss only the requesting customer's own parcels, and log any response that names a different customer or a different delivery address."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The demonstration had two components: content that misdirected the assistant, and a credential that let it fetch a record it should never have been able to reach. Only the second is worth the single slot, because closing it makes the disclosure impossible regardless of which field carried the content or how persuasive it was — and the record has several merchant-editable fields, so any content-side fix is a partial one by construction. It also fixes every unrelated path to the same outcome, including plain model error.",
+      "distractors": {
+        "A": "A pattern classifier on hostile-authored fields is worth building later, but it is probabilistic, must generalise to content the red team did not try, and leaves the over-broad credential entirely intact.",
+        "B": "This is a reasonable emergency measure and it is faster, but it removes information customers rely on, covers only the fields you thought of, and leaves the disclosure path open for the next input that reaches the assistant.",
+        "D": "A prompt rule is what the red team already defeated in spirit, and logging responses naming another customer detects disclosures after they have been made to the customer."
+      },
+      "concept": "When an incident has both a manipulation component and an authorisation component, spend scarce capacity on the authorisation side. Manipulation defences reduce the rate of attempts that work; authorisation defences remove the outcome, and they cover failure modes the red team never demonstrated.",
+      "tip": "Count how many independent routes an option closes. A control tied to a specific field or pattern closes one; a control on what the system may retrieve closes all of them at once."
+    }
+  },
+  {
+    "id": "GSR-A-050",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Isolating a browser-using agent from authenticated internal origins",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A retailer's pricing team runs an agent with a headless browser. In one workflow it visits competitor and marketplace pages; in another it reads the company's internal margin dashboard, which authenticates by session cookie. Both workflows currently share one browser profile so the agent does not have to re-authenticate. A reviewer flags the arrangement. What is the correct isolation design?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Keep one browser profile but clear cookies, local storage and session storage between navigations to external and internal origins, so no credential is present when an untrusted page loads."
+      },
+      {
+        "key": "B",
+        "text": "Run untrusted browsing in an isolated browser context with no credentials and no network route to internal origins, passing only validated data across."
+      },
+      {
+        "key": "C",
+        "text": "Restrict external browsing to a maintained allowlist of competitor and marketplace domains, refreshed by the pricing team, so the agent never visits an arbitrary site."
+      },
+      {
+        "key": "D",
+        "text": "Use the browser's private-browsing mode for all agent sessions, so cookies and cached credentials are discarded and no state is retained between one run and the next."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "A shared profile means a page the agent visits sits in the same credentialed context as the internal dashboard, so content on that page can influence an agent that holds a live internal session. Splitting by trust zone removes both halves: the untrusted context has no session to abuse, and no network path to internal origins even if it is directed at one. Data crosses between zones as extracted, validated values, which is the same reader-and-planner separation applied at the network layer.",
+      "distractors": {
+        "A": "Clearing state between navigations depends on getting every transition right forever, leaves in-flight and cached state, and does nothing about network reachability from the untrusted context.",
+        "C": "A domain allowlist is worth having, but competitor and marketplace pages are exactly the third-party content the reviewer is worried about — approved does not mean trustworthy when the site is controlled by someone else.",
+        "D": "Private-browsing mode discards state when the session ends, which helps between runs. It provides no separation within a session, and the two workflows in this design overlap inside a single session, which is exactly where the exposure sits."
+      },
+      "concept": "Give a browsing agent one context per trust zone: credentials and internal network reach in the privileged zone, neither in the untrusted one, and a narrow validated data path between them. Convenience features like a shared profile are how those zones collapse without anyone deciding to collapse them.",
+      "tip": "Any stem explaining that components share something 'so the agent does not have to re-authenticate' is describing the vulnerability. The answer restores the separation that convenience removed."
+    }
+  },
+  {
+    "id": "GSR-A-051",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Preventing bulk enumeration through a permitted lookup tool",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A property-listings portal's assistant can return an owner's contact details to verified estate agents. Every individual lookup is legitimate and authorised. A risk review is concerned about an agent account retrieving thousands of owner records one at a time to build a marketing list. Which two controls address this? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Apply per-principal volume and velocity limits to the lookup tool, with alerting when a session's count of distinct records retrieved departs from normal working patterns."
+      },
+      {
+        "key": "B",
+        "text": "Require the model to include a justification string with each lookup call, stored alongside the result so that the stated purpose is available for later review."
+      },
+      {
+        "key": "C",
+        "text": "Return owner contact details only after a deterministic check that the requesting agent holds an active mandate on that specific property."
+      },
+      {
+        "key": "D",
+        "text": "Add a fixed delay between repeated lookups within a single conversation session, the counter resetting whenever a new session is opened, so that collecting many records in one sitting is slow."
+      },
+      {
+        "key": "E",
+        "text": "Log every lookup with the calling agent, the record retrieved and a timestamp, and review those logs monthly for unusual patterns."
+      }
+    ],
+    "correct": [
+      "A",
+      "C"
+    ],
+    "explanation": {
+      "correct": "The two work on the two halves of the problem. A mandate check narrows what any agent may retrieve at all, converting an open lookup into one bounded by an existing business relationship — which removes most of the enumeration surface without affecting legitimate work. Volume and velocity limits then cover the residue, catching an agent with many genuine mandates who is nonetheless behaving like a scraper. Together they bound both breadth and rate, which is what separates use from harvesting when each request is individually valid.",
+      "distractors": {
+        "B": "A justification produced by the model is generated to accompany the call, not to constrain it. It fills a field and satisfies no check.",
+        "D": "The friction is scoped to something the caller controls. A collector opens a fresh session, the counter resets, and the aggregate across sessions is untouched — while genuinely busy agents are slowed on their heaviest days. Compare option A, which places the limit on the principal, the one identifier that persists across sessions.",
+        "E": "Monthly log review is detection at a cadence far slower than the harvest. It is worth having and it is not a control on the extraction."
+      },
+      "concept": "Where every individual action is authorised, the risk lives in aggregate. Defend it with a relationship or purpose constraint that narrows what is reachable, plus rate and volume limits per principal on the aggregate. Logging tells you it happened; neither of these lets it happen.",
+      "tip": "When a stem stresses that each request is legitimate, discard options that inspect single requests. The answer operates on the relationship or on the aggregate."
+    }
+  },
+  {
+    "id": "GSR-A-052",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "When a separate classifier beats an in-prompt policy rule",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "When is a separate classifier call preferable to expressing a content policy as instructions inside the main system prompt?",
+    "options": [
+      {
+        "key": "A",
+        "text": "When the policy must hold independently of generation — versioned, measured and enforced even if the prompt or model changes."
+      },
+      {
+        "key": "B",
+        "text": "When the policy has only a small number of rules, since short policies are easier to express as a standalone classification task."
+      },
+      {
+        "key": "C",
+        "text": "When the latency budget is tight, since an additional classifier call completes faster than the extra tokens a longer system prompt would add."
+      },
+      {
+        "key": "D",
+        "text": "When the policy changes rarely, since a classifier threshold is harder to update at short notice than a line of prompt text a developer can edit."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Separating the policy gives it an independent lifecycle. It can be versioned and evaluated on its own labelled set, its error rates can be reported separately from the assistant's quality metrics, and it keeps enforcing while the product team iterates on the main prompt or migrates model versions. In-prompt rules are coupled to a prompt that changes for product reasons, so their behaviour drifts with edits nobody framed as safety changes.",
+      "distractors": {
+        "B": "Rule count is not the deciding factor. A short policy with high consequence belongs in a separate enforceable component; a long stylistic policy may be perfectly fine in the prompt.",
+        "C": "An extra call adds latency rather than removing it, since the classifier round trip is additional work on the request path. The reason to accept that cost is independence of the policy, not any speed benefit.",
+        "D": "Change frequency argues the other way if anything, and both a prompt and a classifier threshold can be updated. Stability is not why the separation matters."
+      },
+      "concept": "Put a policy in a separate component when it must survive changes to the product prompt, be measured on its own, and be auditable as a control. Keep guidance in the prompt when it shapes tone, style or preference and its failure is a quality issue rather than a safety one.",
+      "tip": "Sort policy statements by what happens when they fail. Anything whose failure you would have to report is a control and belongs outside the prompt."
+    }
+  },
+  {
+    "id": "GSR-A-053",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Credential lifetime and scope for a long-running agent run",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An agricultural co-operative runs an overnight reconciliation agent across grain-delivery, weighbridge and settlement systems. A single run lasts up to six hours, calls several services, and writes settlement adjustments in its final phase. Today it authenticates with one long-lived API key held in the secrets manager and loaded at start-up. How should credentials be handled instead?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Keep the long-lived key but rotate it on the organisation's standard quarterly schedule and restrict retrieval from the secrets manager to the batch host's own service identity."
+      },
+      {
+        "key": "B",
+        "text": "Mint short-lived credentials scoped to the permissions of the current phase, refresh them from the orchestrator as the run progresses, and bind them to the run identity so they cannot be replayed."
+      },
+      {
+        "key": "C",
+        "text": "Reuse the interactive settlement service's credential, since the same weighbridge and settlement operations are being performed and its permissions are already correct for them."
+      },
+      {
+        "key": "D",
+        "text": "Keep one credential for the whole run but hold it encrypted in memory, decrypting it only at each call site so that the plaintext value exists for the shortest possible time during the six hours the job is active."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "A six-hour run that only writes in its final phase should not hold write authority for six hours. Phase-scoped, short-lived credentials mean a leak during the long read-heavy portion yields a token that cannot write and expires shortly. Binding to the run identity stops a leaked token being used from anywhere else, and refresh from the orchestrator means the orchestrator remains the thing that decides when the run may escalate — which is also the natural place to stop a run mid-flight.",
+      "distractors": {
+        "A": "Quarterly rotation leaves a credential valid for months after any disclosure, and host restrictions do not narrow what the credential may do once the agent process itself is the thing at risk.",
+        "C": "Reusing an interactive service's credential grants the batch run the union of that service's permissions, which are scoped for a different workload, and it destroys the ability to attribute an action to the agent.",
+        "D": "In-memory encryption is largely theatre when the same process must decrypt it to use it. It does not shorten lifetime or narrow scope, which are the properties that limit damage."
+      },
+      "concept": "Scope credentials to the narrowest phase and the shortest lifetime the work allows, and bind them to the identity of the run. For long-running agents this means escalating authority just before it is needed and letting it expire immediately after, rather than holding the maximum required permission for the whole run.",
+      "tip": "Note when in a run the dangerous operations happen. If writes occur only at the end, holding write permission from the start is the finding, and the answer will phase the credential."
+    }
+  },
+  {
+    "id": "GSR-A-054",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Guardrail placement across iterations of an agent loop",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A media-monitoring agency runs an agent that loops up to twelve times per task: plan, retrieve from a news corpus, call summarisation and publication tools, then generate. Guardrails currently run once on the user's opening request and once on the final response. A reviewer notes that most of what the model reads and most of what it does happens between those two points. Where should guardrails sit?",
+    "options": [
+      {
+        "key": "A",
+        "text": "At the start and end of the run only, since the intermediate planning, retrieval and tool steps are internal to the system and are never exposed to a user or to a publication channel."
+      },
+      {
+        "key": "B",
+        "text": "On every model call in the loop, running the complete input and output guardrail stack at each of the twelve iterations, including the internal planning turns, so no step is left unchecked."
+      },
+      {
+        "key": "C",
+        "text": "At each trust-boundary crossing: content entering from retrieval or tools is marked and screened, each proposed tool call is authorised against the caller's entitlements before it executes, and the final response is checked."
+      },
+      {
+        "key": "D",
+        "text": "Only on tool calls, since generation that produces no side effect cannot cause harm outside the loop and the intermediate planning text is never shown to anyone, which makes screening it pure overhead on every iteration."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Guardrails belong where trust changes, and in a loop that happens repeatedly: every retrieval and tool result imports content from outside, and every tool call exports an effect. Screening at those crossings covers the two things the reviewer identified, at a cost proportional to how often the boundaries are actually crossed rather than to the iteration count. The final output check remains because the user-facing response is its own boundary, and it is the last place to catch anything the intermediate checks missed.",
+      "distractors": {
+        "A": "This is the current design and it is what the reviewer is questioning. Being internal is not the same as being trusted; the retrieved news corpus is external content arriving on an internal path.",
+        "B": "Running the full stack twelve times multiplies latency and cost for largely redundant checks on internally generated planning text, while still not adding tool-call authorisation, which is not an input or output check at all.",
+        "D": "Tool-call gating is necessary and insufficient. Content entering from retrieval shapes every subsequent decision in the loop, including which tools get called and with what arguments."
+      },
+      "concept": "Place controls at trust boundaries, not at fixed points in the request lifecycle. In an agent loop the boundaries are content ingress from retrieval and tools, and effect egress through tool calls, plus the final delivery. Counting boundary crossings tells you both where to check and how much it will cost.",
+      "tip": "For loop-placement items, resist both extremes. The wrong answers are usually 'only at the edges' and 'everywhere every iteration'; the right one names the crossings."
+    }
+  }
+]

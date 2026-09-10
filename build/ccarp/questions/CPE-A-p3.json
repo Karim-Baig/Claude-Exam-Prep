@@ -1,0 +1,719 @@
+[
+  {
+    "id": "CPE-A-037",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Turning off a reasoning budget that is on by default",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A shared internal client library enables extended thinking by default for every service that uses it. For which condition should a team explicitly disable it on one of their steps?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The step is on a latency-sensitive path and its eval shows no accuracy gain from the reasoning budget."
+      },
+      {
+        "key": "B",
+        "text": "The step's outputs are reviewed by a named human approver before they are used downstream."
+      },
+      {
+        "key": "C",
+        "text": "The step already runs on the highest capability tier, which the team chose for this workload at launch."
+      },
+      {
+        "key": "D",
+        "text": "The step's prompt already asks the model to work through its reasoning step by step before answering."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Disabling is warranted when the budget is costing something measurable and returning nothing measurable. Latency sensitivity supplies the cost side, and an eval showing no gain supplies the absence of benefit — together they make the default indefensible for this step. A shared default is a convenience, not a decision, and the discipline an architect adds is checking, per step, whether the default's price is being paid for a return. Neither half alone is sufficient: a latency-sensitive step with a real accuracy gain is a genuine trade-off, and a step with no gain but no latency pressure is merely wasteful rather than harmful.",
+      "distractors": {
+        "B": "Human review changes how much an error costs, not whether the reasoning budget improves accuracy or how long it takes. Some reviewed steps benefit greatly from reasoning because the review is expensive and reducing corrections is the point.",
+        "C": "Tier and reasoning budget are independent levers. Being on the strongest tier neither implies the task is easy nor that deliberation adds nothing — if anything the hardest tasks tend to sit on the highest tier.",
+        "D": "Prompt-level reasoning instructions and an extended-thinking budget are different mechanisms, and having one does not automatically make the other redundant. Whether they overlap on a given task is something the eval answers."
+      },
+      "concept": "Treat organisation-wide defaults as hypotheses to be tested per step. Disable a reasoning budget where you can show both a cost being paid — latency or spend — and no measured benefit on that step's own eval.",
+      "tip": "Items that describe a default 'inherited from a shared library' are asking whether you audit defaults. The answer names a measurement, not a rule of thumb."
+    }
+  },
+  {
+    "id": "CPE-A-038",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Adding visual verification to a browser QA agent",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A SaaS company runs release QA with an agent that drives a browser and asserts on the DOM. Last quarter 22% of escaped defects were visual — overlapping elements, clipped text, controls rendered in the wrong state — and every one of them passed the DOM assertions. Page content is data-driven and differs on each run. What is the right change?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Increase DOM assertion coverage to include the computed styles of every element on the page, covering position, overflow, z-index and visibility."
+      },
+      {
+        "key": "B",
+        "text": "Screenshot each assertion point and have a vision-capable model check it against the expected visual description, alongside the DOM assertions."
+      },
+      {
+        "key": "C",
+        "text": "Move the agent to a higher capability tier so it reasons more carefully about the DOM snapshot it is given at each assertion point."
+      },
+      {
+        "key": "D",
+        "text": "Pixel-diff every screenshot against a stored baseline image and fail the run on any difference above a 0.5% per-page pixel tolerance."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The escaped defects are, by definition, invisible in the representation the agent is looking at: a DOM can be structurally perfect while the rendered result overlaps, clips or mis-states a control. Adding a rendered screenshot puts the failing signal into the agent's input for the first time, and a vision-capable check against a described expectation tolerates the run-to-run data variation the stem flags. Keeping the DOM assertions matters too — they are cheap, deterministic and good at structure, so the right design is complementary rather than a replacement.",
+      "distractors": {
+        "A": "Computed styles get closer but still describe intent rather than result. Overlap and clipping emerge from the interaction of many elements' geometry at a given viewport size, and asserting styles element by element neither captures that nor stays maintainable across a whole application.",
+        "C": "The information is not in the DOM, so no amount of capability applied to the DOM recovers it. This is a modality gap being mistaken for a reasoning gap.",
+        "D": "Pixel diffing is the classic answer and it breaks precisely on the condition the stem states: page content differs on every run, so a strict pixel comparison produces continuous false failures that the team will quickly learn to ignore."
+      },
+      "concept": "When a class of defect is systematically invisible in the representation your checks consume, the fix is to change the representation, not to check harder within it. Pair a visual check with structural assertions rather than replacing one with the other.",
+      "tip": "A stem that says the failing cases 'passed the existing assertions' is telling you the signal is absent from the input. Look for the option that adds a new modality, not the one that adds more of the same."
+    }
+  },
+  {
+    "id": "CPE-A-039",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Batch size bounded by response length and blast radius",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A staffing firm parses about 300,000 CVs a month into structured profiles. Single-CV calls succeed on 99.3% of documents. To amortise a long system prompt, an engineer moved to 25 CVs per call. In the pilot, 18% of batches hit the response length ceiling and were lost entirely, and a single malformed CV corrupted the structured output for its whole batch. What should the team do?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Return to one CV per call; once responses are length-bounded and records share one structure, batching cannot be made safe at any useful size."
+      },
+      {
+        "key": "B",
+        "text": "Keep 25 per batch and retry any truncated batch with an added instruction to be more concise about optional fields."
+      },
+      {
+        "key": "C",
+        "text": "Cut the batch to a size whose worst-case output fits the response allowance, and emit one record per line so a malformed CV fails alone."
+      },
+      {
+        "key": "D",
+        "text": "Keep 25 per batch and move to a higher capability tier, which will express the same records more compactly."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Batching has two independent limits and the pilot hit both. Output grows roughly linearly with the number of records while the response allowance does not, so batch size must be set from the worst-case per-record output rather than the average — 18% truncation says the sizing was done from the average. Separately, batching couples records together, so the unit of failure has become the batch; emitting one self-contained record per line decouples them again, so a bad CV loses one record instead of twenty-five. Both fixes are needed, and together they preserve most of the prompt amortisation the engineer was after.",
+      "distractors": {
+        "A": "Overcorrects. Batching is a legitimate way to amortise a long shared prompt, and the pilot's failures are sizing and framing problems with known fixes. Abandoning it discards the saving because the first attempt was configured badly.",
+        "B": "Asking for concision after truncation makes output length a function of the model's judgement about verbosity, which is exactly the variable that produced an 18% failure rate. It also retries the whole batch, so the cost of every truncation is paid twice.",
+        "D": "Assumes a compactness difference between tiers that nothing has measured, and leaves the coupling problem untouched: a malformed CV would still corrupt its batch on any tier."
+      },
+      "concept": "Batch size is bounded by the worst-case output per record against the response allowance, not the average — and batching converts independent failures into correlated ones. Size from the tail, and frame the output so each record can fail on its own.",
+      "tip": "When a stem gives you both a truncation rate and a description of one bad record spoiling a batch, it is testing two constraints at once. An answer that fixes only one of them is incomplete."
+    }
+  },
+  {
+    "id": "CPE-A-040",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "What the context window bounds in a single request",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "For a single request, what does the context window bound?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The size of the input only; the response is governed separately and does not draw on the window."
+      },
+      {
+        "key": "B",
+        "text": "The combined size of the request's input and the response generated for it."
+      },
+      {
+        "key": "C",
+        "text": "The total tokens the account may consume in a rolling time period."
+      },
+      {
+        "key": "D",
+        "text": "The number of conversational turns before the exchange must be restarted."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The window is a per-request capacity that the input and the generated response share. That has a direct design consequence: as the input grows, the room left for the response shrinks, so a long-input request cannot also be a long-output request even if the response allowance would otherwise permit it. Architects who model the window as an input-only budget size their prompts to fill it and then discover their answers are being cut short — the window has to be planned with the intended response length reserved inside it.",
+      "distractors": {
+        "A": "Treating the window as an input-only budget is the most common misconception, and it leads directly to prompts sized to the limit with no room left to answer.",
+        "C": "This describes an account-level throughput quota, which is a separate control operating over time rather than within a single request.",
+        "D": "There is no fixed cap on turns. Long conversations become a problem because the accumulated transcript consumes the window, which is the same shared-capacity fact stated differently."
+      },
+      "concept": "The context window is one shared per-request budget covering input plus generated output. Always reserve the intended response length inside it when sizing prompts, and remember that the separate response-length cap applies on top of whatever the window leaves.",
+      "tip": "Two limits sit behind almost every window question: the shared per-request window and the separate cap on a single response. Keep them distinct and most items in this area resolve immediately."
+    }
+  },
+  {
+    "id": "CPE-A-041",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Cutover plan elements for a model version migration",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A payments processor is migrating its dispute-narrative classifier from a pinned model version to its successor. The regression eval has passed on the successor, and the classifier's output feeds a decision that is disclosable to the card scheme. The cutover is scheduled for next week. Which TWO elements must the cutover plan include? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "A commitment to remove the outgoing version's pin from the codebase on cutover day, to prevent configuration drift."
+      },
+      {
+        "key": "B",
+        "text": "A recorded mapping of which model version served each request, so any decision taken during the cutover window can be attributed to a version."
+      },
+      {
+        "key": "C",
+        "text": "A re-run of the regression eval against the outgoing pinned version to confirm it has not itself changed."
+      },
+      {
+        "key": "D",
+        "text": "A rollback path that returns traffic to the outgoing version without requiring a code deploy."
+      },
+      {
+        "key": "E",
+        "text": "A freeze on all prompt changes for the six months following cutover."
+      }
+    ],
+    "correct": [
+      "B",
+      "D"
+    ],
+    "explanation": {
+      "correct": "Two things make a cutover survivable. Per-request version attribution is non-negotiable when the downstream decision is disclosable: during the window two versions are in flight, and without a stamped version identifier neither a scheme enquiry nor the team's own metrics can be resolved to the model that produced the result. A configuration-level rollback is the other: if the successor misbehaves under real traffic, the recovery has to be measured in minutes, and a rollback that requires a build, a review and a deploy is not a rollback in an incident.",
+      "distractors": {
+        "A": "Exactly backwards. The outgoing version's pin is what the rollback path depends on, so it must remain usable until the team is confident enough to retire it — typically well after cutover, and no later than the version's own retirement date.",
+        "C": "A pinned version is pinned; re-validating it against the same suite spends effort confirming something the pin already guarantees. Effort is better spent on the successor and on the attribution and rollback machinery.",
+        "E": "A six-month prompt freeze is disproportionate and counterproductive: migrations often require prompt adjustments, and freezing changes prevents the team from responding to what the cutover reveals."
+      },
+      "concept": "A version cutover needs attribution and reversibility. Stamp the serving version on every record so results can be resolved to a model during the window, and keep the outgoing version reachable by configuration so rollback is an operation, not a release.",
+      "tip": "When two versions serve traffic simultaneously, ask what a support agent or auditor could determine about a single past response. If the answer is 'not which model produced it', that gap is one of the keys."
+    }
+  },
+  {
+    "id": "CPE-A-042",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Validating a vision approach against real archive conditions",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A county records office is digitising handwritten land registers spanning 1930 to 1975. A vendor demonstrated transcription on twelve clean pages and the results were impressive. The actual archive contains faded ink, heavy marginalia, water damage on some volumes, and typically two or three changes of clerk handwriting per volume. The programme has funding for one approach and cannot restart. What should the archivist's technical lead do first?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Proceed with the demo configuration and add a human verification pass on any page the model flags as low confidence, sampling the rest."
+      },
+      {
+        "key": "B",
+        "text": "Pre-process every page with contrast enhancement and deskewing, then repeat the vendor demonstration."
+      },
+      {
+        "key": "C",
+        "text": "Build an eval set stratified by decade, ink condition and clerk hand, and measure against transcribed ground truth before committing."
+      },
+      {
+        "key": "D",
+        "text": "Commit to the highest capability tier now, since handwriting is the hardest visual task and capability is the deciding factor."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "A twelve-page demonstration on clean material tells you almost nothing about a corpus whose defining features are faded ink, damage and changing hands. The programme is one-shot and unfunded for a restart, which raises the value of measurement before commitment to its maximum. Stratifying the eval by the dimensions that plausibly drive difficulty is what turns a single accuracy number into an actionable one: it shows whether failures concentrate in a decade or a condition, which in turn decides whether the answer is a tier, a pre-processing step, a per-volume human pass, or a different approach entirely.",
+      "distractors": {
+        "A": "Depends on a confidence signal that has never been validated on this material. Transcription models are frequently confident on degraded handwriting, so a flag-based review can miss precisely the pages that need it — and the team would not know, having measured nothing.",
+        "B": "Image pre-processing is a reasonable lever, but applying it before measuring means the team cannot tell what it bought or where the residual failures are. It also repeats the demonstration's original flaw: an unrepresentative sample.",
+        "D": "Buys the most expensive option on a general belief about task difficulty rather than on evidence from these pages. It may also be insufficient — if the limiting factor is legibility, no tier reads ink that has faded away."
+      },
+      "concept": "Evaluate a vision approach on the conditions that actually characterise your corpus, stratified by the factors likely to drive difficulty. Vendor demonstrations are selected for success; the useful measurement is the one taken on your worst material, not your cleanest.",
+      "tip": "When a stem contrasts a clean demo with a messy reality and mentions a one-shot budget, the answer is always the representative measurement. Options that commit resources first are all variations of the same error."
+    }
+  },
+  {
+    "id": "CPE-A-043",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Translating long documents when output length matches input",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A public agency translates regulatory guidance into eleven languages. A typical source document is about 55,000 tokens. The pipeline sends the whole document and requests the full translation; responses truncate part-way through, and the published translations must be terminologically consistent with a mandated glossary. An engineer proposes moving to a model with a larger context window. What is the right response?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Adopt a model with a larger context window, since the 55,000-token source plus its translation together are what overflow."
+      },
+      {
+        "key": "B",
+        "text": "Request a condensed translation that conveys the substance of each section within the available response length."
+      },
+      {
+        "key": "C",
+        "text": "Detect truncation and issue a continuation request containing only an instruction to carry on from the cut, looping until the response completes."
+      },
+      {
+        "key": "D",
+        "text": "Translate in segments against the mandated glossary, carrying the previous segment's tail forward, and assemble the document in code."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Translation is the canonical case where output length tracks input length, so the binding limit is how much a single response may contain — not how much the window can hold. A 55,000-token source fits the window comfortably; its translation still cannot be emitted in one response. Segmenting is therefore structural rather than a workaround, and the two additions make it correct rather than merely functional: the glossary travels with every segment so mandated terminology is consistent across boundaries, and carrying the previous segment's tail gives the model the immediate context it needs for pronouns, references and register at the seam.",
+      "distractors": {
+        "A": "Misdiagnoses which limit binds. The window is not full at 55,000 tokens; the response cap is what stops the translation, and it is not lifted by choosing a model with more input capacity.",
+        "B": "Condensation changes the deliverable. Regulatory guidance translated into eleven languages must say what the source says; a shorter rendering is a different document with legal consequences the pipeline is not entitled to create.",
+        "C": "Continuation without the source in context leaves the model translating from what it can see, which after the first continuation is its own prior output. Terminology and register drift immediately, and the mandated glossary is not enforced across the joins."
+      },
+      "concept": "Whenever the output is roughly the size of the input — translation, full rewriting, reformatting — assume segmented generation from the start. Make the segments correct rather than merely small by carrying shared constraints (glossaries, style rules) and boundary context into every call.",
+      "tip": "Ask whether the task shrinks the input, preserves it, or expands it. Shrinking tasks fit one call; preserving and expanding tasks need decomposition, and no window size changes that."
+    }
+  },
+  {
+    "id": "CPE-A-044",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Records that make a tier decision reproducible later",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "Twelve months after a model tier was chosen for a regulated workflow, an auditor asks the team to justify the choice. Which record set actually supports the justification?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The architecture diagram and the signed decision record naming the chosen tier and summarising the reasoning behind it."
+      },
+      {
+        "key": "B",
+        "text": "The vendor's published capability comparison for the candidate tiers as it stood on the date the decision was taken, retained as a PDF."
+      },
+      {
+        "key": "C",
+        "text": "Production monitoring dashboards covering the month following the decision, including error rate, latency and cost per case."
+      },
+      {
+        "key": "D",
+        "text": "The eval set with its labelling provenance, the measured result for each candidate tier, and the pinned versions those results came from."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Justifying a choice means being able to show what was compared, on what evidence, and under what conditions. The eval set and its labelling provenance establish that the test was fair and that the ground truth came from somewhere defensible. The per-candidate results establish that alternatives were actually considered rather than asserted. The pinned version identifiers establish what was measured, which matters a year later when both candidates have successors — without them the results describe models nobody can now identify. Together they reconstruct the decision; individually they are fragments of it.",
+      "distractors": {
+        "A": "A decision record states the conclusion and usually the reasoning, but it is not evidence. An auditor asking why this tier will accept a decision record as the index into the evidence, not as the evidence itself.",
+        "B": "A vendor comparison is a third-party claim about general capability. It shows what the team was told, not what the team measured on the workflow under audit, and it is the weakest of the four as a justification.",
+        "C": "Post-decision monitoring shows how the chosen option performed. It says nothing about the alternatives, so it cannot support the comparative claim the auditor is asking about."
+      },
+      "concept": "A model choice is defensible when the comparison is reconstructable: the eval set, its provenance, the per-candidate results, and the exact versions those results came from. Record the versions at measurement time — they are the part that becomes unrecoverable fastest.",
+      "tip": "Audit-flavoured items reward evidence that reconstructs a comparison. Options offering only the conclusion, only the vendor's claim, or only post-hoc performance each fail on the same point."
+    }
+  },
+  {
+    "id": "CPE-A-045",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Reasoning budget applied across every turn of an agent loop",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A field-service company runs an agent that plans an engineer's daily route and books the parts each job needs. A typical task takes 9 to 14 tool-calling turns. The team enabled extended thinking to improve planning quality. Task success rose from 76% to 88%, but mean cost per task rose 5.8x and p95 task duration went from 19s to 96s, against a dispatcher-facing target of 30s. Error analysis shows the improvement comes almost entirely from better initial routes, not from better individual bookings. What should the architect change?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Apply the reasoning budget only to the initial planning turn, run the tool-calling turns without it, and re-measure."
+      },
+      {
+        "key": "B",
+        "text": "Keep the reasoning budget on all turns and move the whole agent to a cheaper tier to offset the cost increase."
+      },
+      {
+        "key": "C",
+        "text": "Collapse the tool-calling turns into a single composite tool so the reasoning budget is paid far fewer times."
+      },
+      {
+        "key": "D",
+        "text": "Keep the current configuration and raise the dispatcher-facing target from 30s to 100s to accommodate it."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The reasoning budget is being charged on every one of 9 to 14 turns, which is why cost multiplied by roughly six and duration by five, but the stem localises the entire benefit to the initial route plan. That mismatch is the whole item: pay for deliberation where it produces value and not where it does not. Restricting the budget to the planning turn should retain most of the twelve-point success gain while removing the great majority of the added turns' cost and latency — and the re-measure matters, because the split has to be verified rather than assumed to preserve the gain.",
+      "distractors": {
+        "B": "Trades away the capability that produced the improvement in order to fund an inefficiency, and does nothing at all about the 96s p95 that is breaking the dispatcher target. Cost was only one of the two problems.",
+        "C": "Collapsing tools changes the agent's decomposition for a reason unrelated to what it is good for, reduces observability of individual steps, and is a large redesign to avoid a per-turn setting that can simply be set per turn.",
+        "D": "Renegotiating the target treats a fixable configuration problem as a requirements problem. The dispatchers' 30s figure exists because of how they work, and moving it to accommodate reasoning the stem says is not producing value on most turns is the wrong direction."
+      },
+      "concept": "In an agent loop, a per-call setting is paid once per turn. Reasoning budget, tier and verbosity should be configured per turn type, concentrating cost on the turns whose quality drives the outcome — usually planning and final synthesis, rarely routine tool invocation.",
+      "tip": "Multiply per-call costs by the turn count before judging an agent change. A configuration that looks reasonable per call is often indefensible once you notice the loop runs it a dozen times."
+    }
+  },
+  {
+    "id": "CPE-A-046",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Downgrade pilot with an aggregate pass and a slice regression",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A retail pharmacy chain pilots a cheaper tier for its medication-interaction summaries. Across the 12,000-case pilot, agreement moves from 94.1% to 93.8% — inside the eval's noise band. On the paediatric-dosing slice, 360 cases or 3% of volume, agreement falls from 96% to 87%. Two rounds of added paediatric examples in the prompt did not move that slice. What should the team do next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Proceed with the full downgrade: the aggregate sits within noise and the affected slice is only 3% of volume."
+      },
+      {
+        "key": "B",
+        "text": "Abandon the downgrade, since a nine-point regression on a clinical slice disqualifies the cheaper tier for this workflow entirely."
+      },
+      {
+        "key": "C",
+        "text": "Route the paediatric-dosing slice to the higher tier and the rest to the cheaper one, if the slice can be identified before the call."
+      },
+      {
+        "key": "D",
+        "text": "Re-run the pilot with a larger sample, since a 3% slice may not contain enough cases to measure a real difference."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The pilot has produced a clean result: the cheaper tier is equivalent everywhere except one identifiable, clinically sensitive slice, and prompt work has already failed to close that gap. That is the ideal setup for slice-based routing — keep 97% of volume on the cheaper tier and pay for capability on the 3% that needs it. The conditional in the answer is the part that makes it an engineering decision rather than a wish: routing only works if the slice can be recognised before the call, so confirming that classification is reliable is part of adopting the design, not an afterthought.",
+      "distractors": {
+        "A": "Uses the aggregate to hide the slice. Nine points on paediatric dosing is a patient-safety regression that happens to be diluted by volume, and 'only 3%' of a pharmacy chain's interaction summaries is a substantial absolute number of children.",
+        "B": "Throws away a saving on 97% of traffic because of a bounded, identifiable exception. Disqualifying a tier outright is right when the weakness is diffuse and unpredictable; here it is neither.",
+        "D": "The sample is adequate for this effect: 360 cases moving from 96% to 87% is roughly 32 additional errors, well outside sampling noise. Re-running would delay the decision without changing what is already visible."
+      },
+      "concept": "Always read a downgrade eval by slice, not by aggregate. When a regression is confined to a slice that can be identified before the call, the answer is usually split routing rather than accepting the regression or abandoning the saving.",
+      "tip": "An aggregate inside the noise band alongside a named slice regression is a deliberate construction. The item is testing whether you route rather than whether you notice — and the routing option's feasibility caveat is what makes it the strongest one."
+    }
+  },
+  {
+    "id": "CPE-A-047",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Choosing an input modality for a born-digital PDF",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A pipeline must read text and preserve reading order from born-digital PDFs that already contain a correct text layer. What is the most efficient input choice?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Render every page as an image and send it to a vision-capable model, so that nothing on the page can be missed by a faulty text extractor."
+      },
+      {
+        "key": "B",
+        "text": "Pass the extracted text layer, which already carries the characters and their order, and reserve image input for pages where layout matters."
+      },
+      {
+        "key": "C",
+        "text": "Send both the text layer and the page image for every page so the model can cross-check one representation against the other and flag mismatches."
+      },
+      {
+        "key": "D",
+        "text": "Convert the PDF to a single plain-text blob and discard headings and table boundaries, since models handle unstructured text well enough."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "A born-digital PDF's text layer is authoritative — the characters and their order were written by the producing application rather than inferred from pixels — so re-deriving them visually spends image tokens to reconstruct information you already hold perfectly. The efficient design uses the cheap, exact path by default and escalates to image input selectively, on the pages where something the text layer cannot express (a chart, a stamp, a signature, a layout-dependent form) actually matters. That selective escalation is what keeps the cost proportional to the pages that need it.",
+      "distractors": {
+        "A": "Rendering everything as images pays image token cost on every page to recover text that was already available exactly. It also introduces recognition error where there previously was none.",
+        "C": "Sending both doubles the input for every page and creates a reconciliation problem when the two disagree. Cross-checking is a defensible control on a narrow high-risk subset, not a default for a whole corpus.",
+        "D": "Discarding structure throws away headings, table boundaries and reading order that the text layer can preserve. Models cope with unstructured text, but coping is not the same as being given the structure for free."
+      },
+      "concept": "Choose the cheapest input representation that preserves the signal the task needs, and escalate modality per page rather than per document. Image input is for what text extraction cannot express, not a general-purpose upgrade.",
+      "tip": "Look for the word 'born-digital' or 'contains a text layer'. It is the stem telling you the expensive modality is unnecessary for most of the corpus."
+    }
+  },
+  {
+    "id": "CPE-A-048",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Selecting a tier for a visual defect-classification step",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A manufacturer photographs every weld on a production line and needs a model to classify each into one of five defect classes, at about 4,200 photographs per shift. The engineering lead has specified the highest capability tier on the reasoning that 'vision is hard'. A labelled set of 3,000 images with agreed defect-recall targets already exists. What should the architect do?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Use the highest tier for every photograph; defect classification affects product safety, and cost is secondary on a safety-critical line."
+      },
+      {
+        "key": "B",
+        "text": "Use the cheapest tier and route low-confidence photographs to the highest tier, setting the confidence threshold before any tier has been measured."
+      },
+      {
+        "key": "C",
+        "text": "Raise the capture resolution until the cheapest tier reaches the agreed recall bar, then lock the camera settings."
+      },
+      {
+        "key": "D",
+        "text": "Run the existing labelled eval against each tier and take the cheapest that clears the agreed defect-recall bar on these images."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The labelled set and the target already exist, so the comparison costs almost nothing and settles the question the engineering lead is guessing at. 'Vision is hard' is a statement about vision in general; five well-separated weld defect classes photographed under controlled factory lighting may be an easy visual task, and at 4,200 images a shift the difference between tiers is a material recurring cost. The principle worth carrying is that difficulty attaches to the specific images and label set, so the tier is selected by measuring against the agreed recall bar rather than by reasoning about the modality.",
+      "distractors": {
+        "A": "Safety justifies meeting a recall bar; it does not justify skipping the measurement that shows which tiers meet it. If a cheaper tier clears the same bar on the same labelled set, safety is equally served at lower cost.",
+        "B": "Cascades are a good pattern, but the stem highlights that no tier has yet been measured here. Building the routing before knowing either tier's recall means the confidence threshold has no basis and the cheap tier's error profile is unknown.",
+        "C": "Resolution is a real lever on visual tasks, but tuning it to rescue an unmeasured tier choice inverts the order of work and increases image token cost per photograph — on 4,200 photographs a shift, possibly past the saving being chased."
+      },
+      "concept": "Visual task difficulty is a property of your images and label set, not of the vision modality. When a labelled set and a target already exist, sweep the tiers against them and take the cheapest that clears the bar.",
+      "tip": "Watch for a stem that quietly states an eval set already exists. That detail exists to make 'go and measure' cheap, which usually makes it the answer."
+    }
+  },
+  {
+    "id": "CPE-A-049",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Signals that a step has reached its tier's ceiling",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A media-monitoring company is deciding whether a sentiment-and-stance step has genuinely reached the ceiling of its current tier, or whether the remaining errors are a prompt or context problem that a cheaper fix would solve. Which THREE observations point to a capability ceiling? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Two engineers independently rewrote the step's instructions, and both results sit inside the eval's noise band."
+      },
+      {
+        "key": "B",
+        "text": "Errors cluster on inputs where the source record arrived without the article body, leaving only a headline to judge."
+      },
+      {
+        "key": "C",
+        "text": "Enlarging the supplied context so the model has strictly more relevant material produces no measurable improvement."
+      },
+      {
+        "key": "D",
+        "text": "The step's p95 latency has risen steadily since launch as the average article length in the monitored feeds grew."
+      },
+      {
+        "key": "E",
+        "text": "Human raters given exactly the model's input agree the correct answer is derivable from it, yet the model still gets it wrong."
+      }
+    ],
+    "correct": [
+      "A",
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "A ceiling claim requires ruling out the cheaper explanations one at a time. Independent instruction rewrites landing inside the noise band rules out the prompt. More relevant context producing nothing rules out the context. And the human-rater check is the decisive one: it establishes that the answer really is derivable from what the model was given, which converts 'the model got it wrong' from an ambiguous observation into evidence about the model rather than about the input. With all three in hand, capability is the remaining explanation and an upgrade becomes a reasoned purchase.",
+      "distractors": {
+        "B": "Errors tracing to a missing source field are a data-quality problem. No tier can supply a value the record never contained, and upgrading in response would spend money on an unchanged error rate.",
+        "D": "Latency growing with input size is expected behaviour and says nothing about accuracy. It is a capacity and cost observation that belongs to a different decision entirely."
+      },
+      "concept": "Establish a capability ceiling by elimination: prompt variation exhausted, additional relevant context ineffective, and humans confirming the answer is derivable from the model's own input. Only then is the residual error attributable to the tier.",
+      "tip": "The human-rater-on-the-same-input check is the highest-value evidence in this whole topic. If a candidate option offers it, it is almost certainly a key."
+    }
+  },
+  {
+    "id": "CPE-A-050",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Version pinning policy across environments",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "At a payments company, engineers complain that strict version pinning stops them experimenting with newer models, while the operations team has been burned by unannounced behaviour changes and wants everything pinned. The team has a maintained regression suite that runs in staging. What pinning policy should the architect set?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Pin every environment, including local development, so behaviour is identical everywhere and no engineer debugs against a different model."
+      },
+      {
+        "key": "B",
+        "text": "Let every environment float and rely on the CI regression suite to catch behavioural changes before they reach users, alerting on-call on failure."
+      },
+      {
+        "key": "C",
+        "text": "Pin production and staging to the same version, let development and eval environments float, and promote only after the staging suite passes."
+      },
+      {
+        "key": "D",
+        "text": "Pin production only and let staging float, so the team gets early warning of provider-side behaviour changes before they reach paying customers."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The two demands are only in conflict if pinning is treated as a single global switch. Production needs stability, staging needs to be a faithful rehearsal of production, and development needs freedom to try things — so pin the first two together and free the last. Tying staging to production's version is the part teams most often get wrong and the part that carries the guarantee: it is what makes a green regression run in staging mean something about what production will do. Promotion through that gate then gives the operations team change control and the engineers a legitimate route for new versions.",
+      "distractors": {
+        "A": "Pinning development too satisfies operations at the cost of the team's ability to discover anything. It also pushes version experimentation into unofficial channels, which is worse than an explicit sandbox.",
+        "B": "Floating everywhere means a CI run can pass against one model and production can serve another an hour later. The regression suite stops being a gate and becomes a detector that fires after the fact.",
+        "D": "Superficially attractive, but it destroys staging's purpose. If staging runs a different model from production, a successful staging test no longer predicts production behaviour, and the team has traded its main safety net for an early-warning signal it could get from an eval environment instead."
+      },
+      "concept": "Pin by environment role. Production and its rehearsal environment share a version so tests are predictive; development and eval environments float so new versions can be explored; a regression gate governs promotion between them.",
+      "tip": "Whenever an option lets staging and production diverge, ask what a passing staging test then proves. Usually the answer is nothing, which eliminates it."
+    }
+  },
+  {
+    "id": "CPE-A-051",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Attribution when two model versions serve traffic together",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An airline is running a six-week phased migration: 20% of refund-eligibility explanations are generated by a new model version and 80% by the outgoing one, to gather comparative data. In week two, a customer disputes an explanation and the support team cannot determine which version produced it. Separately, the quality dashboard shows an overall dip that the team cannot attribute to either version. What is the correct fix?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Stamp the serving model version on every response record and surface it in the support tooling and the quality dashboard."
+      },
+      {
+        "key": "B",
+        "text": "End the phased rollout and move all traffic onto one version so that attribution becomes unambiguous again."
+      },
+      {
+        "key": "C",
+        "text": "Raise the new version's share to 50% so the dashboard's dip becomes large enough to detect statistically."
+      },
+      {
+        "key": "D",
+        "text": "Record the serving version only for requests that later generate a complaint, to limit growth of the log store."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Both symptoms come from one missing field. A phased migration deliberately runs two populations at once, and that design is only useful if every record can be assigned to its population — without the version stamp the comparison the migration exists to produce cannot be computed, and individual customer cases cannot be answered. Propagating the identifier into both the support tooling and the dashboard is what turns the log field into a usable capability: the support agent needs it per case, and the dashboard needs it as a dimension so the aggregate dip resolves into two curves that can be compared.",
+      "distractors": {
+        "B": "Abandons the migration design to work around an instrumentation gap that takes far less effort to close. It also discards the comparative data the six weeks were meant to produce and forces an all-or-nothing version decision on no evidence.",
+        "C": "Doubles the exposure to a version whose quality is in question, in order to make an unattributed dip easier to see. Even at 50% the dip would remain unattributable, because the missing dimension is not a sample-size problem.",
+        "D": "Logging only complaint-generating requests means the version dimension is missing from the denominator, so no rate can be computed and the dashboard remains unreadable. It also decides after the fact which records mattered."
+      },
+      "concept": "Any deployment that serves more than one model version at a time must record the serving version per request and expose it as a dimension in support tooling and metrics. Without it, both incident attribution and the comparison the phased rollout was run for become impossible.",
+      "tip": "Two unrelated-sounding symptoms in one stem — a support case and a dashboard problem — usually share a single root cause. Look for the missing field that would resolve both."
+    }
+  },
+  {
+    "id": "CPE-A-052",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Handling born-digital and scanned PDFs in one pipeline",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An audit firm ingests client trial balances and supporting schedules as PDFs. Roughly 60% are born-digital exports from accounting systems and the rest are scans of printed reports, some with handwritten annotations from the client's finance team. Which TWO statements should shape how the pipeline handles the two kinds? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Born-digital PDFs carry a text layer whose characters and order are already correct, so passing that text is cheaper and less error-prone than page images."
+      },
+      {
+        "key": "B",
+        "text": "Whether a PDF is born-digital or scanned cannot be established programmatically, so the model must be asked to make that determination."
+      },
+      {
+        "key": "C",
+        "text": "Scanned PDFs have no reliable text layer, so they need OCR or image input, and the choice turns on whether layout and handwritten marks carry meaning."
+      },
+      {
+        "key": "D",
+        "text": "A single uniform path is preferable regardless, because handling two document classes doubles the number of failure modes the team must test."
+      },
+      {
+        "key": "E",
+        "text": "Born-digital PDFs never contain graphics whose meaning would be lost in text extraction, so the text layer alone is sufficient for every accounting-system export."
+      }
+    ],
+    "correct": [
+      "A",
+      "C"
+    ],
+    "explanation": {
+      "correct": "The two classes carry genuinely different information, and that difference should drive the design. For born-digital files the characters and their order are authoritative, so the text path is both cheaper and more accurate than reconstructing them from pixels. For scans there is no such ground truth, so the question becomes which lossy path to take — and the stem answers it: handwritten annotations from the client's finance team are exactly the signal OCR destroys and image input preserves, so the choice depends on whether those marks matter to the audit assertion being tested.",
+      "distractors": {
+        "B": "The distinction is straightforwardly detectable from the file itself, and routing on it is a standard pipeline step. Delegating a mechanical file-property check to a model adds cost, latency and an error rate where none is needed.",
+        "D": "Uniformity is a maintenance preference, and here it would force either the expensive path onto 60% of documents that do not need it or the text path onto scans that have no text. Two classes with different available signal genuinely warrant two paths.",
+        "E": "An absolute claim that is simply untrue — born-digital exports routinely embed charts, logos and stamped approvals whose meaning does not survive text extraction. Believing it would suppress the per-page escalation that those documents need."
+      },
+      "concept": "Route documents by what signal is actually available in them. Use the authoritative text layer where one exists, decide between OCR and image input for the rest according to whether layout and marks carry meaning, and keep the modality decision at page level rather than corpus level.",
+      "tip": "When a stem describes a mixed corpus, expect the keys to be the two statements that distinguish the classes. Options arguing for one uniform path are usually there to test whether tidiness beats fit."
+    }
+  },
+  {
+    "id": "CPE-A-053",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "What to revisit when moving between versions in one tier",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A system moves from one model version to its successor within the same capability tier. What should the team expect to have to revisit?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Nothing, provided the tier is unchanged; successive versions within a tier are behaviour-compatible by design."
+      },
+      {
+        "key": "B",
+        "text": "Prompt phrasing, few-shot example selection and output-format adherence, which can all shift between versions."
+      },
+      {
+        "key": "C",
+        "text": "Only the model identifier string in configuration."
+      },
+      {
+        "key": "D",
+        "text": "The retrieval index, which must be rebuilt whenever the generating model changes."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "A version change within a tier is a change of model, and behaviour that your prompts depend on can move even when headline capability does not — how strictly a format is followed, which of your few-shot examples remain informative, how a hedged instruction is interpreted. Teams that treat a same-tier version bump as a configuration edit discover this through a production metric rather than through a regression suite. Expect to re-validate prompt behaviour and output-format conformance, and expect the most heavily tuned prompts to need the most attention.",
+      "distractors": {
+        "A": "Behaviour compatibility across versions is not something to assume. Capability may be equal or better while the specific behaviours a prompt was tuned around have shifted, which is why regression suites exist for migrations.",
+        "C": "The identifier does change, but treating that as the whole task is the assumption that produces post-migration incidents. The configuration edit is the cheapest part of the migration, not the extent of it.",
+        "D": "The retrieval index is built from embeddings and documents, and is independent of which generation model consumes the results. Rebuilding it is triggered by embedding-model or corpus changes, not by a generation-model version bump."
+      },
+      "concept": "Same-tier version migrations are behaviour changes, not configuration changes. Re-validate prompt adherence, example selection and output format against a regression suite; capability parity does not imply behavioural parity.",
+      "tip": "Any option asserting that a version change requires no work is wrong on this exam. The interesting question is always which parts of the system are version-sensitive."
+    }
+  },
+  {
+    "id": "CPE-A-054",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Meeting a cost cap under launch pressure without evidence",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "An event-ticketing company launches matchday support for a stadium in five weeks. The team's eval on the higher tier clears the agreed accuracy bar. The CFO has set a run-cost cap that the higher tier would exceed at projected matchday volume. The cheaper tier has never been evaluated. The product lead wants to ship on the cheaper tier to meet the cap. What should the team do next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Run the existing eval against the cheaper tier this week, and take the measured quality gap and the cost of each option to the CFO."
+      },
+      {
+        "key": "B",
+        "text": "Ship on the cheaper tier and monitor: the eval on the higher tier already proves the prompt works, and production monitoring will catch any shortfall."
+      },
+      {
+        "key": "C",
+        "text": "Ship on the higher tier and ask the CFO to raise the cap after launch, once real volume data exists."
+      },
+      {
+        "key": "D",
+        "text": "Build a cascade that starts on the cheaper tier and escalates on low confidence, so the cap is met without needing an eval."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The decision is blocked by exactly one missing number and the machinery to produce it already exists. Running the same eval against the cheaper tier converts an argument between product and finance into a stated trade — this much accuracy for this much cost — which is the form the CFO can actually decide on, and which may resolve in either direction. Five weeks is enough runway for a days-long measurement, and doing it now preserves the options that disappear later: if the cheaper tier fails, there is still time to reduce cost another way or to negotiate the cap with evidence.",
+      "distractors": {
+        "B": "An eval result on one tier says nothing about another. Matchday is a concentrated, high-visibility load with no soak period, and discovering a quality shortfall through production monitoring during a stadium event is the worst available time to learn it.",
+        "C": "Ships knowingly over an agreed cap and defers the conversation to a point where the team has less leverage and the cost is already being incurred. It also never establishes whether the cheaper tier was adequate all along.",
+        "D": "Adds an escalation mechanism whose economics depend on the cheap tier's accuracy and whose threshold depends on its confidence behaviour — both unmeasured. It is more machinery to build in five weeks, resting on the same missing number."
+      },
+      "concept": "When a cost cap and a quality bar conflict, the architect's job is to price the trade rather than to choose a side. If the eval already exists, running it against the alternative is nearly always the cheapest way to turn a stalled negotiation into a decision someone can own.",
+      "tip": "Deadline pressure in a stem is usually there to tempt you past the measurement. Check how long the measurement would actually take — when the eval already exists, 'no time to test' is not true."
+    }
+  }
+]

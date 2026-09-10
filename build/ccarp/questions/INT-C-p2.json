@@ -1,0 +1,455 @@
+[
+  {
+    "id": "INT-C-019",
+    "domain": "Integration",
+    "topic": "Defining property that makes a workload batchable",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Which property of a workload is the strongest indicator that the Batch API is the right path for it?",
+    "options": [
+      { "key": "A", "text": "The prompts share a large invariant prefix that could be reused across many calls." },
+      { "key": "B", "text": "The workload is receiving rate-limit responses through the whole of the evening peak." },
+      { "key": "C", "text": "The requests are independent and no caller is waiting on any individual result." },
+      { "key": "D", "text": "The outputs are long, so delivering them incrementally would improve how the wait feels." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Batch trades per-request latency for throughput and cost on bulk work. That trade is only available when nothing downstream is blocked on any single result and the requests do not depend on each other's outputs — a backfill, an offline re-classification, an eval sweep. Once a human or a synchronous caller is waiting, or one request needs the previous one's answer, the trade stops being available regardless of how large or expensive the workload is.",
+      "distractors": {
+        "A": "A large shared prefix points at prompt caching, which is a separate lever and applies on the realtime path too. It says nothing about whether anyone is waiting for the result.",
+        "B": "Throttling is a capacity and admission-control symptom. Batch can relieve it as a side effect by taking deferrable work off the interactive path, but the deciding question is still whether the work is deferrable.",
+        "D": "Long outputs with a waiting reader point at streaming. Batch is the opposite case: nobody is watching, so incremental delivery has no audience."
+      },
+      "concept": "Choose the transport by who is waiting. Nobody waiting and requests independent means asynchronous batch. Someone waiting on a long output means streaming. Someone waiting on a short output means a plain realtime call. Cost and volume influence the decision but do not make it.",
+      "tip": "Each wrong option here is the trigger for a different mechanism — caching, rate-limit handling, streaming. Recognising which lever each symptom points at is worth more marks than knowing batch itself."
+    }
+  },
+  {
+    "id": "INT-C-020",
+    "domain": "Integration",
+    "topic": "Where the stream reports stop reason and final usage",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "In a streamed response, where does the caller find the stop reason and the final output-token accounting for the message?",
+    "options": [
+      { "key": "A", "text": "In the opening event that begins the message, alongside the model identifier and input usage." },
+      { "key": "B", "text": "In the message-level delta near the end of the stream, before the message stop event." },
+      { "key": "C", "text": "In every content-block delta, each of which carries a running total for the message." },
+      { "key": "D", "text": "In an HTTP trailer that the client can read once the connection has been closed." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "A stream reports message-level facts that only become known at the end in a message-level delta emitted after the content blocks have closed and before the terminating event. Stop reason and the output accounting are exactly that kind of fact — neither can be known while tokens are still being produced. Any client that wants to detect truncation, branch on tool use, or attribute cost has to read that event rather than stopping at the last text fragment it rendered.",
+      "distractors": {
+        "A": "The opening event establishes the message shell and what is already known at the start, such as the model and the input side of the accounting. Output facts cannot appear there because no output exists yet.",
+        "C": "Content-block deltas carry text or structured-argument fragments only. Putting a running total in every delta would add per-token overhead to deliver a number that is not final until the end anyway.",
+        "D": "The protocol communicates completion through its own event types, not through transport-level trailers, and a client that waits for connection close has already lost the ability to react to the stop reason as part of the stream."
+      },
+      "concept": "Streamed responses have a lifecycle: an opening event, content blocks with their own start, deltas and stop, then a message-level delta carrying end-of-message facts, then a terminating event. Anything that cannot be known until generation ends arrives in that late message-level event. Never treat the last text delta as the end of the response.",
+      "tip": "Ask when a fact becomes knowable. Input usage is knowable at the start; stop reason and output usage only at the end. The protocol places each where it can first be true."
+    }
+  },
+  {
+    "id": "INT-C-021",
+    "domain": "Integration",
+    "topic": "Selecting batchable workloads from a mixed portfolio",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A logistics operator is deciding which of its Claude workloads to move onto the Batch API to relieve pressure on its interactive throughput. Which TWO of the following are appropriate candidates? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Classifying inbound customer emails on arrival so a routing decision can be made within a second." },
+      { "key": "B", "text": "Re-scoring the entire 400,000-item evaluation corpus after each prompt change, reviewed the following morning." },
+      { "key": "C", "text": "A shipment-fraud check embedded in the card payment authorisation path, run before the charge is approved." },
+      { "key": "D", "text": "A quarterly re-classification of the seven-year archive of shipping documents ahead of an audit." },
+      { "key": "E", "text": "Generating the synchronous reply to an inbound webhook whose sender holds the connection open." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "Both candidates share the two properties batch requires: the requests are independent of one another, and the deadline is far enough away that asynchronous turnaround is comfortable. An eval sweep reviewed the next morning has hours of slack, and a quarterly archive pass has weeks. Both are also the largest-volume items in the portfolio, so moving them yields the biggest reduction in interactive demand — which is the stated goal.",
+      "distractors": {
+        "A": "A sub-second routing decision is the definition of latency-sensitive. Batch turnaround is asynchronous, so this would convert a one-second decision into an unbounded wait for the sake of throughput the workload does not need.",
+        "C": "A payment authorisation holds the transaction open while it waits. Putting an asynchronous step inside a synchronous authorisation path either stalls the payment or forces a redesign of the payment flow itself.",
+        "E": "A webhook sender holding a connection open is a caller waiting on a result. The batch trade is unavailable whenever a synchronous contract exists, no matter how tolerant the sender's timeout looks."
+      },
+      "concept": "Batchability is decided by the deadline and by independence between requests, not by volume. High volume makes batching valuable; a distant deadline makes it possible. When a synchronous caller exists anywhere in the path, the work stays on the realtime endpoint even if everything else about it looks batchable.",
+      "tip": "Scan each option for a waiting party — a user, a payment, an open connection. Two of these five have none, and those are always the answer in this item type."
+    }
+  },
+  {
+    "id": "INT-C-022",
+    "domain": "Integration",
+    "topic": "Incremental cache breakpoints across a long conversation",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A software vendor's support agent holds long conversations, commonly running past 30 turns, over a fixed tool set and a large system prompt. The team caches with one breakpoint at the end of the system prompt. Cost and time-to-first-token per turn climb steadily as a conversation proceeds; by turn 30 the great majority of each request's input is transcript that sits after the breakpoint and is reprocessed from scratch every time.",
+    "options": [
+      { "key": "A", "text": "Advance a breakpoint to the end of the newest completed turn on each request so the transcript caches incrementally." },
+      { "key": "B", "text": "Retain more turns in the history so the prefix reaches a stable size sooner and stops changing between requests." },
+      { "key": "C", "text": "Move the accumulated transcript into the system prompt so it falls inside the prefix that is already cached each turn." },
+      { "key": "D", "text": "Summarise the entire conversation into a single paragraph before every turn so each request stays small." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The transcript is append-only: everything from turn one through the last completed turn is byte-identical to what was sent on the previous request. That makes it an ideal cacheable prefix — it just needs a marker at its moving edge. Advancing a breakpoint to the end of the newest completed turn means each request reads the whole prior conversation from cache and writes only the increment, so cost and first-token latency stop growing with conversation length instead of scaling with it.",
+      "distractors": {
+        "B": "Retaining more history enlarges the very span that is being reprocessed. Nothing about keeping more turns makes the prefix stop changing; the conversation still grows by a turn each time.",
+        "C": "This converts a stable system prompt into one that changes every turn, so the single cache that currently works stops working. It is the fastest way to turn a partial caching problem into a total one.",
+        "D": "Compaction bounds request size and is worth doing eventually, but it rewrites the prefix on every turn, so it actively defeats reuse — and it discards detail the agent needs for a support case. It answers a size question, not a reuse question."
+      },
+      "concept": "An append-only message history is the ideal shape for prefix caching: advance a breakpoint to the trailing edge of the settled content each turn so the request reads the accumulated prefix and writes only the delta. Anything that rewrites earlier content — reordering, summarising, injecting volatile values — forfeits that reuse.",
+      "tip": "'Cost grows with conversation length' means the growing part is uncached. The fix moves the marker rather than moving the content, because the content is already stable."
+    }
+  },
+  {
+    "id": "INT-C-023",
+    "domain": "Integration",
+    "topic": "Instruction set in the system field versus the first user message",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An HR software vendor's policy assistant carries a 3,000-token instruction set covering role, tone, refusal rules and output schema. The engineer placed all of it as the first user message rather than in the request's system field, on the basis that 'it works either way'. The product now needs prompt caching to control cost and per-tenant overrides of a handful of the rules. What is the architectural problem with the current placement?",
+    "options": [
+      { "key": "A", "text": "Instructions carried in a user message are discarded after the first assistant turn, so they must be resent verbatim on every subsequent request." },
+      { "key": "B", "text": "The API rejects a request whose opening message contains instructions rather than a question, so the tenant override path will fail at runtime." },
+      { "key": "C", "text": "The two placements are functionally interchangeable, so both requirements should be met by reordering the message list rather than by moving anything." },
+      { "key": "D", "text": "The instruction set now sits inside the mutable message stream, which makes it harder to hold as a stable cached prefix and to override per tenant." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The system field is a dedicated slot for durable, request-invariant framing that always occupies the same structural position. Burying the instruction set in the message list mixes two things with different lifecycles — content that never changes and content that changes every turn — in one mutable sequence. That makes the stable prefix harder to isolate behind a breakpoint, and it turns a per-tenant override into a string edit inside a conversation array rather than a swap of a clearly separated block. Both of the stated requirements are made harder by the placement.",
+      "distractors": {
+        "A": "Nothing is discarded between turns; the model sees exactly what the request contains. The client must resend everything either way, because the endpoint holds no state, so this describes a property of the API rather than a defect of this placement.",
+        "B": "There is no such validation rule, and inventing one would make many legitimate prompt structures illegal. The failure being described is an architectural one, not a request-rejection one.",
+        "C": "Reordering alone leaves durable and volatile content interleaved in the same array, which is the root of both problems. Treating the placements as fully interchangeable is precisely the assumption that produced the situation."
+      },
+      "concept": "Separate content by lifecycle, not by convenience. Durable framing belongs in the system field where it holds a fixed structural position, can sit inside a cached prefix, and can be composed or overridden as a unit. Per-request and per-turn content belongs in the message stream after the breakpoint.",
+      "tip": "When a stem pairs 'it works either way' with new caching and multi-tenancy requirements, it is testing whether you can name the maintainability and cache consequences rather than a correctness one."
+    }
+  },
+  {
+    "id": "INT-C-024",
+    "domain": "Integration",
+    "topic": "Shedding an optional call when retry-after exceeds the budget",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "An online grocer renders a one-line personalised note on the checkout confirmation page. The call has a hard 400ms server-side budget and the note is explicitly a nice-to-have; a static default exists. During a flash sale the call starts returning rate-limit responses whose retry-after guidance is several seconds. The current handler waits the advised interval and retries, so checkout pages are now stalling for seconds during the busiest hour of the year. What should the team do next?",
+    "options": [
+      { "key": "A", "text": "Wait the advised interval but cap the wait at the 400ms budget, then retry once inside the same request." },
+      { "key": "B", "text": "Treat the rate-limit response as a shed signal: render the static default, record the miss, and do not retry." },
+      { "key": "C", "text": "Move note generation to the Batch API overnight and serve the stored result on the customer's next visit." },
+      { "key": "D", "text": "Split checkout traffic across more application workers so the notes are generated in parallel during the sale." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Two facts in the stem settle this: the advised wait is an order of magnitude longer than the budget, and the feature is optional with a working default. A retry cannot succeed inside the budget, so waiting can only convert a degraded page into a slow one during the highest-revenue hour. Shedding immediately preserves checkout, keeps the offered load down while the account is throttled, and the recorded miss gives the team the capacity signal they need afterwards.",
+      "distractors": {
+        "A": "Truncating the server's advised interval means retrying before capacity has returned, which adds load during throttling and still burns most of the budget waiting. It gets the worst of both options.",
+        "C": "Batch may be a reasonable way to pre-generate notes as a longer-term design, but it does nothing for the request currently stalling. The next step has to resolve the live incident on the page being rendered now.",
+        "D": "Throughput ceilings are an account-level property, so more workers issue more requests against the same limit. Parallelism deepens the throttling that is causing the stall."
+      },
+      "concept": "Every dependency needs a declared criticality and a deadline. For an optional enrichment inside a tight budget, the correct rate-limit behaviour is to shed to a default immediately rather than to retry, because a retry that cannot fit the budget adds load without any chance of delivering value. Retry belongs where the result is required and the deadline permits it.",
+      "tip": "Compare the retry-after against the stated budget before reading the options. When the advised wait exceeds the budget, every retry-shaped answer is arithmetically dead."
+    }
+  },
+  {
+    "id": "INT-C-025",
+    "domain": "Integration",
+    "topic": "Obtaining an authoritative pre-flight token count",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Before sending a request, how should a client obtain an authoritative input token count for the exact system content, messages and tool definitions it is about to submit?",
+    "options": [
+      { "key": "A", "text": "Call the dedicated token-counting endpoint with exactly the payload the request will carry when it is sent." },
+      { "key": "B", "text": "Read the usage figures from the previous response and extrapolate from the change in payload size." },
+      { "key": "C", "text": "Divide the total character count of the assembled payload by four and treat that as the count." },
+      { "key": "D", "text": "Submit the real request with the output allowance set to zero and read the reported input usage." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Only tokenising the actual payload gives a figure you can gate on, and the counting endpoint does exactly that for the same structure the request will carry — system content, the full message list, and tool definitions, all of which consume window. Because it is a separate pre-flight call, it lets an admission check reject or reroute an oversized request before any generation is paid for or any user waits.",
+      "distractors": {
+        "B": "Extrapolating from a different payload is a guess with unbounded error, and it is least reliable exactly where it matters: near the boundary, on the unusual inputs that overflow. It also cannot account for tool definitions changing between releases.",
+        "C": "A characters-per-token ratio is an average over ordinary prose. It drifts badly on tables, identifiers, code and non-English text, so it is fine for capacity planning and unsafe for an admission decision.",
+        "D": "This still submits the real request, so it neither avoids the failure nor comes for free, and a zero output allowance is not a usable configuration. Measuring by attempting the thing you are trying to avoid defeats the purpose."
+      },
+      "concept": "Token budgeting is an admission control problem: compute the size of the assembled request before sending, reserve headroom for the output allowance, and route or reject what does not fit. Use a real tokeniser for the decision and reserve heuristics for capacity forecasting.",
+      "tip": "'Authoritative' in a stem is a signal to reject every estimate. Only one option actually tokenises the payload you are about to send."
+    }
+  },
+  {
+    "id": "INT-C-026",
+    "domain": "Integration",
+    "topic": "Identifying which rate-limit dimension is binding",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A conveyancing platform is throttled during peak conveyancing hours. The team's first response was to bundle several documents into each request, cutting request count by 70%. Rate-limit responses did not improve at all. The workload is characterised by short prompts producing very long structured outputs — typically a few hundred input tokens and several thousand output tokens per call.",
+    "options": [
+      { "key": "A", "text": "Bundle further still, since fewer and larger requests always sit more comfortably inside a published limit." },
+      { "key": "B", "text": "Add exponential backoff and accept the throttling, since the pressure is transient and will clear as peak passes." },
+      { "key": "C", "text": "Split the peak-hour workload across several additional API keys belonging to the same organisation." },
+      { "key": "D", "text": "Measure which limit dimension is actually saturating — request rate or token throughput — and target that one." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The 70% reduction in requests changing nothing is the diagnostic: request count was not the binding constraint. This shape of workload — small input, very large output — saturates token throughput, and bundling documents into one call keeps total tokens roughly constant while reducing a dimension that was never the problem. Identifying the saturating dimension first is what makes the remedy obvious: shorten or bound outputs, spread the peak, or move deferrable documents to an asynchronous path.",
+      "distractors": {
+        "A": "This repeats the experiment that already failed, on the assumption that it was under-applied rather than misdirected. Larger bundles also enlarge each response, pushing harder on the dimension that is actually saturating.",
+        "B": "Backoff is necessary hygiene but it is a response to throttling, not a remedy for it. The stem describes a recurring, predictable peak, which is a capacity-shaping problem rather than a transient one.",
+        "C": "Published limits apply at the organisation level, so extra keys share one allowance rather than adding to it. This is the most commonly attempted non-fix in throttling incidents."
+      },
+      "concept": "Rate limiting is multi-dimensional, and the remedy differs by dimension. Request-rate pressure is relieved by consolidation and admission control; token-throughput pressure is relieved by generating fewer tokens, capping output size, or moving work off the interactive path. Instrument which dimension saturates before choosing a lever.",
+      "tip": "When a stem tells you an optimisation produced no change, that is the measurement result. It has ruled out one dimension for you — read the remaining options for the one that targets the other."
+    }
+  },
+  {
+    "id": "INT-C-027",
+    "domain": "Integration",
+    "topic": "Result handling properties of a large batch submission",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A pharmaceutical company submits about 200,000 adverse-event narratives for summarisation through the Batch API each week and loads the results into a safety database that must account for every narrative. Which TWO properties of batch processing must the ingestion design account for? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Each request must carry a caller-supplied identifier, because results are matched by identifier, not by position." },
+      { "key": "B", "text": "The batch is committed as an atomic unit, so one malformed narrative invalidates the whole 200,000-item submission." },
+      { "key": "C", "text": "Requests succeed or fail independently, so the loader needs a per-request outcome check and a re-drive path." },
+      { "key": "D", "text": "Results are pushed to the client incrementally as each request finishes, so the loader must maintain an open receiver." },
+      { "key": "E", "text": "Each request inside a batch inherits the interactive endpoint's per-request client timeout and retry policy." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "Both properties bear directly on a loader that must account for every narrative. Results are correlated by the identifier the caller supplied, not by ordering, so a loader that zips results against the submission array by index will silently mis-assign summaries to narratives. And outcomes are per request: some entries can fail while the rest succeed, so the design needs an explicit reconciliation step that confirms all 200,000 identifiers came back and re-drives the ones that did not.",
+      "distractors": {
+        "B": "All-or-nothing semantics would make large submissions unusable, since one bad input would discard hundreds of thousands of successful results. Partial success is exactly why per-request reconciliation is required.",
+        "D": "Batch is a submit-and-collect model, not a push model; the client checks progress and retrieves results rather than holding a receiver open. Designing for a push you will never receive leaves the loader waiting indefinitely.",
+        "E": "A client-side HTTP timeout governs a synchronous call and has no meaning for work processed asynchronously. Carrying that assumption over leads teams to build spurious per-item timeout handling."
+      },
+      "concept": "Asynchronous batch changes the failure and correlation model, not just the latency. Results are identifier-keyed and can be out of order, outcomes are per request rather than per job, and delivery is collected rather than pushed. Any loader with a completeness obligation needs reconciliation and re-drive built in from the start.",
+      "tip": "For a batch item, ask what the loader would get wrong. Two of these five describe things that silently corrupt or lose records; the rest describe mechanisms that do not exist."
+    }
+  },
+  {
+    "id": "INT-C-028",
+    "domain": "Integration",
+    "topic": "Output allowance is a ceiling rather than a target",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A marketing agency wants noticeably longer product narratives from its generator. An engineer raises `max_tokens` substantially and redeploys. Output length is unchanged, and responses come back with a stop reason of `end_turn`. Why?",
+    "options": [
+      { "key": "A", "text": "The account's token throughput ceiling is capping generation before the new allowance can be reached." },
+      { "key": "B", "text": "The new allowance only takes effect on streamed requests, and this generator posts non-streaming calls." },
+      { "key": "C", "text": "The parameter is a ceiling on what the model may produce, not a target; length is driven by the instruction." },
+      { "key": "D", "text": "A configured stop sequence is halting generation first, and it takes precedence over the newly raised allowance." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The stop reason in the stem settles it: the model finished of its own accord, so it was never pressing against the ceiling in the first place. Raising a limit that was not binding changes nothing. Length has to be requested — in the instruction, through a worked example of the desired shape, or by asking for specific sections — and the allowance's job is only to make sure there is room for what is asked for.",
+      "distractors": {
+        "A": "Throughput limits produce rejected requests, not quietly shorter completions. A throttled call fails visibly rather than returning a normal response with a natural stop reason.",
+        "B": "The allowance applies identically whether or not the response is streamed. Streaming changes delivery, never generation limits.",
+        "D": "A stop-sequence match would be reported as such in the stop reason. The stem reports natural completion, which rules this out directly."
+      },
+      "concept": "The output allowance is a safety ceiling and a budgeting control, not a length instruction. Use it to guarantee room and to bound worst-case cost and latency; use the prompt to control how much the model actually writes. Read the stop reason to tell which of the two is currently governing.",
+      "tip": "The stop reason is planted in the stem for a reason. `end_turn` means the ceiling was never touched, which eliminates every explanation involving a limit."
+    }
+  },
+  {
+    "id": "INT-C-029",
+    "domain": "Integration",
+    "topic": "What belongs in a shared resilient client library",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A public-sector digital service is hardening the shared client library that all twelve of its delivery teams use to call Claude. Teams currently each write their own error handling, and a recent incident involved retries stacked at three layers. Which THREE of the following belong in the shared library? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "A caller-propagated deadline that bounds the total time spent across the initial attempt and all retries." },
+      { "key": "B", "text": "Automatic re-submission of any request that returns a validation error, with the payload re-serialised first." },
+      { "key": "C", "text": "Exponential backoff with jitter and a bounded retry budget, owned at this layer and documented as the only retry layer." },
+      { "key": "D", "text": "A correlation identifier attached to every request and recorded alongside the response's stop reason and token usage." },
+      { "key": "E", "text": "A silent fallback to a lower-capability model tier on every retry, without surfacing it to the caller." }
+    ],
+    "correct": ["A", "C", "D"],
+    "explanation": {
+      "correct": "A shared library is the right place for the concerns that must be consistent across twelve teams and that only work if exactly one layer owns them. A propagated deadline is what stops retries from silently exceeding a caller's own budget. Centralised backoff with jitter and a bounded budget is the direct fix for the stacked-retry incident, and it only holds if the library is documented as the sole retry layer. Correlation identifiers with the stop reason and usage are what make a non-deterministic multi-team system debuggable and attributable at all.",
+      "distractors": {
+        "B": "Validation errors are deterministic; re-serialising the same content produces the same rejection. Automating this hides a caller's defect behind repeated failed calls and consumes quota to learn nothing.",
+        "E": "Tier substitution is a legitimate degradation strategy, but doing it silently means a caller receives output with different characteristics and no way to know. Anything that changes the model behind the caller's back must be explicit, and a default in a shared library is the least visible place to put it."
+      },
+      "concept": "Cross-cutting resilience — deadline propagation, retry with backoff and jitter, retry budgets, correlation and usage capture — belongs in exactly one shared layer, because retries and deadlines compose badly when duplicated. Anything that changes semantics for the caller, such as swapping model tiers, stays a caller-visible decision.",
+      "tip": "The three-layer retry detail in the stem is the giveaway for the retry-ownership answer. For 'what belongs in a shared library' items, prefer things that must be uniform and reject things that alter behaviour invisibly."
+    }
+  },
+  {
+    "id": "INT-C-030",
+    "domain": "Integration",
+    "topic": "Aborting generation when a streaming client disconnects",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A news publisher's research assistant produces long briefings and already streams them to the browser through its own backend. Analytics show that around 40% of readers navigate away within the first few seconds, yet the backend generates every briefing to completion regardless, and the monthly output-token spend reflects it. What concrete operational benefit is available here?",
+    "options": [
+      { "key": "A", "text": "Streaming halts generation automatically when the browser tab closes, so the spend must have another cause." },
+      { "key": "B", "text": "The backend can abort the upstream request when the reader disconnects, so the rest is never generated." },
+      { "key": "C", "text": "Streamed responses are metered on what the reader actually consumed, so abandoned briefings cost less." },
+      { "key": "D", "text": "The model can be told to shorten a briefing mid-generation once analytics signal that the reader has left." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Early cancellation is the cost lever that streaming makes possible, and it is not automatic — the backend sits between the browser and the API, so the disconnect has to be detected and propagated as a cancellation of the upstream request. Once it is, generation stops at the point of abandonment rather than running to completion. With 40% of briefings abandoned in the first seconds, that removes most of the output tokens for a large slice of traffic without changing anything a reader who stays will see.",
+      "distractors": {
+        "A": "The stem states the backend generates every briefing to completion, which is exactly what happens when disconnect propagation has not been implemented. Assuming this is automatic is the reason the spend went unexamined.",
+        "C": "Accounting follows what was generated, not what was read. A briefing produced in full is produced in full regardless of how much of it reached a human eye.",
+        "D": "There is no mechanism by which the model observes reader behaviour mid-generation, and readership signals live in the client. The available control is to stop the request, not to renegotiate its length."
+      },
+      "concept": "Streaming enables cancellation, and cancellation is where its cost benefit lives — but only if disconnects are propagated through every hop between the user and the API. In a proxied architecture that propagation is code you have to write; without it, streaming delivers the latency benefit and none of the savings.",
+      "tip": "Note where the backend sits in the stem. Whenever a proxy stands between the user and the API, ask what the proxy does when its downstream client vanishes — the answer is usually 'nothing, unless you built it'."
+    }
+  },
+  {
+    "id": "INT-C-031",
+    "domain": "Integration",
+    "topic": "Placing supplied data without fabricating assistant turns",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An engineer at a property portal injects retrieved listing data into the conversation by appending a synthetic assistant message reading 'Here are the listings I found: …' immediately before the buyer's question, so the model treats the data as something it has already said. A reviewer flags it because the stored transcripts are used for quality sampling and for a regulated record of what the assistant told the customer. What is the sound structure?",
+    "options": [
+      { "key": "A", "text": "Place the retrieved listings as delimited, labelled content inside the user turn that carries the question." },
+      { "key": "B", "text": "Keep the synthetic assistant turn but annotate it in the system field as machine-inserted rather than model-generated." },
+      { "key": "C", "text": "Move the retrieved listings into the system field on every request so that they always precede the question." },
+      { "key": "D", "text": "Append the listings to the buyer's earlier user message from a previous turn so the history stays compact." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The assistant role is a record of what the assistant produced, and the stem makes that record regulated and sampled. Data the application supplies belongs in the turn the application controls, delimited and labelled so the model can tell supplied evidence from the customer's own words. This keeps the transcript truthful for audit and quality review, keeps volatile per-query content behind the stable cached prefix, and is the structure the retrieval path is meant to use.",
+      "distractors": {
+        "B": "An annotation elsewhere does not undo the falsification: the assistant array still contains words the assistant never produced, and any downstream consumer reading transcripts — sampling, audit, eval — sees the fabrication rather than the note.",
+        "C": "The system field is for durable framing. Putting per-query listings there makes the system content change on every request, which destroys prefix reuse and mixes volatile data with the instructions that should never move.",
+        "D": "Retroactively editing earlier turns rewrites history that the cache and the audit record both depend on, invalidating the cached prefix and making the stored conversation no longer a faithful account of what was exchanged."
+      },
+      "concept": "Roles carry meaning beyond formatting: system is durable framing, user is input from the caller including application-supplied context, assistant is a record of model output. Injecting content into the assistant role to steer behaviour corrupts every downstream use of the transcript — audit, evaluation, caching, and future turns.",
+      "tip": "When a stem mentions that transcripts are sampled, audited or retained, role integrity is the point of the item, not prompt effectiveness."
+    }
+  },
+  {
+    "id": "INT-C-032",
+    "domain": "Integration",
+    "topic": "Deadline propagation across a sequential call chain",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A claims intake flow makes three dependent Claude calls in sequence — extract, then validate, then summarise — behind a synchronous API whose published contract promises a response within 18 seconds. Each call's HTTP client was configured independently with a 10-second timeout and one retry. In production the endpoint frequently returns after 25 to 30 seconds and breaches the contract, even though no individual call ever times out.",
+    "options": [
+      { "key": "A", "text": "Reduce each call's timeout to six seconds so that three sequential calls fit inside the eighteen-second contract." },
+      { "key": "B", "text": "Issue the three calls in parallel so end-to-end latency is bounded by the slowest of them rather than by their sum." },
+      { "key": "C", "text": "Propagate one end-to-end deadline so each hop gets only the time remaining, and skip a hop that cannot fit." },
+      { "key": "D", "text": "Renegotiate the published contract to forty-five seconds so the observed end-to-end distribution fits inside it." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Per-hop timeouts configured in isolation cannot enforce an end-to-end promise: three hops at ten seconds each, with a retry available on each, admit a worst case far beyond eighteen seconds while every individual call looks healthy. A single deadline carried through the flow makes the contract the thing being enforced. Each hop is granted only what is left, and a hop that cannot possibly finish inside the remainder is never started — so the caller gets a fast, honest failure instead of a slow breach.",
+      "distractors": {
+        "A": "Static division ignores retries and normal variance: six seconds times three plus any retry still overruns, while a shorter timeout kills healthy slow calls that would have completed in time. It also cannot adapt when an early hop finishes quickly and leaves slack for a later one.",
+        "B": "The calls are dependent — validate consumes extract's output — so they cannot be parallelised. This is the right instinct for independent work and simply does not apply to a chain.",
+        "D": "Widening the contract makes the breach disappear on paper while every caller's own budget is silently extended. It is a last resort after the flow has been made deadline-aware, not a first response."
+      },
+      "concept": "In a multi-hop synchronous flow, the end-to-end budget is the real constraint and per-hop timeouts are only its implementation. Propagate a deadline, compute each hop's allowance from the time remaining, and fail fast when the remainder cannot cover the next hop. Retries must be charged against the same budget, not granted on top of it.",
+      "tip": "Add the per-hop timeouts and any retries before choosing. When their sum exceeds the stated contract, the answer is a shared deadline — never a smaller constant per hop."
+    }
+  },
+  {
+    "id": "INT-C-033",
+    "domain": "Integration",
+    "topic": "Cacheable share too small to be the dominant lever",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A marketplace classifies seller reviews for policy violations at roughly 4 million reviews a month, all processed on a nightly schedule with no user waiting. Each request is a 2,400-token instruction block of policy definitions, worked examples and output schema, followed by the review bundle — the review text plus the order record and the buyer-seller message thread — which averages 9,600 tokens and is unique to each request. Outputs are a short structured verdict. An engineer proposes enabling prompt caching on the instruction block as the main cost initiative for the quarter.",
+    "options": [
+      { "key": "A", "text": "Enable it and add a second breakpoint after the review bundle so the whole request is covered by the cache." },
+      { "key": "B", "text": "Reverse the order so the review bundle leads and the instruction block follows, improving locality for the cache." },
+      { "key": "C", "text": "Skip caching and raise the output allowance instead so each of the 4 million classifications completes in one call." },
+      { "key": "D", "text": "Enable caching, but note that only a fifth of each request is reusable; the bigger levers are tier and batch." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The arithmetic bounds the initiative: 2,400 reusable tokens against roughly 12,000 input tokens means caching can only touch about a fifth of input cost, and input is not even the whole bill. Meanwhile the stem hands over two much larger levers — the work runs nightly with nobody waiting, which is precisely the batch profile, and a short structured verdict on a bounded classification task is the archetypal case for a cheaper tier behind a quality gate. Caching is worth switching on; presenting it as the quarter's main cost initiative misreads the size of the prize.",
+      "distractors": {
+        "A": "The review bundle is unique to each request, so a breakpoint after it caches something that can never be matched again. Every call would pay a write on content that is read exactly zero times, making the position worse.",
+        "B": "Leading with the unique review bundle means the prefix differs from byte one, so even the instruction block stops being reusable. This inverts the static-before-variable rule and removes the only reuse available.",
+        "C": "The outputs are short structured verdicts, so nothing suggests the allowance is binding, and enlarging it would not reduce cost in any case. This targets a constraint the stem does not describe."
+      },
+      "concept": "Size a cost lever before adopting it. Prompt caching's ceiling is the share of input that is genuinely invariant across requests; when unique content dominates, the savings are bounded no matter how well the caching is configured. Compare that ceiling against tier selection and asynchronous batching before naming a headline initiative.",
+      "tip": "When a stem gives you both a prefix size and a variable-content size, it wants you to compute the reusable fraction. A small fraction means the interesting answer is somewhere other than caching."
+    }
+  },
+  {
+    "id": "INT-C-034",
+    "domain": "Integration",
+    "topic": "Stop reasons that mean the turn is not finished",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "Which TWO stop reasons tell the caller that the assistant's turn is not yet complete, so returning the content as a final answer would be wrong? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "`max_tokens`, because generation was cut off when the output ceiling was reached." },
+      { "key": "B", "text": "`end_turn`, because the model has produced the whole reply it intended to produce." },
+      { "key": "C", "text": "`tool_use`, because the model has paused and needs a tool result before it can carry on." },
+      { "key": "D", "text": "`stop_sequence`, because a marker that the caller configured in the request was matched." },
+      { "key": "E", "text": "A rate-limit response arriving in place of a completed message during peak load." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "Both name an unfinished turn with different remedies. Truncation at the ceiling means the model had more to say and the content is a fragment, so the caller must either enlarge the allowance or continue generation rather than ship what came back. A tool-use stop means the model has deliberately paused and expects the caller to run the tool and return the result in a following turn; treating that pause as an answer strands the conversation mid-step.",
+      "distractors": {
+        "B": "Natural completion is the one outcome that means the turn is done. It is the baseline the other stop reasons are defined against, so it can never signal incompleteness.",
+        "D": "A stop-sequence match is a completion the caller asked for, at the boundary the caller chose. The turn ended exactly where it was designed to end, so no continuation is implied.",
+        "E": "Throttling is a transport-level failure, so there is no message and no stop reason to read. Confusing the two channels leads to error handling that inspects fields on a response that does not exist."
+      },
+      "concept": "Stop reasons partition into completions and interruptions. Natural completion and a configured stop-sequence match are completions. Hitting the output ceiling and pausing for tool results are interruptions that require the caller to act before an answer exists. HTTP-level failures live in a separate channel and are handled before any stop reason is read.",
+      "tip": "Two of these five have a defined 'what happens next'; the others do not. Asking 'what would I have to do before I could show this to a user?' separates them cleanly."
+    }
+  },
+  {
+    "id": "INT-C-035",
+    "domain": "Integration",
+    "topic": "Volatile timestamp destroying a cached system prefix",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A wealth-management firm's advisory assistant carries a 25,000-token system prompt of product rules and disclosure language. Prompt caching was enabled and delivered a substantial reduction in cost and time-to-first-token for two weeks. After the most recent release the hit rate went to zero and both metrics reverted. The release note lists one change to the prompt: a line added at the very top reading `Current date and time: {{now}}`, rendered to the second, so compliance could evidence that the model was told the date. What should the team do next?",
+    "options": [
+      { "key": "A", "text": "Move the timestamp out of the cached prefix and into the per-request user turn that follows the breakpoint." },
+      { "key": "B", "text": "Remove the timestamp line entirely and rely on the model's own sense of today's date for disclosures." },
+      { "key": "C", "text": "Move the cache breakpoint to sit immediately after the timestamp line so the timestamp is cached too." },
+      { "key": "D", "text": "Synchronise clocks across the fleet so every instance renders the identical second and prefixes match." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "One volatile line at the top of the prompt changes byte one on every request, so a 25,000-token prefix that was previously shared by all traffic is now rewritten each time — which is exactly a zero hit rate with the cost and latency reverting. The compliance requirement is satisfied wherever the timestamp appears in the request, so relocating it after the breakpoint keeps the evidence and restores the prefix. This is the general repair: volatile values go on the variable side of the marker.",
+      "distractors": {
+        "B": "Dropping the timestamp abandons a compliance requirement to fix an engineering problem, and a model has no reliable access to the current time. The requirement is legitimate; only its placement is wrong.",
+        "C": "Including the volatile line inside the cached span is the current situation restated. The prefix would still differ on every request, so every request would still pay a full write and collect nothing.",
+        "D": "Even a perfectly synchronised fleet renders a different value each second, so requests separated in time still differ. This misreads a per-request volatility problem as a per-host consistency problem."
+      },
+      "concept": "Any value that changes faster than the cache can be reused must sit after the breakpoint, no matter how small it is. Cost is proportional to the size of the invalidated prefix, not to the size of the change — one dynamic token at the top of a large system prompt is the most expensive line in the request.",
+      "tip": "When a hit rate goes to zero after a release, look for something rendered per request near the top of the prompt: a timestamp, a request id, a random greeting. The fix is relocation, never a bigger cached span."
+    }
+  },
+  {
+    "id": "INT-C-036",
+    "domain": "Integration",
+    "topic": "Parsing structured output from a partial stream",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An engineer at a travel platform streams a response whose content is a single large JSON itinerary. To show progress, the UI attempts to parse the accumulated buffer after every delta and renders whatever parses successfully. Most attempts throw and are swallowed, but occasionally a partially-arrived structure parses cleanly and the UI renders an itinerary that is missing its later legs. One customer has already booked from such a render.",
+    "options": [
+      { "key": "A", "text": "Increase the client's delta buffer size so each parse attempt runs on a larger slice of the itinerary." },
+      { "key": "B", "text": "Accumulate deltas without parsing, parse once the block's terminating event arrives, and drive progress from delta arrival." },
+      { "key": "C", "text": "Ask the model to emit the itinerary's fields in reverse dependency order so each early fragment is self-contained and renderable." },
+      { "key": "D", "text": "Abandon streaming on this endpoint, since a large structured itinerary cannot be delivered incrementally." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "A partially-arrived document that happens to be syntactically valid is the dangerous case, because nothing in the payload distinguishes it from a complete one — which is how a customer booked a truncated itinerary. The protocol already provides the completeness signal: the terminating event for the content block. Parsing only after it arrives makes validity and completeness the same thing again. Progress can still be shown, driven by the fact that deltas are arriving rather than by whether an incomplete buffer happens to parse.",
+      "distractors": {
+        "A": "There is no buffer-size control that makes a fragment complete; the fragments are produced as generation proceeds. This treats a protocol-semantics defect as a tuning parameter.",
+        "C": "Field ordering cannot make a truncated document trustworthy — a self-contained early fragment is still an itinerary with legs missing. It also asks the model to compensate for a client bug, which is fragile and unverifiable.",
+        "D": "Structured output streams perfectly well; what fails is parsing it before it is finished. Dropping streaming discards the latency benefit and the ability to cancel, in exchange for a fix that costs a few lines in the consumer."
+      },
+      "concept": "Treat stream deltas as bytes, not as documents. Accumulate until the block's terminating event, then parse and validate once. A syntactically valid prefix of a structured document is indistinguishable from a complete one, so completeness must come from the protocol's lifecycle events, never from a successful parse.",
+      "tip": "Any design that infers completeness from 'it parsed' is broken for structured output. The tell in this stem is the occasional success — an intermittent correct-looking result is worse than a consistent failure."
+    }
+  }
+]

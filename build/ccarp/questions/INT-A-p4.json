@@ -1,0 +1,724 @@
+[
+  {
+    "id": "INT-A-055",
+    "domain": "Integration",
+    "topic": "Role of the rank constant in reciprocal rank fusion",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "In reciprocal rank fusion, each document's fused score is the sum across branches of 1 / (k + rank). What does the constant k control?",
+    "options": [
+      {
+        "key": "A",
+        "text": "How many candidates each branch is permitted to contribute into the fusion step for any single query."
+      },
+      {
+        "key": "B",
+        "text": "How steeply a document's contribution falls off with position — a larger value flattens the curve, a smaller one lets the head dominate."
+      },
+      {
+        "key": "C",
+        "text": "The scale factor that brings the two branches' raw scores onto a common range before their contributions are summed together into one figure."
+      },
+      {
+        "key": "D",
+        "text": "The number of branches being fused, which keeps the fused score bounded above by one."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The constant sits in the denominator alongside the rank, so it decides how much of the score is determined by position at all. Set it near zero and rank one is worth many times rank five, meaning either branch can unilaterally decide the fused head. Set it large and the reciprocal curve flattens, so agreement across branches matters more than any single branch's top pick. That is the tuning dimension the parameter offers, and it is the only one — everything else about fusion is fixed by the rank ordering.",
+      "distractors": {
+        "A": "Candidate depth per branch is a separate setting applied before fusion. The constant appears inside the scoring formula and has no bearing on how many results each branch returns.",
+        "C": "Rank fusion deliberately discards raw scores, which is exactly why it needs no calibration between branches. If a scale factor were required, the technique would inherit the very problem it exists to avoid.",
+        "D": "The number of branches affects the number of terms summed, not the constant. The fused score has no requirement to be bounded by one, and nothing in the formula enforces such a bound."
+      },
+      "concept": "Rank fusion is attractive because it is calibration-free: it needs no shared score scale and no per-query normalisation. Its single tunable trades off deference to a strong single-branch signal against reward for cross-branch agreement, and it should be tuned on an evaluation set like any other retrieval parameter.",
+      "tip": "When a formula is quoted in the stem, read where the unknown sits. A constant added to a rank inside a denominator can only be shaping the decay curve — that placement rules out three of the four options before you consider the semantics."
+    }
+  },
+  {
+    "id": "INT-A-056",
+    "domain": "Integration",
+    "topic": "Switching to inner-product search over normalised vectors",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A team normalises every document and query vector to unit length, then switches the index's distance metric from cosine to inner product. What is the effect on ranking?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Ranking changes, because inner product favours longer vectors and unit normalisation at ingest compensates for only part of that bias."
+      },
+      {
+        "key": "B",
+        "text": "Ranking changes for metadata-filtered queries only, since normalisation is applied at ingest and the filter is evaluated after the metric."
+      },
+      {
+        "key": "C",
+        "text": "Ranking is unchanged but recall falls, because inner-product indexes cannot use the same graph structure as cosine indexes."
+      },
+      {
+        "key": "D",
+        "text": "Ranking is unchanged: for unit-length vectors cosine and inner product are the same quantity, and both order results identically."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Cosine similarity is the inner product divided by the product of the two magnitudes, so when both magnitudes are one the division does nothing and the two measures are numerically identical. Euclidean distance between unit vectors is a decreasing function of that same inner product, so it produces the same ordering as well. This is why teams normalise at ingest: it makes the cheapest metric the correct one, and it removes a class of bug where documents rank highly because they happen to have large vectors rather than relevant content.",
+      "distractors": {
+        "A": "Magnitude sensitivity is precisely what normalisation eliminates. The concern is real for unnormalised vectors and disappears entirely once every vector has length one.",
+        "B": "Filtering restricts which vectors are considered; it does not interact with how two vectors are compared. The metric equivalence holds identically inside and outside any filter.",
+        "C": "Graph-based indexes are built over whatever metric is configured and work equally well with either. There is no structural penalty for inner product, and in practice it is the cheaper of the two to compute."
+      },
+      "concept": "Normalise embeddings at ingest and keep the query side normalised in the same code path. Once you do, cosine, inner product, and Euclidean distance all induce the same ranking, and you can choose whichever the index implements most efficiently without any quality consequence.",
+      "tip": "Metric questions turn on whether magnitudes are in play. Establish first whether the vectors are normalised; if they are, most of the differences the options describe cannot exist."
+    }
+  },
+  {
+    "id": "INT-A-057",
+    "domain": "Integration",
+    "topic": "Logging required to reproduce a past grounded answer",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A regulated deployment must be able to explain, two years after the fact, why a particular answer was produced. Beyond the prompt sent and the response returned, what must be captured at answer time?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The query as issued to the retriever after rewriting, the identifiers and versions of the chunks returned, and the versions of every model and index build."
+      },
+      {
+        "key": "B",
+        "text": "The similarity score of each retrieved chunk, which is sufficient to reconstruct the ranking at any later date."
+      },
+      {
+        "key": "C",
+        "text": "A copy of the full source documents involved, so that the retrieval can be re-executed against exactly the same text at any later date the regulator chooses to ask about."
+      },
+      {
+        "key": "D",
+        "text": "The user's session identifier and a timestamp, from which the pipeline can re-derive everything else on demand."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The index two years from now will not be the index that produced the answer: documents will have been added, edited, withdrawn, re-chunked, and possibly re-embedded. Replaying the query therefore proves nothing. What survives that drift is a record of the exact inputs — the query the retriever actually saw, which is not necessarily what the user typed, plus versioned identifiers for the chunks and for every model and index build in the path. Together those let you state what evidence the model was given and under which components, which is what an explanation requires.",
+      "distractors": {
+        "B": "A score is meaningless without the vectors, the index configuration, and the corpus that produced it, none of which are recoverable later. It also identifies nothing: you would know a chunk scored 0.82 without knowing which chunk it was.",
+        "C": "Storing whole documents duplicates the content store and still fails, because re-running retrieval later uses today's chunker, embedding model, and index — a different system that can legitimately return different results.",
+        "D": "This assumes the pipeline is deterministic and unchanging over two years, which is the assumption that makes reproducibility hard in the first place. Re-derivation reconstructs today's behaviour, not the behaviour under audit."
+      },
+      "concept": "Reproducibility for a probabilistic, evolving system means recording inputs and versions, not the ability to re-execute. Log the post-transformation query, the retrieved identifiers with their content versions, and the version of every model and index artefact in the path, and retain them for as long as the obligation runs.",
+      "tip": "When a stem gives you a reproducibility horizon measured in years, the answer involves capturing what was used at the time, not re-running anything. Options offering to recompute later are the standard trap."
+    }
+  },
+  {
+    "id": "INT-A-058",
+    "domain": "Integration",
+    "topic": "What still scales when first-stage depth is raised behind a reranker",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A pipeline retrieves N first-stage candidates, reranks them with a cross-encoder, and passes a fixed six chunks to the generator. Raising N from 50 to 200 therefore leaves generator input cost unchanged. What does still scale with N?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Nothing material: vector search is sublinear in corpus size and the reranker processes the whole candidate list within a single batched forward pass regardless of its length."
+      },
+      {
+        "key": "B",
+        "text": "Only resident index memory, because a longer candidate list must be held in memory for the duration of the query."
+      },
+      {
+        "key": "C",
+        "text": "First-stage retrieval work and, dominantly, reranker inference — one query-passage forward pass per candidate — so rerank latency and spend grow roughly linearly with N."
+      },
+      {
+        "key": "D",
+        "text": "Embedding cost, since the query has to be re-embedded once for each batch of candidates scored."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The reranker is the term that grows. A cross-encoder scores each query-passage pair independently, so quadrupling the candidate list quadruples the forward passes and, with them, the latency contribution and the compute bill for that stage. The first stage grows too, though more gently, since returning more neighbours means exploring more of the graph. Holding generator input fixed protects the most visible cost and hides the one that actually moves, which is why teams raise depth casually and then discover the retrieval stage has consumed its latency budget.",
+      "distractors": {
+        "A": "Cross-encoders cannot score a list in one pass; the query and each passage must be encoded together, which is what makes them accurate and what makes them linear in candidate count. Batching improves hardware utilisation but does not change the number of passes.",
+        "B": "Candidate lists are small transient objects; the index's resident footprint is set by the number of vectors stored, not by how many are returned per query. Memory is not the constraint that binds here.",
+        "D": "The query is embedded once per request regardless of how many candidates are scored. This confuses the bi-encoder stage, which encodes the query a single time, with the cross-encoder stage, which does not encode the query separately at all."
+      },
+      "concept": "In a cascade, each stage has its own cost curve in the depth passed to it. Reranker cost is linear in candidates, generator cost is linear in tokens forwarded, and first-stage cost grows slowly. Tune depth against the knee of the recall curve, not against what the generator can absorb.",
+      "tip": "Ask which component sees each unit of work. When the stem freezes the generator's input, it is directing you to the stage whose input was not frozen — that framing is the whole question."
+    }
+  },
+  {
+    "id": "INT-A-059",
+    "domain": "Integration",
+    "topic": "Learned sparse retrieval contrasted with BM25",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "How does a learned sparse retriever differ operationally from BM25?",
+    "options": [
+      {
+        "key": "A",
+        "text": "It produces dense vectors rather than term weights, so it needs an approximate nearest-neighbour index and cannot reuse the inverted index."
+      },
+      {
+        "key": "B",
+        "text": "It needs no index at all, because the model scores every document directly against the query at request time, on GPU rather than a search cluster."
+      },
+      {
+        "key": "C",
+        "text": "It is trained continuously on production click data, so its term weights adapt to the query distribution with no reindex of the corpus."
+      },
+      {
+        "key": "D",
+        "text": "Its term weights come from a neural model, so a model must run over every document at index time and every query at request time, unlike BM25."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Both write into an inverted index and both are scored the same way, so the difference is not in the data structure but in where the weights come from and what that costs you. Learned sparse retrieval buys the ability to weight terms by learned importance and to add terms a document implies but never states, and it pays for that with a model dependency on both the ingest path and the query path — extra latency, extra infrastructure, and a model version that has to be pinned and migrated exactly like an embedding model.",
+      "distractors": {
+        "A": "The output is a sparse vector over the vocabulary, which is what makes it storable and searchable in an ordinary inverted index. Retaining the inverted index is one of the technique's main practical attractions.",
+        "B": "Scoring every document at request time would be linear in corpus size, which is precisely what an inverted index avoids. The technique is designed to fit existing lexical infrastructure, not to replace it with brute force.",
+        "C": "Weights come from a trained model applied at index time; they do not update from production traffic. Changing the model requires re-encoding the corpus, exactly as changing an embedding model does."
+      },
+      "concept": "Sparse and dense are properties of the representation, not of whether a model is involved. Classify a retriever by three questions: what data structure holds it, where a model runs, and what a model change forces you to rebuild. Those determine operational cost far more than headline accuracy.",
+      "tip": "Distinguish sparse from lexical. Options that equate 'sparse' with 'no model' or 'dense' with 'neural' are conflating the representation with the way it is produced, and that conflation is the usual distractor for this topic."
+    }
+  },
+  {
+    "id": "INT-A-060",
+    "domain": "Integration",
+    "topic": "Why context recall requires annotation and precision does not",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "In RAG evaluation, why can context precision be computed with only the retrieved passages in hand, while context recall generally cannot?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Because recall is evaluated at a larger cut-off than precision, and cut-offs beyond k require a second retrieval pass over the whole index."
+      },
+      {
+        "key": "B",
+        "text": "Because precision's denominator is the retrieved set, whereas recall's denominator is the evidence the question requires, which has to be annotated."
+      },
+      {
+        "key": "C",
+        "text": "Because a model-based judge can score relevance but not similarity, and recall is defined over similarity between retrieved and reference passages."
+      },
+      {
+        "key": "D",
+        "text": "Because context recall measures how much of the retrieved context the generator used, so it cannot be computed until after generation."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The asymmetry is entirely in the denominators. Judging precision means asking, of each passage you were handed, whether it is relevant — a question answerable by looking at the passages, which is why a model judge can do it unaided on live traffic. Recall asks what fraction of the evidence needed to answer correctly was retrieved, and nothing in the retrieved set tells you what was missed. Someone has to establish that ground truth in advance, either by exhaustively marking relevant passages or by writing a reference answer whose supporting claims can be checked off. That is why recall is an offline metric on a curated set and precision can be monitored continuously.",
+      "distractors": {
+        "A": "Both are ordinarily reported at the same production cut-off, and evaluating at a deeper cut-off is trivially a matter of asking the retriever for more results. Retrieval depth is not what makes the ground truth hard to obtain.",
+        "C": "Relevance judgement is exactly what both metrics rest on, and neither is defined in terms of similarity scores. The distinction being drawn here does not exist.",
+        "D": "That describes a generation-side metric. Context recall is a property of what the retriever returned relative to what was needed, and it is computable without running the generator at all."
+      },
+      "concept": "Classify each evaluation metric by whether its denominator is observable at request time. Metrics over the returned set can run continuously in production as guardrails; metrics over the ideal set need labelled data and belong in an offline suite. Design the monitoring and the evaluation programme around that split.",
+      "tip": "For any metric question, write the fraction out. Numerator and denominator determine what data you need, and that alone usually distinguishes the option that is genuinely explanatory from the ones that sound plausible."
+    }
+  },
+  {
+    "id": "INT-A-061",
+    "domain": "Integration",
+    "topic": "Hard negatives in a retrieval evaluation set",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "When building a retrieval evaluation set, what is a hard negative and why include them?",
+    "options": [
+      {
+        "key": "A",
+        "text": "A passage topically close to the query that does not contain the required evidence; including them stops a retriever scoring well by finding the right neighbourhood."
+      },
+      {
+        "key": "B",
+        "text": "A query for which the corpus contains no correct answer at all, included to test whether the system abstains rather than inventing one."
+      },
+      {
+        "key": "C",
+        "text": "A near-duplicate of a relevant passage taken from a different document, included to test whether the returned result set is properly deduplicated before it is shown to the user."
+      },
+      {
+        "key": "D",
+        "text": "A passage belonging to a different tenant, included to confirm that the isolation filter is enforced."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "An evaluation built from randomly drawn negatives measures almost nothing, because any competent embedding separates a query about turbine maintenance from a passage about payroll. The discriminating cases are the ones that sit just off target: the right equipment but the wrong model, the right regulation but the superseded revision, the right procedure but a different failure mode. Retrieval is used in production against a corpus full of exactly these, so an evaluation that omits them will report a healthy number for a system that is about to disappoint its users.",
+      "distractors": {
+        "B": "This is an unanswerable query, which is a genuinely valuable component of an evaluation set and tests abstention behaviour. It is a property of the query, not a negative passage, so it is the right concept under the wrong name.",
+        "C": "Near-duplicate handling is a result-diversity concern addressed by capping per source or by a diversity step. Duplicates of relevant passages are not negatives at all, since their content is relevant.",
+        "D": "Cross-tenant probes belong in the isolation test suite and assert an access-control property. They test whether a filter is enforced, not whether the ranking can distinguish close calls."
+      },
+      "concept": "The difficulty of an evaluation set is set by its negatives. Mine hard negatives from what the current system actually returns and reviewers reject, and refresh them as the system improves, so the set keeps measuring the boundary rather than a distinction the retriever mastered long ago.",
+      "tip": "Several options in evaluation items describe real and useful practices under the wrong label. Check that the option defines the term in the stem, not merely that it describes something worth doing."
+    }
+  },
+  {
+    "id": "INT-A-062",
+    "domain": "Integration",
+    "topic": "Choosing a meaningful index freshness signal",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An ingest pipeline exposes the timestamp of its last successful run as its freshness signal. Why is that weak, and what should be measured instead?",
+    "options": [
+      {
+        "key": "A",
+        "text": "It is weak because clocks drift between the pipeline host and the index; the index's own commit timestamp should be used instead."
+      },
+      {
+        "key": "B",
+        "text": "It is weak because concurrent runs can overlap and interleave; the number of runs completed per hour should be tracked instead."
+      },
+      {
+        "key": "C",
+        "text": "It is weak because a run finishing says nothing about changes being picked up; measure the age of the oldest unreflected source change."
+      },
+      {
+        "key": "D",
+        "text": "It is weak because it is reported per pipeline rather than per document; the total number of documents present in the index should be tracked instead."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Job status measures the job, and the thing anyone cares about is the data. A run can complete cleanly having skipped a whole source because a credential expired, a parser returned empty text, or a connector silently paged past the changes. Measuring the lag of the oldest unreflected change inverts the perspective: the number is zero when everything has landed and grows the moment anything is missed, whatever the cause and regardless of what the job reported. It is also directly comparable to a freshness commitment expressed in minutes or hours, so it can be alerted on.",
+      "distractors": {
+        "A": "Clock skew is a real nuisance but a second-order one, and swapping to the index's commit timestamp still measures when something was written rather than whether the right things were written.",
+        "B": "Run frequency is a throughput statistic. A pipeline can run every minute and index nothing, which is precisely the failure the original signal already misses.",
+        "D": "Total document count grows monotonically and is dominated by the corpus size, so a missed source or a stalled connector is invisible within the noise of normal growth."
+      },
+      "concept": "Instrument outcomes, not activities. For an ingest pipeline the outcome is data currency, best expressed as the lag between a change occurring at source and being retrievable, tracked per source so a single failing connector cannot hide inside an aggregate.",
+      "tip": "Whenever a monitoring option describes the health of a process rather than the state of the data, it is the weaker choice. The exam-relevant metric is the one a user would recognise as the problem."
+    }
+  },
+  {
+    "id": "INT-A-063",
+    "domain": "Integration",
+    "topic": "Content hashing in an incremental ingest pipeline",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "What does storing a content hash per chunk buy an incremental index pipeline?",
+    "options": [
+      {
+        "key": "A",
+        "text": "It lets the vector index detect and merge duplicate vectors automatically at the point where they are written into the store, which saves both space and query time."
+      },
+      {
+        "key": "B",
+        "text": "Re-ingest can skip embedding for chunks whose text is unchanged, since the hash compares what the source now produces with what the index holds."
+      },
+      {
+        "key": "C",
+        "text": "It removes the need for separate chunk identifiers, since the hash is itself a unique and stable key for each chunk."
+      },
+      {
+        "key": "D",
+        "text": "It allows similarity search to fall back to exact text matching whenever the vector search returns no results at all."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Embedding is the expensive step in ingest, and most re-ingest work is redundant: a one-clause amendment to a long standard leaves the overwhelming majority of its chunks byte-identical. A per-chunk hash makes that comparison exact and cheap, so the pipeline embeds only what changed. The same comparison also underpins the reconciliation pass — hashes present in the index but absent from the freshly produced set are orphans to be deleted, which is how the delete path gets built for free alongside the update path.",
+      "distractors": {
+        "A": "Vector stores write what they are given and do not inspect content for duplicates. Deduplication, where it is wanted, is a decision the pipeline makes deliberately, and collapsing chunks that are textually identical but belong to different documents usually destroys provenance.",
+        "C": "Boilerplate makes hashes collide across genuinely different chunks, and identifiers need to stay stable across edits so that upserts land on the right record. The hash answers whether the content changed; the identifier answers which record it is.",
+        "D": "Exact text matching is what a lexical index provides. A stored hash matches only whole identical chunks, which no realistic query would ever reproduce."
+      },
+      "concept": "Give every chunk a stable identifier and a content hash: the identifier decides which record an update applies to, the hash decides whether the update needs doing. Together they make an incremental pipeline both cheap and reconcilable against source truth.",
+      "tip": "For 'what does this field buy you' items, separate identity from change detection. Options that ask one field to do both jobs are usually the wrong ones."
+    }
+  },
+  {
+    "id": "INT-A-064",
+    "domain": "Integration",
+    "topic": "Fine-tuning the embedding model versus adding a reranker",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A specialty chemicals distributor runs dense-only retrieval over 3 million chunks of safety data sheets and application notes, and has accumulated 15,000 reviewed query-to-passage relevance judgements. Recall@20 is 0.88 but recall@5 is 0.61, so the right passage is usually found and often ranked poorly. The data science team proposes fine-tuning the embedding model on the 15,000 pairs. The platform team is three engineers and there is no model-training infrastructure today. What should the architect recommend first?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Fine-tune the embedding model as proposed: 15,000 in-domain pairs is a substantial training set, and improving the base representation lifts every downstream stage at once rather than patching one of them."
+      },
+      {
+        "key": "B",
+        "text": "Neither — raise the number of chunks passed to the generator from five to twenty, which captures the recall the retriever already achieves without changing any component."
+      },
+      {
+        "key": "C",
+        "text": "Fine-tune the embedding model and add a reranker together, so the two improvements can be evaluated as a single release rather than sequentially."
+      },
+      {
+        "key": "D",
+        "text": "Add a cross-encoder reranker over the top 20 candidates and use the 15,000 judgements to evaluate and, if needed, tune it — reserving fine-tuning for later if the reranker's ceiling is reached."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The measurements describe a ranking problem, not a representation problem: the evidence is inside the top 20 in 88% of cases and simply is not at the top. That is the exact shape a reranker exists to fix, and it fixes it without touching the index. Fine-tuning attacks the same gap far more expensively — it requires training infrastructure a three-person team does not have, and every future model iteration forces a full re-embed of 3 million chunks and a cutover. The judgements are more valuable as an evaluation asset than as a small training set, and they will still be there if the reranker plateaus.",
+      "distractors": {
+        "A": "This treats a 27-point gap between recall@5 and recall@20 as a representation failure when the numbers say the representation is finding the evidence. It also permanently couples the index to a model artefact the team must retrain, version, and migrate with no existing capability to do so.",
+        "B": "Passing twenty chunks captures the recall but hands the generator fifteen mostly irrelevant passages, raising cost and inviting the model to ground its answer in a near-miss. It converts a ranking problem into a precision problem rather than solving anything.",
+        "C": "Shipping two changes together makes the outcome unattributable — if quality moves, nobody knows which change did it or whether one is harming the other. It also incurs the full fine-tuning cost before establishing whether the cheap change was sufficient."
+      },
+      "concept": "Read the gap between recall at a shallow cut-off and recall at a deep one. A large gap is a ranking deficit and is answered by a reranking stage; a low deep-cut-off recall is a representation or coverage deficit and is where fine-tuning or chunking work belongs. Choose the intervention that matches the measured deficit and that the team can actually operate.",
+      "tip": "Two recall figures at different depths in the same stem are there to be subtracted. The size of that difference, not either number alone, tells you which stage of the pipeline is failing."
+    }
+  },
+  {
+    "id": "INT-A-065",
+    "domain": "Integration",
+    "topic": "Making figures and diagrams retrievable in a technical corpus",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A rail signalling manufacturer indexes installation and commissioning manuals in which a large share of the operative content is wiring diagrams, state charts, and annotated photographs. Text extraction returns only figure captions, so engineers searching for \"the interlocking wiring for a three-aspect signal\" retrieve prose that references the diagram but never the diagram itself. Retrieval must return something the engineer can open. What should the pipeline do at ingest?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Generate a text description of each figure at ingest, index it as a chunk carrying the figure's identifier and location, and return the figure with it."
+      },
+      {
+        "key": "B",
+        "text": "Store the figures as binary attachments on the parent document's chunks, so that they travel with any prose chunk retrieved from the same document."
+      },
+      {
+        "key": "C",
+        "text": "Embed the figure images directly with a CLIP-style multimodal embedding model and search engineers' text queries against the image vectors alone."
+      },
+      {
+        "key": "D",
+        "text": "Rely on the captions, but weight caption text more heavily in the lexical branch so figures rank above the prose that references them."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Retrieval matches text against text, so a figure becomes findable only when something describing it exists in the index. Generating that description once at ingest puts the diagram's actual content — the signal aspects, the relay designations, the wiring topology — into the searchable text, where an engineer's natural-language query can reach it. Keeping the figure identifier and location on the chunk is what closes the loop: the match is on the description, and what the engineer is handed is the diagram. The cost is paid once per figure rather than on every query.",
+      "distractors": {
+        "B": "Attaching figures to prose chunks makes them arrive as a by-product of retrieving something else. The engineer still cannot search for the diagram, and every retrieval from that document drags along images irrelevant to the question.",
+        "C": "Searching text against image vectors alone discards the manual's prose and the caption text, and multimodal alignment on domain-specific engineering schematics is weak — these diagrams look alike and differ in details that a general image encoder does not represent.",
+        "D": "Captions are typically a line long and identify a figure rather than describe it. Boosting a signal that does not contain the answer promotes figures for the wrong queries while still missing the right ones."
+      },
+      "concept": "Anything that must be retrievable needs a text representation in the index. For non-textual assets, generate that representation at ingest, index it as a first-class chunk, and carry a pointer back to the asset so the match and the deliverable can differ.",
+      "tip": "Separate what is matched from what is returned. Many retrieval problems that look unsolvable become straightforward once you allow the indexed text and the returned artefact to be two different things."
+    }
+  },
+  {
+    "id": "INT-A-066",
+    "domain": "Integration",
+    "topic": "Vector store capabilities demanded by regulated reproducibility",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A clinical trials sponsor is selecting a vector store for an assistant used by study teams. Two requirements are non-negotiable: inspectors may ask, up to seven years later, what the system retrieved for a given answer, and no study team may ever be able to search another study's documents. Latency and corpus size are unremarkable. Which TWO store capabilities are genuinely required by those two requirements? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Immutable, restorable index snapshots with a retention period long enough to reconstruct the index state as it stood on any past answer date."
+      },
+      {
+        "key": "B",
+        "text": "GPU-accelerated approximate search, so recall can be raised without paying a latency penalty."
+      },
+      {
+        "key": "C",
+        "text": "Support for several distance metrics, so each study team can select the one that suits its corpus."
+      },
+      {
+        "key": "D",
+        "text": "Server-enforced partitions with per-partition access control, so one study's vectors cannot be searched from a session scoped to another study."
+      },
+      {
+        "key": "E",
+        "text": "Embedding generation inside the store itself, so that the sponsor does not have to operate and maintain a separate embedding service alongside it."
+      }
+    ],
+    "correct": [
+      "A",
+      "D"
+    ],
+    "explanation": {
+      "correct": "Each keyed capability is forced by one of the two stated requirements and by nothing else in the stem. Answering an inspector seven years later means being able to show the index as it was, which logging alone cannot deliver — chunk identifiers in a log are useless if the content behind them has since been rewritten — so retained, restorable snapshots are the enabling feature. Server-enforced partitioning is required because the isolation guarantee must not depend on application code remembering to pass a predicate; enforcement belongs on the side of the boundary the study team cannot reach.",
+      "distractors": {
+        "B": "The stem explicitly says latency and corpus size are unremarkable, which removes the requirement this capability would serve. Selecting for performance features nobody needs narrows the field for no benefit and usually raises cost.",
+        "C": "Metric choice is a property of the embedding model, not a per-team preference, and allowing teams to vary it would make results incomparable across the sponsor's studies. This is configurability that creates a governance problem rather than solving one.",
+        "E": "Convenient, but it couples the embedding model version to the store's release cycle, which works directly against the reproducibility requirement by making the model harder to pin and to record."
+      },
+      "concept": "Derive store selection criteria from stated obligations, one capability per obligation, and treat everything else as optional. Long-horizon reproducibility implies retained restorable state, not just logs; hard isolation implies server-side enforcement, not application discipline.",
+      "tip": "When a stem declares a dimension unremarkable, it is pre-emptively eliminating options. Cross out anything addressing latency or scale immediately and the multi-select becomes a much smaller problem."
+    }
+  },
+  {
+    "id": "INT-A-067",
+    "domain": "Integration",
+    "topic": "Index-side abbreviation expansion from a curated glossary",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A port authority indexes operational procedures written by staff who use heavy in-house abbreviation — \"STS\" for ship-to-shore crane, \"RTG\" for rubber-tyred gantry, \"VBS\" for vehicle booking system. Newer staff and hauliers query using the full terms and retrieve nothing; experienced staff query with the abbreviations and do fine. A curated glossary of about 300 such expansions already exists and is maintained by the operations team. What is the most effective use of it?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Replace every abbreviation in the source text with its expansion at ingest, so the indexed corpus uses consistent full terminology throughout."
+      },
+      {
+        "key": "B",
+        "text": "Instruct the model in the system prompt to treat the glossary terms as equivalent when reading retrieved passages."
+      },
+      {
+        "key": "C",
+        "text": "At ingest, append the glossary expansions for the abbreviations a chunk contains to its indexed text, leaving the original wording intact."
+      },
+      {
+        "key": "D",
+        "text": "Expand the user's query with the glossary at request time, issuing both the abbreviated and the full form to the retriever."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The mismatch is fixed and known, the glossary is small and already maintained, and the documents are written one way while half the users type the other. Resolving that at ingest means the work is done once per chunk rather than on every query, it benefits the dense and lexical branches together, and it is bidirectional — an abbreviation query still matches the original text and a full-term query now matches the appended expansion. Leaving the source wording untouched matters because the procedures are quoted operationally and staff must see the text as written.",
+      "distractors": {
+        "A": "Rewriting the source destroys the wording that experienced staff search with and that appears on signage and in radio traffic, so the abbreviation queries that currently work would start failing. It also makes the indexed text differ from the document a user is shown.",
+        "B": "The passages have to be retrieved before the model can read them, and retrieval is exactly what is failing. A prompt instruction operates one stage too late.",
+        "D": "Query-side expansion is a reasonable design and would help, but it pays the cost on every request, must handle abbreviations the user did not use, and gives no benefit when a query mixes both forms. With a stable glossary and a corpus that is indexed far less often than it is queried, the index side is the cheaper place to resolve it."
+      },
+      "concept": "When a vocabulary mismatch is enumerable and stable, resolve it at index time; when it is open-ended or user-specific, resolve it at query time. Index-side enrichment is paid once and helps every retrieval branch, so it is the default whenever the mapping can be curated.",
+      "tip": "Ask how often each side runs. Corpora are indexed occasionally and queried constantly, so a fix that can live at ingest usually should — unless it would destroy information, which is what separates appending from replacing."
+    }
+  },
+  {
+    "id": "INT-A-068",
+    "domain": "Integration",
+    "topic": "Failure handling for an LLM query-rewriting stage",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "An online travel agency adds a model-based query-rewriting stage in front of retrieval for its customer-service assistant. The architect is documenting what the team must handle. Which TWO statements are correct about this stage in production? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Rewriting removes the need to retain conversation history downstream, because the rewritten query is already fully self-contained."
+      },
+      {
+        "key": "B",
+        "text": "The rewrite must be produced by the same model that generates the answer, so that both stages share one interpretation of the question."
+      },
+      {
+        "key": "C",
+        "text": "A rewrite can silently drop a constraint present in the original — a travel date, a fare class — so retrieval should run on both forms and fuse."
+      },
+      {
+        "key": "D",
+        "text": "Rewriting guarantees a precision improvement, because a rewritten query is always more specific than the raw one."
+      },
+      {
+        "key": "E",
+        "text": "The stage is an extra dependency in the synchronous path and must degrade to the raw query on error rather than failing the request."
+      }
+    ],
+    "correct": [
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "The two keyed statements are the design obligations a rewriting stage creates. Lossy rewriting is its characteristic failure — a model condensing a rambling customer message into a clean query routinely discards the qualifier that made the answer specific, and the resulting retrieval is confidently about the wrong thing. Running both forms and fusing costs one extra search and bounds that risk. The availability point is the one teams forget: an optional enhancement placed in the synchronous path has become a mandatory dependency unless it is explicitly built to fall back, and the fallback is free because the raw query is already in hand.",
+      "distractors": {
+        "A": "The generator still needs the conversation for continuity, tone, and the customer's own wording, none of which survive into a retrieval-oriented rewrite. The rewrite is an input to search, not a replacement for session state.",
+        "B": "There is no requirement that the two share a model, and there are good reasons not to: rewriting is short, latency-sensitive, and well served by a fast cheap tier, while generation may warrant a stronger one. Sharing a model also couples two independent upgrade decisions.",
+        "D": "Rewriting can and does make queries worse — by over-specifying, by resolving an ambiguous reference wrongly, or by importing a topic from earlier in the conversation. Any claim that a probabilistic transformation guarantees an improvement should be treated as false."
+      },
+      "concept": "Every model call inserted into a request path adds a latency budget line, a failure mode, and a quality risk that must be measured separately from the stage it feeds. Design query transformations to be additive and reversible: keep the original, fuse rather than replace, and fall back cleanly when the transformation is unavailable.",
+      "tip": "Options claiming a probabilistic component guarantees an outcome, or that adding one component removes the need for another, are near-automatic eliminations. What remains is usually the pair describing a failure mode and its containment."
+    }
+  },
+  {
+    "id": "INT-A-069",
+    "domain": "Integration",
+    "topic": "Placing the reranker relative to hybrid fusion",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A home-improvement retailer's hybrid retrieval pipeline reranks the dense candidate list and the lexical candidate list separately with a cross-encoder, then fuses the two reranked orderings by rank. What is wrong with this arrangement?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Nothing is wrong structurally, but the two reranker calls should be batched into one request so the cross-encoder is loaded once per query."
+      },
+      {
+        "key": "B",
+        "text": "The candidate lists should be fused first and the merged, deduplicated set reranked once, so every candidate is scored on one comparable scale."
+      },
+      {
+        "key": "C",
+        "text": "The reranker should run before retrieval, scoring the query against the index's cluster centroids so that only promising regions are searched."
+      },
+      {
+        "key": "D",
+        "text": "The reranker should run after generation, scoring the produced answer against the retrieved passages to catch unsupported claims."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The cross-encoder's value is that it produces one comparable relevance score per candidate for a given query, which makes the ordering of the whole pool meaningful. Reranking each branch in isolation throws that away: you end up fusing two orderings by position, which discards the very scores you paid to compute, and any document returned by both branches is scored twice for nothing. Merging and deduplicating first also shrinks the candidate set the reranker sees, so the corrected pipeline is both more accurate and cheaper.",
+      "distractors": {
+        "A": "Batching would reduce the round trips but leaves the structural defect untouched — the scores would still be used only within each branch, and the overlap between the branches would still be scored redundantly.",
+        "C": "This describes a coarse routing or pruning step, which is a first-stage optimisation rather than a reranking one. A cross-encoder scores query-passage pairs and has nothing to say about centroids.",
+        "D": "Checking an answer against its sources is a groundedness or faithfulness check. It is a worthwhile control but a different component solving a different problem, and it does nothing about which passages were selected."
+      },
+      "concept": "Order a retrieval cascade so each stage widens or narrows exactly once: retrieve in parallel, merge and deduplicate, rerank the merged pool with a single comparable scorer, then cut to the context budget. Reranking before fusion wastes compute and discards the cross-comparability that makes reranking useful.",
+      "tip": "Sketch the pipeline as a sequence before reading the options. Most reranker questions turn on stage ordering, and an arrangement that scores the same document twice is a reliable sign the order is wrong."
+    }
+  },
+  {
+    "id": "INT-A-070",
+    "domain": "Integration",
+    "topic": "Diagnosing hybrid output identical to dense-only output",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A stock-photography marketplace enables hybrid retrieval. Both branches are reported as healthy by their own dashboards, yet the fused result set is byte-for-byte identical to the dense-only result set for every query in a 500-query sample. Which TWO causes are consistent with that observation? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Reciprocal rank fusion reproduces the dense ordering whenever both branches happen to return exactly the same number of candidates for a given query."
+      },
+      {
+        "key": "B",
+        "text": "The lexical branch's contribution is weighted so low that it can never alter the top-k ordering produced by the dense branch."
+      },
+      {
+        "key": "C",
+        "text": "The dense scores are normalised and the lexical scores are not, which makes the fusion mathematically undefined."
+      },
+      {
+        "key": "D",
+        "text": "The lexical branch is querying a field that was never populated at index time, so it returns no candidates and fusion degenerates to the dense list."
+      },
+      {
+        "key": "E",
+        "text": "The reranker runs after fusion and necessarily restores the dense ordering."
+      }
+    ],
+    "correct": [
+      "B",
+      "D"
+    ],
+    "explanation": {
+      "correct": "Exact identity on every one of 500 queries is a very strong signal: it means one branch is contributing nothing at all, which happens either because it produced nothing or because its output is arithmetically incapable of moving the result. An unpopulated field is the classic ingest-side version — the mapping was added, the writer was never updated, and the branch dutifully reports healthy while returning an empty list. A near-zero weight is the configuration-side version, and both are easy to confirm in minutes by logging each branch's candidate count and its contribution to the final ordering.",
+      "distractors": {
+        "A": "Rank fusion combines positions from both lists, so equal candidate counts do not privilege either branch. If both branches returned genuinely different orderings, the fused result would differ from each of them.",
+        "C": "Rank fusion never reads raw scores, so normalisation is irrelevant to it. Even under a score-blending scheme, mismatched scales produce erratic results rather than exact reproduction of one branch.",
+        "E": "A reranker scores candidates independently of which branch supplied them and has no mechanism for recovering the dense ordering. If it did dominate, the output would match neither branch's original order."
+      },
+      "concept": "When a component appears to have no effect, distinguish 'produced nothing' from 'produced something that could not matter'. Instrument every branch with its own candidate count and a measure of its contribution to the final ranking, so a silently inert stage is detectable without a manual comparison.",
+      "tip": "Take exactness literally. Identical results on a large sample rule out every explanation that merely reduces a branch's influence and point at total non-contribution — which is a much shorter list of causes."
+    }
+  },
+  {
+    "id": "INT-A-071",
+    "domain": "Integration",
+    "topic": "Embedding drift introduced by a dependency upgrade",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A city transit authority's operations assistant loses retrieval quality across all topics over about ten days. Nothing was deployed to the retrieval service, but a routine dependency upgrade nine days ago changed the embedding client library's default pooling behaviour, so documents ingested since then are embedded differently from the rest of the corpus. Ingest is continuous, roughly 4,000 documents a day, against a corpus of 9 million. What should the engineer do next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Restore the index from the last snapshot taken before the upgrade, accepting the loss of everything that has been ingested during the nine days since that snapshot was written."
+      },
+      {
+        "key": "B",
+        "text": "Re-embed the entire corpus under the new library behaviour, so that the whole index is at least internally consistent."
+      },
+      {
+        "key": "C",
+        "text": "Downgrade the library and let the ongoing nightly refresh gradually bring the affected documents back into line over the coming weeks."
+      },
+      {
+        "key": "D",
+        "text": "Halt ingest, pin the library to the previous pooling behaviour, re-embed only the documents ingested since the upgrade, and add a deploy-time probe check."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The contaminated set is bounded and identifiable — roughly 36,000 documents against a corpus of 9 million — and it is still growing at 4,000 a day, so stopping ingest is the containment step that must come first. Pinning the configuration and re-embedding that slice repairs the damage at a fraction of a percent of the cost of touching the whole corpus. The probe assertion is what makes this a fix rather than an episode: a stored reference vector for a fixed input turns any future silent change in encoding behaviour into a failed deploy instead of ten days of unexplained decay.",
+      "distractors": {
+        "A": "Rolling back the index discards nine days of legitimately ingested content along with the contaminated vectors, and it leaves the library still upgraded, so the same corruption resumes with the next ingest run.",
+        "B": "Re-embedding 9 million chunks to repair 36,000 is a vast expense to fix a bounded problem, and it adopts an unvalidated behaviour change across the whole corpus rather than deciding deliberately whether the new pooling is better.",
+        "C": "The refresh only revisits documents that change at source, and the contaminated documents are not changing. They would keep their bad vectors indefinitely, so the degradation would persist with no end date."
+      },
+      "concept": "Treat the encoding configuration as part of the index contract and assert it, because embedding changes fail silently. When contamination is time-bounded, the response is contain, scope, repair the slice, then add the invariant check — full rebuilds are for cases where the affected set genuinely cannot be identified.",
+      "tip": "When a stem gives you an ingest rate and an elapsed duration, multiply them: the product is the size of the blast radius, and it usually reveals that the sweeping remedy is orders of magnitude larger than the problem."
+    }
+  },
+  {
+    "id": "INT-A-072",
+    "domain": "Integration",
+    "topic": "Chunking a source-code monorepo for retrieval",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A developer-tools company is indexing its own 4-million-line monorepo so engineers can ask questions in prose — \"where do we validate webhook signatures?\" — and get back the relevant code. The first attempt used 512-token windows over raw files and performed poorly. Which THREE chunking and indexing decisions are appropriate for this corpus? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Split on syntactic boundaries — function or class — rather than on token counts, so each retrieved unit is a coherent piece of logic."
+      },
+      {
+        "key": "B",
+        "text": "Strip comments and docstrings before embedding, since they are not executable and dilute the code signal the embedding should carry."
+      },
+      {
+        "key": "C",
+        "text": "Prepend the file path and enclosing symbol names to each chunk before embedding, since bare identifiers repeat across a monorepo."
+      },
+      {
+        "key": "D",
+        "text": "Keep a fixed 512-token window but raise overlap to 50%, which ensures that no function is ever split across a chunk boundary."
+      },
+      {
+        "key": "E",
+        "text": "Index each unit twice — once as source and once as a generated natural-language description — so prose questions can match."
+      }
+    ],
+    "correct": [
+      "A",
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "All three keyed decisions push the indexed representation toward what the question looks like. Syntactic splitting gives a retrieval unit that is a complete thought — half a function answers nothing. Path and symbol context disambiguates: a monorepo contains a dozen functions called `validate`, and the enclosing package is what distinguishes the webhook one from the schema one. The dual representation is the decisive change for prose queries, because a question phrased in English about behaviour matches a description of behaviour far more reliably than it matches an implementation whose relevant words may be abbreviations or absent entirely.",
+      "distractors": {
+        "B": "Comments and docstrings are frequently the highest-value retrieval signal in a code corpus, because they are the only part written in the language the question is asked in. Removing them optimises for the reader who already knows where to look.",
+        "D": "Overlap guarantees nothing about structure: a function longer than the window is still split, and one shorter may still straddle a boundary. It also doubles the index for a property that syntactic splitting provides outright."
+      },
+      "concept": "Index the representation that resembles the query. Where questions are asked in one language — prose about behaviour — and the corpus is written in another, generate the bridging representation at ingest and index both, keeping a pointer so the artefact returned is the real one.",
+      "tip": "Multi-select items about chunking usually include one option promising that overlap enforces a structural guarantee. Overlap is a stride setting and never guarantees that a unit stays intact — that claim is reliably false."
+    }
+  }
+]

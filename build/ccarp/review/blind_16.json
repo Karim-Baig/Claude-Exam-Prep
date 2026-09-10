@@ -1,0 +1,678 @@
+{
+ "batch": "blind_16",
+ "count": 60,
+ "answer_file": "build/ccarp/review/answers_16.json",
+ "items": [
+  {
+   "id": "INT-B-002",
+   "choose": 1,
+   "question": "A freight brokerage exposes one `manage_shipment` tool to its Claude dispatch agent. It takes `action` (an eleven-value enum covering quote, book, amend, cancel, tender and tracking) and a free-form `payload` object that accepts any keys. In production roughly one call in six carries payload keys belonging to a different action, and the handler rejects it. The team also needs its approval service to gate `cancel` and `tender` while leaving read-only actions ungated. What should they change?",
+   "options": {
+    "A": "Keep the single tool and add a worked example of each payload shape to the description.",
+    "B": "Keep the single tool and validate the payload in the handler, returning an error naming the expected keys.",
+    "C": "Replace it with eleven tools, one per action, each with its own typed input schema.",
+    "D": "Keep the single tool and force it with `tool_choice` set to that tool name on every turn."
+   }
+  },
+  {
+   "id": "INT-B-003",
+   "choose": 1,
+   "question": "A hospital network's appointment agent calls `book_slot`, whose `department` parameter is typed as a plain string. The network has nine departments and the list has not changed in four years. In production the model sometimes sends values such as \"Cardiology Outpatients\" or \"Heart Clinic\", which the booking system rejects. Which schema change best fits this situation?",
+   "options": {
+    "A": "Keep the string type and list the nine valid departments in the system prompt.",
+    "B": "Keep the string type and have the handler fuzzy-match the value against the department table.",
+    "C": "Add a `list_departments` tool and instruct the model to call it before every booking.",
+    "D": "Constrain `department` to an `enum` of the nine valid values with a property description."
+   }
+  },
+  {
+   "id": "INT-B-004",
+   "choose": 1,
+   "question": "An energy trading desk exposes `submit_bid` to a Claude-assisted bidding workflow. Business rules require `price_per_mwh` between 0 and 500 and `volume_mw` to be a multiple of 5. The team enabled strict tool use and added `minimum`, `maximum` and `multipleOf` to the schema, expecting the arguments to be guaranteed valid. A bid at 640 per MWh reached the exchange and had to be withdrawn. What is the correct design response?",
+   "options": {
+    "A": "Move the constraints into the property descriptions as \"0 to 500\" and \"multiples of 5\", and rely on the model.",
+    "B": "Enforce the ranges in the handler and return a tool error naming the permitted price and volume bounds.",
+    "C": "Force the tool with `tool_choice` so the model commits to the schema rather than free-form text.",
+    "D": "Switch the bid path to a structured-output response format that declares the same numeric bounds."
+   }
+  },
+  {
+   "id": "INT-B-005",
+   "choose": 1,
+   "question": "A team turns on strict tool use for an existing tool and the request is rejected as invalid. What does the input schema have to satisfy?",
+   "options": {
+    "A": "Every object in the schema must set `additionalProperties: false` and declare a `required` list.",
+    "B": "Every property must carry a non-empty `description` so the constrained decoder knows what to emit.",
+    "C": "The schema must contain no arrays, since `minItems` and `maxItems` cannot be honoured under strict mode.",
+    "D": "The tool must be the only entry in the request's `tools` array, since strict is a request-level setting."
+   }
+  },
+  {
+   "id": "INT-B-006",
+   "choose": 2,
+   "question": "A telco field-service agent exposes `lookup_customer` and `search_accounts`. Their purposes overlap and trace logs show the model picking the wrong one on about a fifth of turns, producing empty results and a wasted round trip. Which TWO changes most directly reduce the wrong-tool rate? (Choose TWO.)",
+   "options": {
+    "A": "Set `tool_choice` to `any` so the model must commit to one of the two tools on every turn.",
+    "B": "Add `additionalProperties: false` to both input schemas so invented fields are rejected.",
+    "C": "Rewrite each description to state when to call it and when the other tool applies instead.",
+    "D": "Raise `max_tokens` so the model has more room to deliberate before emitting the call.",
+    "E": "Rename them `get_customer_by_msisdn` and `search_accounts_by_address` after the access path."
+   }
+  },
+  {
+   "id": "INT-B-007",
+   "choose": 1,
+   "question": "A streaming media company runs a long-lived rights-clearance agent. Its system prompt is large and static, sessions run twenty or more turns, and caching was carrying most of the cost. To keep the fixed tool set small the team adds a `fetch_rights_window` tool to the `tools` array only at the turn where licensing first comes up. Since that change, cache reads fall to zero for every turn after the insertion and spend has roughly doubled. What should they do next?",
+   "options": {
+    "A": "Add a second cache breakpoint immediately after the tool array so tools cache separately from the system prompt.",
+    "B": "Extend the cache lifetime to the extended one-hour tier so entries survive the gaps between turns.",
+    "C": "Declare the full tool set at session start and leave the array untouched for the session's lifetime.",
+    "D": "Collapse the tool set to a single generic `call_api` tool and describe the available operations in the system prompt."
+   }
+  },
+  {
+   "id": "INT-B-008",
+   "choose": 1,
+   "question": "An online grocery agent calls `place_order`, which has an optional `substitution_policy` parameter. Customers regularly state a preference in conversation (\"no dairy substitutes\"), but the model almost never populates the field, so orders fall back to the store default. What is the right fix?",
+   "options": {
+    "A": "Move `substitution_policy` into `required` so the model always supplies a value.",
+    "B": "Drop the parameter and read the customer's stored preference in the handler instead.",
+    "C": "Split into two tools, one that permits substitutions and one that does not.",
+    "D": "Give the property a description stating when to set it and what happens if it is omitted."
+   }
+  },
+  {
+   "id": "INT-B-009",
+   "choose": 1,
+   "question": "An airline's crew-rostering agent calls `find_open_pairings` with a `start_date` parameter typed as a plain string. Crew schedulers speak in relative terms, and the model passes values such as \"next Tuesday\" and \"the Monday after the bank holiday\". The roster service accepts only ISO dates and rejects roughly a tenth of calls. What is the best design?",
+   "options": {
+    "A": "Keep the free-text field and resolve it in the handler with a natural-language date parsing library.",
+    "B": "Type it as an ISO-8601 date, say so in the description, and put the current date in the request.",
+    "C": "Reject non-ISO values with a tool error quoting the expected `YYYY-MM-DD` format so the model resends.",
+    "D": "Add a `resolve_date` tool that converts phrases like \"next Tuesday\" into ISO dates before booking."
+   }
+  },
+  {
+   "id": "INT-B-010",
+   "choose": 1,
+   "question": "A property and casualty insurer's claims agent calls `search_claims`, which exposes fourteen boolean flags including `include_closed`, `open_only` and `reopened_only`. Trace review shows the model regularly sets contradictory pairs, and the handler's behaviour in those cases was never defined, so results vary. Which change addresses the root cause?",
+   "options": {
+    "A": "Replace the mutually exclusive booleans with a single `status_filter` enum.",
+    "B": "Detect contradictory pairs in the handler and return a tool error listing them.",
+    "C": "Document the exclusivity rules in the tool description, listing which flag pairs conflict.",
+    "D": "Mark all three flags as required with documented defaults so no combination is implicit."
+   }
+  },
+  {
+   "id": "INT-B-011",
+   "choose": 3,
+   "question": "A pharmaceutical manufacturer runs an internal MCP server over the network that fronts its manufacturing execution system. Product owners want to add a batch-record purge capability, used only to clear quarantined trial batches. Released batches are GxP records and must never be touched. Which THREE design decisions belong in the server's tool surface? (Choose THREE.)",
+   "options": {
+    "A": "Rely on the tool's destructive-operation annotation to make the host prompt an operator before executing.",
+    "B": "Expose `purge_batch_record` as its own tool rather than a `mode: \"purge\"` value on the write tool.",
+    "C": "Require the caller to pass the record version read earlier, and fail if the stored version has moved since.",
+    "D": "Run the purge path under a credential that can only reach records in the quarantined state.",
+    "E": "Move the server to a stdio transport so the purge tool is reachable only from the host machine."
+   }
+  },
+  {
+   "id": "INT-B-012",
+   "choose": 1,
+   "question": "A telco's order-management agent calls `create_order`, whose input schema nests six levels deep: order, then customer, then service address, then each of two product lines with their own option groups. Arguments always validate against the schema, but about one order in eight puts a correct value in the wrong branch — a broadband option landed under the mobile line. Which change addresses this?",
+   "options": {
+    "A": "Enable strict tool use so every argument object is guaranteed to conform to the nested schema.",
+    "B": "Add a fully worked nested example order to the tool description, covering both product lines.",
+    "C": "Split it into six sequential tools, one per nesting level, each returning a handle for the next.",
+    "D": "Flatten the schema to named top-level parameters and rebuild the payload in the handler."
+   }
+  },
+  {
+   "id": "INT-B-013",
+   "choose": 1,
+   "question": "A tool takes a `timeout` parameter measured in milliseconds. For Claude to populate it correctly, where does that unit have to be documented?",
+   "options": {
+    "A": "In the handler function's docstring, next to the code that consumes it.",
+    "B": "In the property's `description` inside the tool's input schema.",
+    "C": "In the API gateway's request-validation rules for the downstream service.",
+    "D": "In the OpenAPI document that the tool definition was generated from."
+   }
+  },
+  {
+   "id": "INT-B-014",
+   "choose": 1,
+   "question": "A city council's planning agent calls `list_permits`, which takes `offset` and `limit`. Long research runs walk hundreds of results. Audit found the agent occasionally re-reads a page or skips one, and because new permits are inserted continuously, offsets shift under it. The council needs reproducible enumeration for its own audit trail. What should the tool's input contract become?",
+   "options": {
+    "A": "Return an opaque `next_cursor` from each call and accept it as an optional `cursor` parameter.",
+    "B": "Raise the maximum page size to 200 rows so most enumerations complete in two or three calls.",
+    "C": "Keep offset and limit but state the arithmetic rule in the description so the model advances correctly.",
+    "D": "Have the handler track each conversation's position server-side and ignore the offset the model sends."
+   }
+  },
+  {
+   "id": "INT-B-015",
+   "choose": 1,
+   "question": "An automotive parts marketplace runs a Claude ordering agent. Its `create_fulfilment` schema leaves `additionalProperties` at the default, and the model began emitting a `warehouse_hint` field it inferred from conversation. The handler ignores unknown keys, so orders shipped from the default depot for three weeks before a regional manager noticed the freight bill. The team is on a model tier that supports strict tool use. What is the right next step?",
+   "options": {
+    "A": "Add `warehouse_hint` to the schema and implement it in the handler.",
+    "B": "Add a system-prompt instruction telling the model not to invent parameters.",
+    "C": "Set `additionalProperties: false` throughout the schema and enable strict tool use.",
+    "D": "Strip unknown keys in the gateway and log them to the order-audit stream."
+   }
+  },
+  {
+   "id": "INT-B-016",
+   "choose": 1,
+   "question": "A university's student-records agent calls `get_enrolments`. Three months ago the platform team narrowed it to return only the current term, for query-performance reasons that still hold. The description was not touched. Since then the agent has confidently told students that withdrawn prior-term modules \"do not appear on your record\", and the registrar has escalated. What is the correct response?",
+   "options": {
+    "A": "Add a note to the system prompt explaining that enrolment results cover the current term only.",
+    "B": "Add an output check that flags answers referring to prior terms before they reach the student.",
+    "C": "Revert the narrowing so the query returns all terms and matches the description again.",
+    "D": "Update the description to state the current-term scope, and version it with the implementation."
+   }
+  },
+  {
+   "id": "INT-B-017",
+   "choose": 2,
+   "question": "A cross-border payments platform is designing `create_payout` for its Claude support agent. Accounts hold balances in several currencies simultaneously, and settlement is to the cent with defined rounding. Which TWO parameter-typing decisions are correct? (Choose TWO.)",
+   "options": {
+    "A": "Take the amount as a `number` with `multipleOf: 0.01` so sub-cent values are rejected at generation.",
+    "B": "Take the amount as an integer in minor units alongside a `currency` parameter constrained to an enum.",
+    "C": "Accept a formatted string such as `\"1,234.56 EUR\"` and parse amount and currency in the handler.",
+    "D": "Omit `currency` and have the handler resolve it from the account's default currency setting.",
+    "E": "State the minor-unit and rounding convention in the `amount` property description."
+   }
+  },
+  {
+   "id": "INT-B-018",
+   "choose": 1,
+   "question": "A tool schema lists every property in `required`, including several the user frequently does not mention. What is the most likely production consequence?",
+   "options": {
+    "A": "The model stops calling the tool and asks a clarifying question when a value is missing.",
+    "B": "The model fabricates plausible values for the properties the user never mentioned.",
+    "C": "The API rejects the tool definition, since `required` cannot list every property.",
+    "D": "The handler receives explicit nulls for those properties, distinguishable from omitted keys."
+   }
+  },
+  {
+   "id": "INT-B-019",
+   "choose": 1,
+   "question": "A national retailer's support agent calls `get_order`, whose handler returns the order service's raw response verbatim: line-item tax breakdowns, warehouse routing metadata, and every status transition since creation, around 40 KB of JSON. Conversations average six lookups. Cost per conversation has tripled and the agent has started quoting an intermediate status as the current one. What should the team change?",
+   "options": {
+    "A": "Move to a model tier with a 1M-token context window so six 40 KB payloads fit.",
+    "B": "Minify the JSON and strip whitespace and indentation before the result is appended.",
+    "C": "Truncate each result to a fixed 4 KB character budget before appending it to the transcript.",
+    "D": "Return a projection of the fields support needs, plus a separate tool for full history."
+   }
+  },
+  {
+   "id": "INT-B-020",
+   "choose": 1,
+   "question": "A hospital's pathology agent calls `list_specimens`, which returns an array of UUIDs, then calls `get_result` with one of them. When a patient has several specimens in flight — a repeat draw, a send-out, and a same-day add-on — the agent passes the wrong UUID in roughly a tenth of cases and reports the wrong result. The UUIDs are required by the downstream system. What is the best fix?",
+   "options": {
+    "A": "Return each UUID with distinguishing attributes: collection time, test name and site.",
+    "B": "Return only the most recently collected specimen so there is nothing to choose between.",
+    "C": "Sort the array newest-first by collection time and document that the first entry is the one to use.",
+    "D": "Add a description instructing the agent to ask the patient which specimen number they mean."
+   }
+  },
+  {
+   "id": "INT-B-021",
+   "choose": 1,
+   "question": "Claude returns three `tool_use` blocks in a single assistant message and your harness executes all three. How must the results be sent back?",
+   "options": {
+    "A": "As three separate user messages, each appended in the order its handler completed.",
+    "B": "As one `tool_result` whose content concatenates all three payloads in request order.",
+    "C": "As three `tool_result` blocks in a single user message, each carrying its matching `tool_use_id`.",
+    "D": "As a single user message listing the three payloads positionally in the order they were requested."
+   }
+  },
+  {
+   "id": "INT-B-022",
+   "choose": 1,
+   "question": "A logistics platform's agent looks up carrier ETAs across four systems and used to issue all four calls in one turn, hitting its 4-second budget. A release changed the harness to stream each result back as soon as its handler finished, appending each as its own user message. Handlers still run concurrently and each is as fast as before, but p95 has climbed past 9 seconds and traces show the model now issuing one call per turn. What is the cause and fix?",
+   "options": {
+    "A": "Parallel tool use was disabled by the release; clear `disable_parallel_tool_use` in the request.",
+    "B": "The one-result-per-message history taught the model to stop batching; return all results for a turn in a single user message.",
+    "C": "The tool descriptions no longer indicate independence; state in each that it may be called alongside the others.",
+    "D": "The harness is no longer concurrent in practice; increase the worker pool so four handlers genuinely overlap."
+   }
+  },
+  {
+   "id": "INT-B-023",
+   "choose": 1,
+   "question": "A tool handler fails. What does returning a `tool_result` with `is_error` set to true accomplish, compared with returning the failure text as an ordinary result?",
+   "options": {
+    "A": "It triggers an automatic server-side retry of the tool call before the turn continues.",
+    "B": "It excludes the failed call and its result from the billed input token count.",
+    "C": "It causes the API to return a non-success HTTP status the client can catch.",
+    "D": "It marks the content as a failure so the model adapts, while the turn stays well-formed."
+   }
+  },
+  {
+   "id": "INT-B-024",
+   "choose": 1,
+   "question": "A public-sector benefits agent returns tool failures by passing the caught exception straight through: a 4 KB stack trace plus the failing query. Two problems have emerged. The model cannot tell what to do differently, so it repeats the same call; and fragments of the trace have appeared in citizen-facing replies. What should the error contract be?",
+   "options": {
+    "A": "Return an error result with no content, so there is nothing for the model to leak or misread.",
+    "B": "Keep the trace but instruct the model in the system prompt never to reproduce internal diagnostics.",
+    "C": "Return a stable code, a one-line reason, and what would have to change for a retry to succeed; log the trace.",
+    "D": "Let the handler raise, ending the turn, and surface a generic failure message in the application."
+   }
+  },
+  {
+   "id": "INT-B-025",
+   "choose": 1,
+   "question": "A mining operations agent issued four `tool_use` blocks in one turn. Three handlers succeeded; the fourth threw before producing anything, and the harness's exception path skipped it, appending only three `tool_result` blocks. The next request into the conversation is rejected and the on-call engineer is looking at the transcript. What should they do next?",
+   "options": {
+    "A": "Append a fourth `tool_result` with the missing `tool_use_id`, `is_error` set, and a short reason.",
+    "B": "Remove the assistant message containing the four `tool_use` blocks and re-issue the user's request.",
+    "C": "Keep the three results and add a text block explaining that the fourth tool failed.",
+    "D": "Re-run the failed handler until it succeeds, then append its result to the existing user message."
+   }
+  },
+  {
+   "id": "INT-B-026",
+   "choose": 2,
+   "question": "An agent harness executes the `tool_use` blocks in an assistant turn concurrently by default. Which TWO conditions in a given batch require the harness to serialise it instead? (Choose TWO.)",
+   "options": {
+    "A": "Two calls mutate the same record and neither carries a version the handler can check.",
+    "B": "Two calls are routed to the same downstream inventory service over one connection pool.",
+    "C": "One call's arguments were derived from another call's result earlier in the same batch.",
+    "D": "The downstream system requires the operations to be applied in a defined order.",
+    "E": "The batch contains more than three tool calls in the one assistant turn."
+   }
+  },
+  {
+   "id": "INT-B-027",
+   "choose": 1,
+   "question": "A warehouse management agent runs `check_stock`, `find_bin` and `list_orders` in parallel constantly, and the 2-second interaction budget depends on that. Twice this month it also emitted `adjust_stock` and `reserve_stock` for the same SKU in one turn; both read the same quantity, both wrote, and one adjustment was lost. The team's instinct is to switch parallel tool use off. What is the right design?",
+   "options": {
+    "A": "Set `disable_parallel_tool_use` on every request so the model emits at most one call per turn.",
+    "B": "Add a line to both stock-tool descriptions telling the model never to call them in the same turn.",
+    "C": "Retry the losing write when a conflict is detected, letting the second attempt overwrite the first.",
+    "D": "Classify tools in the harness and schedule reads concurrently, same-resource mutations serially."
+   }
+  },
+  {
+   "id": "INT-B-028",
+   "choose": 1,
+   "question": "With `tool_choice` left at `auto`, what does setting `disable_parallel_tool_use` guarantee?",
+   "options": {
+    "A": "The model emits exactly one `tool_use` block in every response.",
+    "B": "The model emits at most one `tool_use` block per response.",
+    "C": "The SDK executes tool handlers sequentially rather than concurrently.",
+    "D": "Results for separate calls may be returned in separate user messages."
+   }
+  },
+  {
+   "id": "INT-B-029",
+   "choose": 3,
+   "question": "A genomics research agent calls `query_variants`, whose results run from 60 KB to 200 KB of tab-separated rows. A typical investigation takes about thirty tool calls and now exhausts the context window before the analysis is written up. Which THREE changes reduce token consumption while preserving the agent's ability to answer? (Choose THREE.)",
+   "options": {
+    "A": "Raise `max_tokens` to the model's ceiling so there is room in the budget to work with the larger results.",
+    "B": "Project each result to the columns the question needs and document that in the tool description.",
+    "C": "Cap the rows returned and say in the result that it was capped, with guidance on narrowing the filter.",
+    "D": "Set `disable_parallel_tool_use` so at most one `query_variants` call is issued in any single turn.",
+    "E": "Write the full result to object storage and return a summary plus a handle for an analysis tool."
+   }
+  },
+  {
+   "id": "INT-B-030",
+   "choose": 1,
+   "question": "A veterinary group's booking agent calls `find_appointments`, which returns an empty array when nothing matches. Occasionally the agent then offers the client a slot that does not exist. What is the best change to the tool's output?",
+   "options": {
+    "A": "Return the empty result with the error flag set so the model treats it as a failure.",
+    "B": "Add a system-prompt rule forbidding the agent from offering appointments it has not seen.",
+    "C": "Return an explicit statement that no slots matched, with the criteria used and the nearest dates.",
+    "D": "Return `null` rather than an empty array so the absence of matching slots is unambiguous."
+   }
+  },
+  {
+   "id": "INT-B-031",
+   "choose": 1,
+   "question": "An insurer's claims-status agent must call `get_policy` to obtain a customer id, pass it to `get_claims` for claim ids, then call `get_documents` for each claim. That is four round trips against a 3-second interaction budget it now misses on most conversations. The runtime is an on-premises service with no code-execution sandbox available. What is the most effective change?",
+   "options": {
+    "A": "Instruct the model to issue `get_policy`, `get_claims` and `get_documents` in one turn.",
+    "B": "Add a composite tool that runs the chain in the backend and returns the joined result.",
+    "C": "Raise the harness worker pool so the three claims handlers overlap rather than queue.",
+    "D": "Cache the intermediate policy and claim lookups in Redis so repeat conversations are faster."
+   }
+  },
+  {
+   "id": "INT-B-032",
+   "choose": 2,
+   "question": "A shipping port is defining the error contract for the tools its terminal-operations agent calls. Which TWO items belong in the error returned to the model? (Choose TWO.)",
+   "options": {
+    "A": "The full stack trace from the failing terminal service, for diagnosis.",
+    "B": "A stable error code together with one line stating what was wrong with the call.",
+    "C": "An instruction telling the user to contact the port's service desk.",
+    "D": "Whether a retry could succeed, and what would have to change for it to.",
+    "E": "The exact query the handler executed against the terminal database."
+   }
+  },
+  {
+   "id": "INT-B-033",
+   "choose": 1,
+   "question": "During a partial outage an e-commerce agent's search backend returned 503s. The harness passed each straight through as an error result reading \"503 Service Unavailable\". Traces show the model reissuing the identical call up to six times per turn, and spend for the hour was several times normal. What is the correct design?",
+   "options": {
+    "A": "Retry transient failures in the harness with backoff, then return a terminal unavailability result.",
+    "B": "Add a system-prompt rule that the model may retry any failed tool call at most once per turn.",
+    "C": "Cap the agent loop's iterations in the harness so a turn cannot make more than three tool calls.",
+    "D": "Return the 503 text without the error flag so the model reads it as ordinary data rather than a failure."
+   }
+  },
+  {
+   "id": "INT-B-034",
+   "choose": 1,
+   "question": "A media company's transcoding agent issues several tool calls per turn. Its harness dispatches them to a worker pool and appends results in completion order, mapping the nth result to the nth call. Since a slow probe handler was added, users occasionally see one asset's metadata attributed to another. What should change?",
+   "options": {
+    "A": "Sort the results by completion timestamp before appending them to the user message.",
+    "B": "Execute the calls serially so completion order matches request order.",
+    "C": "Pair each result with its call by `tool_use_id` instead of by index.",
+    "D": "Add a sequence number to each tool's arguments so results can be reordered on it."
+   }
+  },
+  {
+   "id": "INT-B-035",
+   "choose": 1,
+   "question": "A commodities desk's assistant calls `get_spot_price`, which serves from a cache that can be up to an hour behind. The handler returns a bare number, and traders have been quoted stale figures presented as live. What should the result include?",
+   "options": {
+    "A": "Nothing extra; shorten the cache lifetime so results are closer to live.",
+    "B": "Nothing extra; instruct the assistant to state that all prices may be delayed.",
+    "C": "The error flag whenever the cached value is older than a defined threshold.",
+    "D": "An `as_of` timestamp and the source of the quote alongside the value."
+   }
+  },
+  {
+   "id": "INT-B-036",
+   "choose": 1,
+   "question": "An agricultural co-operative's advisory agent calls `export_yield_data`, which returns a season's field-level records as a 2 MB CSV in the tool result. It worked for pilot farms; with the full membership loaded, requests now fail outright. The agent's actual job is to answer questions such as which fields underperformed their five-year average. What should the team do next?",
+   "options": {
+    "A": "Return a short summary and a handle to the stored export, plus a tool that queries it.",
+    "B": "Truncate the CSV to the first five hundred rows and return those in the tool result.",
+    "C": "Move to a model with a 1M-token context window so the whole export fits in one turn.",
+    "D": "Split the export across ten sequential tool calls that the agent stitches back together."
+   }
+  },
+  {
+   "id": "INT-B-037",
+   "choose": 1,
+   "question": "In MCP, which statement correctly matches the three primitives to the party that decides they are used?",
+   "options": {
+    "A": "All three are invoked by the model at its discretion; the host only chooses which servers to connect to.",
+    "B": "Resources are invoked by the model, tools are attached by the host, and prompts are emitted by the server on connection.",
+    "C": "Tools are invoked at the model's discretion, resources are selected by the host application, and prompts are initiated by the user.",
+    "D": "Tools and resources are both invoked by the model, and prompts are pushed by the server when it detects a matching intent."
+   }
+  },
+  {
+   "id": "INT-B-038",
+   "choose": 1,
+   "question": "A law firm's MCP server fronts its matter-management system. Fee-earners want to pick which contracts from a matter are attached to a drafting conversation. Client confidentiality rules mean the assistant must never pull a document the fee-earner did not choose. Documents are read-only and each has a stable identifier. How should they be exposed?",
+   "options": {
+    "A": "As a `get_document` tool the assistant calls with a document identifier when it needs one.",
+    "B": "As resources addressed by URI, which the host lists for the fee-earner to select and attach.",
+    "C": "As one prompt per document, so each appears as an entry in the host's prompt menu.",
+    "D": "By returning every document in the matter in a single tool result at the start of the conversation."
+   }
+  },
+  {
+   "id": "INT-B-039",
+   "choose": 1,
+   "question": "A hospital trust wants clinicians to start a standard discharge-summary drafting flow from a menu in their assistant, supplying the patient identifier and discharge date, which preloads the conversation with the trust's approved wording and checks. Governance requires that the assistant never begins this flow on its own initiative. How should the MCP server expose it?",
+   "options": {
+    "A": "As a `draft_discharge_summary` tool whose description says to use it only when a clinician asks.",
+    "B": "As a resource whose content is the trust's approved discharge-summary template.",
+    "C": "By having the host prepend the approved template to its system prompt for every conversation.",
+    "D": "As a prompt that takes the patient identifier and discharge date as arguments."
+   }
+  },
+  {
+   "id": "INT-B-040",
+   "choose": 1,
+   "question": "A semiconductor design organisation needs two MCP capabilities. One inspects multi-gigabyte simulation dumps that live on each engineer's workstation and requires a node-locked licence tied to that machine. The other queries a central design-rule database that four hundred engineers and the CI fleet must reach. The platform team wants a single answer for consistency. What should the architect recommend?",
+   "options": {
+    "A": "Two servers: the workstation capability over stdio, the shared service over HTTP with its own authentication.",
+    "B": "One remote HTTP server for both, with a companion daemon installed on each workstation for the local capability.",
+    "C": "One local stdio server for both, reaching the central design-rule database from each workstation.",
+    "D": "HTTP for both, since a single transport is simpler to operate, document and monitor centrally."
+   }
+  },
+  {
+   "id": "INT-B-041",
+   "choose": 1,
+   "question": "A locally launched MCP server runs fine in the team's own test harness. As soon as an engineer enables its verbose logging flag, the host reports protocol parse failures and drops the connection. What is the most likely cause?",
+   "options": {
+    "A": "The server writes its log lines to standard output, which is the channel carrying the protocol messages.",
+    "B": "Log volume exceeds the pipe buffer, so writes block and protocol messages are lost.",
+    "C": "Verbose logging slows start-up past the host's initialisation timeout, so the handshake fails.",
+    "D": "The server must declare a logging capability during initialisation before emitting any log output."
+   }
+  },
+  {
+   "id": "INT-B-042",
+   "choose": 1,
+   "question": "An insurance broker platform runs a remote MCP server as three replicas behind a layer-7 load balancer. Long-running tool calls stream progress back to clients. Users intermittently lose the stream part-way through a call, and the follow-up request returns an error saying the session is unknown. Failures rise with traffic. What is the correct fix?",
+   "options": {
+    "A": "Raise the load balancer's idle timeout so long-running streams are not cut mid-call.",
+    "B": "Move the server to stdio so each user runs a dedicated process on their own machine.",
+    "C": "Use session affinity, or externalise session state so any replica can serve it.",
+    "D": "Disable streaming and return each tool's output as one response at the end of the call."
+   }
+  },
+  {
+   "id": "INT-B-043",
+   "choose": 2,
+   "question": "A manufacturer is designing an MCP server for its quality management system. Which TWO of the following capabilities should be exposed as resources rather than as tools or prompts? (Choose TWO.)",
+   "options": {
+    "A": "Submitting a completed non-conformance report into the quality management system.",
+    "B": "The current revision of a work instruction, addressed by URI, which an operator chooses to attach.",
+    "C": "A parameterised \"start a corrective action investigation\" interaction offered in the host's menu.",
+    "D": "The read-only ISO certificate for a given plant, fetched by its stable URI.",
+    "E": "Recalculating a control chart's limits from the most recent two hundred measurements."
+   }
+  },
+  {
+   "id": "INT-B-044",
+   "choose": 1,
+   "question": "A retailer built one MCP server wrapping twelve internal systems — orders, inventory, pricing, loyalty, CRM and more — owned by five different teams. It now advertises about 140 tools. Every change needs a coordinated release across those teams, and last month a pricing defect took every agent in the company offline. What should change?",
+   "options": {
+    "A": "Keep one server and gate each tool behind a feature flag so faulty tools can be switched off.",
+    "B": "Keep one server and move it from stdio to HTTP so it can be scaled and restarted independently of hosts.",
+    "C": "Keep one server and merge related tools into dispatcher tools to bring the advertised count down.",
+    "D": "Split it into servers aligned to ownership boundaries, each versioned, deployed and enabled independently."
+   }
+  },
+  {
+   "id": "INT-B-045",
+   "choose": 1,
+   "question": "A SaaS provider's MCP server advertises a `refund_charge` tool only to tenants whose plan includes it; the contract with resellers requires that unentitled tenants cannot see it. When a tenant upgrades mid-session, connected hosts keep showing the previous tool set until the user quits and reopens the assistant, and support tickets are climbing. What should the team do next?",
+   "options": {
+    "A": "Document that users must restart the assistant after a plan change and surface a banner when one occurs.",
+    "B": "Emit the protocol's tool list-changed notification on entitlement change so connected hosts refetch the list.",
+    "C": "Advertise the tool to every tenant and return a permission error when an unentitled tenant calls it.",
+    "D": "Have each connected host poll the server for its tool list on a thirty-second interval."
+   }
+  },
+  {
+   "id": "INT-B-046",
+   "choose": 1,
+   "question": "How does an MCP client identify a specific resource, and how does a server advertise a family of related resources without listing every member?",
+   "options": {
+    "A": "By a numeric index into the resource list, with families exposed as nested lists.",
+    "B": "By URI, with families exposed as resource templates carrying parameterised URIs.",
+    "C": "By tool name, since resources are fetched through a reserved read tool.",
+    "D": "By local file path, which is why only locally launched servers can expose resources."
+   }
+  },
+  {
+   "id": "INT-B-047",
+   "choose": 1,
+   "question": "A transport authority's MCP server returns incident logs that routinely run to hundreds of pages, so raw returns are not viable. Investigators ask varied questions, so a fixed nightly summary would not serve them. The server team proposes provisioning its own model API key and summarising inside the tool handler before returning. The security architect objects. What is the better design?",
+   "options": {
+    "A": "Provision the server's own key but restrict it to one model and cap its monthly spend at £500.",
+    "B": "Have the host pass its model credential to the server as a tool argument, so one account is used.",
+    "C": "Request the completion from the client through the protocol's sampling capability.",
+    "D": "Pre-summarise each incident log nightly in a batch job and return the stored summary."
+   }
+  },
+  {
+   "id": "INT-B-048",
+   "choose": 2,
+   "question": "An MCP server is consumed by four host applications on release cadences its team does not control. The team needs `create_ticket` to start accepting a `severity` field. Which TWO changes can ship without breaking hosts that have not updated? (Choose TWO.)",
+   "options": {
+    "A": "Add `severity` to the tool's required list and increment the server's advertised version.",
+    "B": "Rely on hosts refetching the tool list at connection time so they receive the new schema.",
+    "C": "Add `severity` as an optional property with a documented default when it is omitted.",
+    "D": "Describe the new field in the tool description and leave the input schema unchanged.",
+    "E": "Introduce a `create_ticket_v2` tool with the new contract and keep the original until hosts migrate."
+   }
+  },
+  {
+   "id": "INT-B-049",
+   "choose": 2,
+   "question": "A team is moving an MCP server from stdio, where each user launched their own process under their own account, to a remote HTTP deployment shared across the organisation. Which TWO responsibilities does the server acquire that it did not previously have? (Choose TWO.)",
+   "options": {
+    "A": "Serialising its messages as JSON-RPC, which the stdio transport did not require it to do.",
+    "B": "Authenticating callers and verifying that a presented token was issued for this server.",
+    "C": "Defining its tools with JSON Schema, which only the remote HTTP transport validates on arrival.",
+    "D": "Isolating concurrent users from one another, since one process now serves many identities.",
+    "E": "Deciding whether to offer resources and prompts, which servers launched locally cannot expose."
+   }
+  },
+  {
+   "id": "INT-B-050",
+   "choose": 1,
+   "question": "A team exposed \"summarise this ticket\" from their MCP server as a prompt. They expected the agent to use it automatically whenever a long ticket came up mid-conversation, and are puzzled that it never does. What is going on?",
+   "options": {
+    "A": "Prompts are user-initiated and not model-invocable; that capability must be a tool.",
+    "B": "The prompt's description lacks trigger conditions telling the model when to use it.",
+    "C": "The host has not switched on automatic prompt invocation for this server's capabilities.",
+    "D": "Prompts must be converted into resources before the model can read and use them."
+   }
+  },
+  {
+   "id": "INT-B-051",
+   "choose": 1,
+   "question": "A county archive's MCP server exposes 4,200 scanned record series as individual static resources. Hosts that list resources when they connect now spend a substantial slice of the context window on the listing before the researcher has asked anything, and researchers report the assistant struggling to pick the right series. What should the team do next?",
+   "options": {
+    "A": "Paginate the resource listing so hosts fetch it in pages of fifty entries.",
+    "B": "Move the series out of resources and return matching series from a tool instead.",
+    "C": "Shorten each resource's name and description to reduce the listing's size.",
+    "D": "Expose resource templates plus a search tool that returns matching URIs."
+   }
+  },
+  {
+   "id": "INT-B-052",
+   "choose": 1,
+   "question": "A construction firm's MCP server has a `select_project` tool that sets a current project held per connection; every other tool operates implicitly on it. Two problems have surfaced. After a laptop wakes and the host reconnects, tools act on the wrong project. Since the server was scaled to three replicas, results for the same question differ between calls. What is the correct fix?",
+   "options": {
+    "A": "Persist the selected project in a shared Redis store keyed by session so all replicas agree.",
+    "B": "Make the project a required parameter on every tool and remove the implicit selection.",
+    "C": "Have the host re-issue `select_project` automatically after every reconnect and resume.",
+    "D": "Pin each session to one replica using load balancer affinity on the session id."
+   }
+  },
+  {
+   "id": "INT-B-053",
+   "choose": 1,
+   "question": "Claude, running in a host application connected to an MCP server, decides to call one of that server's tools. Which component executes it?",
+   "options": {
+    "A": "The MCP server, after the host's client forwards the invocation over its connection.",
+    "B": "The host application, from a local copy of the handler it obtained during discovery.",
+    "C": "The model provider's infrastructure, as part of generating the response.",
+    "D": "The host's client, which implements the tool and uses the server only for schema discovery."
+   }
+  },
+  {
+   "id": "INT-B-054",
+   "choose": 2,
+   "question": "Which TWO statements are true of MCP's stdio transport? (Choose TWO.)",
+   "options": {
+    "A": "The server runs as a child process and exchanges protocol messages over standard input and output.",
+    "B": "A single server process serves many simultaneous remote clients over one shared listener socket.",
+    "C": "One server process serves exactly the one client that launched it, and exits with it.",
+    "D": "The server must implement an authorisation flow of its own before a client may call any of its tools.",
+    "E": "It supports tools only; resources and prompts require a network-reachable transport instead."
+   }
+  },
+  {
+   "id": "INT-B-055",
+   "choose": 1,
+   "question": "A healthcare payer runs a remote MCP server exposing claims-adjudication tools. Its authorisation check verifies that the bearer token is signed by the corporate identity provider, is unexpired, and carries a `claims.read` scope. A penetration test showed that a token minted for the internal reporting portal — also signed by the same provider, also carrying `claims.read` — was accepted, letting a lower-trust application drive adjudication tools. What must the check add?",
+   "options": {
+    "A": "Rejection of tokens whose remaining lifetime is longer than the server's session length.",
+    "B": "Verification that the token's intended audience identifies this server, rejecting any that does not.",
+    "C": "A mutual-TLS client certificate requirement on the endpoint in addition to the bearer token.",
+    "D": "A stricter scope requirement, so only tokens carrying an adjudication-specific scope are accepted."
+   }
+  },
+  {
+   "id": "INT-B-056",
+   "choose": 1,
+   "question": "A travel company's MCP server exposes a `check_fare` tool backed by a partner booking API. The server currently forwards the caller's own access token straight to that partner. The token is issued to the traveller-facing app and carries broad scopes including booking modification and payment-method access, because the app needs them elsewhere. Security review has flagged it. What is the right design?",
+   "options": {
+    "A": "Exchange the caller's token for a fare-lookup-scoped credential that carries the caller's identity.",
+    "B": "Keep forwarding the token but strip the unneeded scopes from its claim set before sending it on.",
+    "C": "Call the partner with a single shared operations credential and record the caller in the server's own log.",
+    "D": "Have the model pass only the scopes the call needs as a tool argument that the handler honours."
+   }
+  },
+  {
+   "id": "INT-B-057",
+   "choose": 1,
+   "question": "Where do backend credentials typically come from for a locally launched stdio MCP server, compared with a remote HTTP one?",
+   "options": {
+    "A": "Both take their backend credentials from the caller's access token, presented on every request.",
+    "B": "Both read them from a shared secrets file that the host writes at start-up and rotates daily.",
+    "C": "The stdio server takes them from its process environment; the HTTP server uses its own service credentials.",
+    "D": "The stdio server obtains them through an authorisation flow; the HTTP server reads them from environment variables."
+   }
+  },
+  {
+   "id": "INT-B-058",
+   "choose": 1,
+   "question": "A professional services firm's MCP server fronts its engagement-management system. Every tool runs its queries under one service account with read access across all engagements, because that was simplest to provision. An internal audit found that a junior consultant could ask the assistant about a restricted engagement they have no access to in the source system and receive a full answer. What must change?",
+   "options": {
+    "A": "Add a system-prompt instruction that the assistant must not answer about engagements outside the user's team.",
+    "B": "Have the host filter tool results against the user's entitlements before showing them.",
+    "C": "Require users to state their engagement code, and check it against a roster in the handler.",
+    "D": "Propagate the authenticated end-user identity to the server and evaluate their entitlements on every call."
+   }
+  },
+  {
+   "id": "INT-B-059",
+   "choose": 3,
+   "question": "An HR-technology vendor is building a remote MCP server that customers' own assistants will connect to, serving many tenants from one deployment. Which THREE controls belong in the server's authorisation design? (Choose THREE.)",
+   "options": {
+    "A": "Validate that the presented token was issued for this server, not merely that it is authentic.",
+    "B": "Rely on each customer's host application to filter results to that customer's data before display.",
+    "C": "Derive the tenant scope from the verified caller identity rather than from an argument in the tool call.",
+    "D": "Record the tenant identifier taken from the tool call's arguments as the audit trail's subject.",
+    "E": "Obtain a least-privilege backend credential per capability rather than one for the whole server."
+   }
+  },
+  {
+   "id": "INT-B-060",
+   "choose": 1,
+   "question": "A utility runs two agents against its outage-management system through one MCP server that exposes both read tools and dispatch-crew write tools. One agent is a customer-facing status assistant that must never dispatch anything; the other is an operator co-pilot that must. Risk has asked for an arrangement where a prompt-injection defect in the customer assistant could not cause a dispatch. What should the architect do?",
+   "options": {
+    "A": "Keep one server and add a description on each write tool saying the status assistant must not call it.",
+    "B": "Keep one server and require human approval for every call the customer-facing assistant makes.",
+    "C": "Split into read-only and write servers, connecting the status assistant only to the read-only one.",
+    "D": "Keep one server and have write handlers reject calls carrying an `agent_role` argument of `status`."
+   }
+  },
+  {
+   "id": "INT-B-061",
+   "choose": 1,
+   "question": "Why must an MCP server refuse a token that is valid but was issued for a different service?",
+   "options": {
+    "A": "Because it would act for a caller the issuer never authorised to direct — a confused deputy.",
+    "B": "Because tokens issued for other services use a shorter expiry and would fail mid-session.",
+    "C": "Because the protocol requires a freshly minted token for each new session it opens.",
+    "D": "Because the audience claim is what identity providers use when applying per-service rate limits."
+   }
+  }
+ ]
+}

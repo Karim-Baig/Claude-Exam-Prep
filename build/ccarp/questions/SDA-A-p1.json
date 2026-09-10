@@ -1,0 +1,454 @@
+[
+  {
+    "id": "SDA-A-001",
+    "domain": "Solution Design & Architecture",
+    "topic": "Defining the augmented LLM baseline",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In the composable-patterns view of Claude system design, what distinguishes the augmented LLM baseline from every workflow pattern built on top of it?",
+    "options": [
+      { "key": "A", "text": "It runs without a system prompt, because role and output-format instructions first appear in a workflow's step prompts." },
+      { "key": "B", "text": "It performs no tool calls, because handing the model a search or code-execution tool is what makes a system agentic." },
+      { "key": "C", "text": "It is a single model invocation that may use retrieval, tools and memory, with no orchestration code around the call." },
+      { "key": "D", "text": "It is pinned to the cheapest available tier, because higher tiers are reserved for the individual steps of a workflow." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The baseline is the unit that every pattern composes: one call to the model, with its augmentations available — retrieval to bring in context, tools to act on the world, memory to carry state — and no code outside the call deciding what happens next. The moment orchestration sequences a second call, dispatches between prompts, or loops on a critique, you have left the baseline and started paying a pattern's cost in latency, tokens and failure surface. Architects who cannot name the baseline tend to skip building it, and then have nothing to measure a five-step chain against.",
+      "distractors": {
+        "A": "System prompts belong to the baseline, not to a later layer. A single augmented call typically has the most carefully engineered system prompt in the whole system, because everything downstream depends on it behaving.",
+        "B": "Tool use is one of the three augmentations that define the baseline. What makes a system agentic is the model directing its own loop over those tools, not the presence of tools at all.",
+        "D": "Tier choice is orthogonal. A baseline can be a single Opus call; a workflow step can be Haiku. Conflating pattern shape with model tier leads teams to add orchestration when all they needed was a different tier."
+      },
+      "concept": "Every Claude architecture starts as one augmented call and earns each added pattern. A pattern is justified only when the baseline has been built, measured, and shown to fail on a specific class of input. Adding structure before that produces a system whose complexity nobody can attribute to a problem, and which nobody can later simplify with confidence.",
+      "tip": "Recall items about the baseline are usually testing whether you treat it as a design stage rather than a diagram box. The distinguishing feature is always the absence of orchestration code, never the absence of an augmentation."
+    }
+  },
+  {
+    "id": "SDA-A-002",
+    "domain": "Solution Design & Architecture",
+    "topic": "Deterministic gate between prompt chain steps",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A freight forwarder generates customs declarations from scanned commercial invoices using one Claude call that extracts line items, assigns each an HS tariff code, and emits the declaration XML. A post-launch audit finds that 6% of declarations carry a plausible-looking HS code that does not exist in the current tariff file; each one triggers a manual broker correction costing about £40. Extraction itself audits clean. The per-declaration latency budget is 20 seconds and the system currently runs at 4. Which change best addresses the defect?",
+    "options": [
+      { "key": "A", "text": "Keep the single call but paste the full current tariff schedule into the system prompt, so the model can only choose codes that appear in it." },
+      { "key": "B", "text": "Split into an extract-then-classify chain, with a deterministic tariff-file lookup between classification and XML generation that returns failed codes for retry." },
+      { "key": "C", "text": "Move the whole call to the Opus tier and add an explicit system-prompt rule never to emit a tariff code that is not currently valid." },
+      { "key": "D", "text": "Run three parallel calls with differently worded classification prompts and take the majority HS code per line item before emitting the XML." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The failing property — does this code exist in today's tariff file — is checkable by ordinary code with certainty, which is exactly the signal that a chain with a programmatic gate is the right shape. Splitting the call also gives the gate somewhere to sit: you cannot validate a code that is already embedded in emitted XML. The 16 seconds of unused latency budget pays for the extra hop and for a bounded retry. Chaining is worth its round trips precisely when a verifiable checkpoint exists between the steps.",
+      "distractors": {
+        "A": "Putting the schedule in context makes the right answer available but does not make it mandatory — the model can still produce a code that looks like a tariff entry and is not one. It also reloads a large reference on every invoice for a check that costs microseconds in code.",
+        "C": "A stronger tier lowers the hallucination rate; it does not bound it, and the broker correction cost is incurred per defect, not per percentage point. Instructions that forbid invention are unverifiable at generation time. This is the move for tasks with no checkable ground truth.",
+        "D": "Voting helps when errors across attempts are independent. Hallucinated tariff codes correlate — three prompts drawing on the same faulty prior often converge on the same invented code — so you triple the cost and may ratify the defect."
+      },
+      "concept": "When a failure mode is expressible as a deterministic check against a source of truth, decompose the task so the check can run between steps. Model calls should produce candidates; code should decide whether a candidate is admissible. Prompt chaining earns its added latency by creating those checkpoints, not merely by making each call shorter.",
+      "tip": "Watch for a stem that hands you both a verifiable constraint and unused latency headroom. That pairing is the exam's standing signal for a chain with a gate, and it makes the tempting stronger-model answer a trap."
+    }
+  },
+  {
+    "id": "SDA-A-003",
+    "domain": "Solution Design & Architecture",
+    "topic": "Asymmetric error cost in router dispatch",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A telco handles 90,000 inbound support conversations a day. A Haiku router classifies each opening message into one of five intents; 'billing dispute' and 'service outage' dispatch to Opus-backed pipelines, the rest to Haiku pipelines. Offline the router is 94% accurate. In production, satisfaction collapsed for one segment: customers reporting outages who were classified as 'general enquiry' received a scripted troubleshooting reply and churned. Misrouting a general enquiry into the outage pipeline costs roughly four times the tokens and causes no customer harm. What is the right adjustment?",
+    "options": [
+      { "key": "A", "text": "Use the router's per-class confidence to send any conversation carrying a plausible outage or dispute signal to the Opus pipeline." },
+      { "key": "B", "text": "Retrain the router on 50,000 newly labelled conversations until offline accuracy exceeds 98%, then leave the dispatch logic unchanged." },
+      { "key": "C", "text": "Remove the router and send all 90,000 daily conversations to the Opus-backed pipeline, so a misroute becomes impossible." },
+      { "key": "D", "text": "Keep the router and have the general-enquiry pipeline detect outage language mid-conversation and hand off to the Opus pipeline." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The two error directions do not cost the same thing: one is a token bill, the other is a churned customer. A router tuned for symmetric accuracy optimises the wrong objective no matter how accurate it gets. Reading the classifier's confidence and biasing ambiguous cases toward the expensive-but-safe pipeline converts unavoidable classification error into the cheap direction. At 90,000 conversations a day the extra spend is bounded and forecastable; the churn is neither.",
+      "distractors": {
+        "B": "Accuracy improvement helps, but a symmetric metric still distributes the residual error evenly across both directions. Even a perfect-sounding router leaves misses in the direction that costs a customer. Chasing the number treats the router as a model problem when it is a dispatch-policy problem.",
+        "C": "This throws away the entire reason the router exists. It also over-corrects on a defect confined to one segment, and at this volume the cost increase is very large. Collapsing a routed design back to one pipeline is the answer only when the router's savings never materialised.",
+        "D": "Recovery is genuine engineering, but the harm in this scenario lands on the first reply — the customer got a scripted answer and left. A mid-conversation handoff arrives after the moment that caused the churn, so it mitigates the tail rather than the failure described."
+      },
+      "concept": "Routing quality is not classifier accuracy; it is expected cost under the classifier's error distribution. When the two misclassification directions carry different consequences, encode the asymmetry in the dispatch rule — thresholds and defaults — rather than trying to drive the error rate low enough that the asymmetry stops mattering.",
+      "tip": "Whenever a stem prices both error directions for you, it is telling you the answer lives in the dispatch policy. Any option that talks only about improving the classifier is answering a question the stem already ruled out."
+    }
+  },
+  {
+    "id": "SDA-A-004",
+    "domain": "Solution Design & Architecture",
+    "topic": "Agentic loops need an environment feedback signal",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An energy utility is automating fault diagnosis for distribution transformers. Engineers propose an agent that queries SCADA history, pulls maintenance records, requests additional telemetry and iterates until it converges on a root cause — typically 8 to 20 tool calls. On 300 historical faults the agent reaches the correct root cause 71% of the time; a fixed three-step workflow (retrieve telemetry window, summarise anomalies, classify against the fault taxonomy) reaches 68%. The agent costs nine times the tokens and takes forty times as long. The architect blocks the agent. What is the strongest architectural justification?",
+    "options": [
+      { "key": "A", "text": "Agentic designs are inappropriate for regulated infrastructure, because a run whose step count cannot be predicted cannot pass change control." },
+      { "key": "B", "text": "Fault diagnosis is fundamentally a classification task against the fault taxonomy, so it belongs in a fixed workflow rather than an autonomous loop." },
+      { "key": "C", "text": "The agent's 8 to 20 tool calls will exhaust the context window on transformers with decades of SCADA history, leaving the workflow as the only option." },
+      { "key": "D", "text": "Every tool returns more evidence and none returns a verdict, so the loop has no environment signal to correct its hypothesis against." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Autonomy pays when the environment tells the model whether its last move was right: a test suite that fails, a compiler that errors, a query that returns nothing. Here every tool hands back more raw evidence and nothing adjudicates the current hypothesis, so iteration accumulates context without converging. The pilot is the proof — three points of accuracy for nine times the tokens and forty times the wall clock is what a loop without an error-correcting signal produces. The justification is about the shape of the feedback available, not about policy or context size.",
+      "distractors": {
+        "A": "Unpredictable step counts are a cost and operability concern that bounding can manage, and regulated industries do run bounded agents. Stated as a blanket rule it is both false and unpersuasive to the engineers who built a working prototype.",
+        "B": "The task label does not decide the pattern. Plenty of classification problems benefit from iterative evidence gathering, and plenty of open-ended tasks are best served by a fixed chain. Reasoning from the task's noun rather than from its feedback structure is the error.",
+        "C": "The stem gives no evidence of context exhaustion, and inventing a capacity limit weakens an argument that the measured results already win. If context were the constraint, the fix would be compaction or subagent isolation, not abandoning autonomy."
+      },
+      "concept": "Added autonomy pays for itself only when three things hold: the task genuinely needs a variable number of steps, the environment returns a signal the model can correct against, and the cost of a wrong intermediate step is recoverable. Remove the feedback signal and an agent degenerates into an expensive, slow, high-variance way to do what a chain already does.",
+      "tip": "A pilot that shows an agent barely beating a workflow at many times the cost is not a tuning problem — it is evidence the feedback loop is missing. Look at what the tools return: evidence or verdicts."
+    }
+  },
+  {
+    "id": "SDA-A-005",
+    "domain": "Solution Design & Architecture",
+    "topic": "Conditions that justify an evaluator-optimiser loop",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A games publisher localises in-game dialogue from English into nine languages with Claude. A reviewer proposes an evaluator–optimiser loop: a generator produces the translation, a separate evaluator critiques it against the style guide, and the generator revises, up to three rounds. Which conditions would genuinely justify the loop rather than a single well-engineered generation call? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "The publisher wants to cut the per-line token cost of localising a 40,000-line dialogue pack before the next release." },
+      { "key": "B", "text": "Reviewers can articulate the criteria they apply — character voice, glossary adherence, UI line limits — precisely enough to write a rubric." },
+      { "key": "C", "text": "The nine target languages can be generated concurrently, cutting wall-clock time for a full pack to that of one language." },
+      { "key": "D", "text": "A held-out sample shows measurable quality improvement between the generator's first draft and its revised output." },
+      { "key": "E", "text": "The generator occasionally returns output that fails the game engine's dialogue import schema and blocks the nightly build." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "The evaluator–optimiser loop has exactly two preconditions, and this pair is them. First, the evaluation criteria must be articulable — if a human reviewer cannot say what makes a line good, no rubric can, and the critic produces vague praise. Second, revision must demonstrably improve the artefact; a loop that iterates without measurable gain is a token multiplier. Localisation satisfies both when the style guide is concrete and the held-out sample shows draft-to-revision lift. Without either, the same budget is better spent on the generator's prompt and few-shot examples.",
+      "distractors": {
+        "A": "The loop multiplies cost, since every round adds a critique call and a regeneration. Cost reduction argues against it. If per-line cost is the driver, the levers are a cheaper tier, tighter prompts and caching the style guide, not adding rounds.",
+        "C": "Concurrent generation across languages is real and worth doing, but it is parallel sectioning — a separate pattern that shortens wall clock. It says nothing about whether critiquing and revising a line improves it, which is what the stem asked.",
+        "E": "A schema failure is a deterministic defect with a deterministic remedy: validate the output in code and retry or repair. Spending an LLM critique call on something a parser detects for free is the classic misapplication of the loop."
+      },
+      "concept": "Use evaluator–optimiser when clear evaluation criteria exist and iterative refinement provides measurable value — the same two tests a human editing round would have to pass. If the criteria cannot be written down, or revision does not move the needle on a held-out sample, the loop adds latency and cost while creating the appearance of quality control.",
+      "tip": "Multi-select items about a pattern's preconditions usually seed one true-but-different-pattern option and one deterministic-check option. Both are true statements; neither answers whether this loop is justified."
+    }
+  },
+  {
+    "id": "SDA-A-006",
+    "domain": "Solution Design & Architecture",
+    "topic": "Localising a regression inside a prompt chain",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A hospital network drafts discharge summaries with a four-step prompt chain: extract encounter facts, draft the summary, check against a required-sections checklist, apply a readability rewrite. The rewrite step was added last sprint to satisfy a plain-language obligation that goes live next month. Since then clinician edit rate has risen from 22% to 34%, and two summaries were found to have lost a medication change that the draft step had captured correctly. Every step's input and output is logged. What should the team do next?",
+    "options": [
+      { "key": "A", "text": "Remove the readability rewrite step and revert to the three-step chain, restoring the 22% edit rate until the obligation lands." },
+      { "key": "B", "text": "Diff the logged draft-step output against the rewrite-step output on the affected summaries, then measure how often content is lost." },
+      { "key": "C", "text": "Add a fifth step that compares the rewritten summary against the draft and reinstates any medication change the rewrite dropped." },
+      { "key": "D", "text": "Replace the chain with a single call that drafts the summary, applies the section checklist and meets the reading-level target in one pass." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The whole reason to pay a chain's latency cost is that each step's boundary is observable, and this team already logs those boundaries. Two anecdotes and a twelve-point edit-rate rise are a hypothesis, not a diagnosis — the rewrite may be dropping content, or it may be surfacing defects the checklist step was masking. Diffing step two against step four on the known cases confirms or kills the hypothesis in an afternoon and quantifies the blast radius, which is what any of the remedies needs before it can be sized.",
+      "distractors": {
+        "A": "Rollback looks safe but is not free here: the plain-language obligation lands next month, so reverting buys weeks and then returns the team to the same unexplained regression with less time. Roll back when you cannot diagnose quickly; the logs mean you can.",
+        "C": "This adds a fifth model call to repair a fourth whose behaviour is not yet characterised, and a restoration step that itself can hallucinate. Compensating steps stacked on undiagnosed steps are how chains become unmaintainable and how the edit rate ratchets up again.",
+        "D": "Merging drafting and rewriting removes the observability that is about to solve the problem, and asks one call to satisfy both clinical completeness and reading level. It may end up being the right architecture, but choosing it now is a redesign made without a cause."
+      },
+      "concept": "The operational payoff of decomposition is attribution: when a chained system regresses, per-step logs let you bound the fault to one step before changing anything. Diagnose at the boundary, then decide whether to fix the step, gate it, or remove it. Redesigning the pipeline while the cause is unknown discards the evidence you paid for.",
+      "tip": "In next-step items, prefer the action that makes the next decision cheaper over the action that attempts the fix. The stem mentioning that every step is logged is the tell."
+    }
+  },
+  {
+    "id": "SDA-A-007",
+    "domain": "Solution Design & Architecture",
+    "topic": "Sectioning versus voting as parallelisation forms",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Parallelisation appears in two forms in the standard pattern vocabulary. What distinguishes sectioning from voting?",
+    "options": [
+      { "key": "A", "text": "Sectioning assigns each subtask its own model tier, while voting runs every attempt on one tier so the results stay comparable." },
+      { "key": "B", "text": "Sectioning aggregates its results by majority vote, while voting stitches its attempts together by concatenation." },
+      { "key": "C", "text": "Sectioning is executed synchronously on the request path, while voting is dispatched asynchronously and collected later." },
+      { "key": "D", "text": "Sectioning splits a task into independent subtasks that are merged; voting repeats one task and aggregates the attempts." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Both run calls concurrently, but for different reasons and with different payoffs. Sectioning divides work — separate, independent pieces of one job, each answered once, then merged; it buys wall-clock time and lets each call focus on a narrower instruction set. Voting duplicates work — the same job attempted several times, often with varied prompts, then aggregated by some rule; it buys confidence on a single decision. Knowing which you are doing determines what aggregation even means and whether concurrency reduces latency at all.",
+      "distractors": {
+        "A": "Tier assignment is a separate decision that either form can make. Sectioned subtasks frequently share one tier, and voting ensembles are sometimes deliberately built from different tiers to decorrelate errors.",
+        "B": "This inverts the aggregation logic. Majority is a voting rule and makes no sense over subtasks that answered different questions; concatenation or synthesis is how sectioned outputs come back together.",
+        "C": "Both are concurrent by construction. Whether the caller awaits all results or streams them is an implementation choice with no bearing on which pattern is in use."
+      },
+      "concept": "Parallelisation splits along two axes: dividing a task into independent parts, or repeating one task for confidence. Sectioning reduces latency and per-call complexity; voting reduces variance on a decision but never reduces latency below a single call and multiplies cost by the ensemble size. Choose by whether the problem is breadth of work or uncertainty of judgement.",
+      "tip": "If you can state what each concurrent call is being asked, you can tell the two apart instantly: different questions is sectioning, the same question is voting."
+    }
+  },
+  {
+    "id": "SDA-A-008",
+    "domain": "Solution Design & Architecture",
+    "topic": "Runtime decomposition selects orchestrator-workers",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An investigative newsroom builds a research tool over a leaked set of 40,000 documents. For a question such as 'how much did Company X pay Contractor Y between 2019 and 2021', the system must decide which document families to open, and that decision depends on what the first documents reveal — a payment ledger may name three subsidiaries nobody knew existed. The current design fans out a fixed set of six parallel calls (contracts, invoices, emails, board minutes, filings, press) and merges their answers. Recall on multi-hop questions is poor. Which pattern change addresses the root cause?",
+    "options": [
+      { "key": "A", "text": "Increase the fixed fan-out from six parallel calls to twelve, adding families such as bank statements, shipping records and court filings." },
+      { "key": "B", "text": "Add an evaluator–optimiser loop that scores the merged answer for completeness and returns it to the merger for another attempt." },
+      { "key": "C", "text": "Put an orchestrator in front that decides at runtime which searches to task workers with and spawns follow-ups as findings emerge." },
+      { "key": "D", "text": "Chain the six calls sequentially so each worker sees the findings of the one before it and can refine its own search." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The stem states the deciding property plainly: which subtasks are needed cannot be known until earlier subtasks return. Fixed fan-out — however wide — encodes the decomposition at design time, so a subsidiary discovered in a ledger never becomes a search. Orchestrator–workers exists for exactly this case: a central call reads what has come back, formulates the next subtasks, and keeps going until the question is answered. Multi-hop recall is not a merging problem or a breadth problem; it is a problem of who chooses the subtasks and when.",
+      "distractors": {
+        "A": "Doubling a static fan-out doubles cost and still cannot open a lead that did not exist when the plan was fixed. Widening helps when the misses are in families you forgot to include; here the misses are in entities you could not have named in advance.",
+        "B": "A critic can tell you the answer looks incomplete but cannot retrieve documents that were never opened. Evaluator–optimiser refines an artefact against a rubric; it does not extend the evidence set, so the loop converges on a better-written incomplete answer.",
+        "D": "Sequencing adds information flow, which helps a little, but the number and identity of the subtasks stay fixed at six. Multi-hop trails routinely need more hops than the chain has steps, and you now pay six serial round trips for a partial improvement."
+      },
+      "concept": "Choose orchestrator–workers when the subtasks cannot be enumerated before the input is seen; choose parallel sectioning when they can. The distinction is not how many calls run or whether they run concurrently — it is whether a model decides the decomposition at runtime or a developer decided it at design time.",
+      "tip": "Hunt the sentence in the stem that says a later step depends on what an earlier step discovers. That sentence, not the word 'parallel', decides between sectioning and orchestrator–workers."
+    }
+  },
+  {
+    "id": "SDA-A-009",
+    "domain": "Solution Design & Architecture",
+    "topic": "Statutory procedure constraining autonomy",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A national benefits agency is automating first-pass eligibility assessment for a disability payment. Statute requires that for any decision the agency can produce the exact evidence considered and the order in which the statutory criteria were applied, and that an appeals officer can reproduce the assessment two years later. The delivery team's prototype is an agent that chooses which evidence to pull and when to stop, and it performs well on historical cases. What is the correct architectural response?",
+    "options": [
+      { "key": "A", "text": "Implement the statutory criteria as an explicit workflow — one step per criterion in the mandated order — and persist every step's inputs and outputs." },
+      { "key": "B", "text": "Keep the agent and log the full trajectory — every tool call, its arguments and its result — so an appeals officer can replay the run." },
+      { "key": "C", "text": "Keep the agent but pin the model version and set temperature to zero, so that identical inputs produce an identical trajectory." },
+      { "key": "D", "text": "Keep the agent for the assessment and add a second Claude call that writes the criterion-by-criterion narrative for the appeals file." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The statute fixes the procedure, not just the outcome: the order in which criteria were applied is itself a legal artefact. An agent decides that order per run, so even a perfectly logged agent produces a different procedure each time and gives the appeals officer nothing stable to review. Encoding the criteria as workflow steps makes the mandated order a property of the code, reviewable once and unchanged across runs, while still letting a model do the judgement inside each step. Autonomy is being spent where the organisation has no freedom to give it.",
+      "distractors": {
+        "B": "A trajectory log records what happened; it does not show that what happened matched the statutory procedure, and it puts the burden of proving compliance on a reviewer reading a different trace for every case. Trajectory logging is necessary here, but it is not the control the statute is asking for.",
+        "C": "Sampling settings reduce variation without guaranteeing identical trajectories, and a two-year reproduction window outlives model versions. More fundamentally, repeatability is not the requirement — a repeatable but unfixed criteria order still fails the ordering obligation.",
+        "D": "A narrative written after the fact by a second call is a plausible-sounding account of a decision it did not make. Generating explanations rather than recording the actual decision path is the failure regulators most reliably catch."
+      },
+      "concept": "When an external authority fixes the procedure, the procedure belongs in code, not in the model's discretion. Model autonomy is affordable over the parts of a task the organisation is free to choose; it is unaffordable over the parts a regulator, statute or contract has already specified. Workflows encode obligations; agents encode freedom.",
+      "tip": "Distinguish two very different compliance asks: reproduce the outcome, and follow the prescribed order. Logging answers the first. Only a fixed workflow answers the second."
+    }
+  },
+  {
+    "id": "SDA-A-010",
+    "domain": "Solution Design & Architecture",
+    "topic": "Baseline first in a greenfield design",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An agritech startup is scoping a feature that turns a farmer's free-text field note plus the farm's sensor history into a spray recommendation. The lead engineer's design document opens with a five-step chain, an intent router and an evaluator loop. The product has no users, no production traffic and no labelled examples. The CTO pushes back on the design. What should the team build first?",
+    "options": [
+      { "key": "A", "text": "The router, since the intent taxonomy constrains everything downstream and is cheapest to fix before other components depend on it." },
+      { "key": "B", "text": "The evaluator loop, since until a critic scores each recommendation the team has no way to tell whether anything else works." },
+      { "key": "C", "text": "The full five-step chain, instrumented per step, then delete whichever steps later measurement shows add nothing to quality." },
+      { "key": "D", "text": "A single augmented call with retrieval over sensor history and the agronomy reference, measured on hand-labelled field notes." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Nothing in the design document can be justified yet, because there is no measurement to justify it against. One augmented call with retrieval is buildable in days, and the hand-labelled set is the artefact that makes every later decision arguable: whether a router is needed, whether the chain's third step earns its latency, whether refinement improves anything. Each pattern added before the baseline exists is a permanent cost with an unknown benefit, and — worse — it becomes untestable, since removing it later means removing something the team has already built around.",
+      "distractors": {
+        "A": "Routing presupposes distinct downstream handlers with different cost or quality profiles. With none built and no evidence that field notes fall into stable categories, the router would be dispatching to one destination and encoding a taxonomy nobody has validated.",
+        "B": "This conflates two different things called evaluation. What the team lacks is an offline eval set to measure candidate designs. A runtime evaluator–optimiser loop is a production pattern that adds cost per request and cannot tell you whether the system is good overall.",
+        "C": "Subtractive design sounds rigorous but is far more expensive: with all five steps interacting, no measurement attributes quality to any one of them, and removing a step means unpicking dependencies. Teams that build the full pipeline first almost never delete anything from it."
+      },
+      "concept": "Find the simplest thing that could work, measure it, and let the measurement buy each increment of complexity. The order is baseline, eval set, then the smallest pattern that closes the measured gap. Design documents that open with a multi-pattern topology are describing a solution to a problem nobody has characterised.",
+      "tip": "'No users, no labelled examples' in a stem is never incidental. It is the exam telling you the correct answer is the one that produces evidence, not the one that produces architecture."
+    }
+  },
+  {
+    "id": "SDA-A-011",
+    "domain": "Solution Design & Architecture",
+    "topic": "Choosing a vote aggregation rule",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A video platform screens 500,000 user comments an hour for a narrow category of prohibited content. A single Haiku call catches 88% of true violations with a 0.4% false-positive rate, sending roughly 2,000 comments an hour to human review. Legal exposure from a missed violation is severe; the human review vendor is contracted to handle up to 12,000 items an hour. The team now runs three differently-prompted calls per comment. How should the votes be combined?",
+    "options": [
+      { "key": "A", "text": "Flag only when all three calls agree, and send the disagreements to a Sonnet call for a tie-breaking second opinion." },
+      { "key": "B", "text": "Flag when any one of the three calls flags, taking review volume to about 6,000 an hour against the contracted ceiling." },
+      { "key": "C", "text": "Flag when at least two of the three agree, holding review volume near today's 2,000 an hour while lifting recall a little." },
+      { "key": "D", "text": "Drop the ensemble and run a single Sonnet call per comment, funded by the tokens the three Haiku calls were spending." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The aggregation rule is where an ensemble's cost-of-error policy gets expressed, and here the two errors are wildly unequal: a miss is legal exposure, a false positive is a queue item. A union rule maximises recall — a violation is caught if any prompt catches it — at the price of roughly tripling false positives, taking review volume from about 2,000 to about 6,000 an hour against a 12,000 ceiling. The headroom is stated in the stem precisely so the recall-maximising rule is affordable. Voting is only as useful as the rule you aggregate with.",
+      "distractors": {
+        "A": "Unanimity is the highest-precision rule and therefore the worst possible choice when misses are the expensive error; it discards catches that two of three prompts found. Reserve it for cases where acting on a positive is itself costly or irreversible.",
+        "C": "Majority is the reflex answer and it is right when the two error directions cost about the same. Here it deliberately trades away recall the ensemble already bought, to protect a human queue that has four times the capacity it needs.",
+        "D": "A single stronger call removes the diversity that makes the ensemble work — three prompts miss different things, which is the source of the recall gain. The stem offers no evidence that a higher tier closes the recall gap, and at this volume the cost comparison is not obviously favourable."
+      },
+      "concept": "In a voting ensemble, the number of calls buys you an option and the aggregation rule spends it. Set the rule from the relative cost of a false negative and a false positive and from the capacity of whatever absorbs the positives — not from a default preference for majority.",
+      "tip": "When a stem gives you a current volume and a downstream capacity ceiling, do the multiplication. The gap between them is the exam telling you how far toward recall you are allowed to move."
+    }
+  },
+  {
+    "id": "SDA-A-012",
+    "domain": "Solution Design & Architecture",
+    "topic": "Task properties that argue for a workflow",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An architecture review board is choosing between a fixed workflow and an agentic loop for a new automation. Which properties of the task argue for the workflow? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "The steps required are known in advance and do not vary from one input to the next." },
+      { "key": "B", "text": "The task requires a dozen or more tool calls against internal systems per request." },
+      { "key": "C", "text": "Each step writes to a system where mistakes cannot be reversed, so every transition needs a check." },
+      { "key": "D", "text": "The team would rather not write and maintain the orchestration code a fixed path requires." },
+      { "key": "E", "text": "The response must complete inside a tight and predictable latency budget on every request." }
+    ],
+    "correct": ["A", "C", "E"],
+    "explanation": {
+      "correct": "Three properties push toward a predefined path. A known, input-invariant step sequence means there is nothing for a model to decide, so autonomy buys nothing and costs tokens. Irreversibility means every transition needs a gate you can reason about before it fires, which a fixed path gives you and a self-directed loop does not. A tight latency budget conflicts with a variable step count, since an agent's p99 is set by its worst trajectory rather than by its typical one. Any one of these is suggestive; together they settle it.",
+      "distractors": {
+        "B": "Tool-call volume does not distinguish the two. A workflow step can invoke a dozen tools, and a short agent loop may call two. What matters is whether the model or the developer decides which tools to call and in what order.",
+        "D": "This argues the wrong way and is a poor reason regardless. Agents move complexity out of orchestration code and into prompt design, evaluation and operational guardrails, which is usually more work to get right, not less."
+      },
+      "concept": "Workflows suit tasks that are well defined, predictable and decomposable in advance; agents suit tasks where the number and identity of steps depend on what is discovered along the way. Latency predictability, reversibility of intermediate actions and step-sequence stability are the three properties that most reliably decide it in production.",
+      "tip": "Two of the five options here are true statements about the task that say nothing about pattern choice. Test every option against 'does this make a predefined path better?' rather than 'is this true?'"
+    }
+  },
+  {
+    "id": "SDA-A-013",
+    "domain": "Solution Design & Architecture",
+    "topic": "Risk introduced by tier routing",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An online grocery retailer routes customer messages with a lightweight classifier: simple ones (order status, delivery window) go to Haiku, complex ones (refund disputes, allergy queries) go to Sonnet. Average cost per message falls 60%. Which risk does this design introduce that the previous single-model design did not have?",
+    "options": [
+      { "key": "A", "text": "Haiku and Sonnet return different output shapes, so the reply templating layer must parse two formats." },
+      { "key": "B", "text": "Total token spend rises, because the classifier call is added to every message on top of the answer call." },
+      { "key": "C", "text": "A complex message classified as simple gets the weaker configuration, and nothing downstream detects it." },
+      { "key": "D", "text": "Maintaining two prompt sets and two regression suites becomes the dominant new cost of the design." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Routing converts a quality problem into a classification problem and creates a new single point of failure upstream of everything else. The system used to apply one standard of care to every message; now an allergy query mistaken for an order-status query gets the cheap treatment, and because the downstream handler answers confidently there is no signal that anything went wrong. Silent quality loss on the hardest inputs is the characteristic cost of routing, and it is why routed designs need confidence handling and sampling of the cheap path.",
+      "distractors": {
+        "A": "Output shape is set by the prompt and any structured-output contract, not by the tier. Both tiers can be held to the same schema, and if they were not, the failure would be loud rather than silent.",
+        "B": "The stem states cost fell by 60%, so this contradicts the premise. A classifier call is small relative to the answer it routes, which is exactly why tier routing is economical at volume.",
+        "D": "Two prompt sets is a genuine maintenance cost and worth planning for, but it is a cost, not a risk, and it surfaces in team velocity rather than in customer outcomes. The design's real hazard lands on the customer, not the backlog."
+      },
+      "concept": "Every routing layer trades a uniform quality floor for cost savings, and the trade is paid on misclassified hard cases. Design routing with the failure in mind: confidence thresholds, a bias toward the stronger path when uncertain, and periodic replay of cheap-path traffic through the strong path to measure what is being lost.",
+      "tip": "The word 'silent' is what makes a routing risk serious. Ask which failures the system would notice on its own; the ones it would not are the ones the item is about."
+    }
+  },
+  {
+    "id": "SDA-A-014",
+    "domain": "Solution Design & Architecture",
+    "topic": "Evaluator independence in a generator-critic loop",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A law firm's contract-redlining assistant runs a generator–critic loop: Claude proposes redlines against the firm's playbook, a critic call assesses them, and the generator revises. The loop is implemented as one conversation — the critic turn is appended to the same message list that contains the generator's reasoning and drafts. Partners report that the critic almost always finds the redlines acceptable and that output quality is no better than a single pass. What is the most likely cause?",
+    "options": [
+      { "key": "A", "text": "The critic shares a thread containing the generator's own reasoning and anchors on it; an independent evaluator needs its own call." },
+      { "key": "B", "text": "Two revision rounds is too few for a generator–critic loop to converge; playbook redlining typically needs five or more." },
+      { "key": "C", "text": "The playbook is long enough that it is silently truncated once the full contract is appended alongside it in the prompt." },
+      { "key": "D", "text": "The critic is running on the same tier as the generator, when a critic should sit one tier below so that it is less inclined to defer." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "An evaluator earns its keep by bringing a perspective the generator did not have. Appending the critique turn to the generation thread hands the critic the generator's justifications, its intermediate reasoning and its framing, and the critic evaluates the argument rather than the artefact. The observable symptom is exactly what the partners report: consistent approval and no quality lift. Restructuring the critic as a separate call that receives only the redlined clause and the playbook rubric restores the independence the pattern depends on.",
+      "distractors": {
+        "B": "Round count is not the constraint here, and a fixed minimum number of rounds is not a real property of the pattern. A well-constructed critic usually finds most of what it will ever find on the first pass; adding rounds to a compromised critic just repeats the same approval.",
+        "C": "Truncation would show up as erratic, off-playbook critiques rather than as uniform approval, and the stem reports the opposite symptom. This is the right diagnosis when a critic's objections look unrelated to the rubric.",
+        "D": "There is no relationship between tier and agreeableness in the direction claimed, and a weaker critic is generally a worse critic. Evaluator quality matters most when the rubric requires judgement, as a playbook comparison does."
+      },
+      "concept": "An evaluator–optimiser loop only works if the evaluator is structurally independent of the generator: a fresh call, given the artefact and the criteria, and not the trajectory that produced them. Sharing context between generator and critic converts the pattern into self-review, which reliably approves its own work.",
+      "tip": "'The critic always approves' is a context-plumbing symptom, not a prompt-wording symptom. Check what the critic can see before you rewrite what it is asked."
+    }
+  },
+  {
+    "id": "SDA-A-015",
+    "domain": "Solution Design & Architecture",
+    "topic": "Decomposing along verifiable failure modes",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A pharmaceutical company drafts regulatory submission sections with Claude, one call per section. QA rejects about one in five drafts. Root-cause review shows rejections cluster on three things: a cited study that does not appear in the company's study register, a numeric endpoint that disagrees with the statistical report, and tone a reviewer describes as promotional. The team has decided to decompose the single call. Which decomposition delivers the most value?",
+    "options": [
+      { "key": "A", "text": "Split by the section's subheadings, generating each subsection in its own call and concatenating the results in template order." },
+      { "key": "B", "text": "Split along the three failure modes — citations against the study register, figures against the statistical report, tone against a rubric." },
+      { "key": "C", "text": "Keep the single call and wrap it in an evaluator–optimiser loop that critiques the draft against one combined QA rubric until it passes." },
+      { "key": "D", "text": "Split into a plan-then-write chain: one call outlines the section against the regulatory template, a second turns the outline into prose." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Decomposition is worth its cost when it creates places to check. Two of the three rejection causes are decidable against a source of truth the company already holds — a study either is in the register or is not, an endpoint either matches the statistical report or does not — and the third needs a judgement call against a rubric. Splitting along the failure modes puts each of those checks on its own boundary, so a defect is caught by the mechanism suited to it and a rejected draft names which gate failed. Splitting anywhere else produces more calls and the same rejection rate.",
+      "distractors": {
+        "A": "Subheadings are where the document divides, not where it fails. Each subsection call can still invent a citation and misquote an endpoint, and concatenation adds a new problem: cross-section inconsistency that the single call did not have.",
+        "C": "A critic can catch promotional tone, which is one of three causes. It cannot establish that a study exists or that a figure matches the source document — those need lookups against real data, and asking a model to assert them re-creates the original defect inside the loop.",
+        "D": "Plan-then-write is a sound default chain and improves structure and coverage, but none of the three rejection causes is a structure problem. It is the right decomposition when drafts are rambling or omit required content, not when they are unverifiable."
+      },
+      "concept": "Decompose at verification boundaries, not at the artefact's natural seams. The useful question is where a check can be applied and what kind of check it is — deterministic lookup, schema validation, or model judgement. A decomposition that does not create a new gate has bought latency and tokens and nothing else.",
+      "tip": "When a stem enumerates distinct failure modes, that list is the decomposition. Options that split by document structure are testing whether you follow the artefact instead of the evidence."
+    }
+  },
+  {
+    "id": "SDA-A-016",
+    "domain": "Solution Design & Architecture",
+    "topic": "The trade prompt chaining makes",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Prompt chaining decomposes a task into a fixed sequence of model calls, each handling one subtask. What trade does the pattern make?",
+    "options": [
+      { "key": "A", "text": "It trades accuracy for latency: the steps finish sooner, but each one is individually less reliable than a single call." },
+      { "key": "B", "text": "It trades cost for determinism: total tokens fall because each call carries a shorter prompt and a narrower instruction set." },
+      { "key": "C", "text": "It trades latency for accuracy: each call gets an easier job, paid for with extra round trips and repeated context." },
+      { "key": "D", "text": "It trades context for tool access: each chained step can be given tools that a single augmented call cannot reach." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Chaining works because a model asked to do one thing does it better than a model asked to do four, and because the seams between calls are places to inspect, validate and branch. The bill is serial latency — every step is a round trip on the critical path — plus repeated context, since each call typically re-sends instructions and carries the previous step's output. That trade is worth making when accuracy on the composite task is the binding constraint and there is latency headroom; it is a bad trade under a tight interactive budget.",
+      "distractors": {
+        "A": "This reverses both halves. Chaining adds latency rather than removing it, and the point of narrowing each call is that a focused subtask is more reliable, not less.",
+        "B": "Total token consumption usually rises, because instructions and intermediate results are re-sent across steps. Chaining can improve consistency, but it does not make a probabilistic system deterministic and it is not a cost-reduction pattern.",
+        "D": "Tool availability is a property of how each call is configured, not of the pattern. A single augmented call can use the same tools the chain's steps use."
+      },
+      "concept": "Prompt chaining buys accuracy and inspectability with latency and tokens. Reach for it when the task splits cleanly into subtasks, when a check belongs between two of them, and when the latency budget has room. Avoid it when the round trips will not fit or when the subtasks are not genuinely separable.",
+      "tip": "For any pattern, be able to say in one line what it costs as well as what it buys. Options that claim a pattern improves everything at once are almost always the distractor."
+    }
+  },
+  {
+    "id": "SDA-A-017",
+    "domain": "Solution Design & Architecture",
+    "topic": "Testing whether the autonomy premium is earned",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A recruiting platform shipped an agentic candidate-sourcing feature behind a flag serving 4% of accounts. The agent searches, opens profiles and refines its query until it has ten matches; it reaches ten matches on 82% of runs against 61% for the fixed sourcing workflow it replaced, and costs six times as much per run. Recruiters accept 2.1 candidates per agent run and 1.9 per workflow run. The product manager wants to roll out to everyone. What should the team do next?",
+    "options": [
+      { "key": "A", "text": "Widen the flag to 25% of accounts to tighten the confidence interval on the agent's match rate before deciding." },
+      { "key": "B", "text": "Keep both implementations and route by account tier, giving enterprise accounts the agent and self-serve the fixed workflow." },
+      { "key": "C", "text": "Cut the agent's cost by moving its profile-reading steps to Haiku, then re-measure the match rate at the new price point." },
+      { "key": "D", "text": "Run a head-to-head at enough volume to resolve the difference in accepted candidates per run before deciding on rollout." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The impressive number and the number that matters are not the same number. Match rate rose 21 points, but acceptances moved from 1.9 to 2.1 per run, and at 4% of accounts that difference may not be distinguishable from noise. Since the agent costs six times as much, the entire rollout decision rests on whether that 0.2 is real and worth six times the spend. Powering a comparison on the outcome metric is the cheapest way to answer the only open question, and it is answerable before exposure widens.",
+      "distractors": {
+        "A": "Widening exposure gathers more of the wrong measurement. Match rate is already established and is not in dispute; more traffic against a proxy metric increases spend and customer exposure without moving the decision forward.",
+        "B": "Tier-based routing dresses a deferred decision as a design. It commits the team to maintaining two sourcing implementations indefinitely and assumes, with no evidence, that enterprise accounts derive more value from the extra autonomy.",
+        "C": "Optimising the cost of something whose value is unproven is work that may be thrown away, and downgrading the tier inside an agent loop typically degrades the trajectory quality that produced the match rate in the first place. Establish the value, then optimise the cost."
+      },
+      "concept": "Autonomy is justified by outcome value, not by intermediate activity metrics. Agents reliably improve things that look like progress — steps completed, items found, coverage — while leaving the business outcome flat. Before paying an autonomy premium in production, tie the comparison to the metric the organisation actually buys.",
+      "tip": "When a stem gives you a headline metric and a quieter outcome metric, the quiet one is the subject of the question. Check whether the gap in the quiet metric is even large enough to be real at the stated traffic."
+    }
+  },
+  {
+    "id": "SDA-A-018",
+    "domain": "Solution Design & Architecture",
+    "topic": "Exploiting real independence in a latency-bound pipeline",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "An airline's disruption assistant must, for each stranded passenger, (1) summarise the itinerary and entitlements, (2) draft a rebooking rationale, (3) screen the draft for tone and required regulatory language, and (4) compute a compensation figure from the fare rules. Steps 2 and 3 run sequentially after 1; step 4 depends only on the booking record and fare rules. The p95 budget for the whole response is 6 seconds and the pipeline currently runs at 7.4. Which changes correctly exploit parallelisation here? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Run step 3 concurrently with step 2, giving the screener step 1's summary rather than waiting for step 2's draft." },
+      { "key": "B", "text": "Run step 4 concurrently with the 1-2-3 sequence, since it depends only on the fare rules and the booking record." },
+      { "key": "C", "text": "Run three copies of step 2 concurrently with differently worded prompts and take the majority rebooking rationale." },
+      { "key": "D", "text": "Move steps 2 and 3 to the Batch API so their tokens and time no longer count against the interactive p95 budget." },
+      { "key": "E", "text": "Split step 1 into two concurrent calls, one for the itinerary and one for entitlements, merging before step 2." }
+    ],
+    "correct": ["B", "E"],
+    "explanation": {
+      "correct": "Parallelisation only removes time from the critical path where a genuine data dependency is absent, and the stem tells you where those places are. Step 4 reads the booking record and fare rules, neither of which any other step produces, so its entire duration can be hidden behind the 1-2-3 sequence. Step 1 is itself two independent summaries over different sources, so sectioning it makes its contribution the longer of the two halves rather than their sum. Together those are the only true independencies described, and they attack a 1.4-second overshoot without weakening any check.",
+      "distractors": {
+        "A": "Step 3 screens the draft, so its input is step 2's output — that is a hard dependency. Running it against step 2's inputs makes it screen an artefact that does not exist yet, which is not a faster screen but the absence of one.",
+        "C": "Voting multiplies cost and cannot finish faster than the slowest of its members, so it never reduces latency below one call. It is also poorly defined over free-form prose, where there is no majority to take among three differently worded rationales.",
+        "D": "Batch processing is an asynchronous, offline path. It removes work from an interactive budget only by removing it from the interactive response, which is not available when the passenger is waiting for the rationale."
+      },
+      "concept": "Before parallelising, draw the dependency graph and parallelise only across edges that do not exist. Two moves are available: hoist genuinely independent steps off the critical path, and section a single step whose inputs are separable. Anything that shortens the path by weakening a downstream check has not reduced latency, it has removed a control.",
+      "tip": "Multi-select latency items seed options that reduce cost, reduce variance or move work offline. Only accept the ones that shorten the longest dependency chain, and reject any that quietly delete a validation step."
+    }
+  }
+]

@@ -1,0 +1,182 @@
+[
+  {
+    "id": "FC-GSR-001",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Indirect prompt injection",
+    "difficulty": "hard",
+    "front": "A support agent reads customer-uploaded PDFs and calls internal tools. Why is indirect prompt injection the dominant risk, and why can't a better system prompt fix it?",
+    "back": "Retrieved and tool-returned content enters the same context as your instructions, so attacker text inside a document can issue instructions the model may follow. Instructions cannot reliably distinguish trusted from untrusted tokens — telling the model to ignore embedded commands raises the bar but is not a control. The real defences are architectural: least-privileged tools, human approval for consequential actions, and treating all model output as untrusted.",
+    "hook": "When a stem has untrusted content flowing into a context that can call tools, the answer constrains what the tools can do — never a stronger instruction to ignore injected text."
+  },
+  {
+    "id": "FC-GSR-002",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Jailbreak versus prompt injection",
+    "difficulty": "easy",
+    "front": "Distinguish a jailbreak from a prompt injection. Why does the distinction change who you defend against?",
+    "back": "A jailbreak is the user of the system trying to make the model violate its own policy — the adversary is the person in front of it. An injection is a third party planting instructions in data the system consumes — web page, document, email, tool output — so the legitimate user is the victim. Jailbreaks threaten policy compliance; injections threaten the user's data and the system's privileges.",
+    "hook": "Ask who the adversary is. If malicious text arrives through retrieved or tool content rather than the user's own message, it is injection and the controls differ."
+  },
+  {
+    "id": "FC-GSR-003",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Output sanitisation before downstream execution",
+    "difficulty": "medium",
+    "front": "A model's output is rendered as HTML and used to build a database query. What is the governing rule?",
+    "back": "Model output is untrusted input to every downstream system. Escape or sanitise before rendering, parameterise queries rather than interpolating generated text, validate against a schema before deserialising, and never pass generated strings to a shell. Content safety filtering is a different control and does not make output safe to execute — an inoffensive string can still be a valid injection payload.",
+    "hook": "Distinguish content safety from injection safety. A stem where output feeds a renderer, query, or interpreter wants classic output encoding, not a toxicity classifier."
+  },
+  {
+    "id": "FC-GSR-004",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Least privilege at the tool boundary",
+    "difficulty": "medium",
+    "front": "An agent's database tool runs under a service account with broad read access to all customer records. What is the correct design?",
+    "back": "Authorise at the tool boundary using the end user's identity, not the agent's. Scope each tool to the narrowest operation and dataset it needs, enforce row- and field-level access in the datastore, separate read tools from write tools, and never let the model supply the identity or scope parameter. The model chooses which tool to call; it must never choose what it is permitted to see.",
+    "hook": "\"The agent can technically reach more than this user should\" is a privilege stem. The answer moves authorisation into the tool or datastore, not into the prompt."
+  },
+  {
+    "id": "FC-GSR-005",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "The confused deputy problem",
+    "difficulty": "hard",
+    "front": "What is the confused-deputy failure in an agent system, and which architectural choice creates it?",
+    "back": "A privileged component is tricked into using its authority on behalf of a less-privileged requester. It arises whenever the agent holds credentials broader than the caller's own rights, so injected or manipulated instructions borrow the agent's permissions. The fix is delegation: propagate the caller's identity and scope through every hop, so the agent can never act beyond the rights of whoever asked.",
+    "hook": "Any design where the agent's service account is more powerful than the requesting user is a confused deputy waiting to happen — regardless of how good the guardrails are."
+  },
+  {
+    "id": "FC-GSR-006",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "PII minimisation and redaction",
+    "difficulty": "medium",
+    "front": "Support transcripts full of personal data must be summarised by a model. What does data minimisation require beyond \"we don't train on it\"?",
+    "back": "Only send the fields the task actually needs; detect and redact or tokenise identifiers before the call, keeping a mapping outside the model path if the output must be re-identified; suppress PII from prompt and completion logs, traces and cached prefixes; and set retention on every copy. Minimisation is about what leaves your boundary at all, not only what the provider does with it.",
+    "hook": "Redaction stems usually hide the leak in the observability layer — traces, debug logs, cached prefixes and eval datasets copy the same PII the main path was careful about."
+  },
+  {
+    "id": "FC-GSR-007",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Sandboxing tool execution",
+    "difficulty": "medium",
+    "front": "An agent generates and runs code as part of a data-analysis feature. What must the execution environment provide?",
+    "back": "Isolation sized to the blast radius: an ephemeral container per run with no persistent state, non-root execution, CPU, memory and wall-clock limits, a read-only filesystem apart from a scratch directory, no ambient cloud credentials, and egress restricted to an allowlist. Network egress is the one most often forgotten — it is the path by which sandboxed code exfiltrates whatever it was given.",
+    "hook": "Code-execution stems are testing isolation completeness. An option that limits CPU and memory but leaves outbound network open has not contained anything that matters."
+  },
+  {
+    "id": "FC-GSR-008",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Lawful basis and purpose limitation",
+    "difficulty": "medium",
+    "front": "Support tickets were collected to resolve customer issues. The team now wants them as an AI eval corpus. What is the GDPR question?",
+    "back": "Whether the new use is compatible with the purpose the data was collected for, and what lawful basis covers it. Purpose limitation is not satisfied by the data already being in your possession. Options are a compatibility assessment, a fresh basis such as consent, or de-identification sufficient that the data is no longer personal — plus updating the privacy notice and the record of processing.",
+    "hook": "\"We already hold this data\" is never the answer to a lawful-basis question. Repurposing existing personal data for AI is a new processing purpose."
+  },
+  {
+    "id": "FC-GSR-009",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Erasure requests across derived stores",
+    "difficulty": "hard",
+    "front": "A data subject requests erasure. Your RAG system holds their data in more places than the source database. Where must you look?",
+    "back": "Every derived copy: the vector index and its stored chunk text and metadata, keyword indexes, prompt and completion logs, traces, evaluation datasets, cached prefixes, message history, backups and any downstream analytics store. Design for this in advance by keying every derived record to a subject or source identifier, so deletion is a lookup rather than a forensic exercise.",
+    "hook": "Erasure stems test whether you enumerate derived stores. Deleting the source row and re-running the pipeline leaves the embedding, the log and the eval set untouched."
+  },
+  {
+    "id": "FC-GSR-010",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "When a DPIA is required",
+    "difficulty": "medium",
+    "front": "When does an AI feature trigger a data protection impact assessment, and what does producing one actually involve?",
+    "back": "When processing is likely to be high risk to individuals — large-scale systematic evaluation or profiling, special-category data, systematic monitoring, or automated decisions with significant effects. The assessment describes the processing and purpose, tests necessity and proportionality, identifies risks to data subjects, and records the mitigations. It must be done before processing begins, and revisited when the system materially changes.",
+    "hook": "The trigger is risk to the individual, not technical novelty. A DPIA produced after launch, or never revisited after a scope change, is a finding in itself."
+  },
+  {
+    "id": "FC-GSR-011",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "EU AI Act risk tiers",
+    "difficulty": "medium",
+    "front": "How does the EU AI Act tier obligations, and what determines which tier your system lands in?",
+    "back": "By use case and its impact on people, not by model size or architecture. Some practices are prohibited outright; specified high-risk uses — including employment, credit, education and essential services — carry the heavy obligations of risk management, data governance, technical documentation, logging, human oversight, accuracy and robustness; limited-risk uses carry transparency duties such as disclosing that a user is interacting with AI; the remainder is minimal risk.",
+    "hook": "Classification follows the application, so the same model can be high risk in hiring and minimal risk in a writing aid. Options that tier by model capability are wrong."
+  },
+  {
+    "id": "FC-GSR-012",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Model risk management and effective challenge",
+    "difficulty": "hard",
+    "front": "A bank's model risk function applies SR 11-7 style governance to your Claude system. What will they require that a normal software review does not?",
+    "back": "Independent validation by people who did not build it, with genuine authority to challenge: conceptual soundness of the design, evidence for the choice of model and prompts, outcome analysis against benchmarks, ongoing monitoring with defined thresholds, documented limitations and assumptions, and entry in the model inventory with an owner and a revalidation cadence. Documentation must let a reviewer reconstruct the reasoning without asking the team.",
+    "hook": "Model risk stems key on independence and effective challenge. The team's own evals, however rigorous, do not satisfy a validation requirement performed by the builders."
+  },
+  {
+    "id": "FC-GSR-013",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Audit logging for reproducibility",
+    "difficulty": "medium",
+    "front": "A regulator may ask, years later, why your system made a particular decision. What has to be in the audit record?",
+    "back": "Everything needed to reconstruct the decision: the inputs, the prompt and its version, the model identifier and parameters, retrieved document ids and versions, tool calls and results, the output, the guardrail verdicts, and who or what acted on it — bound by a correlation id and timestamp. Store it write-once with retention matching the obligation. Logging only the final answer proves nothing.",
+    "hook": "A reproducibility requirement measured in years means logging inputs and versions, not outputs. Immutability and retention are part of the answer, not an afterthought."
+  },
+  {
+    "id": "FC-GSR-014",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Vendor data-handling commitments",
+    "difficulty": "easy",
+    "front": "Which contractual data commitments should an architect confirm before regulated data reaches any model provider?",
+    "back": "Whether inputs and outputs are retained and for how long, whether a zero-retention arrangement is available for the workload, whether data may be used to train models, subprocessor and data-location terms, breach notification, and the sector instrument the regulator expects — a data processing agreement, and a business associate agreement where health data is involved. Confirm what is contractual, not what is described in marketing material.",
+    "hook": "Compliance stems distinguish a technical control from a contractual one. Encryption does not answer a training-use or retention question; only the agreement does."
+  },
+  {
+    "id": "FC-GSR-015",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "AI inventory and registration",
+    "difficulty": "easy",
+    "front": "What is an AI inventory, and why does every governance framework start with one?",
+    "back": "A maintained register of every AI system in the organisation with its owner, purpose, data categories, model and provider, risk classification, approval status, evaluation evidence and review date. It is foundational because no obligation — risk tiering, DPIA coverage, incident scoping, regulator reporting, vendor review — can be discharged for systems nobody has listed. Registration should be a gate in the delivery process, not a survey.",
+    "hook": "When a stem asks where to begin on governance across many teams, the answer is discovery and inventory. Policy applied to an unknown estate governs nothing."
+  },
+  {
+    "id": "FC-GSR-016",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Shadow AI discovery and response",
+    "difficulty": "medium",
+    "front": "Staff are pasting internal documents into unapproved AI tools. Why is blocking the domains an incomplete response?",
+    "back": "Blocking pushes usage onto personal devices where you have no visibility at all, and it does not address why people went outside — the sanctioned path was missing, slow or unusable. Pair detection (egress monitoring, expense and SSO discovery, DLP on uploads) with a fast approval route and a genuinely usable approved tool. Shadow AI is a demand signal as much as a control failure.",
+    "hook": "Shadow AI stems reward pairing enforcement with a sanctioned alternative. Pure prohibition is the plausible wrong answer because it appears decisive."
+  },
+  {
+    "id": "FC-GSR-017",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "AI incident response",
+    "difficulty": "hard",
+    "front": "Your assistant gave a customer harmful, confidently wrong guidance that they acted on. What does AI incident response add beyond a normal outage runbook?",
+    "back": "The harm is to a person, not a service, so the process must include severity classification against defined AI harm categories, containment by disabling or restricting the feature rather than restoring it, identification of every affected user through the logs, notification duties to regulators and individuals on statutory clocks, remediation for those harmed, and a blameless postmortem whose actions include new evals and guardrails.",
+    "hook": "AI incidents need a harm assessment and a notification decision, not just a rollback. Availability-shaped answers miss the affected-user identification step entirely."
+  },
+  {
+    "id": "FC-GSR-018",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Human accountability for AI decisions",
+    "difficulty": "easy",
+    "front": "Who is accountable for a decision an AI system makes, and how is that made real in an organisation?",
+    "back": "A named human owner — accountability never transfers to the model or the vendor. It becomes real through a RACI covering the system: an accountable business owner for outcomes, responsible engineering and model-risk parties, consulted legal and privacy functions, and a documented reviewer for decisions requiring oversight. Human oversight must also be meaningful — the reviewer needs the context, the authority and the time to overturn.",
+    "hook": "Watch for oversight that cannot function: a reviewer with seconds per case and no way to see the evidence is rubber-stamping, and regulators treat it as such."
+  },
+  {
+    "id": "FC-GSR-019",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Third-party AI vendor risk",
+    "difficulty": "medium",
+    "front": "A business unit wants to buy an AI-powered vendor product that itself calls a model provider. What does the assessment have to cover that a normal SaaS review would not?",
+    "back": "The fourth party: which model provider sits underneath, where inference happens, what the vendor sends them, and whether their retention and training commitments flow down to you. Then the AI-specific surface — evaluation evidence for their claims, guardrails, how they handle model version changes, incident notification, your exit and data return, and whether their outputs land inside a regulated decision of yours.",
+    "hook": "Vendor stems hinge on the subprocessor chain. Your commitments to a regulator are not satisfied by a vendor's assurance unless the terms flow down to their model provider."
+  },
+  {
+    "id": "FC-GSR-020",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Approval workflow and system cards",
+    "difficulty": "easy",
+    "front": "What makes an AI approval process something teams use rather than route around, and what artefact should it produce?",
+    "back": "Tiering: low-risk internal uses take a lightweight self-service registration, while high-risk uses get full review — so scrutiny scales with consequence and the common case is not blocked. It should also carry a time-bound exception path with a named approver. The artefact is a system card recording purpose, data, model, evaluation results, known limitations, guardrails, oversight and owner.",
+    "hook": "Governance stems reward proportionality. A single heavyweight gate for every use case is the answer that looks rigorous and reliably produces shadow AI instead."
+  }
+]

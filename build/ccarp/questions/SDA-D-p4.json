@@ -1,0 +1,454 @@
+[
+  {
+    "id": "SDA-D-055",
+    "domain": "Solution Design & Architecture",
+    "topic": "Human in the loop versus human on the loop",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In the design of an automated decision system, what distinguishes a human in the loop from a human on the loop?",
+    "options": [
+      { "key": "A", "text": "A human in the loop reviews outcomes after they occur; a human on the loop reviews each proposal before it is acted upon." },
+      { "key": "B", "text": "A human in the loop curates the training and evaluation data; a human on the loop monitors production dashboards and metrics." },
+      { "key": "C", "text": "A human in the loop must decide before the action proceeds; a human on the loop supervises the autonomous system and can halt it." },
+      { "key": "D", "text": "A human in the loop implies a synchronous review interface, while a human on the loop implies an asynchronous batch one." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The difference is whether the action waits. In the loop, the human decision is a precondition — nothing happens until someone acts, which bounds harm but also bounds throughput and adds the human's response time to every request. On the loop, the system proceeds and the human holds oversight and a stop control, which preserves throughput and accepts that some wrong actions will occur and be corrected. Choosing between them is mostly a question of reversibility and volume, not of how much you trust the model.",
+      "distractors": {
+        "A": "The two halves are swapped. Reviewing after the fact is the supervisory posture, and requiring a decision before the action is what places the human inside the loop.",
+        "B": "Both terms describe operational roles in a running system. Data curation is a development activity and sits outside this distinction entirely.",
+        "D": "Interface style is a consequence, not the definition. An in-the-loop gate is often implemented asynchronously — a queue an approver works through — and the action still waits, which is what makes it in the loop."
+      },
+      "concept": "Pick the posture from the properties of the action. Irreversible, high-consequence, low-volume work argues for a human in the loop; reversible, high-volume work with cheap correction argues for a human on the loop with strong monitoring and a fast stop. Systems frequently need both, applied to different actions within the same workflow.",
+      "tip": "The phrase can and does appear in stems as a constraint. Read it as a statement about whether the action blocks, and check whether the rest of the scenario — volume, reversibility, latency budget — is consistent with the posture chosen."
+    }
+  },
+  {
+    "id": "SDA-D-056",
+    "domain": "Solution Design & Architecture",
+    "topic": "Step size when moving an agent from proposal to autonomy",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A supermarket chain's Claude agent reads supplier cost notifications and produces proposed shelf-price changes. For three weeks it has written proposals to a file that a pricing analyst applies by hand, and agreement between agent and analyst is 96%. The team intends to enable direct writes at Monday's release. The pricing system has no per-run scope control, so the agent's credential would cover all 40,000 stocked lines, and shelf prices are visible to customers and to the trading standards regime. What should the team do before Monday?",
+    "options": [
+      { "key": "A", "text": "Enable direct writes as planned, since three weeks at 96% agreement across 40,000 lines is a stronger evidence base than most changes get." },
+      { "key": "B", "text": "Enable direct writes only within a declared scope — one category, a bounded magnitude and a per-run cap — leaving the rest on the manual path." },
+      { "key": "C", "text": "Delay the release until measured agreement reaches 99% over a further month of shadow running, then enable direct writes everywhere." },
+      { "key": "D", "text": "Add a deterministic rule that blocks any single price change greater than 20% of the current shelf price, and enable direct writes as planned." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Monday as planned is a jump from 0% autonomous to 100% autonomous over 40,000 lines, and 4% disagreement at that scale is 1,600 lines a run. The right next step reduces the step size rather than the error rate: a declared category, a magnitude band and a per-run change cap turn the first autonomous runs into something whose worst case is enumerable and correctable, while the analyst continues to cover everything else. It also builds the scope control the pricing system lacks at the layer that can enforce it, which is the gap the release plan currently ignores.",
+      "distractors": {
+        "A": "Agreement measured while an analyst applies every change is not evidence of behaviour under autonomy, because the analyst's silent corrections never appear as disagreements. Even taken at face value, 4% of 40,000 lines is a customer-visible and regulator-visible event.",
+        "C": "Chasing three more points of agreement addresses the wrong variable and does not change the step size; at 99% the first unsupervised run still touches 40,000 lines with 400 expected disagreements. The missing control is scope, not accuracy.",
+        "D": "A magnitude rule bounds how wrong any single price can be and says nothing about how many prices can be wrong. Thousands of plausible-looking sub-threshold errors across the estate is the more likely failure, and the release still goes from zero to full scope in one step."
+      },
+      "concept": "Graduate autonomy along scope, not only along confidence. Move from proposal to action in bounded increments — a partition, a magnitude band, a per-run action cap — so that the first live failures are small, enumerable and reversible. Agreement measured under human application systematically overstates performance under autonomy.",
+      "tip": "When a stem gives an agreement percentage and a population size, multiply out the disagreement count before judging whether the rate is good. A reassuring percentage over a large estate is usually the trap."
+    }
+  },
+  {
+    "id": "SDA-D-057",
+    "domain": "Solution Design & Architecture",
+    "topic": "Error taxonomy that drives retry and fallback behaviour",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An architect is defining the error taxonomy every service in the company will use when calling Claude, so that retry, alerting and fallback behaviour can be standardised across teams. Which THREE classes must be distinguished because each demands different handling? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "Transient infrastructure failures such as connection timeouts and overload responses, which may well succeed on a later attempt." },
+      { "key": "B", "text": "Failures grouped by which team owns the calling service, so that alerts are routed automatically to the right on-call rotation for that team's service." },
+      { "key": "C", "text": "Malformed-request failures such as invalid parameters or oversized input, which fail identically on every attempt until the request changes." },
+      { "key": "D", "text": "Failures grouped by the model tier in use, since each tier is held to fail in characteristically different ways at load." },
+      { "key": "E", "text": "Calls that succeeded but whose content fails a downstream contract — a schema mismatch or truncation at the token limit — needing regeneration." }
+    ],
+    "correct": ["A", "C", "E"],
+    "explanation": {
+      "correct": "Each of these three implies a different action, which is the test of whether a taxonomy is earning its keep. Transient failures are the only class where an unchanged retry is rational, and they drive backoff and breaker behaviour. Malformed requests must never be retried unchanged, because doing so burns budget and hides a code defect behind a retry counter. The third class is the one teams most often miss: the transport succeeded, so no error handler fires, yet the response is unusable — and the correct response is validation with a constrained regeneration, not a retry of a call that already worked.",
+      "distractors": {
+        "B": "Ownership is routing metadata attached to any error, not a class of failure. It determines who is told, never what the client should do, and a taxonomy organised around it gives every team a different set of behaviours for the same underlying condition.",
+        "D": "Tier is a dimension you slice metrics by, not a handling class. A timeout is handled the same way whichever tier produced it, and organising the taxonomy this way would multiply every real class by the number of tiers in use."
+      },
+      "concept": "An error taxonomy is only useful if each class maps to a distinct action. The durable split is transient (retry with backoff, feed the breaker), permanent request defects (fail fast, alert, never retry unchanged), and successful-but-unusable content (validate and regenerate under constraint). Everything else is a label on an error, not a class of it.",
+      "tip": "Test each proposed class by asking what the client does differently because of it. Classes that only change who gets paged or how a chart is filtered are attributes, and in a choose-three item they are the surplus options."
+    }
+  },
+  {
+    "id": "SDA-D-058",
+    "domain": "Solution Design & Architecture",
+    "topic": "When a cached answer is the right fallback",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An airline's baggage-policy assistant answers passenger questions from a policy corpus that the revenue team revises roughly twice a year. The team is choosing a fallback for model-path outages. A sister team that runs the live-disruption assistant has told them that serving cached answers during an outage is always the wrong call, having learned it the hard way during a signalling incident. What fallback fits the baggage assistant?",
+    "options": [
+      { "key": "A", "text": "Serve cached answers keyed by question intent, labelled with the policy version, and invalidate the cache whenever the corpus is revised." },
+      { "key": "B", "text": "Adopt the sister team's blanket rule and show a service-unavailable message for that topic rather than serving any cached content at all." },
+      { "key": "C", "text": "Serve the underlying conditions-of-carriage document directly to the passenger for the baggage topic they asked about." },
+      { "key": "D", "text": "Fall back to a lower-capability model reading the same policy corpus, so that an answer is still generated fresh each time." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The sister team's rule is correct for their domain and wrong here, and the difference is how fast the underlying truth changes. A live disruption invalidates yesterday's answer within minutes; a baggage policy revised twice a year does not, so a cached answer is almost certainly still correct and is enormously better than nothing. Tying invalidation to the corpus version rather than to a clock makes the guarantee explicit — the cache is stale exactly when the policy changes, and never otherwise — and the version label lets support resolve any dispute about what a passenger was told.",
+      "distractors": {
+        "B": "This imports a conclusion without its reasoning. Blanket rules about caching ignore the only variable that matters, which is the rate of change of the underlying facts relative to the length of the outage.",
+        "C": "The assistant exists because passengers cannot navigate long conditions of carriage. Dropping them into the source text is a degraded state that fails the user in a different way, and unlike the disruption case the raw source is not a usable answer.",
+        "D": "During a model-path outage, a second model call is a call to the same class of dependency and is likely to fail for the same reason. A fallback that shares the failure mode of the primary provides no additional availability."
+      },
+      "concept": "Cache-as-fallback is judged by the volatility of the subject matter, not by a general rule. Where facts change on a slow, observable cadence, serve the cached answer and invalidate on the source's version rather than on elapsed time. Where the subject is a live event, cached content is actively misleading and the correct fallback is unenriched current data.",
+      "tip": "Stems that quote another team's hard-won rule are usually testing whether you check that the rule's premise holds here. Look for the sentence giving the rate of change of the underlying data."
+    }
+  },
+  {
+    "id": "SDA-D-059",
+    "domain": "Solution Design & Architecture",
+    "topic": "Quality gate on retrieved content before it enters the prompt",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A government procurement unit runs a Claude tool that summarises supplier tender submissions arriving through a scanned-document pipeline. About 3% of pages come out of OCR corrupted — columns dropped, text interleaved, tables truncated. The model summarises those pages fluently and without hesitation, and two such summaries reached evaluation panels before anyone noticed. The output policy check runs after the model and passes every time, because the summaries are well formed. What is the correct change?",
+    "options": [
+      { "key": "A", "text": "Extend the output policy check so that it flags summaries that were produced from corrupted or interleaved OCR source text." },
+      { "key": "B", "text": "Instruct the model in its system prompt to state whenever its source text appears unreadable and to decline to summarise those pages." },
+      { "key": "C", "text": "Re-run OCR at higher resolution and quality settings across the whole tender corpus to bring the 3% corruption rate down." },
+      { "key": "D", "text": "Gate content before the prompt: score each page for OCR confidence, exclude failures, and name the unread pages in the summary." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The failure enters upstream of the model and the current control sits downstream of it, which is why a check that examines only the output passes on every one of these cases — the summary really is well formed, it is just about nothing. Placing the gate on the input path puts the check where the defect is observable, using signals the OCR stage already produces. Equally important is what happens on a fail: the request degrades to a summary that names the unreadable pages, which is a usable artefact for an evaluation panel, rather than silently omitting them.",
+      "distractors": {
+        "A": "The output check would have to infer, from a fluent summary alone, that its source was garbage — a much harder problem than reading the OCR confidence score that already exists upstream. Placing a control where the evidence is absent makes it expensive and unreliable.",
+        "B": "This puts the control inside the model's discretion, and models generally summarise degraded text rather than refusing it, because a plausible reading is usually available. A property the system must guarantee cannot rest on the model choosing to raise its hand.",
+        "C": "Better OCR reduces the rate and cannot eliminate it, so the system still has no gate and the next corrupted page reaches a panel. It also spends across the entire corpus to partially address a problem that a per-page check catches for almost nothing."
+      },
+      "concept": "Place each guardrail where the signal it needs actually exists. Content entering the prompt — retrieved documents, tool results, upstream extractions — needs its own validity gate on the way in, because a model given unusable input produces confident output that no downstream check can distinguish from good work.",
+      "tip": "When a stem says the output check passes and the output is well formed, the control is on the wrong side of the model. Look for where in the pipeline the defect is measurable and put the gate there."
+    }
+  },
+  {
+    "id": "SDA-D-060",
+    "domain": "Solution Design & Architecture",
+    "topic": "Reconciling a partially completed multi-system workflow",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A facilities-management agent handles emergency callouts in three steps: book a contractor through the supplier portal, write a purchase order into the finance system, notify the site manager. A worker was evicted after a successful contractor booking but before the purchase-order write. The message is back on the queue and will be redelivered within minutes. The supplier portal accepts an idempotency header, but the current code generates a fresh value on each attempt, and the portal exposes a booking lookup by site and time window. What should the engineer do next?",
+    "options": [
+      { "key": "A", "text": "Let the redelivery proceed, on the basis that a duplicate contractor booking costs less than a missed emergency callout." },
+      { "key": "B", "text": "Deploy a fix that derives the idempotency key from the callout identity, so the redelivery is deduplicated by the portal." },
+      { "key": "C", "text": "Pause the consumer, query the portal to establish whether the booking exists, and resume the workflow from the purchase-order step." },
+      { "key": "D", "text": "Delete the message from the queue outright so that no duplicate contractor booking can be created on redelivery." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The state is unknown but knowable, and the stem tells you the lookup exists. Pausing the consumer buys the minutes needed to establish ground truth instead of guessing, and querying the portal turns the ambiguity into a fact. Once the booking is confirmed present, the correct resumption point is the purchase-order step — the workflow continues from where it actually got to rather than from where the message says it started. Fixing the key derivation is the right follow-up, but it does not help the message already in flight, whose original attempt used a value nothing can reproduce.",
+      "distractors": {
+        "A": "This makes an irreversible commercial commitment without checking a system that can be queried in seconds, and duplicate emergency callouts have costs beyond the invoice — a second contractor arriving at a site is an incident of its own.",
+        "B": "A deploy takes longer than the redelivery window, so the duplicate lands first. More fundamentally, the original attempt used a per-attempt value that the redelivery cannot reproduce, so even a perfect fix does not deduplicate this particular message.",
+        "D": "Dropping the message leaves an emergency callout with a contractor booked, no purchase order raised and nobody notified — silent, undetected partial completion, which is worse than the duplicate it avoids."
+      },
+      "concept": "When a workflow crashes between steps and idempotency was not in place, recovery is reconciliation: pause further processing, query the external system of record to determine what actually happened, and resume from the true state. Guessing in either direction produces a duplicate or a silent gap, and the gap is the harder one to detect later.",
+      "tip": "Look for the sentence that tells you a lookup or reconciliation endpoint exists. Its presence means the intended answer establishes the true state rather than choosing between the two possible errors."
+    }
+  },
+  {
+    "id": "SDA-D-061",
+    "domain": "Solution Design & Architecture",
+    "topic": "Static stability during a dependency failure",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "What does it mean for a service to be statically stable during the failure of a dependency?",
+    "options": [
+      { "key": "A", "text": "It retries the failed dependency continuously, holding incoming requests in memory until the dependency has recovered." },
+      { "key": "B", "text": "It continues operating on the last known good state it already holds, without a new answer from the dependency." },
+      { "key": "C", "text": "It rejects all incoming requests immediately so that no load at all accumulates against the failed dependency." },
+      { "key": "D", "text": "It switches automatically to a warm standby replica of the dependency running in a second region on failure." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Static stability is the property that a failure does not require the system to do anything new in order to keep working. The configuration, policy set, routing table or last successful result is already resident, so the service keeps making the same decisions it was making before, and the dependency's absence changes nothing about the request path. The typical cost is freshness — the system may act on slightly stale state — and the typical benefit is that the most fragile moment, when a dependency fails, does not also become the moment you exercise new code paths.",
+      "distractors": {
+        "A": "Holding requests is queueing, which converts a dependency failure into growing latency for everyone and eventually into exhaustion. It is close to the opposite of remaining stable.",
+        "C": "Immediate rejection is load shedding. It protects the dependency and the caller's resources, but the service has stopped doing its job, which is not what stability means here.",
+        "D": "Regional failover is a recovery action that requires successfully executing something new during an incident. It is a valid strategy and a different one — static stability specifically avoids depending on an action taken at failure time."
+      },
+      "concept": "Prefer designs whose failure behaviour requires no new action: cache the decisions and configuration needed to keep serving, and let a dependency's absence mean staleness rather than unavailability. Every mechanism that must run correctly for the first time during an incident is a mechanism that can fail during an incident.",
+      "tip": "Static stability and failover are frequently offered as alternatives in the same item. Static stability keeps doing what it was already doing; failover does something new. The stem's tolerance for stale data usually decides which is intended."
+    }
+  },
+  {
+    "id": "SDA-D-062",
+    "domain": "Solution Design & Architecture",
+    "topic": "Instrumenting the human review decision",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A customs brokerage runs a Claude step that proposes tariff classifications, which a licensed broker accepts or edits before the entry is filed. The system logs the model's proposal and the final filed classification. Six months in, the team wants to use broker corrections both to improve the system and to answer audit questions about why a classification changed. It finds it can report that 11% of proposals were edited, but not in what way or for what reason. What should the architect change?",
+    "options": [
+      { "key": "A", "text": "Extend log retention from six months to three years so that more decision history is available for analysis and audit." },
+      { "key": "B", "text": "Ask brokers to record a free-text note in the team's existing ticketing system whenever they edit a proposed classification." },
+      { "key": "C", "text": "Have a nightly model job compare each proposal with the final filed value and infer the reason the broker made the edit." },
+      { "key": "D", "text": "Capture the review as an event: the proposal, the final value, the structured diff, a broker reason code and the request id." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The organisation has the two endpoints of every decision and none of the middle, which is why 11% is the only fact it can state. Modelling the review as an event — with the diff, a constrained reason code and the link back to the originating request — turns each correction into a labelled example of what the system got wrong and why. That single record serves both stated purposes at once: it is the audit answer to why a classification changed, and it is the highest-quality evaluation data the brokerage will ever have, produced by licensed experts as a by-product of work they already do.",
+      "distractors": {
+        "A": "Retention preserves what was captured, and the reasons were never captured. Keeping the same two fields for longer produces a larger dataset with the same gap in it.",
+        "B": "A note in a separate system is unstructured, inconsistently completed under time pressure, and not joined to the request, so it can be neither aggregated nor traced to the inputs that produced the proposal. It adds work to brokers without producing analysable data.",
+        "C": "Inferring an expert's rationale after the fact manufactures plausible reasons that nobody verified, which is unusable as an audit answer and misleading as training signal. The reason existed in the broker's head at review time; the design failure was not asking for it then."
+      },
+      "concept": "Where a human reviews or overrides a model, the review is the most valuable telemetry the system produces and must be instrumented as deliberately as any model call. Capture the before and after, a structured reason, the reviewer, and the link to the original request — this is simultaneously the audit record, the health metric for the control, and the evaluation set.",
+      "tip": "When a stem says a team knows the rate of overrides but nothing about their content, the answer is always to capture the review event itself. Options that analyse existing data cannot recover a field that was never recorded."
+    }
+  },
+  {
+    "id": "SDA-D-063",
+    "domain": "Solution Design & Architecture",
+    "topic": "Reducing guardrail latency without weakening it",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An in-path output guardrail is adding materially to p95 latency on a customer-facing Claude feature, and the product owner wants the time back. Responses are generated per request against per-user context and are effectively unique — telemetry records an exact-text repeat in well under 1% of traffic. Which TWO changes reduce the guardrail's latency contribution while keeping it a preventive control? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Apply the guardrail to a randomly sampled 10% of responses and let the remaining 90% through to customers unchecked." },
+      { "key": "B", "text": "Evaluate the guardrail on the smallest unit it can validly assess, so checking overlaps generation rather than following it." },
+      { "key": "C", "text": "Move the guardrail to run after delivery and retract any response in the widget that subsequently fails the check." },
+      { "key": "D", "text": "Run the guardrail's independent sub-checks concurrently rather than chained, so the cost is the slowest check not their sum." },
+      { "key": "E", "text": "Cache guardrail verdicts keyed by a SHA-256 hash of the response text so that repeated responses skip the check entirely." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "Both of these attack the guardrail's schedule rather than its coverage. Segment-level evaluation overlaps checking with generation, so the marginal cost collapses from the whole response time to roughly one segment's check, and every token is still checked before it is released. Parallelising independent sub-checks is the same idea applied within the guardrail: if three classifiers do not depend on each other's verdicts, chaining them charges the sum for no benefit. Neither change lets a single unchecked token reach a customer, which is what preserves the control.",
+      "distractors": {
+        "A": "Sampling converts the control into a detective one for 90% of traffic. It genuinely reduces average latency and does so by removing the guarantee the guardrail existed to provide, which the stem explicitly asks to keep.",
+        "C": "Post-delivery retraction is the definition of no longer preventive: the content has been seen. It is a legitimate design in some products and it is not an answer to a question that requires the control to remain preventive.",
+        "E": "The stem settles this: with exact repeats in well under 1% of traffic the hit rate is near zero, so the check still runs on essentially every response and p95 moves by nothing except the added hashing. Any hit that did occur would also skip the check on the basis of a verdict computed under an older policy version."
+      },
+      "concept": "To cut the latency of an in-path check, change when it runs rather than whether it runs: overlap it with generation at the smallest valid unit, parallelise independent components, and move any work that does not gate delivery out of the critical path. Sampling and post-hoc checking reduce latency by reducing coverage, which is a different decision requiring different sign-off.",
+      "tip": "In items about speeding up a guardrail, sort the options into those that change scheduling and those that change coverage. If the stem says the control must stay preventive, only the scheduling options can be keys — then check that each surviving option actually fires on the traffic described, because a skip that almost never triggers saves almost nothing."
+    }
+  },
+  {
+    "id": "SDA-D-064",
+    "domain": "Solution Design & Architecture",
+    "topic": "Bounding an agent run rather than its individual calls",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A semiconductor fab runs a Claude yield-analysis agent that queries process databases and iterates until it can explain a wafer excursion. Each tool call carries a 30-second timeout and each model call a 60-second timeout. Process engineers expect an answer within about 10 minutes. Last week one run executed 46 steps over 68 minutes, held a database connection throughout, and eventually returned an answer nobody was still waiting for. What should the architect change?",
+    "options": [
+      { "key": "A", "text": "Bound the run with a wall-clock deadline and step ceiling in the orchestrator, and return the best partial analysis when the budget is spent." },
+      { "key": "B", "text": "Reduce the per-tool timeout from 30 to 10 seconds and the per-model timeout from 60 to 30 seconds so each step is far cheaper." },
+      { "key": "C", "text": "Instruct the agent in its system prompt to complete the analysis within ten minutes and stop once it has sufficient evidence." },
+      { "key": "D", "text": "Move the agent to a faster model tier so that each of its steps completes in considerably less wall-clock time." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Per-call timeouts bound a call; nothing in this design bounds a run, so the total is the step count multiplied by whatever each step costs, and the step count is chosen by the model. The fix has to live at the level where the requirement exists: the orchestrator holds a deadline and a step ceiling, refuses to start work that cannot finish inside them, and — critically — has a defined behaviour when the budget runs out. Returning the best partial analysis is what makes the bound acceptable to engineers, because a truncated finding at ten minutes is worth considerably more than a complete one at sixty-eight.",
+      "distractors": {
+        "B": "Forty seconds a step across 46 steps is still over half an hour, and a harder problem simply produces more steps. Tightening per-call limits also truncates the legitimately slow database queries the analysis depends on, trading an unbounded run for a faster one that fails.",
+        "C": "The model has no clock and no reliable sense of elapsed wall time, and enough-evidence is precisely the judgement the run is failing to make. Termination conditions that matter must be enforced by code outside the agent's reasoning.",
+        "D": "Faster steps do not bound step count; an agent that iterates until satisfied will simply take more iterations in the same wall-clock time. Speed changes the cost per step and leaves the unbounded loop exactly as unbounded."
+      },
+      "concept": "An agent loop needs budgets at run scope — wall clock, step count, spend — enforced outside the model, plus a defined result when a budget is exhausted. Per-call timeouts protect against a hung call and say nothing about a run that keeps making perfectly healthy calls forever.",
+      "tip": "Multiply the step count by the per-step limits whenever a stem gives you both. If the product dwarfs the stated expectation, the item is about run-level bounds and every option that tunes a per-call value is wrong."
+    }
+  },
+  {
+    "id": "SDA-D-065",
+    "domain": "Solution Design & Architecture",
+    "topic": "Measuring the blast radius of a shared prompt change",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Which question most directly measures the blast radius of a change to a prompt template shared across many customers?",
+    "options": [
+      { "key": "A", "text": "How many additional input tokens the change adds to every request that uses the template." },
+      { "key": "B", "text": "How many senior engineers reviewed and approved the change before it was merged to the main branch." },
+      { "key": "C", "text": "What fraction of traffic, and which customers, the change can affect before it can be stopped." },
+      { "key": "D", "text": "How long the change took to author, review and test in staging before it was released." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Blast radius is about exposure and reversibility, so it is measured in affected population and time to stop — how much of the estate a change reaches, whose estate it is, and how quickly it can be halted once someone notices. That framing immediately produces the levers: cohort rollout shrinks the fraction, per-cohort health evaluation shortens the detection interval, and an automated rollback shortens the stop interval. The other questions may all be worth asking about a change; none of them tells you how much damage it can do.",
+      "distractors": {
+        "A": "Token growth is a cost and context-budget concern. A change that adds no tokens at all can still break every tenant, which is exactly the regression profile that makes shared templates dangerous.",
+        "B": "Review depth reduces the probability of a defect and does nothing about its reach if one slips through. Treating review as a containment control is how organisations end up with careful changes that still take down the estate.",
+        "D": "Effort spent is not correlated with impact, and long-gestating changes are frequently the largest. Time-to-author measures the team, not the exposure."
+      },
+      "concept": "Express blast radius as population multiplied by exposure time. Every containment technique reduces one of the two: staged rollout and partitioning reduce population, while granular health signals and automatic rollback reduce time. Prevention measures — review, testing, linting — reduce the likelihood of an incident and never its radius.",
+      "tip": "Separate likelihood controls from radius controls whenever a stem asks about containment. Testing, review and better prompts are likelihood; cohorts, quotas, partitions and kill switches are radius."
+    }
+  },
+  {
+    "id": "SDA-D-066",
+    "domain": "Solution Design & Architecture",
+    "topic": "Preconditions for unattended overnight agent operation",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A distributor wants to let its Claude replenishment agent run unattended overnight, placing stock orders with suppliers while nobody is on shift. Which THREE conditions must hold before that is enabled? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "The run carries hard limits on actions, spend and wall-clock time, enforced by the orchestrator rather than the agent's reasoning." },
+      { "key": "B", "text": "Every side-effecting step either has a defined compensating action or is deferred to the morning approval queue for a human." },
+      { "key": "C", "text": "The overnight run uses the same prompt template and tool set as the supervised daytime path, so that behaviour stays consistent between them." },
+      { "key": "D", "text": "Completion is asserted positively: a run that ends without its terminal state raises an alert rather than being silently absent." },
+      { "key": "E", "text": "The overnight run uses the highest-capability model tier available, since no human is on shift overnight to catch mistakes." }
+    ],
+    "correct": ["A", "B", "D"],
+    "explanation": {
+      "correct": "Unattended operation removes the human who would otherwise notice things, so each of those noticing functions has to be replaced by a mechanism. Externally enforced budgets replace the person who would have stopped a run that was clearly going wrong. Compensation or deferral replaces the person who would have caught a bad order before it went out, by ensuring every overnight effect is either undoable or postponed until someone is present. Positive completion assertion replaces the person who would have noticed nothing happened — the failure mode of unattended work is silence, and silence has to be made loud.",
+      "distractors": {
+        "C": "The unattended path should be more constrained than the supervised one, not identical to it: narrower action set, stricter output contracts, explicit refusal behaviour where the daytime path would have asked a colleague. Consistency between the two is not a safety property.",
+        "E": "Model tier changes the error rate and changes nothing about what happens when an error occurs, which is the entire question for unattended operation. A capable agent with unbounded authority overnight is a worse risk than a weaker one with hard limits."
+      },
+      "concept": "Enabling unattended operation means enumerating what the absent human was doing — bounding runaway behaviour, catching bad actions before they land, and noticing when nothing happened — and building an explicit mechanism for each. Silence is the characteristic failure of overnight automation, so completion must be asserted rather than assumed.",
+      "tip": "For any autonomy question, ask what the supervising human contributed and whether each contribution has a named replacement. Options that improve the model rather than replacing a human function are consistently the wrong ones."
+    }
+  },
+  {
+    "id": "SDA-D-067",
+    "domain": "Solution Design & Architecture",
+    "topic": "Ordering side effects against streamed user-visible text",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A broadband provider's self-service assistant streams its reply to the customer while it works. In the engineer-visit flow it streams \"I've scheduled your engineer visit for Thursday morning\" and then calls the scheduling tool, which sometimes fails because the slot was taken in the interim. By then the customer has read the confirmation, and text already delivered to the widget cannot be withdrawn. What is the right change?",
+    "options": [
+      { "key": "A", "text": "Append a clearly worded correction message to the end of the conversation whenever the scheduling tool subsequently fails." },
+      { "key": "B", "text": "Restructure the turn so the scheduling call resolves before any commitment is streamed, generating the confirmation from its actual result." },
+      { "key": "C", "text": "Retry the scheduling tool with backoff until a Thursday morning slot is booked, so the streamed confirmation becomes true." },
+      { "key": "D", "text": "Pre-reserve a Thursday slot at the start of any conversation that mentions an engineer visit, releasing it if the customer does not confirm." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Streaming makes text irreversible the moment it is delivered, so anything the model says about the world has to be true when it is said. The ordering fix is to make the commitment a report of a completed action rather than a prediction of one: the tool runs, its result comes back, and only then does the assistant generate the sentence that names a day. A holding message while the tool runs is perfectly acceptable, because it commits to nothing. The general rule is act first, then narrate — the reverse ordering is safe only when the narration can be retracted, and streamed text cannot.",
+      "distractors": {
+        "A": "The customer has already read a confirmation and may well have stopped reading. Corrections later in a stream are routinely missed, and even when seen the trust damage from a reversed confirmation has already been done.",
+        "C": "The slot is genuinely gone, so retrying cannot make it available; it only delays the moment the customer learns the truth. Retries address transient failures, and this is a legitimate business-state conflict.",
+        "D": "Reserving capacity for every conversation that merely mentions a visit would consume the engineer schedule with speculative holds. It is a heavy and costly workaround for what is a step-ordering defect in a single turn."
+      },
+      "concept": "In a streaming interface, ordering is a reliability control. Resolve side-effecting calls before emitting any text that asserts their outcome, and reserve streamed prose for content that is already true. Where the effect must be attempted after speaking, the interface needs a retraction mechanism — and most chat surfaces do not have a credible one.",
+      "tip": "When a stem points out that delivered text cannot be withdrawn, it is asking about the order of the tool call and the tokens. The answer moves the side effect earlier rather than adding a compensating message later."
+    }
+  },
+  {
+    "id": "SDA-D-068",
+    "domain": "Solution Design & Architecture",
+    "topic": "Graceful degradation contrasted with failover",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "What distinguishes graceful degradation from failover?",
+    "options": [
+      { "key": "A", "text": "Failover is always automatic, whereas graceful degradation must always be initiated manually by an on-call operator." },
+      { "key": "B", "text": "Failover applies only to stateless services, while graceful degradation applies only to stateful ones such as caches." },
+      { "key": "C", "text": "Failover handles infrastructure failures, while graceful degradation handles model quality regressions and gradual output drift instead." },
+      { "key": "D", "text": "Failover moves the workload to an equivalent replacement and preserves the contract; degradation reduces it to surviving capacity." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The two differ in what they promise. Failover assumes a substitute exists that can do the same job — another region, another replica, another provider — and its success criterion is that users notice nothing. Degradation assumes no such substitute is available and openly reduces the service to something the remaining capacity can honour: fewer features, staler data, a templated answer instead of a generated one. A mature design usually specifies both, with failover attempted first and degradation as the state when it is unavailable or has also failed.",
+      "distractors": {
+        "A": "Both are normally automatic in a mature system, and both may have manual triggers. Who initiates the transition says nothing about whether the service contract is preserved or reduced.",
+        "B": "Statefulness affects how difficult each is to implement and does not define either. Stateful services fail over routinely, and stateless ones degrade.",
+        "C": "Both respond to whatever makes the primary path unusable, including model unavailability, quality regressions and infrastructure loss. Splitting them by cause misses that the distinction is about the promise made to the user."
+      },
+      "concept": "Failover preserves the contract by substituting capacity; degradation preserves availability by reducing the contract. Design both, in that order, and specify the reduced contract explicitly — what the user gets, which guarantees survive, and how the state is signalled — because the degraded path is the one nobody tests.",
+      "tip": "Ask whether the user should be able to tell. If the intended answer is no, the mechanism is failover; if the design openly gives the user less, it is degradation, and it needs an explicit contract."
+    }
+  },
+  {
+    "id": "SDA-D-069",
+    "domain": "Solution Design & Architecture",
+    "topic": "Where to place instrumentation across many product teams",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A retail-energy company has six product teams building Claude features and expects four more next year. Each team wraps the SDK in its own helper, and the helpers differ in what they record: two log the rendered prompt, one logs only the output, none records the stop reason, and correlation identifiers are named differently in each. A platform engineer has been given time to fix this before the estate grows. Which approach gives the most durable result?",
+    "options": [
+      { "key": "A", "text": "Provide one shared client library every team calls, emitting the standard fields — correlation id, prompt version, stop reason, usage — on each call." },
+      { "key": "B", "text": "Publish a company-wide logging standard and review each of the six teams' implementations against it in the architecture forum." },
+      { "key": "C", "text": "Deploy a sidecar that captures request and response bodies at the network layer for every service, so that nothing depends on application code." },
+      { "key": "D", "text": "Have each of the six teams add the missing telemetry fields to its own SDK wrapper before that team's next scheduled release." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Instrumentation that depends on each team remembering will diverge again, and with ten teams next year the divergence compounds. Putting the telemetry inside the call path makes it structural: a team cannot make a model call without producing a correlation id, a prompt version and a stop reason, because emitting them is part of what the call does. That also makes future additions cheap — one library change propagates on upgrade instead of requiring ten backlog items — and it standardises field names, which is what actually makes cross-service queries possible.",
+      "distractors": {
+        "B": "A standard plus review relies on continuous human enforcement against teams with their own delivery pressure, and it produces six implementations of the same document that drift the moment attention moves elsewhere.",
+        "C": "A network sidecar sees bytes, not application facts: it cannot attribute a call to a template version, distinguish a retry from a first attempt, or record that a fallback fired. It also captures full payloads indiscriminately, which is an expensive and awkward default for prompt content.",
+        "D": "This closes today's specific gaps and rebuilds the same problem, because the next required field — or the next team — starts the cycle again. It treats a structural issue as a backlog item."
+      },
+      "concept": "Make observability a property of the call path rather than a convention. A shared client that emits standard fields automatically is the only approach whose coverage does not decay as teams and requirements multiply, and it is materially cheaper to build before the estate is large than to retrofit afterwards.",
+      "tip": "When a stem tells you how many teams exist now and how many are coming, it is asking which option survives growth. Standards and per-team fixes scale linearly with effort; a shared path does not."
+    }
+  },
+  {
+    "id": "SDA-D-070",
+    "domain": "Solution Design & Architecture",
+    "topic": "Interaction between a circuit breaker and a fallback path",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A service protects its model dependency with a circuit breaker and also has a deterministic fallback path. Which TWO statements about how the two should interact are correct? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "While the breaker is open, requests are served by the fallback with no attempt on the primary — fast failure is what the breaker supplies." },
+      { "key": "B", "text": "The fallback should sit behind the same breaker instance, so both paths are shed together whenever the dependency is unhealthy." },
+      { "key": "C", "text": "Half-open probes should be served from the fallback, so that no user at all is exposed to a request against a dependency that may not have recovered." },
+      { "key": "D", "text": "The fallback must be capacity-planned for the full request volume, because an open breaker directs 100% of traffic straight to it." },
+      { "key": "E", "text": "The breaker should close as soon as the fallback's own error rate rises, since that shows the fallback cannot cope with the load." }
+    ],
+    "correct": ["A", "D"],
+    "explanation": {
+      "correct": "The breaker's contribution is the immediate decision: once open, the request must not touch the primary at all, because attempting it reintroduces the latency and the load the breaker was opened to remove. The consequence teams forget is capacity. An open breaker is not a partial diversion — every request goes to the fallback, so a fallback sized for the occasional failure will itself fall over during the first real outage, at which point the chain has no remaining stages and the service is simply down.",
+      "distractors": {
+        "B": "Sharing a breaker instance would shed the fallback at exactly the moment it is needed, which defeats the purpose of having one. Each dependency needs its own breaker so their health is tracked independently.",
+        "C": "A probe served from the fallback exercises nothing about the primary, so the breaker could never learn that the dependency has recovered and would stay open indefinitely. Probes must reach the dependency being tested.",
+        "E": "Breaker state must track the health of the dependency it guards. Closing on a signal from the fallback would send full traffic back to a primary that is still failing, adding a second failing path to a struggling one."
+      },
+      "concept": "A breaker and a fallback are complementary: the breaker decides fast that the primary must not be called, and the fallback decides what to answer instead. Keep breaker scope per dependency, keep probes pointed at the guarded dependency, and size the fallback for the whole of the traffic it will inherit when the breaker opens.",
+      "tip": "The capacity point is the one most often missed. Whenever a design adds a fallback, ask what load it carries at 100% diversion, not at the small percentage it handles on an average day."
+    }
+  },
+  {
+    "id": "SDA-D-071",
+    "domain": "Solution Design & Architecture",
+    "topic": "Moving review after the action when effects are reversible",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An online marketplace onboards about 5,000 new sellers a week. A Claude step assesses each application against listing policy, and the risk team then reviews every case before the seller may list; the median wait is 26 hours and is the largest single cause of onboarding drop-off. The risk team has depth capacity for 1,000 cases a week. Sellers can be suspended and their listings removed at any time, and the marketplace already does this routinely with same-day effect. How should the review be positioned?",
+    "options": [
+      { "key": "A", "text": "Keep the synchronous gate and grow the risk team fivefold until it can review all 5,000 cases a week within a few hours." },
+      { "key": "B", "text": "Auto-approve the applications the model scores as confident and hold the remainder in the existing synchronous review queue." },
+      { "key": "C", "text": "Let sellers list immediately on the model's assessment, and run human review asynchronously against a risk-ranked queue." },
+      { "key": "D", "text": "Let all sellers list immediately and retire the human review step entirely, relying on post-listing monitoring and buyer reports." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The decisive fact is that the effect is cheaply and routinely reversible with same-day effect, which removes the usual reason for a blocking gate. Once reversal is real, a 26-hour synchronous wait is buying very little risk reduction at a very high conversion cost, and the sensible position for the human is after the action: sellers list immediately, and the risk team's 1,000 deep reviews a week are spent on the highest-risk applications rather than uniformly across a population that is overwhelmingly ordinary. Suspension becomes the correction mechanism the marketplace already operates.",
+      "distractors": {
+        "A": "This funds a fivefold expansion to preserve a gate whose protective value is small precisely because the decision is reversible. It also treats depth of review as the constraint when the stem identifies the wait itself as the cost.",
+        "B": "The non-confident remainder still queues against 1,000 reviews a week, so a large share of sellers keeps waiting, and the split is decided by uncalibrated model confidence rather than by risk. It preserves the blocking structure while adding a weak selection rule to it.",
+        "D": "Removing the control is a different decision from relocating it, and it discards the risk team's capacity rather than redirecting it. The point of asynchronous review is that the human judgement still happens, just not in the customer's path."
+      },
+      "concept": "Reversibility determines whether human review sits before or after the action. Where the effect can be withdrawn quickly and cheaply, act first and review asynchronously against a risk-ranked queue, so scarce human attention is spent by expected harm rather than uniformly. Where the effect cannot be withdrawn, the review must block.",
+      "tip": "This is the mirror of the append-only or irreversible-write scenario. Both hinge on the same sentence — how easily the effect can be undone — so find that sentence before evaluating any option."
+    }
+  },
+  {
+    "id": "SDA-D-072",
+    "domain": "Solution Design & Architecture",
+    "topic": "Bounding the write blast radius of a data-correction agent",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A pharmaceutical distributor is preparing to give a Claude agent write access to its product master-data system so it can correct records at scale. The system has no native per-run scoping and its records feed order fulfilment. Which THREE controls bound the blast radius of a bad run? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "Each run declares a scope — one product family or one date range — and the tool layer rejects writes outside it." },
+      { "key": "B", "text": "Operations above a size threshold produce a preview diff that must be approved before any write is executed at all." },
+      { "key": "C", "text": "The agent runs on a higher-capability model tier so that it makes materially fewer mistakes on the records in the first place." },
+      { "key": "D", "text": "A kill switch revokes the agent's write credential immediately, without requiring a deploy or any code change." },
+      { "key": "E", "text": "The agent records a natural-language justification for every write that it performs, retained for later audit review." }
+    ],
+    "correct": ["A", "B", "D"],
+    "explanation": {
+      "correct": "Each of these bounds a different dimension of the damage. Declared scope enforced at the tool layer caps how much of the estate a single run can reach, and putting it in the tool layer rather than the prompt means the model cannot exceed it however it reasons. A preview diff above a size threshold caps how much can change without a human looking, and it targets exactly the bulk operations where a small logic error becomes a large incident. The kill switch caps duration: it is the difference between an incident lasting a minute and one lasting as long as a deploy pipeline takes.",
+      "distractors": {
+        "C": "A better model reduces how often a bad run starts and does nothing about how much damage one does. Blast radius is a property of authority and reach, and every capable model still executes a confidently wrong plan at full scale.",
+        "E": "Justifications are a diagnostic and audit artefact, valuable after the fact and powerless during. A run that damages 100,000 records while explaining each one has a beautifully documented blast radius rather than a bounded one."
+      },
+      "concept": "Bound blast radius along three axes: reach, which is capped by scoping enforced outside the model; magnitude, which is capped by preview and approval above a threshold; and duration, which is capped by a stop control that works faster than a deploy. Accuracy improvements and logging address neither reach, magnitude nor duration.",
+      "tip": "Sort candidate controls by whether they reduce the chance of a bad run or the size of one. Choose-three items in this area typically offer exactly one likelihood option and one after-the-fact option as the surplus."
+    }
+  }
+]

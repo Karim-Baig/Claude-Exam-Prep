@@ -1,0 +1,454 @@
+[
+  {
+    "id": "ETO-A-055",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Measuring both sides of a decline-or-answer boundary",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A children's education platform runs a Claude-based homework assistant that must decline to write a student's essay for them but must still explain concepts, critique a student's own draft, and answer factual questions. The eval reports a single number: an inappropriate-completion rate of 0.4% on a 2,000-item set of requests that should be declined. Teachers have started complaining that the assistant refuses ordinary help requests. What must be added to the measurement design? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Triple the decline set so the 0.4% figure has a tighter interval, since inappropriate completions are the only outcome that carries real risk." },
+      { "key": "B", "text": "Measure an unnecessary-refusal rate on a separate set of requests that should be answered, since tightening the boundary raises refusals of legitimate work." },
+      { "key": "C", "text": "Replace the pass/fail verdict on completions with a severity-weighted score, so borderline cases contribute less than clear-cut violations." },
+      { "key": "D", "text": "Define a joint acceptance criterion in which neither rate may worsen, so no prompt change can trade one against the other unnoticed at the gate." },
+      { "key": "E", "text": "Combine both behaviours into one weighted policy-adherence rate so the team has a single number to track, report and set a target on." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "The two failure modes are coupled: every instruction that tightens the boundary pushes some legitimate requests across it. Measuring only one side gives a metric that improves monotonically as the assistant becomes less useful, which is exactly what the teachers are reporting. The second key closes the loop at the gate: without a joint criterion, a release that halves inappropriate completions and doubles refusals passes cleanly, because the only measured number moved the right way.",
+      "distractors": {
+        "A": "The precision of the 0.4% is not what is failing. The claim inside this option is also the error: unnecessary refusal carries real cost too, in abandoned sessions and in a product that teachers stop recommending, and it is currently unmeasured.",
+        "C": "Severity weighting can be reasonable in reporting, but on a boundary the product treats as a hard rule it blurs the gate and lets a change that increases mild violations look neutral. It also does nothing about the unmeasured side.",
+        "E": "One combined rate is a weighted sum, and a weighted sum permits exactly the substitution the team needs to prevent: a fall on one side is paid for by a rise on the other while the headline holds steady."
+      },
+      "concept": "Where two error types trade against each other, measure both and gate on both. A single-sided metric on a coupled pair will always be optimised by degrading the unmeasured side, and combining them into one score reintroduces the same problem through substitution. Joint non-regression criteria are the standard control.",
+      "tip": "Any time a stem describes a must-not behaviour, ask what the corresponding must-do behaviour is. Refusal and completion, precision and recall, flag rate and miss rate — these come in pairs and an eval that measures one is incomplete."
+    }
+  },
+  {
+    "id": "ETO-A-056",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Eval items that carry no comparative information",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "In a comparison of two candidate versions of a system over a shared eval set, which items contribute nothing to distinguishing the two versions?",
+    "options": [
+      { "key": "A", "text": "Items whose reference answer was written by a single annotator with no adjudication round." },
+      { "key": "B", "text": "Items that both versions answer correctly, and items on which both versions fail." },
+      { "key": "C", "text": "Items drawn from production traffic older than the currently deployed model version." },
+      { "key": "D", "text": "Items whose grading requires a model judge rather than a deterministic code check." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "A comparison is carried entirely by the items on which the two versions disagree. Concordant items — passed by both or failed by both — move both scores identically, so they contribute to the absolute level of each version and nothing at all to the difference between them. This is why a suite the system has saturated cannot resolve a comparison however large it is, and why the count of discordant items, not the total item count, is the number that determines whether a difference can be established.",
+      "distractors": {
+        "A": "Unadjudicated single-annotator labels are a genuine quality risk and should be fixed, but such an item still discriminates whenever the two versions answer it differently. Label quality and comparative information are separate properties of an item.",
+        "C": "Age bears on how well the set represents current traffic, not on whether an item separates two versions. An old item that one version passes and the other fails carries exactly as much comparative information as a new one.",
+        "D": "The choice of grader determines cost, reproducibility and the risk of grader error. It has no bearing on discrimination: a judge-graded item discriminates whenever the judge returns different verdicts for the two versions."
+      },
+      "concept": "Absolute level and comparative sensitivity are different jobs and are served by different items. Keep concordant items for reporting the level and detecting regressions, but when the question is which version is better, the informative sample is the discordant subset — and that is where power calculations should be anchored.",
+      "tip": "Before running a comparison, ask roughly how many items you expect the two versions to answer differently. If the answer is a handful, no sample size on the full set will settle it."
+    }
+  },
+  {
+    "id": "ETO-A-057",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Configuration parity between the eval and production",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An eval is described as having configuration parity with production. What does that require, and why does it matter?",
+    "options": [
+      { "key": "A", "text": "The eval must exercise the same prompt version, model, generation settings and surrounding pipeline steps that production uses." },
+      { "key": "B", "text": "The eval must run at the same request volume and concurrency as production, so quality effects arising under load appear in the score." },
+      { "key": "C", "text": "The eval must grade with the same model that generates in production, so that generation and grading are calibrated against each other." },
+      { "key": "D", "text": "The eval must execute inside the production environment itself, since a staging cluster cannot produce outputs comparable to live ones." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The score is a property of a complete configuration, and every element of that configuration has to match the one being shipped: prompt version, model, generation settings, and anything the pipeline does before or after the call. Teams lose parity in small ways — a longer system prompt used only in the harness, a retry the eval performs and production does not, a post-processing step applied in one and not the other — and each one makes the number describe a system that does not exist. Parity is also what makes an eval score reproducible later.",
+      "distractors": {
+        "B": "Volume affects latency, throughput and cost, not the quality of any individual response, and no realistic eval reproduces production concurrency. This confuses load testing with quality evaluation.",
+        "C": "Deliberately matching grader to generator introduces the correlation between instrument and subject that grader validation exists to avoid. Parity is a property of the system under test; the grader should be chosen and validated independently.",
+        "D": "Outputs depend on configuration, not on which cluster serves the call. Running evals against production is usually undesirable for other reasons, and parity is achieved by pinning configuration rather than by co-location."
+      },
+      "concept": "An eval measures a configuration, not a model. Record the whole configuration, diff it against the deployed one before trusting any score, and treat harness-only conveniences — extra retries, a different template, a longer prompt — as defects rather than details.",
+      "tip": "When an eval score and production behaviour disagree, check parity before anything else. It is the cheapest explanation and one of the most common."
+    }
+  },
+  {
+    "id": "ETO-A-058",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "What belongs in an LLM judge prompt",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A conveyancing firm is writing the judge prompt for an eval of property-search summaries. The rubric has four criteria and the graded results will be reviewed by the firm's quality partner. Which of the following belong in the judge prompt? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "The source search documents the summary was written from, so the judge can check claims against evidence rather than assess plausibility." },
+      { "key": "B", "text": "A standing instruction to grade strictly, since judges tend toward leniency and extra severity compensates for that tendency." },
+      { "key": "C", "text": "A worked example of an output at each rubric level, together with the reason it sits at that level rather than the next." },
+      { "key": "D", "text": "A request that the judge also produce an improved summary, giving the quality partner something actionable alongside each grade." },
+      { "key": "E", "text": "A requirement to return an explicit verdict for each of the four criteria, so a failing item is attributable to a named criterion." }
+    ],
+    "correct": ["A", "C", "E"],
+    "explanation": {
+      "correct": "The three keys give the judge what it needs to be right and the reviewer what they need to check it. Source documents convert the task from assessing whether a summary sounds right to verifying whether its claims are supported. Level exemplars anchor the scale, which is what makes two runs and two readers interpret a grade the same way. Per-criterion verdicts make each failure attributable and let the quality partner see which criterion drove a result rather than arguing about an aggregate.",
+      "distractors": {
+        "B": "Be strict shifts the standard by an unmeasured amount and breaks comparability with every previous run. If the judge is too lenient, the remedy is anchored level descriptions and validation against human labels, not an exhortation whose effect nobody can quantify.",
+        "D": "Asking the grader to rewrite the output mixes generation into grading. Once the judge has an improved version in mind it tends to grade the original against its own rewrite rather than against the rubric, and the grade becomes a measure of divergence from the judge's preference."
+      },
+      "concept": "A judge prompt should supply the evidence needed to decide, the anchors that fix the scale, and a structured output that makes the verdict attributable. It should not contain instructions that move the standard by an unspecified amount, and it should not ask the grader to do anything except grade.",
+      "tip": "Test each proposed line of a judge prompt by asking whether it changes what the judge knows, what the scale means, or how the answer is reported. Anything that only changes the judge's mood is not a design choice."
+    }
+  },
+  {
+    "id": "ETO-A-059",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Choosing the conversation rather than the turn as the unit",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A tour operator's Claude assistant handles multi-turn itinerary-change conversations, averaging six assistant turns per completed change. The eval scores each turn independently against a rubric and reports 93% of turns passing, a figure that has been stable for two quarters. Customers and the contact centre both report that conversations frequently end without the change being made. What should the eval lead change?",
+    "options": [
+      { "key": "A", "text": "Raise the per-turn acceptance target from 93% to 97%, which will lift six-turn conversation quality into an acceptable range." },
+      { "key": "B", "text": "Weight the per-turn pass rate by turn position, since failures late in a conversation damage the customer's impression more than early ones do." },
+      { "key": "C", "text": "Make the conversation the unit of evaluation — score whether the change was actually made end to end — and keep per-turn results beneath it." },
+      { "key": "D", "text": "Keep per-turn scoring and add a context-retention criterion, since losing context from earlier turns is the usual cause of multi-turn failure." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "What the customer experiences is a completed change or a failed one, and that is a property of the whole conversation. The arithmetic shows how far the turn-level figure is from it: if turn outcomes are even roughly independent, a six-turn conversation at 93% per turn succeeds about 65% of the time, which is entirely consistent with the complaints and completely invisible in the headline. Scoring the conversation puts the metric on the same object as the customer's outcome; turn-level results remain valuable underneath as the diagnostic that tells you where the conversation broke.",
+      "distractors": {
+        "A": "This treats the problem as a target-setting exercise. Even at 97% per turn, a six-turn conversation succeeds only about 83% of the time, and the team still would not have a number for the thing that is going wrong.",
+        "B": "Position weighting is a guess about where failures hurt, and it still reports turns. The outcome the business cares about is not any weighted average of turn scores; it is whether the itinerary was changed.",
+        "D": "Context retention is plausibly a frequent cause and the criterion is worth adding as a diagnostic. Adding it leaves the unit of analysis wrong, so the suite would still report a high number while conversations continued to fail."
+      },
+      "concept": "Evaluate at the unit the user experiences. Component-level pass rates compound: a chain of n steps each at rate p succeeds at roughly pⁿ, so a respectable per-step figure can hide an unacceptable end-to-end one. Report the end-to-end outcome as the headline and keep the component scores as the diagnostic layer.",
+      "tip": "Whenever a stem gives you a per-step rate and an average number of steps, raise the rate to that power before reading the options. The gap between the two numbers is usually the entire question."
+    }
+  },
+  {
+    "id": "ETO-A-060",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Building an eval when ground truth arrives weeks later",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A recruitment marketplace uses a Claude step to write candidate summaries for employers. The outcome that matters — whether the employer requested an interview — is known only two to six weeks later. The team needs a signal it can iterate against within a working week, and the head of product has asked for a metric she can put in the quarterly review. How should the eval be designed?",
+    "options": [
+      { "key": "A", "text": "Use only the delayed interview-outcome labels and accept a six-week feedback cycle, since any faster signal would be an unvalidated proxy." },
+      { "key": "B", "text": "Use the model's own predicted interview likelihood as the label, since it is available immediately and is already produced by the system." },
+      { "key": "C", "text": "Ask experienced recruiters to predict the outcome when the summary is written and use those predictions as labels until the real outcomes arrive." },
+      { "key": "D", "text": "Build a rubric-graded proxy eval on immediately observable properties, and publish how well the proxy tracks the delayed outcomes as they arrive." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The team needs two things that a single metric cannot provide: a fast signal for iteration and a trustworthy one for the quarterly review. A proxy graded on immediately observable properties — coverage of the employer's stated requirements, absence of unsupported claims, appropriate length — supplies the first. Continuously measuring how the proxy relates to the delayed outcomes as they land supplies the second, and turns the proxy from an assumption into a quantity with a known relationship to the thing that matters. Publishing that relationship is what makes the proxy defensible in the review rather than merely convenient.",
+      "distractors": {
+        "A": "A six-week loop is not something a team can develop against, and the position defeats itself: the only route by which any proxy becomes validated is running it alongside the outcomes, which this refuses to do.",
+        "B": "This is circular. Scoring the system against its own prediction is a self-consistency check that will look excellent whether or not the summaries actually work, and it will improve whenever the model becomes more confident.",
+        "C": "Recruiter predictions are a second forecast, not ground truth. Substituting them replaces a delayed real label with an immediate uncertain one and hides the substitution inside a number that will be read as an outcome measure."
+      },
+      "concept": "When ground truth is delayed, run a fast proxy and a slow outcome measure together, and treat the correlation between them as a maintained quantity that is re-estimated as outcomes arrive. A proxy is legitimate exactly to the extent that its relationship to the outcome has been measured and is monitored, never by assertion.",
+      "tip": "Delayed-label scenarios are asking whether you will validate the shortcut. Options that adopt a fast signal without measuring it against the slow one, or that refuse a fast signal altogether, are both wrong."
+    }
+  },
+  {
+    "id": "ETO-A-061",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Why a small expert-labelled set sits beside a large cheap one",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "What is the principal reason to maintain a small expert-labelled eval set alongside a much larger, more cheaply labelled one?",
+    "options": [
+      { "key": "A", "text": "The small set's labels are authoritative, so it can adjudicate disputes about the large set's labels or the grader validated on them." },
+      { "key": "B", "text": "The small set produces narrower confidence intervals on any reported score, because expert labels contain much less noise." },
+      { "key": "C", "text": "The small set can be run on every commit, since fewer items means a faster and much cheaper run than the large one." },
+      { "key": "D", "text": "The small set avoids the multiple-comparisons problem, because fewer items means fewer significance tests in each report." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The two sets do different jobs. The large set buys statistical resolution: enough items to detect a small change and to break results out by cohort. The small set buys label authority: when someone disputes a score, or when the cheap labels and the grader disagree, there has to be a reference whose correctness is not itself in question. Without an authoritative anchor, a disagreement between the large set and the grader has no resolution procedure, and both can drift together without anyone noticing.",
+      "distractors": {
+        "B": "Interval width is driven by sample size. A small set gives a wider interval no matter how good the labels are; what label quality removes is bias in the estimate, which is a different problem from variance.",
+        "C": "Faster runs are a real convenience but not the reason the two sets coexist. A cheap random subsample of the large set would run just as quickly and would not serve as an authority.",
+        "D": "Multiplicity is a function of how many hypotheses you test, not how many items you score. A small set analysed across many slices and metrics has exactly the same problem as a large one."
+      },
+      "concept": "Separate the set that provides statistical power from the set that provides ground-truth authority, and use the second to audit the first. Expert labelling is expensive, so buy a little of it and spend it where correctness is contested: grader validation, disputed results, and periodic audits of the cheap labels.",
+      "tip": "When two eval assets exist, ask what each buys. Confusing the power asset with the authority asset leads teams to either over-label everything or trust cheap labels they have never audited."
+    }
+  },
+  {
+    "id": "ETO-A-062",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Statistical significance versus practical importance",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A payments processor compares two prompt versions for dispute-summary generation over 40,000 paired eval items. The versions disagree on 1,200 items: version B is correct on 680 of them and version A on 520, a net gain of 160 items, or 0.4 percentage points. The paired test returns a z of roughly 4.6, well past any conventional threshold. Version B runs on the higher model tier. What should the recommendation to the platform owner be?",
+    "options": [
+      { "key": "A", "text": "Ship version B: at that significance level the improvement is beyond reasonable doubt, and shipping a proven improvement is the default course of action." },
+      { "key": "B", "text": "Reject version B: a 0.4-point gain is well inside normal run-to-run variation on a suite this size, so it is not a real difference." },
+      { "key": "C", "text": "Report the gain as real but small, convert 0.4 points into extra correct summaries per month at production volume, and weigh that against the tier cost." },
+      { "key": "D", "text": "Re-run the comparison on a smaller and cheaper sample first to confirm the result replicates before committing to a permanent tier change." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The test has done its job and answered a narrow question: the difference is not zero. It says nothing about whether 0.4 points is worth a permanent unit-cost increase, and at 40,000 items the study can resolve effects far below the level at which anyone would pay for them. Converting the effect into the unit the platform owner spends — summaries corrected per month against the incremental cost per month — is what turns a statistic into a decision. That framing also survives the follow-up question, which is what volume the gain would need to reach before the tier change pays.",
+      "distractors": {
+        "A": "Beyond reasonable doubt applies to the existence of the effect, not its size. Treating significance as sufficient grounds to ship is how large samples end up justifying changes whose benefit is smaller than their cost.",
+        "B": "The paired analysis has already separated this from noise: 680 against 520 on 1,200 discordant items is not a run-to-run fluctuation. Dismissing a genuine effect is as much an error as over-buying one, and it would be caught immediately by anyone reading the discordant counts.",
+        "D": "A smaller sample has less power, so a failure to replicate would be the expected outcome regardless of whether the effect is real, and would tell the team nothing. Replication is worth doing on a fresh sample of comparable or larger size."
+      },
+      "concept": "Significance and importance are independent. Always report the effect size and its interval alongside the test, and convert the effect into the unit the decision-maker actually manages — errors avoided per month, hours saved, cases escalated. Very large eval sets make significance cheap and make effect size the only interesting number.",
+      "tip": "When a stem gives you a large n, a small effect and a very strong test statistic, it is testing whether you know that significance is not magnitude. The key will translate the effect into business units."
+    }
+  },
+  {
+    "id": "ETO-A-063",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Handling items that remain contested after adjudication",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A national archive is building a golden set for a Claude step that assigns subject headings to digitised records. After a full adjudication round, about 7% of items remain genuinely contested: two senior cataloguers each defend a different heading and neither is wrong under the archive's own cataloguing rules. The set will be used to gate releases. What should be done with those items?",
+    "options": [
+      { "key": "A", "text": "Remove the 7% from the golden set, since an item without a single agreed heading cannot be scored consistently across releases." },
+      { "key": "B", "text": "Keep them in a separately reported slice with every defensible heading recorded, accept any of those headings as correct, and treat the slice as a ceiling." },
+      { "key": "C", "text": "Assign each contested item the heading chosen by the more senior of the two cataloguers, so that every item carries exactly one agreed reference." },
+      { "key": "D", "text": "Run a third senior cataloguer over the contested items and take the majority heading, so a single label always emerges from the process." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The contested items are not defective; they record a real property of the task, which is that some records admit more than one correct heading. Recording all defensible labels and accepting any of them keeps the items scorable without inventing an authority that the cataloguing rules do not supply. Reporting the slice separately then does something more valuable: it tells everyone reading the metric that roughly 7% of the task is irreducibly ambiguous, which caps what any system or any human can score and stops the team chasing the last few points of a number that cannot reach 100.",
+      "distractors": {
+        "A": "Removal deletes exactly the hard cases, which biases the set in a specific direction: the headline score rises and the suite loses coverage of the boundary the system finds most difficult. It also destroys the evidence about how ambiguous the task is.",
+        "C": "Seniority resolves the administrative problem, not the substantive one. It records one defensible reading as uniquely correct and marks the system wrong for producing the other, injecting false negatives into every subsequent run and into the grader validated against it.",
+        "D": "Majority voting over a genuine ambiguity manufactures an arbitrary label with the appearance of consensus. It also discards the most useful fact about the item — that it is contested — which is precisely what should be reported."
+      },
+      "concept": "Distinguish annotator error from genuine task ambiguity. Error is fixed by guidelines and adjudication; ambiguity is a property of the task and should be represented in the data as a set of acceptable answers and in the report as a stated ceiling on the metric. Forcing a single label onto an ambiguous item makes the reference wrong.",
+      "tip": "The phrase neither is wrong under the rules is the signal. Once adjudication has confirmed genuine ambiguity, every option that produces one label by fiat or by vote is manufacturing a false reference."
+    }
+  },
+  {
+    "id": "ETO-A-064",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Why an offline score exceeds hand-graded production quality",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A university's student-services assistant scores 92% on its offline eval suite. A two-week sample of real production conversations, hand-graded against the identical rubric by the same reviewers who wrote it, comes back at 78%. The configurations were confirmed identical. Which explanations are consistent with a gap in that direction? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "The production sample was graded by humans while the eval used a model judge, which necessarily inflates the human-graded figure." },
+      { "key": "B", "text": "The eval items were written or tidied by the team, so they are better formed than the messages students actually send." },
+      { "key": "C", "text": "The two-week production sample is smaller than the eval set, so its estimate is less precise than the eval's." },
+      { "key": "D", "text": "The eval was executed with exactly the same prompt version and generation settings that production is serving." },
+      { "key": "E", "text": "Production traffic contains whole categories of request the eval set does not cover, so the worst-handled cases were never scored." }
+    ],
+    "correct": ["B", "E"],
+    "explanation": {
+      "correct": "Both keys describe ways the eval's item distribution is easier than the real one, which is the standard cause of an optimistic offline number. Curated items are cleaner: complete sentences, one question, no missing context, no attachment referenced but not provided. And coverage gaps are worse than curation, because the uncovered categories are typically the ones nobody thought to write items for, which correlates strongly with the ones the system was never designed to handle. Either alone can produce a fourteen-point gap.",
+      "distractors": {
+        "A": "Grader differences can certainly produce a gap, but the direction claimed here is asserted rather than derived — human graders are often stricter than a lenient judge, which would widen this gap rather than explain it away. The word necessarily is what makes the option wrong.",
+        "C": "Precision explains scatter around an estimate, not a systematic fourteen-point offset. A smaller sample would produce a wider interval, not a consistently lower centre.",
+        "D": "Configuration parity is a reason the two figures should agree, not a reason they diverge. The stem has already confirmed it, which is what makes the item-distribution explanations the live ones."
+      },
+      "concept": "When an offline score exceeds hand-graded production quality and configuration parity holds, the difference is in the items. Audit the eval distribution against real traffic on the dimensions that make inputs hard — length, completeness, ambiguity, topic mix — and refill the set from production rather than from imagination.",
+      "tip": "Split candidate explanations into three families: the grader, the configuration, the items. Rule out the first two using what the stem states, and the remaining options are the answer."
+    }
+  },
+  {
+    "id": "ETO-A-065",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Scoring a system that can decline to answer",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A task assistant answers some requests and routes others to a human queue rather than attempting them. How should the declined cases be treated when reporting a success rate?",
+    "options": [
+      { "key": "A", "text": "Exclude them from the denominator, since the system did not attempt those cases and cannot fairly be scored on them." },
+      { "key": "B", "text": "Count every declined case as a failure, since the user did not receive an answer from the system itself." },
+      { "key": "C", "text": "Count them as successes, since routing to the human queue is the designed behaviour for cases the system should not attempt." },
+      { "key": "D", "text": "Report coverage and accuracy-on-attempted as two separate figures, because one combined rate hides the trade between them." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Abstention gives the system a lever on its own score, and every single-number treatment lets it pull that lever. Reporting the two dimensions separately makes the trade explicit: how much of the workload the system took on, and how well it did on what it took. A change that improves accuracy by declining more is then visible as a fall in coverage rather than as an improvement, and the cost of the abstentions can be priced against the human queue that absorbs them.",
+      "distractors": {
+        "A": "Excluding declines makes the metric improvable by declining more. A system that attempts only the easiest tenth of requests would report near-perfect accuracy while doing almost none of the work.",
+        "B": "Counting every decline as a failure penalises the behaviour the design deliberately wants, and pushes the system toward attempting cases it was built to escalate — usually the highest-consequence ones.",
+        "C": "Counting every decline as a success is the mirror error. It rewards escalation regardless of whether escalation was warranted, and the cost lands invisibly on the human queue."
+      },
+      "concept": "Any system that can abstain has two performance dimensions that move against each other, and neither is interpretable alone. Report coverage and conditional accuracy together, set an acceptance criterion on both, and cost the escalation path so the trade is visible to whoever staffs it.",
+      "tip": "Ask whether the system can influence its own denominator. Wherever it can — abstention, filtering, confidence thresholds — a single rate is gameable and the answer will split the metric in two."
+    }
+  },
+  {
+    "id": "ETO-A-066",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Allocating a fixed grading budget between items and repeats",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A car-sharing operator can afford 6,000 judge calls per eval run. The eval lead is choosing between 6,000 distinct items graded once each, and 2,000 items graded three times with a majority verdict. A recent validation found judge–human agreement to be high and the judge's repeat-to-repeat verdicts to be almost always identical. Items, by contrast, vary considerably in difficulty. Which allocation is right, and why?",
+    "options": [
+      { "key": "A", "text": "6,000 distinct items: when per-item grading noise is small relative to variation between items, item count is what reduces sampling variance." },
+      { "key": "B", "text": "2,000 items graded three times: majority voting removes grading error, which is the one error source fully under the eval team's control." },
+      { "key": "C", "text": "2,000 items graded three times: a smaller set can be curated far more carefully, and curation quality contributes more to a useful eval than raw count." },
+      { "key": "D", "text": "Split the budget: 3,000 items graded once and 1,500 graded twice, hedging against both error sources rather than betting on either one." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The total uncertainty has two components — which items happened to be sampled, and how noisily each was graded — and the budget should go to whichever dominates. The validation has already answered that: the judge repeats itself, so the second component is nearly zero, while item difficulty varies considerably, so the first is large. Triple-grading items the judge already grades identically buys almost nothing and costs two-thirds of the item count, which widens the interval by roughly the square root of three.",
+      "distractors": {
+        "B": "Repeats attack grading noise, and the stem states that noise is already negligible. The claim that grading error is the only controllable source is also false: item count is entirely under the team's control and is the source that actually dominates here.",
+        "C": "Careful curation is valuable and completely independent of this decision — nothing prevents curating 6,000 items. Curation is a labelling and selection activity; the grading budget does not buy it.",
+        "D": "Hedging is the right instinct when you do not know which component dominates. Here the stem tells you, so the split spends a third of the budget reducing a variance component already known to be small."
+      },
+      "concept": "Before allocating an eval budget, measure the two variance components separately: regrade a subsample to size grading noise, and look at the spread of outcomes across items to size sampling variance. Spend on repeats only when grading noise is the larger term; otherwise every call should buy a new item.",
+      "tip": "The stem hands you the answer in the validation result. When a scenario tells you the judge repeats itself reliably, repeats are worthless and the trade collapses to item count."
+    }
+  },
+  {
+    "id": "ETO-A-067",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Evaluating the combined human-and-model workflow",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A semiconductor fab introduced a Claude step that drafts equipment-deviation reports; a process engineer reviews and approves every draft before it is filed with quality assurance. The eval scores the drafts against a rubric and reports 88%. The operations director asks whether the feature has improved the quality of the fab's deviation reporting. What should the eval lead do next?",
+    "options": [
+      { "key": "A", "text": "Report the 88% draft score as the answer, since it is a direct rubric measurement of what the feature itself produces." },
+      { "key": "B", "text": "Score reports written by engineers without the assistant against the same rubric, which isolates the model's own contribution to report quality." },
+      { "key": "C", "text": "Score the filed report — the artefact after engineer review — against the same rubric, and compare with filed reports from before the feature." },
+      { "key": "D", "text": "Measure how heavily engineers edit each draft before approving it, and adopt that edit rate as the feature's quality metric." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The question asked is about the fab's deviation reporting, and what the fab files is the reviewed report, not the draft. The review step can move quality in either direction: engineers may repair the model's errors, or they may approve fluent drafts less critically than they would scrutinise their own writing. Measuring the filed artefact captures the net effect of both, and comparing against filed reports from the period before the feature gives the director the before-and-after she is actually asking for. The draft score remains useful as the diagnostic that explains any change.",
+      "distractors": {
+        "A": "The draft is an intermediate artefact no one outside the loop ever sees. Reporting its rubric score answers a narrower question than the one asked and would be indefensible if filed quality had fallen.",
+        "B": "An unaided-engineer comparison is a worthwhile component measurement and is worth having. It answers whether the model writes as well as an engineer, which is not the same as whether the combined workflow files better reports than the previous process did.",
+        "D": "Edit rate is a proxy for draft quality with an unmeasured relationship to filed quality, and it moves for reasons unrelated to quality — most obviously engineers becoming more trusting over time, which would look like improvement while quality fell."
+      },
+      "concept": "When a human sits in the loop, the system under evaluation is the human and the model together. Measure the artefact that leaves the loop, against a baseline from before the change, and keep component measurements underneath for diagnosis. A component score is never an answer to a question about the workflow's output.",
+      "tip": "Identify the artefact the outside world receives and check whether the eval is scoring it. Stems that describe a review or approval step are almost always testing this boundary."
+    }
+  },
+  {
+    "id": "ETO-A-068",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Sound sources of items for a first eval set",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A construction contractor is assembling the first eval set for a Claude step that drafts justifications for variation orders on infrastructure projects. The step has not yet been deployed, so there is no production traffic. Which of the following are sound sources of items for that first set? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "Historical variation orders from the manual process, paired with the justifications the quantity surveyors actually wrote and submitted." },
+      { "key": "B", "text": "Outputs the candidate prompt produced during development, retained together with the developing engineer's approve-or-reject decision on each." },
+      { "key": "C", "text": "Cases the senior quantity surveyors nominate as the ones most consequential to get wrong, even where those cases are rare." },
+      { "key": "D", "text": "The variation orders disputed in the last two years of contract adjudications, since those mark the boundary the drafting has to get right." },
+      { "key": "E", "text": "A public benchmark for general business-document summarisation, used to establish a capability floor before task-specific items exist." }
+    ],
+    "correct": ["A", "C", "D"],
+    "explanation": {
+      "correct": "With no production traffic, the set has to be assembled from what the organisation already knows. Historical cases with the surveyors' own submitted justifications give real inputs and independently authored references. Expert-nominated consequential cases buy deliberate coverage of the high-cost slice, which random historical sampling would under-represent. Disputed adjudications are the most valuable source of all: they are the cases where competent professionals disagreed about whether a justification held, which is exactly the boundary the system will be judged on.",
+      "distractors": {
+        "B": "These items fail twice over. The references originate from the system under test, making the eval partly a self-consistency check, and the selection was made by the engineer tuning the prompt, so the set encodes that engineer's judgement as the definition of correct.",
+        "E": "A benchmark for a superficially similar task measures a different construct. A capability floor on general summarisation tells you nothing about whether a variation-order justification will survive adjudication, and quoting it invites stakeholders to read it as evidence about this task."
+      },
+      "concept": "Build a first eval set from organisational memory: historical inputs with independently authored outputs, expert-nominated high-consequence cases, and the archive of past disputes or escalations. Avoid anything the candidate system produced and anything measuring a different construct, however convenient.",
+      "tip": "For cold-start eval sets, look for the organisation's record of past disagreement — appeals, disputes, complaints, escalations. It is the cheapest source of items that sit exactly on the decision boundary."
+    }
+  },
+  {
+    "id": "ETO-A-069",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Whether to score raw output or the post-processed artefact",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A pipeline post-processes the model's output before a user sees it: trimming, reformatting and inserting the result into a template. Where should the eval's headline quality metric be computed?",
+    "options": [
+      { "key": "A", "text": "On the raw model output, so that the metric isolates the model's own contribution and is not confounded by later changes to the pipeline." },
+      { "key": "B", "text": "On the user-visible artefact, since that carries the quality the metric represents, with raw-output scores kept as a diagnostic." },
+      { "key": "C", "text": "On both layers, reported as a single averaged figure so that neither the model nor the pipeline dominates the headline." },
+      { "key": "D", "text": "On the raw model output during development to keep the iteration loop fast, and on the finished artefact only at release." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The metric that gates a release should measure the thing the user receives, because that is where quality either exists or does not. Post-processing is fully capable of destroying it — a trim that truncates the last sentence, a template that swallows a caveat, a formatter that mangles a table — and none of that moves a raw-output score. Keeping the raw score underneath preserves the diagnostic value: when the artefact score falls and the raw score holds, the problem is in the pipeline, which is information the headline alone would not give you.",
+      "distractors": {
+        "A": "Isolating the model is a useful diagnostic and should be available, but as the headline it leaves a whole layer of the system unmeasured. A post-processing regression could ship undetected while the number the team watches stays flat.",
+        "C": "Averaging measurements of two different objects produces a figure that describes neither, and any movement in it cannot be attributed to a layer without decomposing it again — at which point the average has served no purpose.",
+        "D": "Changing what the metric measures partway through the lifecycle breaks comparability between development runs and release runs, and it defers discovery of post-processing defects to the last possible moment."
+      },
+      "concept": "Measure at the boundary the consumer sees, and instrument the layers beneath it for diagnosis. Every transformation between the model call and the delivered artefact is part of the system under evaluation, and a metric computed before those transformations is measuring a component rather than the product.",
+      "tip": "Trace the output from the model call to the user and ask where the eval taps in. If it taps in before any transformation the user is subject to, the headline is measuring the wrong object."
+    }
+  },
+  {
+    "id": "ETO-A-070",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Grading rubric criteria in separate judge calls",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A rubric has five criteria. What is the argument for asking the judge about them in five separate calls rather than all five in one?",
+    "options": [
+      { "key": "A", "text": "It lowers total grading cost, because each of the five calls carries a shorter prompt than the combined one." },
+      { "key": "B", "text": "It removes the need for anchored level descriptions, because a single criterion asked on its own is unambiguous." },
+      { "key": "C", "text": "It makes the grades reproducible, because shorter judge prompts are less sensitive to sampling variation." },
+      { "key": "D", "text": "It stops one criterion's verdict from colouring the others, at the cost of more calls and more tokens overall." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Asked together, the criteria are not judged independently: an output the judge has just marked down for factual error tends to be marked down on tone and structure as well, and one it has praised tends to sweep the rest. Separating the calls removes that contamination, so a failure on one criterion no longer drags the others with it and the per-criterion pattern becomes real information. The price is genuine — the shared context is re-sent every time — which is why this is a trade rather than a free improvement.",
+      "distractors": {
+        "A": "Total cost usually rises rather than falls. The expensive part of the prompt is the shared context — the source material and the output being graded — and separating the criteria means paying for that context five times.",
+        "B": "Anchors are needed regardless of call structure. A single criterion phrased without a written anchor for each level is exactly as open to interpretation as one criterion among five.",
+        "C": "Reproducibility comes from sampling configuration, pinned model versions and versioned prompts. Prompt length has no particular bearing on it, and five calls introduce five opportunities for variation rather than one."
+      },
+      "concept": "Judging several criteria in one pass creates correlation between them, which inflates agreement between criteria and makes a decomposed rubric behave like a single holistic score. Separate calls buy independence at a token cost; where budget forbids it, at minimum require an explicit separate verdict and justification per criterion within the single call.",
+      "tip": "Correlated criteria are the tell. If per-criterion results always move together, suspect that the grading design is producing the correlation rather than the outputs."
+    }
+  },
+  {
+    "id": "ETO-A-071",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Golden labels that were correct when they were written",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A customs broker's Claude step assigns tariff classifications to shipment descriptions. Its golden set was labelled by two senior classifiers eighteen months ago. Over the last year the pass rate on that set has fallen about five points, spread evenly across three releases whose prompt changes were unrelated formatting adjustments. Hand-review of recent production output by the same classifiers finds no deterioration in quality. The tariff schedule has been amended twice in that period. What is the most likely explanation and the right response?",
+    "options": [
+      { "key": "A", "text": "Part of the reference is now wrong because the schedule changed; date-stamp labels with the schedule version and re-verify the items the amendments touch." },
+      { "key": "B", "text": "The system has regressed despite the formatting-only changes; pin the model version and re-run the earlier releases to confirm where the regression entered." },
+      { "key": "C", "text": "The eval set has stopped representing current shipment traffic; resample items from the last year of customs declarations and rebuild the set." },
+      { "key": "D", "text": "The judge has drifted over the past year of releases; re-validate the grader against fresh human labels and re-baseline the trend line." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Two facts point the same way. Hand-review finds current output fine, so the system is probably not the problem, and the ground truth demonstrably moved twice in the same window. On a task where correctness is defined by an external schedule, a reference label has a validity period, and items whose correct classification changed are now marking correct answers wrong. Date-stamping labels with the schedule version makes that expiry visible instead of silent, and re-verifying only the affected items is far cheaper than rebuilding the set. Until the staleness is separated out, the trend cannot be attributed to anything.",
+      "distractors": {
+        "B": "A regression from formatting-only changes is possible and belongs in the differential, but the classifiers' hand-review of production output is direct evidence against it. Testing the yardstick before the system is both cheaper and better supported by what the stem states.",
+        "C": "Representativeness decay would show up as the eval score diverging from real-world quality, not as a falling score on a fixed set whose real-world counterpart is unchanged. Resampling would also destroy the evidence of what actually went wrong.",
+        "D": "Judge drift is a genuine cause of unexplained trends and deserves a place in the differential. It fits less well here than an explanation that coincides precisely with two documented amendments to the authority that defines correctness, and that hypothesis is directly checkable against the amendment dates."
+      },
+      "concept": "Where correctness is defined by an external authority — a tariff schedule, a clinical guideline, a regulation, a product catalogue — reference labels expire when the authority changes. Record the authority version alongside every label, subscribe to its change notices, and re-verify affected items on amendment rather than waiting for a puzzling trend.",
+      "tip": "An eval score that falls while independent human review of live output finds nothing wrong is nearly always a problem with the yardstick. Check for a change in the ground truth before investigating the system."
+    }
+  },
+  {
+    "id": "ETO-A-072",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "A drop confined to items added in the same period",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A facilities-management company gates releases on a 1,000-item eval suite. After the latest release the pass rate fell from 91% to 86%. Investigation shows the 880 pre-existing items still score 91%, exactly as before, while 120 items added to the suite the same week by a different engineer score 49% — which is what pulls the combined figure to 86%. The release is currently blocked. What should the eval lead do next?",
+    "options": [
+      { "key": "A", "text": "Keep the release blocked and roll back: a five-point drop on the gating suite is a regression by definition and the gate exists precisely to stop this." },
+      { "key": "B", "text": "Remove the 120 new items from the gating suite until someone has reviewed them, re-report the 91%, and release as planned." },
+      { "key": "C", "text": "Report the two cohorts separately — the release moved nothing on the 880 existing items — and review the 120 new items before they enter the gate." },
+      { "key": "D", "text": "Adopt 86% as the new gating baseline, since the enlarged 1,000-item suite represents the task more completely than the old one did." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Two things changed in the same week and the arithmetic separates them cleanly: the pre-existing cohort is unmoved, so the release did nothing measurable, and the entire drop sits in items that have never been scored against any previous release. That makes the gate's verdict uninterpretable rather than wrong. Splitting the report unblocks the release on the evidence that actually bears on it, while the new items get the review they never received — either they are correctly specified and reveal a real coverage gap worth acting on, or they are mis-labelled and would have poisoned the gate indefinitely.",
+      "distractors": {
+        "A": "The arithmetic contradicts this. The release changed nothing on the 880 items that were scored under both versions, and rolling back on a number that moved because the yardstick changed wastes a release and teaches the team to distrust the gate.",
+        "B": "Reverting to the 91% and shipping discards what may be genuine evidence of uncovered failures. A saturated suite badly needs items like these; they simply cannot enter a gate before anyone has confirmed they are correctly specified and correctly labelled.",
+        "D": "Adopting 86% conflates a set change and a release into one number and breaks comparability with every prior release. Whatever the new items turn out to be, the set change has to be reported as a set change."
+      },
+      "concept": "Never let the eval set and the system change in the same measurement. When both move, split the report by cohort and attribute separately: items scored under both versions carry the comparison, and newly added items carry only information about coverage until they have been through a review of their own.",
+      "tip": "When a stem gives you cohort-level numbers that reconstruct the headline, do the arithmetic. It almost always shows that the alarming aggregate is an artefact of two changes landing together."
+    }
+  }
+]

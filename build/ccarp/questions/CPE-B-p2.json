@@ -1,0 +1,455 @@
+[
+  {
+    "id": "CPE-B-019",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Prefill to constrain the opening of a classification",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A field-service platform classifies work orders into one of five priority bands. Most responses are the bare band, but some arrive as 'Priority: High — though a case could be made for Medium.' The consumer takes the first line as the band. Which change most directly forces the response to open inside the band field?",
+    "options": [
+      { "key": "A", "text": "Add 'Answer with exactly one word' to the end of the instruction and again at the top." },
+      { "key": "B", "text": "Set temperature to zero so that the model stops hedging between adjacent bands." },
+      { "key": "C", "text": "Prefill the assistant turn with the band tag so generation continues inside it." },
+      { "key": "D", "text": "Add four more few-shot examples in which the answer is nothing but the band name." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Prefill places tokens in the assistant turn that the model continues from, so the response cannot start with a label, a caveat or a sentence — it starts wherever the prefill left off. When a consumer parses the opening of the response and the failure is a conversational wrapper around an otherwise correct answer, this is the cheapest mechanical guarantee available.",
+      "distractors": {
+        "A": "This is an instruction of the same kind as the one already producing correct output most of the time. It shifts the rate without changing the guarantee, and it does not stop the trailing caveat that follows the band.",
+        "B": "Temperature controls variation between plausible continuations. A model that reliably qualifies its classification will qualify it just as reliably at zero, only more consistently.",
+        "D": "Examples demonstrate the shape and usually help, but they compete with whatever produced the hedging and add tokens to every request. They shape behaviour rather than constraining it."
+      },
+      "concept": "Prefill converts a formatting instruction into a structural fact about the response. Reach for it when a strict consumer reads the beginning of the output and the model's error is a wrapper — a preamble, a label, an opening caveat — rather than a wrong answer.",
+      "tip": "Distinguish 'make it more likely' from 'make it impossible'. When a stem says a consumer depends on the first line, the answer is usually the mechanical option."
+    }
+  },
+  {
+    "id": "CPE-B-020",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Ordering reasoning and verdict inside one JSON object",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A pharmacovigilance team triages adverse-event reports. Evaluation shows that asking the model to work through the case before deciding lifts agreement with the safety physicians by several points, but the downstream case-management system consumes a single JSON object and rejects anything else. The team wants the reasoning benefit and a clean parse from one call.",
+    "options": [
+      { "key": "A", "text": "Emit the verdict field first and the rationale field after it, so the consumer can read the decision at once." },
+      { "key": "B", "text": "Keep a single JSON object whose first field carries the reasoning and whose verdict field comes after it." },
+      { "key": "C", "text": "Return the verdict from the first call, then make a second call that explains that verdict for the record." },
+      { "key": "D", "text": "Prefill the object's opening brace and drop the reasoning requirement, since the object is what matters." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Reasoning helps because the tokens are generated before the answer and condition it. Field order inside the object is therefore not cosmetic: putting the reasoning field first preserves exactly the mechanism the evaluation measured, while the object as a whole still satisfies a strict consumer. One call, one parse, and the derivation is captured in the record where a safety physician can review it.",
+      "distractors": {
+        "A": "Emitting the verdict first means it is produced before any of the reasoning exists, so the rationale becomes a justification written after the fact. This is the arrangement that quietly discards the several points the evaluation found.",
+        "C": "Two calls double cost and latency and produce a rationale that explains a decision already made rather than one that informed it, which is a weak artefact if a regulator asks how the triage was reached.",
+        "D": "This trades away a measured accuracy gain to solve a parsing problem that field ordering already solves. Prefill is a good tool for the opening of a response, not a reason to remove the reasoning."
+      },
+      "concept": "When reasoning and a structured answer must share one response, order the fields so the reasoning is generated first. Sequence, not presence, is what makes chain-of-thought work; a rationale field placed after the answer is post-hoc narration.",
+      "tip": "Any option that puts the conclusion before the working is discarding the benefit while appearing to keep it. Read field order in structured-output items as carefully as you read instruction order."
+    }
+  },
+  {
+    "id": "CPE-B-021",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Bounding reasoning output without losing its accuracy gain",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A freight forwarder audits carrier invoices against contracted rates. Adding an instruction to reason through the line items before deciding lifted dispute-detection accuracy by six points, but output tokens roughly tripled and p95 doubled, because the model restates every line item verbatim before evaluating it. The team must keep the accuracy and cut the emitted tokens materially. Which TWO changes do that? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Return the verdict from the first call and obtain the reasoning from a second call so the first responds quickly." },
+      { "key": "B", "text": "Replace open-ended deliberation with three named checks, one short line each, performed in a stated order." },
+      { "key": "C", "text": "Keep the prompt as it is and have the client strip the reasoning section from the response on receipt." },
+      { "key": "D", "text": "Move the reasoning instruction from the system prompt into the rendered user turn for each invoice." },
+      { "key": "E", "text": "Stop having the model restate each line item and require it to reference line items by their index instead." }
+    ],
+    "correct": ["B", "E"],
+    "explanation": {
+      "correct": "Both keys reduce generated tokens while leaving the derivation intact. Naming the checks and capping each to a line makes reasoning length a function of the procedure rather than of invoice size, and it usually improves consistency as a side effect. Removing the verbatim restatement attacks the specific waste the stem identifies — the model does not need to reproduce a line to reason about it when it can cite an index the auditor can resolve.",
+      "distractors": {
+        "A": "Splitting the call destroys the benefit being protected: a verdict produced before any reasoning exists is not the thing the six-point measurement was taken on, and the second call adds cost rather than removing it.",
+        "C": "Tokens are billed and timed when they are generated, not when they are read. Discarding the section client-side changes nothing about output volume or p95.",
+        "D": "Relocating an instruction between prompt regions does not change how much text the model writes in response to it, and moving durable instructions into every rendered turn works against a stable prefix."
+      },
+      "concept": "Reasoning cost is controllable independently of whether reasoning happens. Constrain its shape — fixed checks, line limits, references instead of quotations — before you consider removing it, and never move it after the answer or into a second call in the name of speed.",
+      "tip": "The stem names the waste explicitly: verbatim restatement. In multi-select, one key is usually the change that targets the named waste and the other is the general structural control."
+    }
+  },
+  {
+    "id": "CPE-B-022",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Consolidating forked per-locale prompt copies",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A European rail operator runs a disruption-assistance assistant in nine languages, maintained as nine forked copies of one prompt. Three markets require regulator-mandated compensation wording in the local language, and every market needs locally worded examples. A refund-policy change last quarter required nine edits; two copies were missed for eleven days and one now contains a rule nobody can trace. The team wants one policy edit to reach every market.",
+    "options": [
+      { "key": "A", "text": "Machine-translate the English master prompt into the other eight languages at render time on every request." },
+      { "key": "B", "text": "Assign an owner per language and require them to mirror every change into their copy within one working day." },
+      { "key": "C", "text": "Keep one English prompt, delete the eight copies, and instruct the model to answer in the user's language." },
+      { "key": "D", "text": "Keep one canonical template and move the mandated wording and local examples into a resource file keyed by locale." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The nine copies differ in a small, identifiable way and are identical in the part that keeps changing. Separating the invariant policy from the locale-specific fragments means the refund rule exists once and the mandated wording still exists verbatim per market, which the regulator requires. A single template also makes the untraceable rule visible: anything not in the resource file is a divergence rather than a local variation.",
+      "distractors": {
+        "A": "Translating rules at render time introduces uncontrolled semantic drift into text that carries regulatory weight, and the mandated compensation wording must be the approved local text, not a translation produced per request.",
+        "B": "This is a process patch on a structural problem, and the stem already shows the process failing — two copies missed for eleven days. Nine copies still need nine edits regardless of who owns them.",
+        "C": "Answering in the user's language does not produce the specific approved wording three markets are obliged to use, and it discards the locally worded examples that every market relies on."
+      },
+      "concept": "Forked prompts are duplicated policy. Refactor to one template with parameterised locale-specific fragments so that shared rules are edited once and genuinely local content is held in an addressable, reviewable place per locale.",
+      "tip": "When a stem counts how many edits a change required and how many were missed, it is describing duplication. Prefer the option that removes the duplication over any that manages it."
+    }
+  },
+  {
+    "id": "CPE-B-023",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Deprecating pinned prompt versions in a registry",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An analytics vendor lets enterprise customers pin a prompt version so that assistant behaviour cannot change inside their own change-control window. Fourteen versions are servable. The four oldest predate the eval suite, and one of those references an internal tool that was decommissioned last month, so it now fails part-way for the two customers still pinned to it. Product wants a sustainable policy rather than a one-off fix.",
+    "options": [
+      { "key": "A", "text": "Publish a support window per version, with notice and a migration path, and require eval coverage to stay servable." },
+      { "key": "B", "text": "Redirect pins on the four pre-eval versions to the current version so every customer sits on supported behaviour." },
+      { "key": "C", "text": "Retain every version indefinitely and stop running evals against versions older than a year to keep the suite fast." },
+      { "key": "D", "text": "Drop the eval requirement for pinned versions on the grounds that customers who pin have accepted the behaviour as-is." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Pinning is a promise about stability, so the sustainable answer is to make that promise finite and explicit rather than unlimited and untested. A support window with notice keeps the change-control commitment while giving the vendor a route to retire versions it can no longer honour; requiring eval coverage for anything servable stops the registry accumulating versions whose behaviour nobody can characterise, which is how the decommissioned-tool failure went unnoticed.",
+      "distractors": {
+        "B": "Silently moving a customer off the version they pinned breaks the exact guarantee the feature sells, and it does so inside their change-control window without their knowledge — a worse incident than the one being fixed.",
+        "C": "This keeps the liability and removes the detection. Old versions are precisely the ones most likely to reference retired tools or superseded policy, so exempting them from evaluation inverts the risk ordering.",
+        "D": "Customers accepted stable behaviour, not unsupported behaviour. They cannot have accepted the effect of a tool decommissioned after they pinned, and the vendor still owns the dependency."
+      },
+      "concept": "A prompt registry needs a lifecycle, not just an archive: immutable version identifiers, a declared support window, evaluation coverage as a condition of being servable, notice and migration on retirement. Version pinning without deprecation policy converts every past prompt into a permanent support obligation.",
+      "tip": "'Sustainable policy rather than a one-off fix' rules out anything that resolves only the two affected customers. Look for the option that changes what may exist in the registry."
+    }
+  },
+  {
+    "id": "CPE-B-024",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Two owners writing conflicting rules into one prompt",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "At a payments company, one system prompt is edited by two groups. Risk owns a fraud-handling section and last month added 'do not state the reason a transaction was held'. Product owns the customer-experience section and has long required 'always explain the outcome in plain language'. Support tickets show both behaviours appearing for the same held-transaction case. Both groups consider their rule non-negotiable and neither knew of the other's edit.",
+    "options": [
+      { "key": "A", "text": "Declare in the prompt that the risk section takes precedence over the customer-experience section whenever the two disagree on a case." },
+      { "key": "B", "text": "Add a rule telling the model to follow the more restrictive of any two instructions that appear to conflict." },
+      { "key": "C", "text": "Give each section a declared subject, have the two owners agree one rule for held transactions, and fail any edit that crosses subjects." },
+      { "key": "D", "text": "Consolidate the whole prompt under one owning team so a single editor is responsible for its coherence and sign-off." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The organisational fault is that two sections were allowed to legislate on the same subject without either owner seeing the other. Declaring a subject per section makes overlap detectable mechanically, and forcing the two owners to produce one rule for held-transaction explanations means the prompt states the behaviour once — which is the only way both groups get a definite answer they have signed off on. The check is what stops the next unilateral edit recreating the collision.",
+      "distractors": {
+        "A": "A precedence declaration leaves both contradictory statements in the prompt and asks the model to arbitrate a policy question that risk and product need to settle between themselves. It also silently disables a product requirement without anyone agreeing to that.",
+        "B": "'More restrictive' is not well defined here — silence protects investigations and explanation protects the customer — so this pushes an unresolved judgement onto the model and produces exactly the inconsistency already being reported.",
+        "D": "Single ownership removes the accountability that made risk the author of fraud language in the first place. A payments risk rule cannot be signed off by a product editor, and the collision would simply become invisible rather than resolved."
+      },
+      "concept": "Where several teams edit one prompt, treat it like shared code: partition it into owned sections with declared subjects, require overlapping subjects to be resolved into one statement by the owners, and enforce the partition in CI. Design the conflict out; do not encode a tie-break for the model to apply.",
+      "tip": "When a stem says both parties consider their rule non-negotiable, no ordering or precedence answer can be right — the two humans have to produce one rule. Look for the option that makes that happen and makes recurrence detectable."
+    }
+  },
+  {
+    "id": "CPE-B-025",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "What examples contribute that instructions cannot",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In a production prompt, the contribution few-shot examples make that written instructions generally cannot is:",
+    "options": [
+      { "key": "A", "text": "A reduction in the number of tokens the rendered request consumes on every call." },
+      { "key": "B", "text": "Determinism, so that repeated calls with the same input return byte-identical output text." },
+      { "key": "C", "text": "Removal of the need for an output schema or downstream validation of the response." },
+      { "key": "D", "text": "A concrete demonstration of the boundary and output shape that prose leaves ambiguous." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Prose describes; an example decides. Where a rule has an edge that is hard to state — which of two adjacent categories a borderline case falls into, how much detail counts as enough, exactly how the output should look — a worked instance settles it in a way an additional sentence rarely does. That is why examples are selected around confusable boundaries rather than around typical cases.",
+      "distractors": {
+        "A": "Examples add tokens to every request. They can be worth the cost, but cost reduction is the opposite of their effect.",
+        "B": "Examples make behaviour more consistent in the sense of more predictable in shape, but they do not make sampling deterministic and offer no guarantee of identical outputs.",
+        "C": "Demonstrating a format makes conformance more likely and never guarantees it. Validation is still required, and for strict consumers a typed schema is still the stronger control."
+      },
+      "concept": "Use instructions for rules that can be stated cleanly and examples for boundaries that cannot. Select examples to cover confusable cases and known error classes, and keep the count modest — the value is in what each one discriminates, not in how many there are.",
+      "tip": "Recall items reward knowing what a technique is for. If an option credits a technique with a benefit it does not deliver — cheaper, deterministic, validation-free — it is a distractor."
+    }
+  },
+  {
+    "id": "CPE-B-026",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Substitution rules in place of a bare prohibition",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A software vendor's documentation assistant is instructed never to mention a retired product line by name. Transcripts show awkward evasions, occasional sentences of the form 'I am not able to mention that product', and answers that leave migrating customers with no next step. The retired line still has thousands of users searching for it, and the vendor wants those users guided to the supported successor.",
+    "options": [
+      { "key": "A", "text": "Strengthen the instruction to 'under no circumstances mention that product, in any form or abbreviation'." },
+      { "key": "B", "text": "Replace the prohibition with a substitution rule that describes the supported successor and links the migration guide." },
+      { "key": "C", "text": "Add every spelling of the retired product name to the request's stop sequences so generation halts if it starts to appear." },
+      { "key": "D", "text": "Include five few-shot examples in which the assistant politely declines to discuss the retired line." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "A prohibition with no alternative leaves the model with a hole in the middle of the answer, and the visible symptoms — evasion, meta-commentary about what it cannot say, no next step — are what filling that hole with nothing looks like. Naming the behaviour the vendor actually wants converts an unanswerable constraint into a task, and it serves the commercial goal the stem states, which the prohibition was never going to reach.",
+      "distractors": {
+        "A": "More force on the same instruction produces more conspicuous avoidance. The transcripts already show the model complying and the outcome still being wrong, so compliance is not the failing variable.",
+        "C": "A stop sequence truncates the response at the moment the token appears, leaving a half-finished sentence in front of the user. It enforces the letter of the rule by breaking the answer.",
+        "D": "Five demonstrations of refusing teach refusal as the target behaviour, which is precisely the behaviour generating complaints. Examples are powerful and here they would entrench the problem."
+      },
+      "concept": "Every prohibition needs a specified alternative. 'Do not say X' is only actionable when paired with 'say Y instead', because the model must still produce a response and an unspecified gap gets filled with evasion or meta-commentary.",
+      "tip": "Look for the business outcome buried in the stem. Thousands of users searching for the retired line tells you the right answer routes them somewhere, not that it hides something better."
+    }
+  },
+  {
+    "id": "CPE-B-027",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Choosing a streamable output format for progressive rendering",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A newsroom tool generates a five-section editorial brief. The editor's UI streams the response, but nothing appears until the final token because the model returns one JSON object and a partial object does not parse. Editors report the wait as the tool's worst feature. The archive, separately, needs a strict validated record of every brief. The section list is fixed and identical for every brief.",
+    "options": [
+      { "key": "A", "text": "Split the brief into five separate calls, one per section, so each section renders as soon as it completes." },
+      { "key": "B", "text": "Adopt a tolerant incremental JSON parser in the client so it can render whatever prefix of the object is well formed." },
+      { "key": "C", "text": "Prefill the object's opening brace so that the streaming client can begin parsing the object sooner." },
+      { "key": "D", "text": "Emit the five sections as named tag blocks, render each as its closing tag arrives, and validate the archive record afterwards." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "A closing tag is an unambiguous completion signal that arrives mid-stream, which is exactly what progressive rendering needs and exactly what a JSON object withholds until its final brace. With a fixed five-section layout the tag set is known in advance, so the client renders each block the moment it closes, and the strict record the archive requires is built once from the completed stream. One call, incremental UI, validated artefact.",
+      "distractors": {
+        "A": "Five calls multiply latency overhead and cost, and each section is then written without sight of the others, which is how a brief loses its through-line. It solves the rendering symptom by damaging the output.",
+        "B": "Incremental JSON parsing is a real technique, but the client must guess whether a string value is complete or still growing, which produces flicker and rewrites. It buys partial rendering at the price of client complexity the tag structure gives away free.",
+        "C": "The opening brace is not the bottleneck; the absence of a completion signal for each section is. Parsing can start earlier and still cannot conclude that any field is finished."
+      },
+      "concept": "Pick the output format for the consumer's parsing model. Tag-delimited sections stream well because each close is a commit point; JSON validates well because the object is atomic. When both matter, stream the tagged form and build the strict record after the stream ends.",
+      "tip": "Streaming items turn on when the consumer learns a unit is finished. Ask which format emits a completion marker before the end of the response."
+    }
+  },
+  {
+    "id": "CPE-B-028",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Diagnosing markdown fences introduced by a prompt edit",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A recruitment platform parses a JSON contract from its CV-screening step. Since a prompt change last Thursday that added 'use markdown formatting to make output readable' — intended for a new human-facing summary field — about 8% of responses arrive wrapped in a fenced code block and fail to parse. The change is identified; the team is deciding what to do about it. What should they do next?",
+    "options": [
+      { "key": "A", "text": "Add fence-stripping to the JSON parser so that responses wrapped in a code block still parse." },
+      { "key": "B", "text": "Scope the markdown guidance to the summary field alone, then re-run the eval cases that regressed." },
+      { "key": "C", "text": "Prefill the opening brace so a leading fence cannot appear, leaving the markdown guidance as written." },
+      { "key": "D", "text": "Lower the sampling temperature to zero so the model stops varying how it presents the object." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The prompt now contains a global formatting instruction and a global structural contract that contradict each other, and 8% is the rate at which the model resolves that contradiction in favour of formatting. The change is already traced, so the next action is to narrow the instruction to the field it was written for and confirm the fix against the cases that regressed. That removes the contradiction rather than living with it.",
+      "distractors": {
+        "A": "Stripping fences accepts a malformed contract as normal and leaves a contradictory instruction in place to reappear wherever else formatting and structure meet. It is a reasonable temporary shield, not the next action once the cause is known.",
+        "C": "Prefill constrains the opening of the response and would not prevent a trailing fence, and it deliberately leaves an instruction in the prompt that the team knows to be wrongly scoped.",
+        "D": "The behaviour is instructed, not sampled. A lower temperature makes the model follow the markdown guidance more consistently, which if anything raises the failure rate."
+      },
+      "concept": "A formatting instruction and an output contract are the same kind of statement and will compete if both are global. Scope presentation guidance to the field or section it governs, and treat an intermittent format failure after a prompt edit as a conflict introduced by that edit until proven otherwise.",
+      "tip": "When the stem hands you the offending change and the date it shipped, the answer is about that change. Options that harden the parser are for when you do not yet know the cause."
+    }
+  },
+  {
+    "id": "CPE-B-029",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "What a prompt template parameter contract must declare",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A team publishes its prompt templates for other services to render. For each template variable, the parameter contract should declare:",
+    "options": [
+      { "key": "A", "text": "Its type, its size bound, escaping responsibility, and behaviour when it is absent." },
+      { "key": "B", "text": "Its name and one example value, leaving escaping and defaults to each calling service." },
+      { "key": "C", "text": "The response the model is expected to produce whenever that variable is populated." },
+      { "key": "D", "text": "The evaluation score the template achieved on the release in which it was published." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "These four items are what a caller cannot infer and what the failures depend on. Type and size bound decide whether a value can be substituted safely; the escaping rule tells the caller who is responsible for delimiter collisions; and defined absence behaviour is the difference between a missing value failing closed and a literal placeholder reaching a customer. Everything else about the template is the template's own business.",
+      "distractors": {
+        "B": "A name and an example is what an undocumented template already offers implicitly. It leaves each caller to invent its own escaping and absence handling, which guarantees they will differ.",
+        "C": "The model's output is a property of the whole rendered prompt and the input, not of one variable, and promising a response per variable is a commitment no template author can keep.",
+        "D": "Evaluation results belong to a version of the template as a whole and are useful release metadata, but they say nothing about how to bind a variable correctly."
+      },
+      "concept": "A prompt template is an API. Publish a contract per variable — type, bound, escaping responsibility, required or optional with defined behaviour when missing — so that callers cannot render an unsafe or incomplete prompt without failing loudly.",
+      "tip": "Ask what a caller would get wrong without the information. Anything the caller must decide — escaping, absence, length — belongs in the contract; anything the template owns does not."
+    }
+  },
+  {
+    "id": "CPE-B-030",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Credentialed persona making an untrue status claim",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A wealth manager's client-facing assistant opens its system prompt with 'You are a licensed financial adviser holding a CFA charter, with twenty years' experience advising retail clients.' Compliance review pulls transcripts in which answers begin 'As a licensed adviser, my recommendation is…'. The firm is regulated for the giving of personal advice, and the assistant is authorised only to summarise the firm's published guidance.",
+    "options": [
+      { "key": "A", "text": "Keep the CFA persona and add an instruction never to claim licensure or to give personal recommendations." },
+      { "key": "B", "text": "Append a standard compliance disclaimer to every response in post-processing, stating that the assistant is not a licensed adviser." },
+      { "key": "C", "text": "Replace the persona with what the assistant actually is and may do: summarise the firm's published guidance, nothing more." },
+      { "key": "D", "text": "Reduce the persona to the single line 'You are a helpful assistant' and leave the rest of the prompt unchanged." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The persona asserts a regulated status the system does not hold, and the model is faithfully repeating it, so the fix is to stop asserting it. Describing the real function and its limits gives the model an accurate self-description to draw on and a boundary it can apply when a client asks for a recommendation — which is what the authorisation actually turns on. It solves the compliance exposure and the scope problem with the same edit.",
+      "distractors": {
+        "A": "This leaves a prompt that says the assistant is a licensed adviser and also says it must never claim to be one. Self-contradictory prompts produce inconsistent behaviour, and here the inconsistent case is a regulatory breach.",
+        "B": "A footer does not undo an in-body claim of licensure, and a response that recommends a course of action while disclaiming that it is advice is the pattern regulators treat most sceptically.",
+        "D": "Removing the false credential is necessary but stripping the persona to nothing also removes any statement of scope, so the assistant retains no basis for declining a request for a personal recommendation."
+      },
+      "concept": "A persona is a claim about the system, and claims about regulated status, qualifications or authority are not stylistic. Describe the assistant's actual function and permitted scope; reserve persona language for register and tone.",
+      "tip": "Any option that keeps a false statement in the prompt and adds a rule contradicting it is wrong twice — once for the falsehood, once for the conflict. Prefer deleting the false premise."
+    }
+  },
+  {
+    "id": "CPE-B-031",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Real patient transcripts used as few-shot examples",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A telehealth provider's triage prompt carries eight few-shot examples built from real consultation transcripts with names and dates removed by a script. The prompt library is a shared repository used by four product teams, is rendered into request logs retained for a year, and is mirrored into an external evaluation vendor's environment. A privacy review asks how the examples are governed.",
+    "options": [
+      { "key": "A", "text": "Hash the remaining identifiers in the examples with a salted digest so no readable personal data survives in the prompt." },
+      { "key": "B", "text": "Restrict write access to the prompt repository to the clinical team and record that restriction in the firm's privacy register." },
+      { "key": "C", "text": "Rely on the evaluation vendor's data-processing agreement, which already covers any personal data received in the course of the engagement." },
+      { "key": "D", "text": "Replace them with clinically reviewed synthetic examples carrying the same linguistic features, governed at the source data's classification." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Script-redacted clinical narrative remains identifiable in practice — rare conditions, sequences of events, distinctive phrasing — and the stem describes it flowing into a shared repository, a year of request logs and a third-party environment. Purpose-built synthetic examples remove the personal data from all of those paths at once while preserving what the examples exist to teach. Classifying the example block like its source is what keeps the next author from pasting a real transcript back in.",
+      "distractors": {
+        "A": "Hashing identifiers leaves the narrative intact, and the narrative is the identifying part in clinical text. It also degrades the examples, since a hash where a name should be teaches the model a format nobody wants reproduced.",
+        "B": "Access control on the repository does nothing about the copies already spreading through request logs and the vendor environment, which is where the stem locates the exposure.",
+        "C": "A processing agreement governs how a vendor may handle data it receives; it does not make sending identifiable patient narrative to an evaluation environment necessary or minimal, and data minimisation is the obligation in question."
+      },
+      "concept": "Few-shot examples are data, not code. They inherit the classification of whatever they were derived from and they travel wherever prompts travel — repositories, logs, evaluation environments, vendor systems. Prefer reviewed synthetic examples for any prompt handling regulated categories.",
+      "tip": "Follow the copies. When a stem lists the places a prompt gets rendered or mirrored, it is telling you that access control on the source will not contain the problem."
+    }
+  },
+  {
+    "id": "CPE-B-032",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Assertions that belong in a prompt regression test",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A conveyancing firm is adding CI regression tests for the prompt that extracts title-deed facts into a structured record. Each fixture is a scanned deed with facts the team has verified by hand. Which TWO assertions belong in the correctness regression test for this step? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "The full response string matches the recorded golden response byte for byte." },
+      { "key": "B", "text": "The response parses cleanly against the output schema currently in force." },
+      { "key": "C", "text": "The response uses the same number of tokens as the recorded baseline run." },
+      { "key": "D", "text": "The named fields carry the values the team verified by hand for that fixture." },
+      { "key": "E", "text": "The call completes inside the service's published p95 latency objective." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "Correctness for an extraction step has exactly two layers, and both are checkable deterministically against a hand-verified fixture: the record must be well formed against the contract that is live, and the extracted values must be the right ones. Together they catch the two ways this prompt can regress — the shape breaking and the reading being wrong — without depending on any property of the wording the model happens to choose.",
+      "distractors": {
+        "A": "Byte equality fails on any harmless rewording and turns every prompt improvement into a wall of red. Tests that must be re-baselined after every change stop being read, which is worse than not having them.",
+        "C": "Token count is a cost and drift signal worth trending, but as a pass/fail assertion it flags correct outputs that happen to be phrased differently and misses wrong values that happen to be the same length.",
+        "E": "Latency matters and belongs in a performance check. It is not an assertion about whether the extraction is correct, which is what this suite is being built to protect."
+      },
+      "concept": "Assert on structure and on semantics, never on exact text. A prompt regression suite should verify that output conforms to the live contract and that known facts are extracted correctly, so that legitimate rewording passes and genuine behaviour change fails.",
+      "tip": "The stem's scope words do the filtering. 'Correctness regression test' excludes latency and cost assertions even though both are things a good team measures elsewhere."
+    }
+  },
+  {
+    "id": "CPE-B-033",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "The limits of what assistant prefill constrains",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Prefilling the assistant turn constrains:",
+    "options": [
+      { "key": "A", "text": "The whole response, which will conform from start to finish to the structure the prefill implies." },
+      { "key": "B", "text": "Only how the response begins; everything after the prefilled tokens still needs validation." },
+      { "key": "C", "text": "Which tool the model selects from among the definitions supplied with the request." },
+      { "key": "D", "text": "How the model weighs the system prompt against the content of the most recent user turn." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Prefill is text placed into the assistant turn that generation continues from, so it fixes the opening exactly and influences everything after it only in the ordinary way that preceding context influences continuation. An object that starts correctly can still close incorrectly, omit a field, or run past the intended structure — which is why prefill is a complement to validation, not a substitute for it.",
+      "distractors": {
+        "A": "This is the common overestimate. Starting inside a structure makes conforming continuation far more likely, but the model is still generating and can still produce a malformed or incomplete remainder.",
+        "C": "Tool selection is driven by the tool definitions and the request configuration. Prefilled assistant text is not a mechanism for choosing among tools.",
+        "D": "Prefill adds content at the end of the conversation; it does not reconfigure how earlier parts of the prompt are weighed against each other."
+      },
+      "concept": "Prefill is a strong constraint on the first tokens and a weak one on the rest. Use it to eliminate preamble and to force an opening delimiter or enum prefix, and keep schema validation downstream for everything the prefill does not physically determine.",
+      "tip": "For technique-limit questions, pick the option that describes the narrowest true effect. Options that extend a technique to the whole response are usually the trap."
+    }
+  },
+  {
+    "id": "CPE-B-034",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Unresolved template placeholders reaching production output",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A charity's donor-communications tool drafts thank-you emails from a template. Two supporters have forwarded drafts containing the literal text for the first-name placeholder instead of their names. Sampling shows roughly 0.3% of drafts affected, all since a template edit that renamed one variable; a second service still renders the old name. Drafts go to a human reviewer, but reviewers pass most through unchanged. What should the team do next?",
+    "options": [
+      { "key": "A", "text": "Add a rule to the mail service that strips brace-wrapped tokens from any draft before it leaves the queue." },
+      { "key": "B", "text": "Instruct the model to substitute a neutral greeting such as 'Dear supporter' whenever it meets placeholder syntax in the prompt." },
+      { "key": "C", "text": "Make the renderer fail on any unresolved placeholder, add a CI check on caller variables, and fix the renamed one." },
+      { "key": "D", "text": "Ask reviewers to check every draft specifically for placeholder text and re-render any affected one." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "An unresolved placeholder means the renderer produced a prompt that does not match the template's contract, and the only safe behaviour at that point is to stop. Failing closed converts a silent customer-visible defect into a caught error, the CI check finds the second service's stale variable name before the next rename repeats this, and correcting the variable fixes the live instance. It addresses the cause, the recurrence and the current bug together.",
+      "distractors": {
+        "A": "Deleting the token produces 'Dear ,' rather than a placeholder, which is still wrong and now harder to notice. It also hides the render failure from monitoring, so the underlying mismatch persists undetected.",
+        "B": "This asks the model to compensate for a broken input at generation time. The prompt is already defective when it arrives, and the failure needs to be visible to the team rather than smoothed over.",
+        "D": "The stem says reviewers pass most drafts through unchanged, so adding another item to a checklist that is not being applied closely will not catch a defect appearing in three drafts per thousand."
+      },
+      "concept": "Rendering is a contract boundary: validate the assembled prompt before it is sent and fail closed on any unresolved or unexpected placeholder. Variable renames are a breaking change to a published template and need the same compatibility discipline as an API change.",
+      "tip": "A defect rate under 1% with a human in the loop is a trap — humans do not reliably catch rare defects in routine work. Prefer the option that stops the defect being produced."
+    }
+  },
+  {
+    "id": "CPE-B-035",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Safe layering of tenant-authored custom instructions",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "An HR-software vendor wants to let customer administrators add their own instructions to a shared employee-support assistant. Legal requires that vendor obligations — data-handling statements and the escalation path for harassment reports — remain effective for every tenant. Support requires that a misbehaving tenant configuration be diagnosable from a log. Which TWO design rules meet both requirements? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Allow arbitrary tenant text and state in the base prompt that vendor rules take precedence over anything a tenant instruction says." },
+      { "key": "B", "text": "Merge tenant text into the base rules section so the model reads a single coherent policy rather than two blocks." },
+      { "key": "C", "text": "Restrict tenant text to a declared set of subjects — tone, greeting, escalation contacts — and reject anything else at save time." },
+      { "key": "D", "text": "Render tenant text into its own named block whose scope the base prompt states, and log the configuration version per request." },
+      { "key": "E", "text": "Cap tenant text at a fixed 500-token budget and truncate it silently at render time when the cap is exceeded." }
+    ],
+    "correct": ["C", "D"],
+    "explanation": {
+      "correct": "Constraining what a tenant may write, and enforcing it at save time, is what keeps a tenant from legislating over the obligations legal requires — the check runs once, with a human present, rather than on every request. Giving the accepted text its own named block with a stated scope keeps it identifiable in the assembled prompt, and versioning the configuration in the request log is what turns 'this tenant behaves oddly' into a diagnosable comparison. Together they satisfy both stated requirements.",
+      "distractors": {
+        "A": "Accepting arbitrary text and asserting precedence leaves the obligation to be adjudicated at inference time against instructions that may directly contradict it, and gives the administrator no feedback that their instruction will be ignored.",
+        "B": "Merging destroys the boundary support needs. Once tenant text is indistinguishable from vendor text in the assembled prompt, no log or diff shows which words came from the customer.",
+        "E": "Silent truncation makes behaviour depend on where a sentence happened to be cut and can amputate half a rule, producing a configuration the administrator never wrote and cannot see."
+      },
+      "concept": "Customer-extensible prompts need a schema, not a free-text box: constrain permitted subjects and validate on save, render extensions into a named, scoped region, and version the configuration so that any request can be tied back to the exact text that produced it.",
+      "tip": "When a stem lists two requirements from two stakeholders, expect one key per requirement. Check each candidate against legal's need and support's need separately."
+    }
+  },
+  {
+    "id": "CPE-B-036",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Keeping generated reasoning out of a streamed user view",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A consumer travel app streams its assistant's replies token by token. After adding a reason-then-answer instruction that improved itinerary-conflict detection, users now watch the model deliberate about their booking for several seconds before the answer appears, and app-store reviews mention it. Product wants the accuracy kept, the deliberation hidden from travellers, and the reasoning retained for the support team's review queue.",
+    "options": [
+      { "key": "A", "text": "Emit the reasoning in a named block before the answer, withhold that block in the client, and persist it for support." },
+      { "key": "B", "text": "Instruct the model to reason silently about the booking and to output only the final itinerary assessment." },
+      { "key": "C", "text": "Disable streaming for this call and strip the reasoning from the completed response before rendering it to the traveller." },
+      { "key": "D", "text": "Make a second call once the answer has streamed to produce the reasoning for the support review queue." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The reasoning must be generated to help, must not be seen by the traveller, and must be kept for support — three requirements that are satisfied by separating presentation from generation. A named block gives the client an unambiguous marker to withhold on and to start displaying at, the accuracy mechanism is untouched, and the same block is what gets persisted. Nothing about the model's behaviour changes; only what the client paints does.",
+      "distractors": {
+        "B": "There is no silent reasoning to instruct: text that is not emitted is not generated, so this removes the mechanism that produced the improvement while appearing to keep it.",
+        "C": "Turning off streaming replaces a visible deliberation with a blank wait of the same length, which is a worse perceived-latency outcome for a consumer app and gives up progressive rendering of the answer itself.",
+        "D": "A second call cannot reconstruct reasoning that informed the first answer, so the support queue receives a plausible narrative rather than the actual derivation, at extra cost and latency."
+      },
+      "concept": "Decide separately what the model generates, what the user sees, and what the system retains. Emitting reasoning into a delimited block makes all three independent: generation keeps its benefit, the client controls display, and the record keeps the derivation.",
+      "tip": "'Reason silently' is never available as a mechanism. When an option asks the model to think without producing tokens, it is describing something that does not exist."
+    }
+  }
+]

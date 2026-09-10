@@ -1,0 +1,719 @@
+[
+  {
+    "id": "ETO-B-001",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Safety precondition for mirroring live traffic to a shadow path",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A team mirrors live production requests to a candidate Claude configuration running in shadow mode. Which property must the shadow path guarantee for the exercise to be safe?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Shadow traffic is sampled at the same rate as the canary cohort so the two comparisons are directly interchangeable."
+      },
+      {
+        "key": "B",
+        "text": "The shadow path runs at temperature 0 with a fixed seed so its outputs match the production response token for token."
+      },
+      {
+        "key": "C",
+        "text": "Shadow responses reach no user or downstream consumer, and any tool the shadow path can reach is read-only or stubbed."
+      },
+      {
+        "key": "D",
+        "text": "Shadow requests are billed to a separate account so their spend is excluded from both the production cost baseline and the canary budget."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Shadow mode buys you a comparison on real inputs at zero user risk, and that zero-risk property is the whole point. It only holds if the shadow path is inert: its text is discarded rather than rendered, and it cannot write. The classic shadow incident is an agent whose write tool was left live, so mirrored traffic created duplicate records, sent duplicate notifications, or double-charged. Enforce inertness structurally — stubbed tool clients, a sink for the response — rather than trusting that nothing downstream happens to read the shadow output.",
+      "distractors": {
+        "A": "Sampling rate is a cost lever, not a safety property, and shadow and canary answer different questions: shadow compares outputs on identical inputs with nobody affected, canary measures real user outcomes on a small cohort. Matching their rates buys nothing.",
+        "B": "Seeding is neither achievable nor required. Shadow comparison is statistical — you compare distributions of quality, latency and cost over mirrored traffic. Demanding token-identical output would make every legitimate improvement look like a failure.",
+        "D": "Separate billing is good hygiene for cost attribution and helps you see what the exercise costs, but it protects a dashboard, not a user. A shadow path with a live write tool is dangerous no matter which account pays for it."
+      },
+      "concept": "Shadow deployment is defined by two invariants: real inputs, no effects. Anything the candidate path can do that is observable outside the experiment — a response rendered, a row written, a message sent, a counter incremented — breaks the invariant and turns a test into an uncontrolled release.",
+      "tip": "When a question distinguishes shadow from canary, ask who receives the output. Nobody means shadow; a small real cohort means canary. Options that give shadow traffic a user cohort are conflating the two."
+    }
+  },
+  {
+    "id": "ETO-B-002",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Flaky exact-match assertions in a per-PR regression suite",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A freight brokerage extracts pickup windows, weights and reference numbers from carrier emails with Claude. A 240-case regression suite runs on every pull request and asserts exact string equality on every extracted field; the build fails if any case fails. The suite goes red on roughly one run in four, always on two or three different cases, usually on a free-text address line or a rounded weight. Engineers now re-run the job until it passes. What is the right correction?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Set temperature to 0 and top_p to 1 for the extraction call, then treat any remaining run-to-run variation as a vendor-side model defect."
+      },
+      {
+        "key": "B",
+        "text": "Gate on a suite-level field-accuracy threshold calibrated to measured run-to-run variation, keeping exact assertions only for fields where any deviation is a defect."
+      },
+      {
+        "key": "C",
+        "text": "Quarantine every intermittently failing case into a non-blocking flaky list so the gate stays green, and triage that list at the monthly engineering review."
+      },
+      {
+        "key": "D",
+        "text": "Record and replay the model responses for all 240 cases so the suite becomes fully deterministic, refreshing the recordings at each release."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The suite is asking a probabilistic system for a deterministic guarantee, so it fails on harmless variation and the team has learned to ignore it — which is worse than having no gate, because a real regression now hides inside the noise. Moving the pass/fail decision to an aggregate accuracy figure, with a tolerance derived from how much the same code varies across repeated runs, restores a signal engineers will act on. Keeping strict equality for the fields where any drift is genuinely a defect (a reference number, a booking ID) preserves the hard guarantees where they are actually warranted.",
+      "distractors": {
+        "A": "Lowering temperature narrows the output distribution but does not make sampling reproducible, and the fields that flap here — an address line, a rounded weight — vary because the task genuinely has more than one acceptable rendering. Escalating that as a defect misdiagnoses normal behaviour as a bug.",
+        "C": "Quarantining is how a suite dies quietly. The cases that sit near the model's decision boundary are exactly the ones a regression will move first; excluding them removes the most sensitive detectors and leaves a gate that only sees catastrophic failures.",
+        "D": "Replay is the right tool for testing the code around the model — parsers, retries, schema handling — and it belongs in unit tests. As the regression suite it tests nothing about the model, and the recordings go stale precisely when the prompt changes, which is the moment you needed the gate."
+      },
+      "concept": "A regression gate over a stochastic component must assert on a distribution, not on an instance. Set the threshold from the measured variance of the unchanged system against itself, and reserve exact assertions for fields where the business genuinely tolerates no variation.",
+      "tip": "\"Engineers re-run until green\" is the tell. Once a gate is routinely overridden it has stopped being a control; the fix is always to make the gate reflect the real acceptance criterion, never to make it stricter."
+    }
+  },
+  {
+    "id": "ETO-B-003",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "High faithfulness with wrong answers over a stale RAG index",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A hospital network's clinician-facing assistant answers questions over internal care protocols using RAG. The offline suite reports faithfulness 0.94 and answer relevance 0.90, both computed reference-free against the retrieved context. Clinicians report answers that are confidently wrong, and in two cases omitted a contraindication. Investigation finds the index contains both current and superseded revisions of several protocols. Which TWO conclusions are best supported? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "An answer grounded in a retrieved but superseded revision satisfies faithfulness, so a score of 0.94 is fully consistent with the errors clinicians are reporting."
+      },
+      {
+        "key": "B",
+        "text": "The high faithfulness score isolates the generator as the weak component, so the retrieval stage can be excluded from the investigation."
+      },
+      {
+        "key": "C",
+        "text": "Answer relevance asks only whether the response addresses the question that was asked, so a response that omits a contraindication can still score highly."
+      },
+      {
+        "key": "D",
+        "text": "Reference-free faithfulness and answer relevance together bound answer correctness against ground truth, so the offline suite is adequate and the problem must be in the serving layer."
+      },
+      {
+        "key": "E",
+        "text": "Context precision would have caught this, because a superseded revision is by definition an irrelevant chunk and is penalised by that metric."
+      }
+    ],
+    "correct": [
+      "A",
+      "C"
+    ],
+    "explanation": {
+      "correct": "Both reported metrics are relative to the retrieved context, not to the world. Faithfulness asks whether the claims in the answer are entailed by the chunks that were retrieved — an answer that accurately restates a withdrawn protocol is maximally faithful and clinically wrong. Answer relevance asks whether the response is responsive to the question, which a fluent, on-topic, incomplete answer is. Neither metric can see that the evidence itself was wrong or that a required element was missing, which is exactly the failure shape the clinicians describe.",
+      "distractors": {
+        "B": "This inverts the diagnosis. High faithfulness means the generator is doing its job — repeating what it was given. The defect is upstream, in what the index contains and what the retriever selects, which is where the investigation should start.",
+        "D": "Reference-free metrics deliberately avoid needing ground truth, and that is precisely why they cannot bound correctness. Establishing correctness requires reference answers or annotated evidence, which the suite does not have.",
+        "E": "Context precision judges whether retrieved chunks are relevant to the query, and a superseded revision of the right protocol is topically relevant — a judge or annotator would usually mark it so. Version currency is a document-lifecycle and metadata-filtering problem, not something a relevance metric detects."
+      },
+      "concept": "Reference-free RAG metrics measure internal consistency of the pipeline: faithfulness ties the answer to the context, relevance ties the answer to the question. Correctness ties the answer to reality, and nothing in that pair reaches reality. A pipeline can be perfectly self-consistent over a corrupt corpus.",
+      "tip": "When a stem gives you excellent faithfulness alongside real-world errors, look upstream at the corpus, not at the model. Stale, duplicated or superseded documents are the standard cause of a self-consistent pipeline producing wrong answers."
+    }
+  },
+  {
+    "id": "ETO-B-004",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Automated canary rollback triggers that miss the outcome metric",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A telco canaries a new system prompt for its billing-dispute assistant at 5% of traffic. Automated rollback is wired to three signals: p95 latency, HTTP error rate, and an LLM-judge quality score computed by a nightly batch job. Four hours into the canary, containment — disputes resolved without handoff to a human agent — falls from 62% to 51% in the canary arm. No rollback fires, and the drop is noticed the next morning by an operations analyst. What is the primary defect in the canary design?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The rollback criteria omit the business outcome the canary existed to protect, and its only quality signal refreshes nightly, not within the decision window."
+      },
+      {
+        "key": "B",
+        "text": "A 5% cohort yields too few disputes per hour to detect an eleven-point move, so the canary needed at least a 25% allocation before automation could act."
+      },
+      {
+        "key": "C",
+        "text": "The comparison should have been run as a shadow deployment, which would have surfaced the containment drop without exposing any customer to the new prompt."
+      },
+      {
+        "key": "D",
+        "text": "Automated rollback is inappropriate for prompt changes; an on-call engineer should review the canary dashboards hourly and roll back by hand if a signal moves."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Every signal wired to the automation is either a systems metric that a bad prompt will not move, or a quality metric that arrives a day late. Containment is the thing the assistant exists to produce, it degraded by eleven points, and nothing was watching it. A canary's guardrail set has to include at least one outcome metric that moves inside the observation window and can be evaluated at the cadence the automation runs at — otherwise the canary is only testing that the service is up.",
+      "distractors": {
+        "B": "The effect was detectable: an eleven-point move on 5% of a telco's dispute volume is far outside noise, and a human spotted it from the same data. The signal existed; nothing was configured to act on it.",
+        "C": "Shadow mode cannot measure containment at all. Containment depends on what the customer does after reading the response, and in shadow mode no customer ever sees it. Shadow is right for latency, cost and output-diff comparisons, not for behavioural outcomes.",
+        "D": "Hourly human review would have shortened this incident but leaves the same hole: without a defined containment threshold, a reviewer scanning latency and error dashboards has no reason to look at the metric that moved. Automation is not the failure; the metric set is."
+      },
+      "concept": "Rollback automation is only as good as its guardrail set. Choose guardrails that (1) include the outcome the change is supposed to improve or protect, (2) are computable at a latency shorter than the ramp step, and (3) have thresholds set before the canary starts, not argued about while it runs.",
+      "tip": "Check the refresh cadence of every metric in a canary stem. A nightly job driving a four-hour decision is a designed-in blind spot, and stems that mention the cadence explicitly are pointing at it."
+    }
+  },
+  {
+    "id": "ETO-B-005",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "What context recall measures beyond context precision",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In RAG evaluation, what does context recall capture that context precision does not?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Whether the retrieved chunks are ordered so that the most relevant appear at the top of the context window."
+      },
+      {
+        "key": "B",
+        "text": "Whether the generated answer asserts only claims that are supported by the retrieved chunks."
+      },
+      {
+        "key": "C",
+        "text": "Whether the retrieved set is free of near-duplicate chunks drawn from the same source document."
+      },
+      {
+        "key": "D",
+        "text": "Whether the evidence needed to produce the reference answer was actually present in the retrieved set."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Precision and recall split the retrieval question in two. Precision asks how much of what came back was useful — it penalises noise and is computable from the query and the chunks alone. Recall asks whether anything required was left behind, which means you need to know what was required: a reference answer, or evidence spans annotated against it. That asymmetry matters operationally, because recall failures produce confidently incomplete answers that faithfulness and relevance metrics will happily score well.",
+      "distractors": {
+        "A": "Ordering is captured by rank-aware forms of context precision, which reward relevant chunks appearing early. It is a refinement of precision, not the thing recall adds.",
+        "B": "That is faithfulness, or groundedness. It scores the generator against the context and says nothing about whether the retriever found the right context in the first place.",
+        "C": "Duplication inflates the context and wastes budget, and it will depress precision, but it is a retrieval-hygiene concern rather than a distinct metric and it has nothing to do with coverage of required evidence."
+      },
+      "concept": "Context precision is reference-free and diagnoses noise in what was retrieved; context recall requires ground truth and diagnoses omission of what was needed. Systems tuned only on precision drift toward tidy, short, confidently incomplete contexts, and systems tuned only on recall drown the generator in near-misses. Measure both before you tune either, and budget for the annotation that recall demands.",
+      "tip": "Map each RAG metric to the pair of things it compares. Precision and recall compare query to chunks; faithfulness compares answer to chunks; relevance compares answer to question; correctness compares answer to reference."
+    }
+  },
+  {
+    "id": "ETO-B-006",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Detecting a tool-ordering violation invisible to final-answer eval",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An insurer's claims-triage agent uses Claude with six tools, two of which are write operations: verify_identity and authorise_interim_payment. The team's eval scores only the final triage decision and reports 93% on a 500-case set. Post-incident review of three production complaints finds the agent reached the correct triage decision each time, but in all three had called authorise_interim_payment before any successful identity verification. The eval scored all three as passes. Which change to the eval most directly closes this gap?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Add step-level assertions over the recorded trajectory that fail any run breaking a tool precondition, scored independently of the final decision."
+      },
+      {
+        "key": "B",
+        "text": "Raise the final-answer pass threshold from 93% to 98% and require two consecutive clean runs, so borderline agent behaviour no longer clears the gate."
+      },
+      {
+        "key": "C",
+        "text": "Compare each run's full tool-call sequence against a reference trajectory recorded from an approved run, and fail any case whose sequence does not match exactly."
+      },
+      {
+        "key": "D",
+        "text": "Expand the eval set with four hundred more cases drawn from the claim types the three complaints came from, weighted toward interim-payment scenarios."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The failure is invisible to the current eval by construction: the outcome was right, so any metric computed from the outcome scores it as a pass. Only the path contains the defect. Encoding the rule the business actually holds — no authorisation without a completed verification step — as an assertion over the recorded sequence of tool calls makes the failure observable on every case, including cases that end correctly. Treating it as a hard failure rather than a scored dimension matches its severity: this is a control violation, not a quality dip.",
+      "distractors": {
+        "B": "A higher threshold on a metric that cannot see the defect just blocks more releases for unrelated reasons. All three incident cases scored as passes; they would still pass at 98%.",
+        "C": "Exact trajectory matching over-constrains a system whose value comes from choosing its own path. Legitimate alternative orderings and harmless extra lookups all fail, the suite fills with false positives, and the team disables it. Reference trajectories are useful for narrow deterministic sub-flows, not for a six-tool agent.",
+        "D": "More cases from the same claim types raise coverage of decision quality, but the scoring function is the problem, not the sample. Those new cases would also be marked as passes whenever the agent reached the right answer by an unsafe route."
+      },
+      "concept": "Final-answer evaluation cannot detect right-answer-wrong-path failures, and those are where an agent's operational risk lives. Score outcomes for quality and score trajectories for safety: a small set of invariant assertions — this tool never before that one, this tool never without that argument — catches control violations that outcome metrics average away.",
+      "tip": "When a stem says the answer was correct but something happened along the way, the eval layer at fault is trajectory, not accuracy. Watch for the over-correction distractor that demands exact path matching."
+    }
+  },
+  {
+    "id": "ETO-B-007",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Per-request assignment contaminating a multi-turn prompt A/B test",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A specialty retailer is A/B testing two system prompts for its product-advice assistant, with conversion to purchase as the primary metric. The experiment framework assigns an arm independently on each API request; sessions average six turns. After two weeks the two arms' conversion rates are statistically indistinguishable, and the growth team proposes running for another four weeks to reach significance. What should you do first?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Extend the run as proposed, since conversion is a low-rate metric and the confidence interval will narrow with more sessions."
+      },
+      {
+        "key": "B",
+        "text": "Raise the allocation from the current split to 50/50 so both arms accumulate sessions at the maximum rate the platform allows."
+      },
+      {
+        "key": "C",
+        "text": "Restart with sticky assignment at the session or user level, and discard the existing data as uninterpretable."
+      },
+      {
+        "key": "D",
+        "text": "Replace conversion with an LLM-judge score over sampled transcripts, which will reach significance on far fewer sessions."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Randomising per request means a six-turn conversation is served by both prompts, roughly half the turns each. Every session is therefore a blend of treatments, and conversion — a session-level outcome — cannot be attributed to either arm. The design pushes the measured difference toward zero regardless of how good either prompt is, which is exactly the null result observed. The unit of randomisation has to match the unit the outcome is measured on, so assignment must be sticky for the whole session and the contaminated data cannot be repaired after the fact.",
+      "distractors": {
+        "A": "More data on a contaminated design buys a precise estimate of a diluted, uninterpretable quantity. Running longer converts an inconclusive result into a confidently wrong one, which is worse.",
+        "B": "Allocation controls how fast you accumulate samples, not what those samples mean. Both arms would still be mixed inside every session at any split.",
+        "D": "Switching to a cheaper proxy metric abandons the outcome the business cares about and does nothing about the assignment defect — the judge would be scoring transcripts that contain both prompts. Proxy metrics are for detecting movement fast, not for rescuing a broken design."
+      },
+      "concept": "Randomise at the coarsest unit that the outcome metric and the user experience share — usually the user, sometimes the session, almost never the request for conversational systems. If a single unit of measurement can span both arms, the experiment measures the blend and understates every effect.",
+      "tip": "In any A/B stem, find the assignment unit and the metric unit and check they match. A multi-turn session with per-request assignment is a designed-in null result, and \"run it longer\" is the trap it is set up to catch."
+    }
+  },
+  {
+    "id": "ETO-B-008",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Converting a safety incident into a durable adversarial regression case",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A government benefits agency runs a Claude-based eligibility assistant. An incident review finds that text a claimant typed into a free-form circumstances field caused the assistant to disclose the internal scoring thresholds used to prioritise applications. A prompt fix has shipped and been verified by hand. The safety lead asks how to guarantee the behaviour cannot return in a later release. What should the team institute?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Add the exact input string to the input filter's blocklist so any future occurrence is rejected with a generic refusal before it reaches the model."
+      },
+      {
+        "key": "B",
+        "text": "Add the incident input and a family of paraphrases and structural variants to the pre-deploy safety suite as blocking cases with a tracked pass rate."
+      },
+      {
+        "key": "C",
+        "text": "Add the incident input to the nightly advisory eval and review the disclosure-category trend with the safety lead at the monthly forum."
+      },
+      {
+        "key": "D",
+        "text": "Commission a quarterly external red-team engagement whose scope explicitly includes disclosure of internal scoring thresholds and prioritisation logic."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "A guarantee against recurrence has to be enforced at the moment a change could reintroduce it, which is the release gate. Storing the incident as a blocking test does that; storing a family of paraphrases around it stops the fix from being a memorisation of one string, since the next attempt will be worded differently. Giving the family its own category and pass rate keeps it visible instead of dissolving into an aggregate score, and makes it obvious when a later prompt change erodes the defence rather than breaking it outright.",
+      "distractors": {
+        "A": "String blocklists are defeated by any rewording, a synonym, or a different language, and they do nothing to test whether the model itself still leaks. They are a useful stopgap in the hours after an incident, not the durable control.",
+        "C": "An advisory eval reviewed monthly cannot prevent a regression from shipping — it tells you afterwards. For a disclosure of internal decision logic in a public-sector system, detection weeks later is not equivalent to prevention.",
+        "D": "External red teaming finds classes of weakness you have not imagined, which is valuable and complementary. It runs quarterly against whatever is deployed that week, so it provides no per-release assurance for a known, already-exploited weakness."
+      },
+      "concept": "Every real incident should terminate in a permanent, blocking test case plus its variant family. Red teaming discovers; the regression suite is what stops rediscovery. A defence that exists only in a prompt, with no test asserting it, has a shelf life of about one refactor.",
+      "tip": "Distinguish detective from preventive controls in the options. When the stem asks for a guarantee against recurrence, only something wired into the release gate qualifies; monitoring and periodic reviews are detective by construction."
+    }
+  },
+  {
+    "id": "ETO-B-009",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Choosing a hard blocking criterion for a release gate",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Which criterion is most defensible as a hard blocking gate on a deployment pipeline for a Claude-based feature?",
+    "options": [
+      {
+        "key": "A",
+        "text": "A measurable improvement in the mean helpfulness score over the currently deployed release."
+      },
+      {
+        "key": "B",
+        "text": "Mean output length within ten percent of the currently deployed release."
+      },
+      {
+        "key": "C",
+        "text": "No regression against the previous release on a protected set of safety and policy cases."
+      },
+      {
+        "key": "D",
+        "text": "A perfect pass rate on every case in the complete functional eval suite."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "A blocking gate should encode something the organisation will never knowingly ship, and it should be achievable by a correct release. Non-regression on a curated safety and policy set meets both tests: those behaviours are non-negotiable, the bar is met by any change that does not break them, and the comparison is against a known-good baseline rather than an arbitrary constant. Everything else — quality, style, cost — belongs on advisory reporting where a human weighs the trade-off, because blocking on those stops good releases for reasons someone should be allowed to overrule.",
+      "distractors": {
+        "A": "Requiring improvement blocks releases that are neutral on quality but fix bugs, cut cost, or refactor. It also fires on noise in both directions, so it eventually gets bypassed.",
+        "B": "Output length is a weak style proxy. A legitimate change to response format moves it immediately, and it can stay flat through a serious quality regression — a gate that is both trigger-happy and blind.",
+        "D": "A perfect pass rate on a large functional suite over a probabilistic system is not attainable, so the gate is either permanently red or quietly disabled. Functional suites should gate on a threshold relative to baseline, not on perfection."
+      },
+      "concept": "Split gates into blocking and advisory by asking whether a human should ever be allowed to ship past this. Blocking gates cover safety, policy and legal invariants and are stated as non-regression against a baseline; quality and cost movements are reported, reviewed and overridable.",
+      "tip": "Gates that demand perfection or demand improvement both end up ignored — one is unreachable, the other punishes neutral work. Non-regression against a named baseline is almost always the exam-correct shape."
+    }
+  },
+  {
+    "id": "ETO-B-010",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Establishing a noise floor with a control-versus-control run",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A streaming media company gates prompt changes for its content-metadata tagger on a 600-case suite. The gate fails the build if any case flips from pass to fail versus the stored results of the last release. Most candidate changes now fail on four to nine flipped cases while also fixing a similar number, and reviewers routinely override the gate. An engineer proposes simply allowing up to ten flips. What is the sounder redesign?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Re-run the incumbent alongside the candidate in the same job and fail only when the candidate's net regression exceeds the incumbent-versus-incumbent flip count."
+      },
+      {
+        "key": "B",
+        "text": "Allow up to ten flips as proposed, and retune that allowance each quarter from the number of overrides reviewers issued in the previous one."
+      },
+      {
+        "key": "C",
+        "text": "Keep the stored results from the last three releases as separate baselines, and fail a case only when it fails against all three of them."
+      },
+      {
+        "key": "D",
+        "text": "Replace per-case pass/fail with a continuous judge score and fail the build if the suite mean drops at all against the last release."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Comparing today's candidate against results captured weeks ago conflates two sources of change: what the prompt did, and what re-sampling does. Running the incumbent again in the same job, on the same day, against the same model version separates them — its flip count against its own stored results is pure churn, and it gives the gate a threshold grounded in measurement instead of in a number someone picked. The candidate then has to beat that floor, so a build fails when the change actually degraded behaviour rather than when the dice landed differently.",
+      "distractors": {
+        "B": "Ten is a guess. If real churn is fifteen the gate still fires constantly; if it is two the gate now lets a genuine seven-case regression through. Tuning the constant by counting overrides optimises for reviewer comfort, not for detection.",
+        "C": "Multiple stale baselines reduce sensitivity in the worst way: a case has to fail three times to count, so any regression that is intermittent — which is most of them — is filtered out. It also does nothing about same-day sampling variation.",
+        "D": "A continuous score is a reasonable refinement of the metric, but failing on any drop reproduces the original defect on a finer-grained measure. Continuous scores also fluctuate run to run, so the build would go red even more often."
+      },
+      "concept": "Before you can measure a change you must measure the measurement. Run the unchanged system against itself under identical conditions to establish the noise floor, then set the gate above it. This is the difference between a threshold that is calibrated and one that is negotiated.",
+      "tip": "Watch for stems where the team is arguing about what number to allow. That argument is a symptom of never having measured churn; the answer is nearly always to add a control arm rather than to pick a better constant."
+    }
+  },
+  {
+    "id": "ETO-B-011",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Sampling strategy for discovering unknown failure modes in traffic",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A utility's field-engineer assistant handles about 30,000 queries a day across outage triage, asset lookup and safety-procedure questions. New test cases are currently created only from sessions where a user pressed thumbs-down, which happens in 0.4% of sessions. The quality lead wants both to discover failure modes nobody has thought of and to know how often each one actually occurs. Which TWO changes best serve those two goals? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Review a random sample of sessions on a fixed cadence, stratified by query type and region, regardless of whether any feedback was left."
+      },
+      {
+        "key": "B",
+        "text": "Make the thumbs-down control more prominent in the interface so a larger share of dissatisfied users report, increasing the volume of review candidates."
+      },
+      {
+        "key": "C",
+        "text": "Promote every thumbs-down session automatically into the blocking pre-deploy regression suite once it has been de-identified."
+      },
+      {
+        "key": "D",
+        "text": "Score all traffic with an LLM judge against the existing quality rubric and treat the lowest-scoring sessions as the discovery mechanism."
+      },
+      {
+        "key": "E",
+        "text": "Embed production queries, cluster them, and direct review effort at clusters that are thinly represented in the current test set."
+      }
+    ],
+    "correct": [
+      "A",
+      "E"
+    ],
+    "explanation": {
+      "correct": "The two goals need two different sampling logics. Rate estimation needs an unbiased frame, which only random sampling provides — thumbs-down sessions are a self-selected slice, and users mostly do not report the failure mode that matters most, a confident wrong answer they believed. Stratifying keeps low-volume, high-consequence query types visible. Discovery of unknown modes needs coverage of the input space rather than of the complaint stream, and clustering the query embeddings against the existing test set shows you directly which regions of real traffic you have never tested.",
+      "distractors": {
+        "B": "A higher response rate on the same instrument amplifies the same selection bias. You get more of the failures users notice and are annoyed by, and no more visibility into the ones they accept at face value; the rate estimate stays unusable.",
+        "C": "Thumbs-down is a noisy label. It captures unmet expectations, user error, latency frustration and genuine defects indiscriminately, and auto-promoting it into a blocking gate encodes disputed cases as ground truth. Feedback should enter as review candidates, not as assertions.",
+        "D": "Judging everything against the current rubric can only surface failures the rubric already contemplates, which is the definition of a known mode. It is a reasonable triage filter, but as a discovery mechanism it is circular."
+      },
+      "concept": "Discovery and measurement need different samples. Use targeted signals — negative feedback, escalations, retries, tool errors, unusual length — to find candidates fast, and an independent random sample to estimate how common anything you find really is. Never use a self-selected stream to estimate a rate.",
+      "tip": "When a stem states two goals, expect one option per goal and expect the distractors to serve only the flashier of the two. Any option that scales up an existing biased channel is not fixing the bias."
+    }
+  },
+  {
+    "id": "ETO-B-012",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Untested indirect injection channel in an adversarial suite",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A law firm's contract-review assistant ingests counterparty PDFs supplied by the opposing side, retrieves clauses from them, and can call two tools: flag_for_partner and email_summary, the latter sending to addresses in the matter record. The security team's adversarial suite consists of 400 attack strings placed in the user message, and reports zero successful attacks over the last three releases. Which gap in the suite matters most?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The suite does not test multi-turn escalation, where an attacker builds up context across several user messages before making the request."
+      },
+      {
+        "key": "B",
+        "text": "The suite contains only English-language attack strings, so the same jailbreaks translated or transliterated into another language go unmeasured."
+      },
+      {
+        "key": "C",
+        "text": "The suite scores refusal but never records response latency or token spend, so prompt-driven denial-of-service attacks would go unnoticed."
+      },
+      {
+        "key": "D",
+        "text": "No attack is placed in the counterparty document content, which reaches the model in the same context as its instructions alongside a send-capable tool."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Every attack in the suite arrives through the one channel the firm controls least badly — a message typed by its own authenticated user. The genuinely hostile channel is the document, because it is authored by the opposing party, it is ingested automatically, and its text lands in the same context the model reads instructions from. Combine that with a tool that can send content to external addresses and you have a reachable path from adversary-controlled text to exfiltration. A perfect score against 400 user-channel strings says nothing about it.",
+      "distractors": {
+        "A": "Multi-turn escalation is a real gap and worth closing, but it exploits the same channel the suite already covers and requires the firm's own user to be the attacker. Its reachability and impact are both lower than an untested channel wired to a send tool.",
+        "B": "Language coverage is a genuine blind spot in most adversarial suites. It widens an existing channel rather than adding a missing one, so it should be scheduled after the untested path is covered.",
+        "C": "Latency under adversarial load is an availability concern handled by rate limiting and timeouts. It is not what an adversarial content suite is for, and it is unrelated to the exfiltration path the tool set creates."
+      },
+      "concept": "Enumerate injection channels by who authors the text, not by which field it lands in: user input, retrieved documents, tool results, and any content a third party can cause the system to read. Test each channel end to end with real tool wiring, because impact is a function of what the model can do once influenced.",
+      "tip": "When a stem lists an agent's tools, read them as the impact side of the threat model. An outbound-communication tool plus untrusted ingested content is the canonical indirect-injection setup, and any suite that only tests the user field is measuring the wrong surface."
+    }
+  },
+  {
+    "id": "ETO-B-013",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Interpreting a low answer-relevance score on a RAG response",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An answer-relevance metric flags a response in a RAG eval run. What has it most likely detected?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The response asserts something that the retrieved chunks do not support."
+      },
+      {
+        "key": "B",
+        "text": "The response is evasive, drifts off topic, or answers only part of what was asked."
+      },
+      {
+        "key": "C",
+        "text": "The retrieval stage failed to return a document that the reference answer depends on."
+      },
+      {
+        "key": "D",
+        "text": "The response contradicts the ground-truth answer stored with the eval case."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Answer relevance compares the response to the question, and to nothing else. Typical implementations work backwards — generate candidate questions the response would answer, then measure how close those are to the question actually asked — so the score falls when the response hedges, wanders, over-generalises, or covers one clause of a two-part question. It is deliberately indifferent to whether the content is grounded or true, which is why it is always read alongside faithfulness and a correctness measure.",
+      "distractors": {
+        "A": "That is faithfulness. An ungrounded claim can be perfectly on topic, which is precisely why a hallucinated answer often scores high on relevance and low on faithfulness.",
+        "C": "That is context recall, a retrieval-side metric requiring reference evidence. A missing document usually produces a confidently partial answer, and relevance may or may not notice.",
+        "D": "That is answer correctness, which needs a stored ground truth. A wrong answer that squarely addresses the question scores well on relevance — the metric is not measuring truth."
+      },
+      "concept": "Answer relevance is a responsiveness check, not a truth check. Read it as the metric that catches the model answering a different question than the one asked; it must always be paired with a groundedness metric and, where ground truth exists, a correctness metric.",
+      "tip": "For any RAG metric question, name the two artefacts being compared before reading the options. Relevance is answer-to-question; anything mentioning chunks or ground truth belongs to a different metric."
+    }
+  },
+  {
+    "id": "ETO-B-014",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Controls required before shadowing an agent with write tools",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A manufacturer wants to shadow-test a new version of its maintenance triage agent against mirrored production traffic. The agent has four tools: read_sensor_history and lookup_part are reads; create_work_order writes to the CMMS; page_technician sends a pager notification. Which THREE controls are required before mirroring begins? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Route the shadow agent behind a 5% canary cohort so only that small group of technicians sees its output if it misbehaves."
+      },
+      {
+        "key": "B",
+        "text": "Replace create_work_order and page_technician with sandboxed stubs that log the intended call and return synthetic results."
+      },
+      {
+        "key": "C",
+        "text": "Require shadow and production outputs to be token-identical at temperature 0 before any comparison is treated as valid."
+      },
+      {
+        "key": "D",
+        "text": "Ensure no shadow output reaches any downstream consumer, including caches, analytics events and queues production also writes to."
+      },
+      {
+        "key": "E",
+        "text": "Provision and monitor the additional inference spend and read-tool load that duplicating live traffic creates."
+      }
+    ],
+    "correct": [
+      "B",
+      "D",
+      "E"
+    ],
+    "explanation": {
+      "correct": "Shadowing doubles the request volume and gives the candidate the same tool surface as production, so three things must be true before traffic flows. The write tools have to be neutered while still recording what would have happened, because the intended calls are the most valuable data the exercise produces. The output path has to terminate in a sink, and that includes the indirect paths teams forget — a shared cache, an analytics pipeline, a queue consumer that cannot tell the two sources apart. And the duplicated load has real cost on both inference spend and the read systems, which have their own capacity limits.",
+      "distractors": {
+        "A": "This describes a canary, not a shadow, and it inverts the defining property: shadow output should reach no user at all. Any option that gives shadow traffic a user cohort has stopped describing shadow testing.",
+        "C": "Token-identical output is neither achievable with a sampled model nor desirable — the candidate is meant to behave differently. Shadow comparison is distributional: quality scores, latency percentiles, cost, tool-call patterns, and diffs worth a human look."
+      },
+      "concept": "Shadowing an agent is harder than shadowing a single completion, because an agent acts. The control set is: stub every effectful tool while logging intended calls, terminate the output path in a sink including indirect consumers, and budget the duplicated load. Recorded intended writes are the primary artefact.",
+      "tip": "Read the tool list first and split it into reads and writes; the write tools generate the required controls. Watch for the option that quietly swaps shadow semantics for canary semantics by introducing a user cohort."
+    }
+  },
+  {
+    "id": "ETO-B-015",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Tiering an expensive eval suite across CI trigger points",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An edtech company's eval suite for its tutoring assistant is 1,800 cases, takes about 35 minutes of wall clock, and costs roughly a day of production inference spend per run. It currently runs on every push; the team pushes around 30 times a day and the eval bill now exceeds the product's serving bill. Leadership wants the cost down without losing pre-release assurance. Which design best achieves that?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Move the full suite to a weekly scheduled run and rely on review of the prompt diff at pull request time to catch regressions in between."
+      },
+      {
+        "key": "B",
+        "text": "Run a stratified subset including the whole safety set on every push, the full suite at merge and before release, and the full suite nightly against main."
+      },
+      {
+        "key": "C",
+        "text": "Cut the suite to 300 cases by dropping every case that has passed on the last twenty consecutive runs, keeping the ones that still fail sometimes."
+      },
+      {
+        "key": "D",
+        "text": "Cache model responses keyed by a hash of the rendered prompt so repeated runs cost nothing, refreshing the cache on the first of each month."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The cost is driven by frequency, not by the suite, so the lever is matching depth of testing to the risk of each trigger point. A fast stratified subset on every push gives developers a signal in minutes while they still hold the change in their head, and keeping the whole safety set in that tier means the non-negotiable checks never wait. Full runs at merge and at release preserve the assurance that actually matters for shipping, and the nightly run against main catches anything the subset missed with a one-day localisation window rather than a one-week one.",
+      "distractors": {
+        "A": "Weekly runs put up to a week of commits between a regression and its discovery, which turns every finding into an archaeology exercise. Code review does not catch prompt regressions — that is the whole reason the suite exists.",
+        "C": "Always-passing cases are the regression detectors. Deleting them keeps the cases that are already unstable and removes the ones whose failure would be unambiguous news, so the suite gets cheaper and stops doing its job.",
+        "D": "The cache only hits when nothing changed, and it misses on exactly the runs where the prompt was edited — the runs you needed. It also silently freezes model behaviour between refreshes, so a model-side change goes unnoticed for up to a month."
+      },
+      "concept": "Tier evals by trigger, not by preference: fast and stratified on every push, full at merge and release, nightly against the main branch for drift. Safety cases live in the fastest tier regardless of cost, because they are the ones you never want deferred.",
+      "tip": "Cost questions about eval suites are almost always about run frequency rather than suite size. Options that shrink the suite by deleting passing cases are trading away the detector to save on the alarm."
+    }
+  },
+  {
+    "id": "ETO-B-016",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Segment regression hidden under a flat aggregate canary result",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "An online travel agency canaries a model swap for its itinerary-change assistant at 10% of traffic for five days. Aggregate judge quality and p95 latency are flat and cost per task falls 22%. Preparing the ramp to 100%, an analyst slices the canary data and finds that for non-English sessions — 7% of traffic — the escalation-to-human rate rose from 4% to 11%. The team asks to proceed. What is the appropriate next step?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Proceed to 100%, since aggregate quality held and a 22% cost saving is material, and add the non-English segment to the production dashboard."
+      },
+      {
+        "key": "B",
+        "text": "Roll back the model swap and stay on the incumbent, since a seven-point escalation regression on any customer segment disqualifies the change."
+      },
+      {
+        "key": "C",
+        "text": "Hold the ramp and re-run the canary with language as a pre-registered guardrail powered for that segment, or ramp only the passing segments."
+      },
+      {
+        "key": "D",
+        "text": "Treat the finding as a multiple-comparisons artefact given how many segments could have been sliced, apply a Bonferroni correction, and continue the ramp."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "A 7% segment cannot move an aggregate no matter how badly it degrades, so the flat headline is uninformative rather than reassuring — this is the arithmetic the stem is pointing at. Escalation nearly tripling for those customers is a real service failure with a plausible mechanism. The measured response is to stop treating the aggregate as the decision, make the segment an explicit guardrail with enough exposure to measure it properly, and either confirm the effect before deciding or ramp the segments that already passed. That keeps the cost saving available without shipping a known harm.",
+      "distractors": {
+        "A": "Ramping a known, quantified regression to 100% and promising to watch it converts a contained finding into a live incident for a whole customer segment. Monitoring after the fact is not a substitute for a gate you already have data for.",
+        "B": "Abandoning a 22% cost reduction for a problem confined to 7% of traffic is an over-correction. The change is defensible for the segments that passed, and a targeted ramp or a prompt fix for that segment is proportionate.",
+        "D": "Multiple comparisons is a legitimate concern with post-hoc slices, and it is the sophisticated-sounding trap here. It argues for confirming the effect with a powered test, not for dismissing an effect this large with an operational mechanism behind it."
+      },
+      "concept": "Aggregate canary metrics are volume-weighted, so a small segment can fail completely while the headline stays flat. Pre-register the segments that must be protected, size the canary so each one is measurable, and treat any segment breach as blocking for that segment.",
+      "tip": "Whenever a stem gives you a segment's share of traffic, do the arithmetic on whether that segment could move the aggregate. If it cannot, the flat aggregate is not evidence of anything and the answer lies in segment-level analysis."
+    }
+  },
+  {
+    "id": "ETO-B-017",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Aggregate pass rate concealing per-category jailbreak failures",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A gaming platform maintains an adversarial suite of 900 prompts across nine harm categories for the assistant that helps moderators draft enforcement notices. Results are reported to leadership as a single number — 97% blocked — and the release gate requires at least 95%. The trust and safety director asks whether this gate is fit for purpose. What is the main weakness?",
+    "options": [
+      {
+        "key": "A",
+        "text": "A single category can be failing a quarter of its prompts while the aggregate still reads 97% and clears the gate; the gate needs per-category rates with severity-weighted floors instead."
+      },
+      {
+        "key": "B",
+        "text": "Nine hundred prompts is too small a sample for a safety claim, and the suite should be expanded by an order of magnitude before it gates anything."
+      },
+      {
+        "key": "C",
+        "text": "The suite is static across releases, so the gate should be regenerated from scratch each time to stop prompts being tuned against known attack strings."
+      },
+      {
+        "key": "D",
+        "text": "The threshold is too low for a safety control, and raising the aggregate floor from 95% to 99% blocked would give the gate real teeth."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "With 900 prompts spread over nine categories of roughly 100, a reported 97% means 873 blocked and 27 unblocked — and nothing in the aggregate stops 25 of those 27 landing in one category, which would be blocking only 75% of its prompts while the headline sails through the 95% gate. Aggregation also implies the categories are interchangeable, which they are not: the consequence of failing a self-harm prompt and failing a mild-profanity prompt differ by orders of magnitude. Reporting and gating per category, with an absolute floor on the highest-severity ones, is the only structure that reflects how the risk is actually held.",
+      "distractors": {
+        "B": "Sample size is worth examining per category rather than in aggregate, but it is not the primary defect. Even a suite ten times larger reported as one number would hide the same category-level collapse.",
+        "C": "Fully regenerating the suite every release destroys comparability — you can no longer tell whether a change in the number came from the model or from the new prompts. Contamination is managed with a stable core plus a rotating fresh slice, not by discarding history.",
+        "D": "Raising the threshold on an aggregate makes it harder to pass without making it informative. At 99% the suite is allowed nine unblocked prompts, and all nine could still land in one category — leaving it at 91% blocked while the headline looks impeccable. The metric's structure is the problem, not its level."
+      },
+      "concept": "Safety results should be reported at the granularity at which the risk is owned. Aggregate pass rates over heterogeneous harm categories both hide concentrated failure and imply a false equivalence in severity; gate per category, with absolute floors where the consequence is severe.",
+      "tip": "When a stem gives you a total, a category count and a threshold, do the division. If every failure the threshold permits could sit inside one category, the aggregation is the answer and the threshold level is the decoy."
+    }
+  },
+  {
+    "id": "ETO-B-018",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Evidence required to move a pinned model version under model risk rules",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A pharmaceutical company runs adverse-event narrative summarisation on a specific pinned Claude model version, validated and documented under its model risk management process; the regulator expects documented evidence supporting any change to a validated system. A newer model becomes available and the product team wants its lower latency. The validation suite is locked and version-controlled. Which approach lets the team move while preserving the assurance the process requires?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Move the configuration to a floating alias so the system tracks the newest model automatically, and rely on production quality monitoring to detect any degradation."
+      },
+      {
+        "key": "B",
+        "text": "Accept the vendor's published evaluation results for the newer model as the evidence, since capability claims about the model are the vendor's to make."
+      },
+      {
+        "key": "C",
+        "text": "Run an online A/B between the two versions on live adverse-event traffic, adopt whichever wins on the judge score, and file that comparison as the evidence."
+      },
+      {
+        "key": "D",
+        "text": "Run the locked suite against both versions on identical inputs, document the paired deltas including the safety subset, and ship it as a versioned release."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The obligation is to produce evidence about this system on this task before the change takes effect, and to be able to reproduce the decision later. Running the locked suite against both versions on the same inputs gives a paired comparison that removes input variation from the delta, produces an artefact the validation file can hold, and covers the safety subset explicitly rather than by aggregate. Shipping it as an explicit version bump with a rehearsed revert keeps the pin — which is what makes any past output reproducible — and gives the change a rollback path that does not require a new validation cycle.",
+      "distractors": {
+        "A": "A floating alias surrenders the property the pin exists for: you can no longer say which model produced a given historical summary, and a model change arrives without any validation event. Monitoring detects degradation after regulated outputs have already been produced.",
+        "B": "Vendor evaluations are measured on generic tasks and say nothing about adverse-event narrative summarisation on this corpus with this prompt. Model risk processes require validation of the system as configured, and no external benchmark discharges that.",
+        "C": "An online test exposes real regulated outputs to a version that has no validation evidence behind it, which inverts the required order. Online comparison is a legitimate confirmation step after the pre-deployment evidence exists, not a substitute for it."
+      },
+      "concept": "In a validated environment, a model version change is a change to the system and inherits the system's evidence requirements. Pin versions, keep the validation suite locked and comparable, and run candidate versus incumbent on identical inputs so the delta is attributable and the artefact is reproducible.",
+      "tip": "Reproducibility requirements and floating aliases are mutually exclusive; when a stem mentions a pin and a regulator in the same breath, any option that unpins is out before you read the rest of it."
+    }
+  }
+]

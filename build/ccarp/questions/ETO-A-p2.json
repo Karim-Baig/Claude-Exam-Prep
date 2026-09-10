@@ -1,0 +1,455 @@
+[
+  {
+    "id": "ETO-A-019",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Judge drawn from the same model family as a candidate",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A research-publishing platform is deciding whether to keep its in-house abstract-generation prompt or license a third-party service. The bake-off uses a pairwise LLM judge over 300 papers; the in-house output, produced by the same model family the judge runs on, wins 68%. A reviewer on the architecture board points out that the judge and one of the candidates share a model family and asks whether the result can be relied on. What is the right response?",
+    "options": [
+      { "key": "A", "text": "Extend the bake-off from 300 to 1,200 papers so the interval around the 68% win rate is tight enough to settle the reviewer's question outright." },
+      { "key": "B", "text": "Tell the judge in its prompt which abstract came from its own model family and instruct it to compensate for any preference it may hold." },
+      { "key": "C", "text": "Validate the verdicts against a blind human-labelled subsample and a judge from another model family, reporting both alongside the win rate." },
+      { "key": "D", "text": "Switch from pairwise comparison to independent rubric scoring of each abstract, which removes any preference between the two candidates." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The board's concern is that the judge may reward outputs resembling its own generation style, and there is no way to settle that from inside the same instrument. Two external references break the circularity: humans grading blind, and a judge from a different family. If both reproduce the 68%, the result stands and the platform has an auditable basis for a licensing decision. If they do not, the team has learned the margin was partly an artefact before signing a contract. Reporting the win rate without the agreement figure attached is what allows the confound to travel downstream unchallenged.",
+      "distractors": {
+        "A": "Sample size shrinks random error only. If the judge has a directional preference, four times the papers buys a much tighter interval around a possibly self-flattering estimate, which makes the wrong decision easier to defend rather than harder.",
+        "B": "This assumes the judge can identify a bias it may have and knows its magnitude, neither of which has been established. It also actively tells the judge which output is which, converting a suspected implicit preference into an explicit cue.",
+        "D": "Absolute rubric scoring removes position effects, not stylistic affinity: a judge can still score prose that resembles its own house style higher against a rubric. It also gives up the sensitivity of pairwise comparison, which is what you want when two candidates are close."
+      },
+      "concept": "A grader is a measuring instrument and it can be correlated with what it measures. Whenever the judge shares a lineage with a candidate, or was authored by the team that authored one candidate, the win rate needs an external anchor — human labels, a different judge family, or both — before it supports a commercial or architectural decision.",
+      "tip": "When a stem deliberately mentions that the judge and a candidate share a model family, that fact is the question. The answer will be to obtain an independent reference, never to collect more data from the suspect instrument."
+    }
+  },
+  {
+    "id": "ETO-A-020",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Upper bound on a failure rate after zero observed failures",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A safety check ran against 300 independently sampled eval items and produced zero failures. Approximately what can be claimed about the true failure rate at 95% confidence?",
+    "options": [
+      { "key": "A", "text": "The rate is zero: 300 clean draws demonstrate the check is reliable on this task." },
+      { "key": "B", "text": "The rate is no higher than roughly 1%, that is one failure per hundred requests." },
+      { "key": "C", "text": "The rate is no higher than roughly 0.3%, one failure across the 300 items sampled." },
+      { "key": "D", "text": "No bound can be computed, since at least one observed event is required to estimate a rate." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "With zero events in n trials, the one-sided 95% upper bound on the underlying rate is approximately 3/n — the rule of three. Here that is 3/300 = 0.01, so the honest statement is that the failure rate is plausibly anywhere from zero up to about one in a hundred. On a system running tens of thousands of requests a day that upper end is not a comfortable place to be, which is why the bound rather than the point estimate is the number to report to whoever is accepting the risk.",
+      "distractors": {
+        "A": "Observing no failures is not the same as there being none. A true rate of one in two hundred produces zero failures in 300 draws around a fifth of the time, so this sample is entirely consistent with a rate that would matter at production volume.",
+        "C": "One in three hundred is what you get by imagining a single failure occurred, which is a point estimate rather than a confidence bound. The bound is roughly three times larger, and the factor of three is the whole content of the rule.",
+        "D": "A one-sided bound is exactly what a zero-event sample supports. You cannot estimate the rate, but you can rule out rates high enough that they would almost certainly have shown up."
+      },
+      "concept": "Zero observed failures never demonstrates zero risk; it constrains the rate to below roughly 3/n. Report that bound, compare it to the volume the system runs at, and let the product of the two decide whether the sample was large enough. This is the standard way to size an eval for a rare safety-relevant failure.",
+      "tip": "The rule of three is worth memorising in both directions: zero events in n bounds the rate at about 3/n, and detecting a rate of p with high probability needs about 3/p samples."
+    }
+  },
+  {
+    "id": "ETO-A-021",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Risk of building an eval set from synthetic transcripts",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A mining-equipment supplier is building the first eval for a field-service assistant that answers technicians' questions about breakdown procedures. Only 40 real transcripts survived the last CRM migration, so an engineer generates 500 synthetic transcripts with Claude and labels those. The suite is due to become the ship gate for the pilot. What is the principal risk, and what control should accompany the synthetic set?",
+    "options": [
+      { "key": "A", "text": "Generating 500 transcripts consumes tokens the pilot budget did not plan for; cap the set at 200 items and expand it once the pilot has proved out." },
+      { "key": "B", "text": "Synthetic transcripts may reproduce technicians' personal data from the 40 real seeds; run a redaction pass over the whole set before any labelling begins." },
+      { "key": "C", "text": "Generated cases skew hard, because a model asked for examples produces edge cases; balance the set with routine breakdown queries so the pass rate is not depressed." },
+      { "key": "D", "text": "Synthetic transcripts inherit the model's idea of the task, so the suite can pass while real traffic fails; keep the 40 real ones as an anchor that scores must track." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Synthetic data is a distribution written by a model, and it is systematically tidier than reality: complete sentences, one topic per turn, the vocabulary the model expects. A suite built entirely from it measures performance on that distribution, and a gate built on that suite can pass a system that falls over on a technician's half-typed message from a noisy site. The 40 real transcripts are small but they are the only sample of the real distribution the team has, so their job is to anchor the synthetic set: if the two scores diverge, the synthetic set has drifted and must be regenerated or reweighted.",
+      "distractors": {
+        "A": "Generation cost for a few hundred transcripts is negligible beside the labelling and validation effort, and cutting the count to 200 leaves the representativeness problem completely intact — a smaller unrepresentative set is not better.",
+        "B": "Worth checking as routine hygiene, but generation from a small seed set is one of the few situations where exposure is lower rather than higher, and this frames a distributional problem as a privacy one, which sends the team to the wrong control.",
+        "C": "The usual failure runs the other way. Generated examples cluster around the model's notion of a typical case and under-represent the truncated, ambiguous, multi-topic inputs real users produce. Assuming synthetic sets are too hard leads teams to make them easier still."
+      },
+      "concept": "Synthetic eval data is acceptable for coverage and for constructing specific cases, but it cannot establish that the distribution is right. Always retain a real-traffic anchor slice, however small, and treat divergence between the synthetic score and the anchor score as evidence that the synthetic set has stopped representing the task.",
+      "tip": "Any stem where the eval set is generated by the same model family the system runs on is asking about distributional circularity. Look for the option that keeps a real-data anchor rather than the one that fixes cost or privacy."
+    }
+  },
+  {
+    "id": "ETO-A-022",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Near-duplicate items inflating apparent precision",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A ticketing company built a 600-item eval set by harvesting questions from its help-centre knowledge base. During a review someone notices that about 180 of the items are paraphrases of just 12 underlying questions, because those articles have many indexed variants. The team reports a pass rate with a confidence interval computed at n = 600. What is the consequence and the right correction?",
+    "options": [
+      { "key": "A", "text": "The effective sample is well below 600, so the interval is too narrow; cap paraphrases per underlying intent and spend the freed budget on uncovered intents." },
+      { "key": "B", "text": "Paraphrase clusters are a strength, because they measure robustness to phrasing; keep the clusters and replace the pass rate with a per-cluster consistency metric." },
+      { "key": "C", "text": "The duplication is harmless as long as each item's label is correct, since the judge grades every one of the 600 items independently of the others." },
+      { "key": "D", "text": "Delete all 180 paraphrased items and report on the remaining 420, since near-duplicates of any kind invalidate a reference set." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Items drawn from the same underlying question are not independent observations: the system will tend to get all of a cluster right or all of it wrong, so 180 items contribute closer to 12 items' worth of information. Two things break at once. The interval computed at n = 600 overstates precision, and 2% of the knowledge base is silently supplying 30% of the score. Quota-limiting each intent restores both, and reinvesting the freed items in uncovered intents improves coverage, which is where the eval was actually weak.",
+      "distractors": {
+        "B": "Phrasing robustness is worth measuring and a per-cluster consistency metric is a reasonable way to do it — in a separate designated slice. Leaving the clusters inside the headline set means the overall figure is silently a weighted average over twelve topics, whatever else you also report.",
+        "C": "Independent grading does not make items independent observations. Correlated items inflate apparent precision because the variance formula assumes each item is a fresh draw, and here many of them are the same draw wearing different words.",
+        "D": "Wholesale deletion loses coverage of twelve genuine, presumably common intents and shrinks the set by nearly a third. The problem is the weighting, not the presence of those intents, so the fix is a quota rather than removal."
+      },
+      "concept": "Eval item count is not the same as eval information. Deduplicate by the underlying construct — intent, source document, customer, template — not by string similarity, and cap how many items any one construct contributes. Where correlation cannot be removed, compute intervals by resampling the correlated unit rather than the item.",
+      "tip": "Whenever a stem tells you how an eval set was harvested, ask what the true unit of sampling was. Knowledge-base scrapes, log dumps and document-derived sets almost always contain hidden clusters."
+    }
+  },
+  {
+    "id": "ETO-A-023",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Multiplicity when scanning many eval slices for a win",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A grocery retailer's eval report breaks a substitution-suggestion task into 20 slices by product category. A prompt change moves the overall pass rate by an amount well inside the noise, but one slice — frozen foods — shows an improvement significant at p = 0.04. The product manager wants to ship the change for frozen foods and cites the p-value. How should the eval lead handle this?",
+    "options": [
+      { "key": "A", "text": "Accept the frozen-foods finding as confirmed; it cleared the conventional 0.05 threshold on a pre-existing slice of the standard report." },
+      { "key": "B", "text": "Grow the eval set until every one of the 20 category slices is individually powered to significance, then re-read the report." },
+      { "key": "C", "text": "Stop reporting slice-level results altogether and publish only the overall pass rate, since slicing the report into 20 categories is what manufactured the finding." },
+      { "key": "D", "text": "Apply a multiplicity correction across the 20 slices, note that about one is expected to clear 0.05 by chance, and re-test frozen foods on a fresh sample." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Testing 20 slices at the 5% level means about one slice is expected to look significant even if the change did nothing anywhere, and p = 0.04 is exactly the size of result that expectation produces. That does not make the finding false — it makes it unconfirmed. Correcting for multiplicity shows whether it survives; drawing a fresh frozen-foods sample and re-testing settles it properly, because the second test is a single pre-specified hypothesis rather than the winner of a scan. Both are cheap relative to shipping a category-specific prompt that turns out to do nothing.",
+      "distractors": {
+        "A": "The threshold was designed for one pre-specified test, not for the maximum of twenty. Quoting an uncorrected p-value from the best of a scan is the most common way an eval report launders noise into a decision.",
+        "B": "Sizing every slice for individual significance is enormously expensive, and it does not address multiplicity at all — twenty adequately powered tests at 0.05 still produce about one false positive per run.",
+        "C": "Slice reporting is valuable and the answer is not to stop looking. Suppressing the breakdown would hide genuine per-category regressions, which is a worse failure than occasionally chasing a false positive you have labelled as provisional."
+      },
+      "concept": "Any report that scans many slices, metrics or model variants is running many tests, and the chance of at least one spurious win rises with the count. Pre-specify the primary comparison, label everything else as exploratory, correct for multiplicity when you must test many, and require a fresh sample before acting on a slice-level discovery.",
+      "tip": "Multiply the slice count by the significance level. If that product is around one and exactly one slice is significant, the stem has handed you the arithmetic that explains the finding."
+    }
+  },
+  {
+    "id": "ETO-A-024",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "What fixing judge sampling does and does not achieve",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An eval must be reproducible: re-running the same suite against the same prompt should produce the same graded outcome. What does configuring the judge's sampling to be effectively deterministic achieve, and what does it leave in place?",
+    "options": [
+      { "key": "A", "text": "It removes disagreement between the judge and the human labels it was validated against, though not the variation between judge runs." },
+      { "key": "B", "text": "It largely removes run-to-run variation in the grade, but leaves untouched any systematic error in the standard the judge applies." },
+      { "key": "C", "text": "It removes both run-to-run variation and any preference tied to the order and formatting in which candidates are presented." },
+      { "key": "D", "text": "It achieves nothing useful, because a language model's token sampling cannot be made reproducible in any meaningful sense." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Low-variance sampling makes the grader repeatable, which is what lets you attribute a score change to the prompt rather than to the grader having a different day. It does nothing about whether the standard being applied is the right one. A judge that consistently rewards confident phrasing over correctness will do so identically on every run, and the reproducibility will make the wrong answer look solid. Repeatability and validity are separate properties and need separate evidence: sampling configuration for one, human-agreement measurement for the other.",
+      "distractors": {
+        "A": "This inverts the relationship. Sampling settings affect variation between runs of the same judge; they have no bearing on whether the judge's standard matches a human's, which is established by validation against labels.",
+        "C": "Position and formatting preferences are properties of how the judge reads its input, not of how it samples tokens. A deterministic judge exhibits its presentation preferences deterministically, which makes them easier to measure and no smaller.",
+        "D": "Overstated. Sampling configuration substantially reduces run-to-run variation in practice, and reproducibility of grading is a normal requirement for an auditable eval pipeline, not an impossibility."
+      },
+      "concept": "Separate reproducibility from validity in every discussion of graders. Deterministic settings, pinned model versions and versioned prompts give you a grade you can reproduce; agreement with human judgement on a validation sample gives you a grade that means something. A pipeline needs both, and one is routinely mistaken for the other.",
+      "tip": "Options that claim one control fixes two unrelated properties are usually the trap. Ask what mechanism the control acts through, then check whether the second claimed benefit shares that mechanism."
+    }
+  },
+  {
+    "id": "ETO-A-025",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Protocol controls for a human preference comparison",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A games studio is running a human preference eval to choose between two prompt variants for non-player-character dialogue. Six internal raters will each see the two outputs for a set of scenes and pick the one they prefer. The studio intends to use the result to justify a change that affects three shipped titles. Which controls belong in the protocol? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Show raters the current pass rate on the existing eval suite before they start, so they can calibrate their strictness." },
+      { "key": "B", "text": "Randomise which variant appears first for each scene, and record the assignment so the effect of order can be checked afterwards." },
+      { "key": "C", "text": "Recruit the six raters from the prompt-engineering team, since they understand the intended dialogue behaviour best." },
+      { "key": "D", "text": "Withhold from raters which variant produced which output, and keep the mapping outside the rating interface throughout." },
+      { "key": "E", "text": "Discard any scene where the six raters split three–three, since an even split carries no usable preference signal." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "Both keys close a channel through which something other than dialogue quality could reach the verdict. Randomising order and recording the assignment means order cannot line up with variant, and it leaves you able to test afterwards whether order mattered at all. Blinding removes the rater's knowledge of provenance, which otherwise carries the whole weight of who wrote the prompt, which one is new, and what the team is hoping for. Together they are the minimum a result should meet before it justifies a change across three shipped titles.",
+      "distractors": {
+        "A": "This is an anchoring instruction. Telling raters what number the team is aiming at before they rate gives them a target to hit, and preference judgements are exactly the kind of soft measurement that moves toward a stated expectation.",
+        "C": "The people who wrote the prompts have both the strongest prior about which should win and the best chance of recognising their own output despite blinding. Use them to write the rating guidance, not to produce the ratings.",
+        "E": "An even split is a real result: it says the raters could not tell the variants apart on that scene. Dropping ties removes the evidence of equivalence and inflates the apparent decisiveness of whichever variant wins the remaining scenes."
+      },
+      "concept": "A preference eval is an experiment, and its credibility rests on blinding, randomisation and rater independence rather than on rater count. Record every randomisation decision so the design can be audited, keep raters who have a stake in the outcome out of the rating pool, and treat ties as data.",
+      "tip": "For any human-eval protocol item, mentally ask of each option: does this close an information channel that could bias a rater, or open one? Closing is nearly always the key."
+    }
+  },
+  {
+    "id": "ETO-A-026",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Setting a decision threshold from asymmetric error costs",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A waste-management operator uses a Claude step to read sensor-fault descriptions and decide whether to auto-dispatch a technician or queue the case for human triage. Finance has costed the two errors: an unnecessary dispatch costs about £400, and a genuine fault left in the queue costs about £6,000 in vehicle downtime. The data-science team currently sets the decision threshold at the point that maximises F1 on the eval set. What should determine the threshold instead?",
+    "options": [
+      { "key": "A", "text": "Sweep the threshold and pick the point minimising expected cost under the 15-to-1 error ratio, then report precision, recall and dispatch volume." },
+      { "key": "B", "text": "Keep the F1-maximising threshold, since the harmonic mean of precision and recall already balances the two error types against each other." },
+      { "key": "C", "text": "Maximise recall on genuine faults, since the £6,000 downtime event is the expensive error and each miss costs fifteen unnecessary dispatches." },
+      { "key": "D", "text": "Set the threshold so the weekly auto-dispatch volume exactly matches the technician crew's current capacity, and hold it there." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The costs are known and unequal by a factor of fifteen, so the threshold is an optimisation with an objective the business has already written down. Sweeping the threshold and evaluating expected cost at each point turns the eval set into a decision tool rather than a scoreboard, and reporting the operating characteristics at the chosen point lets operations see what they are signing up for. The eval's job here is to locate the operating point, not to produce a single quality number.",
+      "distractors": {
+        "B": "F1 gives precision and recall equal weight, which is a hidden assertion that a wasted £400 dispatch and a £6,000 downtime event are equally bad. When the organisation has costed the errors, adopting a metric that ignores those costs discards the most useful information available.",
+        "C": "Recall is the more important side, but maximising it alone drives the threshold toward dispatching on everything, which is only optimal if false dispatches are free. The costs say they are not; they say each one is worth a fifteenth of a missed fault.",
+        "D": "Crew capacity is a real constraint and the chosen operating point has to respect it, but capacity is a bound on the solution, not the objective. Letting it set the threshold means accepting whatever expected cost falls out, and it makes the eval unable to argue for more crew when that would pay."
+      },
+      "concept": "When a task drives an action with quantified error costs, the eval metric should be expected cost at a stated operating point, not a symmetric statistic like accuracy or F1. Report the operating characteristics alongside so the trade is visible, and treat capacity limits as constraints on the search rather than as the target.",
+      "tip": "If a stem gives you two error costs, it wants you to notice the ratio and reject every symmetric metric. Compute the ratio explicitly — it is usually the sentence the correct option is built on."
+    }
+  },
+  {
+    "id": "ETO-A-027",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Building a failure taxonomy before choosing what to fix",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "An agricultural co-operative's Claude step drafts pesticide-application advisories from field reports for an agronomist to sign off. The current eval run covers 4,000 items and the pass rate is 76%, giving 960 failures. The team has one two-week improvement sprint funded before the season starts, and the graded output carries nothing but a pass or fail per item. What should they do first?",
+    "options": [
+      { "key": "A", "text": "Start with the failures the judge scored lowest, since those are the worst outputs and fixing them gives the biggest quality lift per item." },
+      { "key": "B", "text": "Sample 100 of the 960 failures at random and revise the prompt to handle each one in turn until the two-week sprint runs out." },
+      { "key": "C", "text": "Hand-code a sample of failures into mutually exclusive categories, size each against the 960, and pick the target by frequency times consequence." },
+      { "key": "D", "text": "Re-run the 960 failures on a higher model tier and take the proportion that resolve as the estimate of achievable improvement this sprint." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "A pass-fail column tells you how much is broken and nothing about what is broken, and with one sprint the team can afford to fix one or two things well. Coding a sample into disjoint categories converts 960 undifferentiated failures into a ranked list with sizes attached, so the sprint can be aimed at the category that is both common and consequential — a wrong dosage is not the same as a clumsy sentence. The taxonomy also outlives the sprint: it becomes the reporting dimension for every subsequent run.",
+      "distractors": {
+        "A": "Judge score magnitude ranks severity as the judge perceives it, which is not the same as frequency or as business consequence. The lowest-scoring tail is often a small number of pathological inputs that will never recur, and optimising for them is a poor use of a fixed sprint.",
+        "B": "Fixing items one at a time is how a prompt gets fitted to an eval set. It also produces an unprioritised patchwork with no estimate of what share of the 24% any change addressed, so the team cannot tell the agronomists what improved.",
+        "D": "This answers a different and genuinely useful question — how much a tier upgrade would buy — but it does not identify what is going wrong, and it prices a permanent unit-cost increase rather than scoping a prompt sprint. It is a follow-up, not the first move."
+      },
+      "concept": "An aggregate pass rate is a thermometer, not a diagnosis. Before spending engineering time, code a sample of failures into mutually exclusive categories and size each one; prioritise by frequency times consequence. Keep the taxonomy as a permanent reporting dimension so subsequent runs show which category moved.",
+      "tip": "When a stem emphasises a fixed, short improvement budget and an undifferentiated failure pile, the intended next step is always to characterise the failures before touching the system."
+    }
+  },
+  {
+    "id": "ETO-A-028",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Clustered eval items and effective sample size",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A law firm's eval set for a clause-extraction task holds 400 items built from 25 source contracts, sixteen questions per contract. The report gives a pass rate with a 95% interval computed at n = 400, and the partner sponsoring the project is being asked to accept that interval as the basis for a go-live decision. Which criticism is correct, and what should change?",
+    "options": [
+      { "key": "A", "text": "Compute the interval at n = 400 as now, but widen it by a fixed factor of two as a conservative allowance for correlation between items from one contract." },
+      { "key": "B", "text": "Treat the contract as the sampling unit: build the interval by resampling contracts, and spend future budget on more contracts rather than more questions each." },
+      { "key": "C", "text": "Average the sixteen items in each contract into one score and report the mean of the 25 contract scores without an interval, since 25 is too few for inference." },
+      { "key": "D", "text": "Keep n = 400; item-level independence holds because each of the sixteen questions asks about a different clause and is graded on its own rubric." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Items from one contract share its drafting style, jurisdiction, formatting and any quirk that trips the extractor, so failures arrive in clusters and the sixteen questions carry far less than sixteen items' worth of independent information. The interval computed at n = 400 is therefore too narrow, and the partner is being shown more certainty than exists. Resampling at the contract level produces an interval that reflects the real unit of variation, and shifting future budget toward more contracts buys genuine information rather than more correlated questions about documents already covered.",
+      "distractors": {
+        "A": "An arbitrary widening factor is not an estimate. The correlation could be mild or severe depending on the task, and doubling the interval is as likely to be too generous as too tight; either way the number is no longer defensible to anyone who asks how it was derived.",
+        "C": "Aggregating to the contract level is the right instinct, but abandoning the interval is not. Twenty-five clusters is enough to resample from, and giving the partner a point estimate with no uncertainty at all is a worse basis for a go-live decision than a wide honest interval.",
+        "D": "Separate grading does not create statistical independence. The questions share a document, and the properties of that document — an unusual template, scanned rather than digital text, unfamiliar defined terms — affect all sixteen answers at once, which is exactly what correlation means."
+      },
+      "concept": "Identify the unit that actually varies. When items are nested inside documents, customers, sessions or tenants, the effective sample size is closer to the number of clusters than the number of items, and intervals must be built by resampling clusters. Coverage of new clusters beats depth within existing ones for the same annotation spend.",
+      "tip": "Look for the construction phrase — sixteen questions per contract, ten turns per session, twenty tickets per account. Whenever a stem describes the set as items-per-something, the something is the sampling unit."
+    }
+  },
+  {
+    "id": "ETO-A-029",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "What a pass@k figure claims about single-shot deployment",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A code-generation eval reports pass@5. What does that figure support about a production system that returns one generated answer to the user?",
+    "options": [
+      { "key": "A", "text": "It supports the claim directly, since pass@5 is an unbiased estimate of the probability that the model can solve the task at all." },
+      { "key": "B", "text": "It supports the claim once divided by five, an adjustment that discounts the metric for the four extra attempts it allows." },
+      { "key": "C", "text": "It supports the claim provided the eval also reports the pass@5 figure under a fixed random seed and a pinned model version, so every run reproduces exactly." },
+      { "key": "D", "text": "Very little: pass@5 is the chance one of five samples is correct, overstating single-shot behaviour unless production samples five and selects correctly." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Pass@k answers whether a correct answer exists among k attempts. A single-shot deployment answers whether the first attempt is correct. Those coincide only when the system generates k candidates and has a selector — unit tests, a compiler, a verified check — that can reliably pick a correct one out of the set. Without that selector the metric is measuring a capability the product does not expose, and the gap between pass@5 and pass@1 is entirely unearned.",
+      "distractors": {
+        "A": "Can solve given five tries is a different quantity from does solve on the first try. The metric is unbiased for what it measures; the error is in reading it as a statement about the deployed configuration.",
+        "B": "There is no such adjustment. The relationship between per-sample success probability and pass@k is non-linear, and dividing by k has no statistical basis in either direction.",
+        "C": "Seeding controls whether a run reproduces. It does nothing about the mismatch between five attempts in the eval and one attempt in production, which is a definitional gap rather than a variance one."
+      },
+      "concept": "Measure the configuration you ship. Any metric that allows the eval more attempts, more context, more tools or a more capable selector than production has is measuring an upper bound. Where best-of-k is genuinely deployed, the eval must include the selection step, because selection is where most of the claimed gain is won or lost.",
+      "tip": "Whenever an eval metric embeds a k, ask what production's k is. A mismatch between the two is one of the most reliable sources of an optimistic ship decision."
+    }
+  },
+  {
+    "id": "ETO-A-030",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Raising label quality on a golden set with low agreement",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A media-monitoring company is labelling a 1,000-item golden set for sentiment-toward-brand in news coverage. Three annotators have completed a first 120-item batch; Cohen's kappa between pairs sits around 0.41, and the disagreements cluster on articles that mention the brand only in passing. The set is meant to become the reference for validating an LLM judge. Which steps will most improve the quality of these labels? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "Write a labelling guide that states the decision rule for the specific cases the annotators are disagreeing on, with a worked example of each edge case." },
+      { "key": "B", "text": "Increase the annotator pool from three to eight and take the majority label on each article, since more independent votes reduce labelling noise." },
+      { "key": "C", "text": "Run a calibration round on a shared batch, work through the disagreements together, revise the guide, and re-measure kappa before labelling continues." },
+      { "key": "D", "text": "Replace the three human annotators with an LLM labeller, which will at least apply one consistent standard across all 1,000 items." },
+      { "key": "E", "text": "Route remaining disagreements to a named adjudicator whose decision is recorded with its reason, so every golden label carries provenance." }
+    ],
+    "correct": ["A", "C", "E"],
+    "explanation": {
+      "correct": "A kappa of 0.41 with disagreements concentrated on one identifiable case type is a definition problem, not a diligence problem: the annotators are applying different reasonable readings of what sentiment toward a brand mentioned in passing means. Writing the decision rule for that case removes the ambiguity, a calibration round confirms the rule actually lands and gives a measured before-and-after, and recorded adjudication makes each surviving label defensible when someone later disputes a judge validation result that traces back to it.",
+      "distractors": {
+        "B": "More voters average away random inattention, which is not what is happening here. When the disagreement is definitional, a majority vote converts an unresolved ambiguity into an arbitrary outcome, hides it behind a number, and costs nearly three times as much annotation.",
+        "D": "The golden set exists to validate the LLM judge. Labelling it with an LLM makes the validation circular, and consistency is not correctness — a model applying one wrong reading of the edge case is exactly as consistent as one applying the right reading."
+      },
+      "concept": "Low inter-rater agreement is diagnostic information, not just a quality score. Inspect where the disagreements cluster: concentrated disagreement means the construct is underspecified and the fix is definitional, while diffuse disagreement means the task is genuinely hard and the fix is more raters or a redesigned label scheme.",
+      "tip": "Note the detail that the disagreements cluster on one case type. That single clause rules out every remedy based on averaging more opinions and points at guideline design instead."
+    }
+  },
+  {
+    "id": "ETO-A-031",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Reference answers authored by the system under evaluation",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "To build a 500-item golden set for rights-clearance summaries quickly, an analyst at a book publisher had Claude draft the reference answer for each item and then reviewed each one to approve or edit it. Eighty-four percent were approved with no edit. The production prompt, running on the same model tier, now scores 91% against that set, and the team is preparing to use the score as the pilot's acceptance evidence. What is the problem?",
+    "options": [
+      { "key": "A", "text": "Nothing structural. Model-drafted references with human approval is standard practice, and an 84% unedited approval rate indicates the drafts were of high quality." },
+      { "key": "B", "text": "The set is too easy for the current system; add harder rights-clearance items until the score falls into a range that discriminates between prompt versions." },
+      { "key": "C", "text": "References produced by the system under test make the eval partly a self-consistency check; independently re-author a subset and compare the two subsets' scores." },
+      { "key": "D", "text": "A single approver produces no inter-rater agreement statistic, so all 500 labels are unaudited and no score computed against them can be trusted." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "When the reference is what the model produces, agreeing with the reference partly means agreeing with itself, and the 91% is inflated by an unknown amount. The 84% unedited rate is not reassurance — on a task hard enough to need a Claude step, it is more consistent with review that anchored on the draft than with drafts that were genuinely right. The measurable fix is to have a subset of references written from the source material without seeing the model's draft, then compare the system's score on that subset with its score on the rest. The difference is the size of the contamination and it is the number the acceptance evidence should carry.",
+      "distractors": {
+        "A": "Model-drafted references are a legitimate accelerator, but only under adversarial review, where a high approval rate is treated as a warning about review depth rather than as evidence about draft quality. Anchoring is exactly what light approval workflows produce.",
+        "B": "Difficulty and contamination are different problems. Adding harder items lowers the score without removing the circularity, and if the new items are built the same way they inherit it, so the eval becomes harder and equally uninterpretable.",
+        "D": "Single-approver labelling is a genuine weakness and should be fixed. It is not the binding one here: even with three approvers all reviewing model-authored drafts, references originating from the system under test still tilt the comparison in that system's favour."
+      },
+      "concept": "A reference dataset must be independent of the system it judges. Drafting references with a model is acceptable only with blind independent re-authoring of a subset to quantify the bias, and an unedited approval rate should be read as a measure of review intensity rather than of draft quality.",
+      "tip": "Look for the closed loop. Whenever the thing being measured also helped produce the yardstick, the answer involves independently re-deriving part of the yardstick and sizing the gap."
+    }
+  },
+  {
+    "id": "ETO-A-032",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Component substitution inside a weighted composite score",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A car manufacturer's owner's-manual assistant is evaluated with a single headline score defined as 0.5 × factual accuracy + 0.3 × tone + 0.2 × conciseness, each component a pass rate on its own rubric. Over two quarters the headline score rose from 0.79 to 0.84 while factual accuracy fell from 0.88 to 0.83. Product leadership has been tracking only the headline. Which statements about this design are correct? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "A linear weighted composite lets one component be paid for by gains in the others, so the headline can rise while the highest-consequence component falls." },
+      { "key": "B", "text": "Normalising the three components to z-scores over the quarter's items before weighting them would remove the substitution effect." },
+      { "key": "C", "text": "Re-deriving the weights each quarter from a regression of the headline on downstream user outcomes would prevent component substitution." },
+      { "key": "D", "text": "Publishing the three components with the headline and imposing a floor on factual accuracy that no gain elsewhere can offset makes the trade visible and blocks it." },
+      { "key": "E", "text": "The underlying error is that conciseness at 0.2 carries too much weight relative to accuracy at 0.5; correcting the weights resolves it." }
+    ],
+    "correct": ["A", "D"],
+    "explanation": {
+      "correct": "Substitutability is a property of the functional form, not of the particular numbers: any linear combination lets a loss in one term be bought back by gains in others, and that is precisely what produced a rising headline over a falling accuracy figure. The remedy has to break the linearity for the component you refuse to trade. A hard floor on factual accuracy, enforced independently of the composite and reported with the components visible, does that — it converts accuracy from a term in a sum into a gate.",
+      "distractors": {
+        "B": "Standardising changes the units each component is measured in and therefore the effective weights. It leaves the sum a sum, so a decline in one standardised term is still offsettable by rises in the others. It can even make substitution easier by inflating movements in a low-variance component.",
+        "C": "Fitting weights to downstream outcomes is a reasonable way to choose weights and a poor way to prevent substitution — the result is still a weighted sum. Re-fitting quarterly also makes the headline non-comparable across quarters, so the trend that revealed the problem would disappear.",
+        "E": "The weights are not obviously wrong; accuracy already carries two and a half times conciseness. Adjusting them changes the exchange rate between components without removing the exchange, so the same failure recurs at a slower rate."
+      },
+      "concept": "Any metric a team is measured on will be optimised, including through paths you did not intend. A single composite invites substitution across its terms. Where a component must not be traded, express it as a constraint or gate rather than as a weighted term, and always publish components alongside the roll-up.",
+      "tip": "When a stem shows a composite rising while a component falls, the mechanism is the functional form. Reject every option that only adjusts weights or rescales inputs, because none of them stops a sum from being a sum."
+    }
+  },
+  {
+    "id": "ETO-A-033",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Grading conformance to a required output schema",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An eval needs to confirm that generated output conforms to a required JSON schema. Which grading approach is appropriate, and what does it leave unmeasured?",
+    "options": [
+      { "key": "A", "text": "Programmatic schema validation, which is exact and cheap but says nothing about whether the field values are correct." },
+      { "key": "B", "text": "A model grader asked whether the output looks like valid JSON, which copes better with malformed output than a parser would." },
+      { "key": "C", "text": "Exact string match against a reference JSON document, which covers structure and values in a single check." },
+      { "key": "D", "text": "Embedding similarity between the generated object and a reference object, which tolerates differences in key ordering." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Schema conformance is a decidable property, so it should be decided by code: a validator gives an exact, reproducible, free verdict and names the failing constraint. Its limit is the reason it is cheap — it checks shape, not truth. A response with every required field present, correctly typed, and populated with wrong values passes validation cleanly. That is fine as long as the suite knows it, and pairs the structural check with a separate value-level grader.",
+      "distractors": {
+        "B": "This uses a stochastic instrument for something a parser settles exactly, at higher cost and with the possibility of the grader itself being wrong. A parser also handles malformed input better by definition, since rejecting it is what a parser is for.",
+        "C": "String equality on serialised JSON is defeated by key ordering, whitespace and numeric formatting, and it merges two different failures into one verdict — a failing item no longer tells you whether the structure or a value was wrong.",
+        "D": "Serialised structured data is a poor fit for embedding similarity: two objects differing only in a critical identifier are highly similar, while two semantically identical objects serialised differently may not be. The metric is insensitive exactly where precision matters."
+      },
+      "concept": "Grade each property with the cheapest instrument that decides it. Structure goes to a validator, exact-valued fields to equality, open-ended content to a rubric judge. Layering them keeps cost down and makes failures attributable, because each layer reports which kind of thing went wrong.",
+      "tip": "Whenever a property is programmatically decidable, any option that routes it to a model grader is wrong. Model graders are for judgement, not for parsing."
+    }
+  },
+  {
+    "id": "ETO-A-034",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Overlapping criteria inside a judging rubric",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A five-criterion judging rubric includes both \"is the answer complete\" and \"does the answer omit any required element\", and the item's score is the count of criteria passed. What is the practical consequence?",
+    "options": [
+      { "key": "A", "text": "None worth acting on: the two criteria agreeing on nearly every item confirms the judge is applying the rubric consistently across the whole item set." },
+      { "key": "B", "text": "Grading cost rises because the judge produces two verdicts where one would do, with no change to the information the score carries." },
+      { "key": "C", "text": "One underlying defect is counted twice, so an omission costs twice as much as an unrelated defect and the criteria stop being independent evidence." },
+      { "key": "D", "text": "The two criteria will diverge on borderline items, which is useful because that divergence flags the items that need human review." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Summing criteria treats each as a separate piece of evidence, which is only sound if they are separate. Here two phrasings of the same question both fail whenever an element is missing, so an omission costs two of five while a tone problem or a formatting problem costs one. The scale is silently non-uniform, and any threshold set on it — three of five to pass, say — now embeds a weighting nobody chose. The fix is to merge the two into one criterion and, if omissions genuinely matter more, weight that criterion explicitly.",
+      "distractors": {
+        "A": "Two criteria agreeing is evidence that they ask the same question, not that the judge is being consistent. Redundant criteria always agree, including when the judge is wrong, so their concordance carries no information about grading quality.",
+        "B": "The additional tokens are trivial. Framing this as a cost issue misses that the composite score is now miscalibrated, which affects every threshold and every trend built on it.",
+        "D": "Occasional divergence between two wordings of the same criterion is grader noise, not a meaningful signal. An escalation rule should trigger on a criterion that means something in isolation, such as a low-confidence verdict on a criterion that gates release."
+      },
+      "concept": "Rubric criteria should be as close to independent as the task allows, and the aggregation rule should make any intended weighting explicit. Overlapping criteria create implicit weights that nobody agreed to and that shift whenever the rubric is edited. Check every new criterion against the existing ones for a shared failure mode.",
+      "tip": "Read multi-criterion rubrics for pairs that fail together. If one real defect trips two criteria, the score is weighted without anyone deciding to weight it."
+    }
+  },
+  {
+    "id": "ETO-A-035",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Sizing a sample to observe a rare failure mode",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "After an incident, a pharmacy chain estimates that a specific failure mode in its medication-interaction summarisation step occurs in roughly one request in five hundred. Regulatory sign-off requires a fresh randomly sampled eval run in which the team can state that the failure mode was very likely to have been exercised at least once. Annotation is the binding cost. Roughly how large should the sample be?",
+    "options": [
+      { "key": "A", "text": "About 500 items, since exactly one occurrence is expected at that size and that makes detection likely." },
+      { "key": "B", "text": "About 200 items reviewed at high scrutiny, since for rare failures review depth matters more than sample size." },
+      { "key": "C", "text": "About 5,000 items, because rare-event detection needs an order of magnitude beyond the reciprocal of the rate." },
+      { "key": "D", "text": "About 1,500 randomly sampled items, roughly three times the reciprocal of the one-in-five-hundred rate." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The chance of seeing at least one event in n draws at rate p is 1 − (1 − p)ⁿ. At p = 1/500 that reaches 95% at about n = 1,500, which is the rule of three read forward: to be confident of exercising an event of rate p, sample around 3/p. It is also the cheapest sample that satisfies the regulator's wording, which matters when annotation is the binding cost and the team will be asked to justify why they stopped where they did.",
+      "distractors": {
+        "A": "An expected count of one is not a high probability of at least one. At 500 draws the chance of seeing nothing is about 37%, so roughly a third of runs at this size would come back empty from a system that has the defect at exactly the estimated rate.",
+        "B": "Scrutiny cannot find an instance the sample does not contain. At 200 items the probability the failure mode appears at all is about a third, so careful review of the wrong 200 items produces a clean report that means nothing.",
+        "C": "Five thousand items does give near-certainty, but it costs more than three times the annotation of the sample that already satisfies the requirement. Overspending on a binding cost is a real error when the requirement is stated as very likely rather than certain."
+      },
+      "concept": "Rare-event evidence is governed by the exposure count, not by review depth. To have roughly a 95% chance of observing an event of rate p at least once, sample about 3/p. Read the requirement carefully: bounding a rate from zero observations and guaranteeing at least one observation are different questions with related arithmetic.",
+      "tip": "Both directions of the rule of three appear on this exam. Zero events in n bounds the rate below about 3/n; needing to see an event of rate p costs about 3/p samples. Check which way the stem is pointing before computing."
+    }
+  },
+  {
+    "id": "ETO-A-036",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Change control over an eval set used as a trend line",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An HR-tech company tracks a quarterly pass-rate trend for its interview-summary feature, sourced from an eval set that engineers edit in place as they add cases. Last month someone removed 30 items they judged unrealistic. The trend chart shows a four-point jump in the same period, and nobody can now say whether the jump came from a prompt change or from the removal. Which practices would have prevented the ambiguity? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Keep the eval set in the same repository as the prompt so the two always change together in a single reviewed commit." },
+      { "key": "B", "text": "Publish each state of the eval set as an immutable artefact with its own identifier and record that identifier alongside every score, so the chart refuses to plot two different sets as one continuous line." },
+      { "key": "C", "text": "Rescale historical scores to the new item count whenever items are removed, so the quarterly trend line stays continuous." },
+      { "key": "D", "text": "Freeze the eval set permanently at its first version, since any subsequent addition or removal makes the trend uninterpretable." },
+      { "key": "E", "text": "Whenever the set changes, re-score the unchanged prompt against both the old and the new set and publish the difference, so the step the edit contributes is measured separately from the prompt's." }
+    ],
+    "correct": ["B", "E"],
+    "explanation": {
+      "correct": "The ambiguity exists because two variables moved and only one was recorded, so the fix needs two distinct pieces: detection and decomposition. Immutable artefacts with identifiers stamped on every score supply detection — they answer 'which yardstick produced this point', so the chart could not have spanned two sets without saying so and the four-point jump would have been flagged as a possible artefact on the day it appeared. Detection alone still cannot say how much of the four points the removal was worth. Re-scoring the unchanged prompt against both the old and the new set supplies that second, different thing: with the prompt held constant the whole difference is attributable to the set, so the removal's contribution can be subtracted and the prompt's true effect read off the remainder.",
+      "distractors": {
+        "A": "Co-locating the eval and the prompt makes it easier for a single commit to change both at once, which is the exact confound in this scenario. Independence between the artefact under test and the yardstick is worth preserving, whatever the repository layout.",
+        "C": "A pass rate is already a proportion; dividing it by a different item count is arithmetically meaningless. This would produce a smooth chart with no relationship to any measurement, which is worse than a visible discontinuity.",
+        "D": "Eval sets have to evolve — coverage gaps get found, items become stale, new failure modes appear. A permanent freeze guarantees the suite drifts away from the task. The answer to change is version control, not prohibition."
+      },
+      "concept": "An eval set is a measurement instrument, and a trend line is only valid within one calibration of it. Version the set, stamp scores with the version, and when the set changes, re-score the current system against both versions to quantify the step. Never allow the yardstick to change silently between two points on a chart.",
+      "tip": "When a stem reports an unexplained jump alongside an undocumented change to the eval set, the answer is always about provenance and versioning, never about smoothing or re-baselining the chart."
+    }
+  }
+]

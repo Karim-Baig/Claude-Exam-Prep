@@ -1,0 +1,719 @@
+[
+  {
+    "id": "ETO-C-001",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Time to first token as the perceived-latency SLO",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A streamed Claude response is rendered token-by-token in an interactive UI. Which measurement most directly tracks what users experience as responsiveness and therefore deserves its own SLO alongside total completion time?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Time to first token, tracked as a distinct percentile series from total completion time."
+      },
+      {
+        "key": "B",
+        "text": "Total wall-clock time from request dispatch to the final token, which is what capacity planning depends on."
+      },
+      {
+        "key": "C",
+        "text": "Mean output tokens per second, averaged across every response served in the reporting window."
+      },
+      {
+        "key": "D",
+        "text": "Server-side queue wait inside the gateway before the upstream model call is actually issued."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Once text begins appearing, users stop experiencing dead air and start reading. The waiting period that people actually feel is the gap before the first token lands, and it is driven by different factors — prompt length, cache state, queueing — than the factors that drive total length. Because the two move independently, a single blended latency SLO will let first-token regressions hide behind a stable total, or fire on long-but-fast-streaming answers that no user complained about.",
+      "distractors": {
+        "B": "Total completion time governs throughput planning, concurrency sizing and cost per task, and it must be tracked. But a response that starts in 300ms and streams for eight seconds reads as fast, while one that starts in four seconds and finishes in five reads as broken — the blended number cannot tell those apart.",
+        "C": "Streaming rate matters for very long outputs and is worth watching, but it says nothing about the initial silence. A high average rate is perfectly compatible with a multi-second stall before the stream opens, which is exactly the failure users report.",
+        "D": "Gateway queue time is one contributor to first-token latency, not a substitute for it. Alerting on the component alone misses regressions that originate upstream of the queue, and a healthy queue reading gives false comfort when the model call itself has slowed."
+      },
+      "concept": "Perceived latency and total latency are separate SLOs for any streamed interface. Measure time to first token independently, because the levers that improve it — prefix caching, shorter prompts, earlier dispatch — are not the levers that shorten a response.",
+      "tip": "When a stem says the output is streamed and rendered incrementally, the question is almost always about first-token latency rather than end-to-end time. Streaming changes which number the user can feel."
+    }
+  },
+  {
+    "id": "ETO-C-002",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Volatile prefix defeating prompt cache reuse",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A veterinary telehealth platform enabled prompt caching on a long system prompt containing clinical protocols, hoping to cut spend on its 60,000 daily triage calls. Two weeks later input spend is higher than before caching was turned on, and the platform's dashboards show a cache hit rate near zero. Inspection reveals the system prompt begins with a rendered line containing the calling clinic's name, the practitioner's ID and the current UTC timestamp, followed by the protocol text and then the cache breakpoint. What should the team change?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Add several more cache breakpoints across the protocol text so that at least some segments of the prompt become individually reusable between requests from different clinics."
+      },
+      {
+        "key": "B",
+        "text": "Shorten the protocol text until the prompt is small enough that caching is no longer worth configuring, and disable caching for this workload."
+      },
+      {
+        "key": "C",
+        "text": "Move the clinic, practitioner and timestamp fields below the protocol block so the cached prefix is byte-identical on every request, keeping the breakpoint after the stable text."
+      },
+      {
+        "key": "D",
+        "text": "Route the triage traffic through the asynchronous batch path, where the same protocol prompt is amortised across the whole submitted job."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Caching matches on an exact prefix. Putting per-request values at the very top means the first tokens differ on every call, so nothing before the breakpoint can ever match a previous request — the platform pays the cache-write premium 60,000 times a day and collects no reads, which is precisely the spend increase observed. Relocating the volatile fields beneath the invariant protocol text makes the leading segment identical across callers, and the existing breakpoint then starts producing hits.",
+      "distractors": {
+        "A": "More breakpoints do not help when the very first characters change every call. Everything downstream of a mismatch is a miss regardless of how many segmentation points exist, so this multiplies write premiums rather than creating reuse.",
+        "B": "Abandoning caching leaves a real saving on the table. The prompt is long and highly repetitive across 60,000 daily calls — an ideal caching candidate. The defect is prompt layout, not prompt size, and shrinking clinical protocols to chase a billing artefact risks the task itself.",
+        "D": "Batch submission suits latency-tolerant bulk work, not an interactive triage call where a clinician is waiting. It also does not repair the prefix problem: an unstable leading segment fails to match in any execution mode."
+      },
+      "concept": "Prompt caching is a prefix mechanism, so prompt ordering is a cost decision. Everything stable — instructions, schemas, protocols, long examples — goes first; everything that varies per request goes after the last breakpoint. A single volatile token at the top nullifies the entire cache.",
+      "tip": "A near-zero hit rate combined with a spend increase is the signature of paying write premiums with no reads. Look at the first line of the prompt before looking at anything else."
+    }
+  },
+  {
+    "id": "ETO-C-003",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Conditions for a defensible model-tier downgrade",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A national rail operator drafts passenger disruption notices with Claude. Finance has asked whether the workload can move from the mid tier to the cheapest tier, and the architect has been told to bring back a defensible recommendation rather than an opinion. Which TWO conditions must hold before the downgrade can be declared proven? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "A drop in aggregate quality score is acceptable so long as p95 latency improves by a larger percentage than the score fell."
+      },
+      {
+        "key": "B",
+        "text": "The cheaper tier clears a quality threshold that was fixed and written down before the comparison was run."
+      },
+      {
+        "key": "C",
+        "text": "Spend for the cheaper tier is projected by reusing the incumbent's measured token counts, since both tiers bill the same units in the same way."
+      },
+      {
+        "key": "D",
+        "text": "Because the cheaper tier returns faster, the workload samples it twice per notice and keeps the longer of the two drafts, recovering the capability difference."
+      },
+      {
+        "key": "E",
+        "text": "Cost per completed notice is measured end to end, counting escalations back to the higher tier and reruns, rather than cost per API call."
+      }
+    ],
+    "correct": [
+      "B",
+      "E"
+    ],
+    "explanation": {
+      "correct": "A downgrade decision is only defensible if the bar was set before the data arrived and if the money saved is measured where it actually lands. Pre-registering the threshold stops the team from rationalising whatever result appears — the strongest temptation when finance has already signalled the answer it wants. Measuring cost per completed notice captures the escalation and rerun traffic a weaker tier generates; a downgrade that saves on every call but doubles the escalation rate can easily cost more in total than it saves.",
+      "distractors": {
+        "A": "Latency and quality are not fungible on a common scale, and no percentage arithmetic makes them so. Disruption notices are read by passengers making travel decisions; a faster wrong notice is worse than a slower right one, and this framing lets any regression be traded away.",
+        "C": "Output length is a behaviour of the model, not a constant of the task. Cheaper tiers frequently produce different — often longer or more repetitive — outputs for the same instruction, and they change the escalation and retry mix. Projected spend built on the incumbent's token profile is a guess presented as a measurement.",
+        "D": "Sampling twice discards most of the cost saving and rests on the assumption that longer output is better output, which is unfounded. Without a selection criterion that can actually tell a good draft from a bad one, this adds spend and variance while proving nothing."
+      },
+      "concept": "A tier downgrade is a controlled experiment with two pre-conditions: an acceptance threshold committed to in advance, and a cost metric denominated in completed work rather than API calls. Savings that reappear as escalations, retries or downstream human effort are not savings.",
+      "tip": "Watch for options that trade quality against latency using arithmetic. Mixed-unit trades are almost always the trap in downgrade questions, because they sound quantitative while measuring nothing."
+    }
+  },
+  {
+    "id": "ETO-C-004",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "What cost per completed task reveals over cost per call",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An architect insists that the production dashboard report cost per completed task rather than cost per API call. What does the first metric expose that the second conceals?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The negotiated commitment discount applied to the account's aggregate monthly volume."
+      },
+      {
+        "key": "B",
+        "text": "The asymmetry between what input tokens and what output tokens contribute to the total bill for a single request at the current tier."
+      },
+      {
+        "key": "C",
+        "text": "The fixed monthly charges for the vector store, gateway and observability stack, amortised across the requests they served in the period."
+      },
+      {
+        "key": "D",
+        "text": "Retries, escalations to a higher tier, and the multiple chained calls consumed before one unit of work actually finishes."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "A single task rarely costs a single call. Guardrail checks, retries after malformed output, chain steps, and escalations when a cheap tier declines to commit all charge against the same unit of user-visible work. Cost per call can fall while cost per finished task rises, and that is exactly the failure mode a cheaper model or a shorter prompt produces. Denominating spend in completed work makes the substitution honest and is the only version of the number a finance partner can act on.",
+      "distractors": {
+        "A": "Volume discounts change the unit price of every call equally. They shift both metrics in the same direction and reveal nothing about how many calls a task consumes, which is the thing the per-call view hides.",
+        "B": "Input and output token composition is visible inside a single call's bill and is captured by either metric. It is a useful optimisation input but it is not what changes when a task quietly starts requiring three attempts instead of one.",
+        "C": "Surrounding infrastructure belongs in total cost of ownership and should be tracked, but it is largely independent of how many model calls a task needs. It is a separate line of analysis, not the blind spot in per-call accounting."
+      },
+      "concept": "Always denominate AI spend in completed units of work. Per-call cost is an input price; per-task cost is what the business pays. Optimisations that move work rather than remove it — retries, escalations, human handoffs — are invisible in the first and obvious in the second.",
+      "tip": "Whenever a question offers a cost metric, ask what the denominator is. Changing the denominator from calls to finished tasks is the single most common right answer in production cost items."
+    }
+  },
+  {
+    "id": "ETO-C-005",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Splitting workloads between batch and realtime paths",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A speciality insurance carrier runs two Claude workloads. The first re-scores 2.1 million policy documents for renewal flags in an overnight job that feeds a morning report; nobody watches it run. The second answers underwriter questions inside a desktop tool, where the team's SLO is 1.5 seconds p95. Both currently run through the same synchronous endpoint and the same concurrency pool, and the nightly job regularly starves the interactive workload. How should the two be routed?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Keep both synchronous but split them across separate concurrency pools sized so the nightly job can never consume the underwriters' headroom."
+      },
+      {
+        "key": "B",
+        "text": "Move the nightly re-scoring to the asynchronous batch path and leave the underwriter tool on the synchronous path with its own capacity."
+      },
+      {
+        "key": "C",
+        "text": "Route by document size, sending large documents to the batch path and small ones synchronously regardless of which workload they belong to."
+      },
+      {
+        "key": "D",
+        "text": "Move both workloads to the batch path and have the underwriter tool poll for its result, accepting a short delay in exchange for the lower rate."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The routing axis is latency tolerance, and the two workloads sit at opposite ends of it. The nightly job has no waiting human and a whole night of slack, which is exactly the profile the asynchronous path exists for — it removes the contention entirely and buys the cheaper rate for the bulk of the volume. The underwriter tool has a hard interactive budget and stays synchronous. Splitting on tolerance solves the starvation and the cost problem with one decision.",
+      "distractors": {
+        "A": "Pool isolation fixes the starvation but leaves 2.1 million latency-indifferent documents paying the synchronous rate. It is the right instinct applied one step too early: reach for capacity partitioning when both workloads genuinely need synchronous service.",
+        "C": "Document size correlates with cost and duration but not with whether anyone is waiting. This routes some underwriter questions into an asynchronous path they cannot tolerate, and leaves small nightly documents competing for interactive capacity.",
+        "D": "Asynchronous submission with polling cannot meet a 1.5 second p95 for a desktop tool. Optimising the cheapest rate for a workload whose value depends on responsiveness trades the feature's usefulness for a line item."
+      },
+      "concept": "Route by latency tolerance, not by size, cost or convenience. Any workload with no human waiting on the result and slack measured in hours belongs on the asynchronous path; anything inside an interactive budget stays synchronous. Mixing the two on shared capacity guarantees the bulk job eventually starves the interactive one.",
+      "tip": "Stems that describe a nightly job and an interactive tool sharing one pool are describing a routing question, not a capacity question. Find the workload with no waiting user."
+    }
+  },
+  {
+    "id": "ETO-C-006",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Error-budget burn alerting versus static percentile thresholds",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A city's 311 service desk runs a Claude-backed request classifier. Its published SLO is that 99% of classifications complete under 3 seconds measured over a rolling 30 days. The team alerts whenever the 5-minute p95 crosses 3 seconds. That alert fired 41 times last week, almost all of them 2-minute blips that self-resolved, and the on-call engineer has begun acknowledging without reading. Meanwhile a gradual regression that pushed steady-state latency from 1.1s to 2.6s over eleven days went unnoticed. What should replace the current alert?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Raise the alert threshold from 3 seconds to 5 seconds so that ordinary variation no longer trips it, keeping the existing 5-minute evaluation window and paging policy unchanged."
+      },
+      {
+        "key": "B",
+        "text": "Alert on 5-minute p99 instead of p95, on the grounds that the SLO is written at the 99th percentile and the alert should match it."
+      },
+      {
+        "key": "C",
+        "text": "Alert on the rate at which the 30-day error budget is being consumed, using both a fast window that catches sudden burns and a slow window that catches sustained drift."
+      },
+      {
+        "key": "D",
+        "text": "Extend the evaluation window to 24 hours so that short blips are averaged away before the alert can fire."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Both observed failures come from alerting on an instantaneous value that has no relationship to the commitment being defended. A 2-minute excursion consumes a negligible slice of a 30-day budget and should not page anyone; eleven days at 2.6 seconds consumes an enormous slice while never crossing the threshold. Burn-rate alerting measures consumption against the actual SLO, and pairing a fast window with a slow one catches the outage-shaped burn and the drift-shaped burn with a single consistent definition.",
+      "distractors": {
+        "A": "Moving the number to 5 seconds silences the noise by decoupling the alert from the promise. The gradual regression to 2.6 seconds — the failure that actually mattered — would remain invisible, and the team would now also miss real 4-second degradations.",
+        "B": "Switching percentile makes the noise worse, not better. A 5-minute p99 over modest traffic is computed from very few samples and swings violently. Matching the SLO's percentile is correct in principle, but the defect is the evaluation basis, not the percentile.",
+        "D": "A 24-hour window does suppress blips, and it would eventually notice the drift, but it also delays detection of a genuine outage by hours. Choosing one window forces a trade between false pages and slow detection; the point of multi-window burn rate is that the trade is unnecessary."
+      },
+      "concept": "Alert on budget consumption, not on threshold crossings. An SLO defined over a long window is violated by accumulated bad minutes, so the alert should measure how fast the budget is being spent. Multi-window burn rate catches fast outages and slow drift without choosing between alert fatigue and blindness.",
+      "tip": "Two symptoms in one stem — too many pages and a missed slow regression — point at the alerting basis rather than the alerting value. Adjusting the number can only ever fix one of the two."
+    }
+  },
+  {
+    "id": "ETO-C-007",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Choosing a quality proxy when ground truth is absent",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A B2B software company has Claude draft customer support replies that human agents review before sending. There is no ground-truth label available at request time. Which production signal is the most useful ongoing quality proxy?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The share of responses that parsed successfully into the expected JSON envelope on the first attempt."
+      },
+      {
+        "key": "B",
+        "text": "The proportion of drafts an agent sends unedited, and the size of the edit when they do change it."
+      },
+      {
+        "key": "C",
+        "text": "The count of drafting calls served each day, trended against the same period in the previous month."
+      },
+      {
+        "key": "D",
+        "text": "The p95 latency of the drafting call, measured from the agent console rather than at the gateway boundary."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The reviewing agent is already making a quality judgement on every single draft as part of their job — accept, tweak, or rewrite. Capturing that decision and the magnitude of the change turns an existing human workflow into a continuous, unbiased, zero-extra-effort quality signal covering 100% of traffic. It is directional rather than absolute, but it moves when quality moves and it costs nothing to collect, which is what makes it the right proxy in the absence of labels.",
+      "distractors": {
+        "A": "Schema validity is a correctness gate on format, not on content. A perfectly parsed reply can be factually wrong, rude, or answer a different question, and this metric will report it as healthy every time.",
+        "C": "Call volume tracks adoption and load. It says nothing about whether the drafts are good, and it can rise for reasons — a support surge, a bug generating retries — that have no quality interpretation at all.",
+        "D": "Latency is a health metric. It belongs on the dashboard, but a fast bad draft and a fast good draft are indistinguishable in it, which is the exact discrimination the team needs."
+      },
+      "concept": "The best production quality proxies are decisions humans already make in the normal flow of work: edit distance before sending, acceptance versus rejection, escalation, repeat contact. Instrument the existing workflow before inventing a new scoring step nobody has time to perform.",
+      "tip": "When a stem says a human reviews every output, the quality proxy is sitting in that review. Options offering format validity or volume are health metrics wearing a quality label."
+    }
+  },
+  {
+    "id": "ETO-C-008",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Token reduction levers that preserve task semantics",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A freight logistics operator runs a Claude exception-handling assistant over shipment records. Spend per request has grown 3x in six months as the prompt accreted. The mandate is to cut tokens without changing what the assistant is asked to decide. Which THREE changes reduce tokens without altering task semantics? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Trim the few-shot block to the smallest set of examples that still holds the current eval score."
+      },
+      {
+        "key": "B",
+        "text": "Set max_tokens below the observed p95 output length so responses are forced to be shorter."
+      },
+      {
+        "key": "C",
+        "text": "Send only the nine shipment fields the prompt's decision rules actually reference, rather than the full forty-field record dump."
+      },
+      {
+        "key": "D",
+        "text": "Move the role framing out of the system prompt into the first user turn, since system-position tokens are billed at a premium on every request."
+      },
+      {
+        "key": "E",
+        "text": "Have the model emit the structured decision fields the downstream system consumes, instead of prose narration that is parsed and discarded."
+      }
+    ],
+    "correct": [
+      "A",
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "All three remove tokens that were never doing work. Redundant examples past the point of saturation add cost and can even bias the output distribution; thirty-one unreferenced record fields are pure context tax and a documented source of distraction; and prose that a parser strips out is output the customer never sees. In each case the decision the assistant makes is unchanged — the same rules, over the same evidence, producing the same fields — which is precisely the constraint the mandate imposed.",
+      "distractors": {
+        "B": "Capping max_tokens below the normal output length does not shorten reasoning, it truncates it. Responses stop mid-structure, downstream parsing fails, and the request is retried — spending more tokens overall while corrupting the very decisions the mandate said to preserve.",
+        "D": "There is no positional premium on system-prompt tokens. Worse, relocating framing changes how the instruction is weighted against per-turn content, which is a semantic change to the task and exactly what the mandate excluded."
+      },
+      "concept": "Legitimate token reduction removes content that carries no information for the decision: unreferenced fields, saturated examples, and output nobody consumes. Illegitimate reduction removes content the task depends on and pays for it in retries, truncation or quality — which shows up in cost per completed task, not cost per call.",
+      "tip": "Test each token-reduction lever by asking whether the model still sees the same evidence and answers the same question. Truncation and repositioning fail that test; deleting unused context passes it."
+    }
+  },
+  {
+    "id": "ETO-C-009",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Diagnosing input drift when the model version is pinned",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A pharmaceutical company's medical-information contact centre uses Claude to answer clinician queries from an internal document set. Over six weeks the reviewers' acceptance rate has fallen from 91% to 74%. The model version is pinned and unchanged, the prompt template is under version control with no commits in that period, and no code has shipped. Monitoring shows mean input tokens per request rose from 6,100 to 9,400 and the share of answers carrying a citation to a source document fell from 0.88 to 0.63. What is the most likely cause, and what confirms it?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The provider silently altered model behaviour under the pinned identifier; confirm by re-running the frozen eval set and comparing the results against the scores recorded at the moment of pinning, then raising the delta with the provider."
+      },
+      {
+        "key": "B",
+        "text": "Reviewers have become stricter over six weeks; confirm by re-scoring a sample of the older accepted answers with the current reviewer pool."
+      },
+      {
+        "key": "C",
+        "text": "Output length is being clipped before the citations are emitted; confirm by checking the distribution of stop reasons across the period."
+      },
+      {
+        "key": "D",
+        "text": "The retrieved context has drifted — more and lower-precision passages are reaching the prompt; confirm by replaying the frozen query set through the current retriever and diffing the returned passages against those captured at pinning."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Three facts point the same direction: the model and prompt are constant, input volume grew by more than half, and citation coverage collapsed. Something upstream is putting more and worse material into the context — a corpus expansion, a re-index with different chunking, or a relaxed retrieval threshold. The confirming test isolates the only moving part: send the same queries through today's retriever and compare the passages against what was captured when the system was pinned. If they differ, the drift is in the inputs and the fix is in the retrieval layer.",
+      "distractors": {
+        "A": "The stem forecloses this: the version is pinned. Re-running the frozen eval set is a reasonable control, but it will not separate a model change from a retrieval change unless the retrieved context is held fixed in the replay — and it does not explain a 54% growth in input tokens, which the model cannot cause.",
+        "B": "Reviewer drift is real and worth periodically calibrating, but it cannot move input token counts. A hypothesis that explains one symptom while leaving two unexplained is the weaker one, and the confirming test proposed here would run for weeks before yielding a signal.",
+        "C": "Truncation would show as rising input tokens only by coincidence and would produce visibly incomplete answers, which reviewers would have flagged as malformed rather than merely unacceptable. Stop reasons are cheap to check and worth ruling out, but they do not explain the growth in context volume."
+      },
+      "concept": "Drift in an LLM system is usually input drift, not model drift. When the model and prompt are pinned, suspect the corpus, the retriever, the upstream data feed, or the population of user requests. Diagnose by capturing and replaying the actual context assembled at request time, not just the final answer.",
+      "tip": "A stem that explicitly pins the model and version-controls the prompt is telling you where not to look. The remaining variable is what enters the context window."
+    }
+  },
+  {
+    "id": "ETO-C-010",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Break-even condition for enabling prompt caching",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "Writing a prompt cache entry costs more than sending the same tokens as ordinary input, while reading from the cache costs less. What determines whether enabling caching on a particular prefix actually saves money?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Whether the prefix is re-read often enough, within a single entry's lifetime, for the accumulated read savings to exceed the one-off write premium."
+      },
+      {
+        "key": "B",
+        "text": "Whether the cacheable prefix occupies more than half of the model's available context window on a request of typical size for the workload."
+      },
+      {
+        "key": "C",
+        "text": "Whether the workload's output tokens outnumber its input tokens across a representative sample of production requests taken over a full week."
+      },
+      {
+        "key": "D",
+        "text": "Whether the traffic runs on the synchronous path rather than the asynchronous one, since submissions to each are billed on a separate basis."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Caching is an amortisation bet. You pay a premium once to write the prefix and recover it on every subsequent hit, so the economics turn entirely on reuse frequency relative to entry lifetime. A prefix hit thousands of times an hour pays the premium back almost immediately; the same prefix hit twice a day may never break even because the entry expires between uses. This is why traffic shape — request rate, tenant fan-out, prefix stability — decides caching value, not prompt size in isolation.",
+      "distractors": {
+        "B": "Prefix size sets the magnitude of the saving per hit, not whether a saving occurs. A very large prefix used once loses money; a modest prefix used constantly wins. Size is the multiplier, reuse is the sign.",
+        "C": "The input-to-output ratio tells you where your spend sits and whether caching is worth investigating at all, but it does not answer the break-even question. Two workloads with identical ratios can land on opposite sides of it depending on how often the prefix repeats.",
+        "D": "Execution path does not change the underlying arithmetic of write premium versus read discount. Framing the decision around which endpoint is used substitutes a deployment detail for the reuse question that actually governs the outcome."
+      },
+      "concept": "Prompt caching pays off as a function of hits per entry lifetime, not prompt length. Before enabling it, estimate how many requests will share the identical prefix inside the window during which the entry survives. Low-reuse or high-churn prefixes make caching a cost increase.",
+      "tip": "Caching questions almost always resolve to reuse rate. If an option talks about prompt size, context share or endpoint type without mentioning how often the prefix repeats, it is measuring the wrong thing."
+    }
+  },
+  {
+    "id": "ETO-C-011",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Targeting the dominant stage in a latency budget",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An online grocer's substitution-recommendation feature runs a four-stage chain. Traced at p95: retrieval 300ms, stage 1 classification on the cheap tier 400ms, stage 2 recommendation drafting on the mid tier 2,900ms, stage 3 policy check on the cheap tier 500ms, post-processing 200ms, plus 500ms of gateway and serialisation overhead, for 4,800ms end to end. The product owner wants p95 under 3 seconds by the next release. Where should the effort go?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Introduce a caching layer in front of retrieval, which is the only stage whose results repeat across customers with overlapping baskets."
+      },
+      {
+        "key": "B",
+        "text": "Run stages 1 and 3 concurrently, since both are cheap-tier calls and neither has a data dependency on the retrieval step that precedes them."
+      },
+      {
+        "key": "C",
+        "text": "Attack stage 2, which is roughly 60% of the traced budget — shorten its output, stream it, and trim its input context before touching anything else."
+      },
+      {
+        "key": "D",
+        "text": "Move every stage to the cheapest tier, which removes the tier difference that makes stage 2 slow relative to its neighbours in the trace."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "At 2,900ms of 4,800ms, stage 2 is about 60% of the trace, and the target requires removing 1,800ms. No combination of the other stages can supply that: retrieval, both cheap-tier calls, post-processing and overhead together account for 1,900ms, so eliminating literally all of them still barely clears the bar. Output length is the dominant driver of generation time, so shortening what stage 2 must produce, streaming it so the user sees progress, and trimming its input are the levers with enough headroom to matter.",
+      "distractors": {
+        "A": "Retrieval is 300ms, about 6% of the trace. Even a perfect cache with a 100% hit rate leaves p95 at 4,500ms, well outside the target, and substitution retrieval keyed on basket contents will not repeat often enough to approach that.",
+        "B": "Stage 3 is a policy check on stage 2's output, so it cannot start before stage 2 finishes; the stem's ordering implies the dependency. Even if the two cheap calls were parallelisable, the combined 900ms yields at most 400ms of saving against an 1,800ms requirement.",
+        "D": "This is the right lever aimed without measurement. It trades recommendation quality — the entire value of the feature — for a saving that may not materialise, since cheaper tiers can produce longer outputs and generation time tracks output length more than tier."
+      },
+      "concept": "Optimise the trace, not the intuition. Compute each stage's share of the budget and the size of the required reduction before choosing a lever; if the candidate stage cannot supply the needed milliseconds even when driven to zero, it is the wrong target regardless of how easy it is to fix.",
+      "tip": "When a stem itemises a latency trace, do the subtraction. The gap between the target and the sum of everything except the dominant stage usually eliminates three options at once."
+    }
+  },
+  {
+    "id": "ETO-C-012",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "First diagnostic step for an overnight cost spike",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A media group's article-summarisation service tripled its daily Claude spend between Tuesday and Wednesday. Request volume is flat within 2%, error rate is unchanged, p95 latency rose from 1.9s to 2.4s, and no deployment went out on either day. The CFO wants an answer by end of day. What is the first thing to check?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Open a support case about unexpected billing, since no code changed and the increase must therefore originate with the provider."
+      },
+      {
+        "key": "B",
+        "text": "Break the spend down by input and output tokens per request and compare Wednesday's distributions against Tuesday's."
+      },
+      {
+        "key": "C",
+        "text": "Switch the workload to the cheapest tier immediately to stop the bleeding, then investigate once spend is back within budget."
+      },
+      {
+        "key": "D",
+        "text": "Move the summarisation workload to the asynchronous batch path to recover the rate difference while the investigation proceeds."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "With volume flat, spend can only have tripled because each request now consumes more tokens. Splitting the per-request distribution into input and output immediately says which: a jump in input points at more context being assembled — a corpus refresh, a changed retrieval setting, longer source articles — while a jump in output points at the generation itself. The 500ms latency rise is corroborating evidence that requests genuinely got bigger. This is a five-minute query that determines every subsequent action.",
+      "distractors": {
+        "A": "Deployments are not the only way a system changes. Data volumes, upstream feeds, retrieval configuration and third-party content length all move without a commit. Escalating externally before examining your own token distributions is slow and usually wrong.",
+        "C": "Changing the model tier during an unexplained incident adds a second uncontrolled variable and puts summary quality at risk to solve a problem not yet understood. It also may not help if the cause is a tripling of input volume.",
+        "D": "Asynchronous submission is a legitimate structural saving for latency-tolerant work, but as an incident response it changes the delivery contract for a live feature without knowing whether the root cause even follows the traffic."
+      },
+      "concept": "When spend moves and volume does not, the answer is in tokens per request. Instrument input and output token distributions as first-class production metrics, not just aggregate spend, so a cost incident is a query rather than an investigation.",
+      "tip": "Next-step items reward the cheapest diagnostic that partitions the hypothesis space. Options that take mitigating action before the cause is known are almost always premature, even when they would eventually be reasonable."
+    }
+  },
+  {
+    "id": "ETO-C-013",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Distinguishing quality proxies from health metrics",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "On a production Claude dashboard, which of these is a quality proxy rather than a service-health metric?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Gateway 5xx error rate over the rolling last hour, broken down by upstream dependency."
+      },
+      {
+        "key": "B",
+        "text": "Peak sustained requests per second observed during the busiest hour of the working day."
+      },
+      {
+        "key": "C",
+        "text": "End-to-end p95 response latency, measured at the gateway and reported minute by minute."
+      },
+      {
+        "key": "D",
+        "text": "Share of sessions in which the user re-asks the same question within the following two turns."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "A user rephrasing the same question immediately is telling you the first answer did not do its job. That signal is about the content of the response, is produced by users at no collection cost, and moves when the model, prompt or retrieval degrades — which is exactly what a quality proxy must do. The other three describe whether the service responded, not whether the response was any good.",
+      "distractors": {
+        "A": "Server error rate reports whether requests completed. A system can return a 200 for every request while producing consistently wrong answers, and this metric will stay flat throughout.",
+        "B": "Peak throughput is a capacity figure used for provisioning and rate-limit headroom. It has no relationship to the usefulness of any individual response.",
+        "C": "Latency percentiles describe speed. They are essential and they belong on the same dashboard, but a fast wrong answer and a fast right answer are identical in this series."
+      },
+      "concept": "Production dashboards for LLM features need two distinct families: health metrics that say the service is up, and quality proxies that say the output is worth having. A system can be perfectly healthy and completely useless, and only the second family will notice.",
+      "tip": "Sort each candidate metric by asking whether it could change if the model started producing nonsense while still returning 200s. Anything that would stay flat is a health metric."
+    }
+  },
+  {
+    "id": "ETO-C-014",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Routing production failures back into the eval loop",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A retail bank's card-dispute triage assistant has been live for eight months. The team wants production experience to make the eval suite stronger over time without corrupting its ability to measure releases. Which TWO practices achieve that? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Add every thumbs-down straight into the regression suite as it arrives, so no release can repeat a complaint users already made."
+      },
+      {
+        "key": "B",
+        "text": "Sample production failures on a fixed cadence, label them, and route them into a held-out growth set kept separate from the cases used to iterate on prompts."
+      },
+      {
+        "key": "C",
+        "text": "Include a stratified share of ordinary, non-failing traffic in every addition so the suite does not silently become a collection of only the hardest cases."
+      },
+      {
+        "key": "D",
+        "text": "Replace the reference set each quarter with the newest production sample, so scores always reflect the traffic the assistant is currently serving."
+      },
+      {
+        "key": "E",
+        "text": "Iterate prompts directly against the same production cases used to report the release's headline score, since those cases are the most representative available."
+      }
+    ],
+    "correct": [
+      "B",
+      "C"
+    ],
+    "explanation": {
+      "correct": "A feedback loop only strengthens evaluation if the added cases are verified and if some of them stay unseen. Cadenced sampling with labelling filters out user noise and produces cases whose correct answer is actually known; holding a portion back preserves an honest measurement surface after months of prompt iteration. Mixing in ordinary traffic keeps the distribution recognisable — a suite made only of past failures reports a difficulty that no longer matches production and makes every release look worse than it is.",
+      "distractors": {
+        "A": "Unfiltered thumbs-down data is dominated by users who disliked a correct answer, misread it, or were annoyed at something else entirely. Promoting it to a regression gate without labelling bakes wrong expected answers into the suite and permanently distorts the score.",
+        "D": "Wholesale replacement destroys longitudinal comparability. If the set changes completely each quarter, a score movement cannot be attributed to the system or the set, and multi-quarter trend claims to stakeholders become unsupportable.",
+        "E": "This is contamination. Tuning against the measurement cases guarantees the reported score improves while real-world behaviour may not, and the effect compounds every cycle until the number carries no information."
+      },
+      "concept": "A production-to-eval feedback loop needs three disciplines: label before admitting, hold some cases out from iteration, and preserve the traffic distribution. Without them the suite drifts into an unrepresentative, contaminated artefact that reports confidently on nothing.",
+      "tip": "In feedback-loop items, look for the option that keeps a portion of the data unseen. Any option that lets the same cases both drive tuning and report the score is the contamination trap."
+    }
+  },
+  {
+    "id": "ETO-C-015",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Batch submission against a hard regulatory deadline",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An energy utility must generate 900,000 outage-notification summaries and file them with the regulator by 09:00. Source data lands at 22:00, giving an 11-hour window, and a missed filing carries a penalty. The team's own records show their asynchronous batch jobs have returned anywhere between 20 minutes and 9 hours with no pattern they can predict. Their synchronous path sustains a measured 14 completions per second within their provisioned concurrency, which would take roughly 18 hours for the full set. How should the run be designed?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Submit the whole set to the batch path at 22:00, monitor returns against a 05:00 checkpoint, and drain whatever is still outstanding through the synchronous path, which clears about 200,000 summaries in the remaining four hours."
+      },
+      {
+        "key": "B",
+        "text": "Run the entire set synchronously starting at 22:00 and request a temporary concurrency increase from the provider, on the grounds that only the synchronous path has a throughput figure the team can predict and plan the night against."
+      },
+      {
+        "key": "C",
+        "text": "Submit the whole set to the batch path at 22:00 and escalate to the regulator for a filing extension if the results have not returned by 08:00."
+      },
+      {
+        "key": "D",
+        "text": "Split the set in half by record ID, sending one half to each path, so that neither path alone determines whether the deadline is met."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The batch path is cheaper and usually comfortably inside the window, but its turnaround is unbounded for this team's purposes, and an unbounded dependency cannot sit on the critical path of a penalty-bearing deadline. Taking the cheap path by default while holding a synchronous drain in reserve converts an unpredictable dependency into a bounded one. The checkpoint has to be early enough that the fallback can finish: at 14 per second, four hours clears about 201,600 summaries, so 05:00 is the latest point at which a substantial residual is still recoverable.",
+      "distractors": {
+        "B": "Eighteen hours does not fit in eleven, so this plan only works if the concurrency increase is granted, is granted in time, and is large enough — three assumptions, none under the team's control, all resolving after the window has opened. It also forfeits the batch rate on the entire volume.",
+        "C": "This makes an operational convenience the regulator's problem and offers no technical mitigation. The escalation happens at 08:00, when no remaining action can produce 900,000 summaries in one hour, so the extension is not a fallback but a confession.",
+        "D": "A fixed split by record ID sets the fallback size before knowing how the batch path performs. If batch returns quickly the team overpaid for 450,000 synchronous calls; at 14 per second those 450,000 need nearly nine hours anyway, so the synchronous half is itself at risk."
+      },
+      "concept": "Cheap asynchronous execution belongs on any workload whose deadline has slack, but a hard deadline requires a bounded fallback and a checkpoint early enough for that fallback to complete. Size the checkpoint from the fallback's measured throughput, not from optimism about the primary path.",
+      "tip": "When a stem gives you both a throughput rate and a deadline, multiply them. The residual volume the fallback can absorb is what fixes the checkpoint time, and it usually rules out the all-or-nothing options immediately."
+    }
+  },
+  {
+    "id": "ETO-C-016",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Content of a recurring production review versus launch review",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A production Claude feature has a monthly operational review. Which item belongs in that recurring review specifically, as distinct from the one-time launch readiness review?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Confirmation that the model version is pinned, that the pin is recorded in the deployment manifest, and that no unreviewed configuration drift has entered since the previous monthly review."
+      },
+      {
+        "key": "B",
+        "text": "Sign-off that an on-call runbook exists, names an owner for each identified failure mode, and records a first action for the on-call engineer to take at three in the morning."
+      },
+      {
+        "key": "C",
+        "text": "A trended comparison of cost per completed task, the quality proxy and p95 against the prior period, closing with a recorded decision to act or to explicitly not act."
+      },
+      {
+        "key": "D",
+        "text": "The capacity plan and the peak-load assumptions it was originally sized against."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "A recurring review exists to detect movement and force a decision about it. That requires the same small set of numbers, period over period, with the prior period visible — and it requires an explicit disposition, because a review that observes drift and records no decision is a status meeting. Writing down 'no action, revisit next month' is itself a valid and auditable outcome; leaving the question open is what lets a slow regression run for two quarters.",
+      "distractors": {
+        "A": "Version pinning is a gate you pass once and then enforce automatically in CI or the deployment manifest. Re-confirming it monthly by hand is ceremony that a build check performs more reliably.",
+        "B": "Runbook existence is a launch readiness criterion. The recurring review may prompt runbook updates as a consequence of what the trends show, but checking whether the document exists is not the recurring activity.",
+        "D": "Original sizing assumptions are launch artefacts. What a recurring review needs is observed load against those assumptions and whether the gap is widening — a trend, not the static plan."
+      },
+      "concept": "Launch reviews verify that things exist; recurring reviews verify that things are still true and force a decision when they are not. Fix a small metric set, always show the prior period, and require an explicit act-or-accept outcome recorded against a named owner.",
+      "tip": "Distinguish one-time gates from recurring checks by asking whether the answer can change without anyone doing anything. Trends can; documents cannot."
+    }
+  },
+  {
+    "id": "ETO-C-017",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Gating extended reasoning to the cases that need it",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A legal e-discovery platform classifies document relevance with Claude and runs extended thinking on every document. p95 latency is 9 seconds and the reasoning tokens dominate the bill. An analysis of 4,000 sampled documents shows the extended reasoning changes the final classification only on documents containing conflicting privilege markers, which is 6% of the corpus and is detectable by a deterministic text scan before the model call. What is the strongest optimisation?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Reduce the reasoning budget uniformly across all documents to a fraction of its current value, cutting both latency and spend proportionally."
+      },
+      {
+        "key": "B",
+        "text": "Run the deterministic marker scan first and enable extended thinking only for the 6% it flags, sending the remainder without it."
+      },
+      {
+        "key": "C",
+        "text": "Turn extended thinking off entirely and recover the difference with a second-pass review of any classification the model marks low confidence."
+      },
+      {
+        "key": "D",
+        "text": "Cache the reasoning output so that documents from the same custodian and matter reuse the reasoning already produced."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The measurement has already identified where the reasoning earns its cost and, crucially, that the trigger is detectable cheaply and deterministically before the call. Gating on that scan keeps full reasoning exactly where it changes outcomes and removes it from 94% of the corpus, so most documents get the fast, cheap path and the hard ones are unaffected. This is the ideal optimisation shape: a large saving with a measured, bounded quality impact rather than an assumed one.",
+      "distractors": {
+        "A": "A uniform reduction degrades precisely the 6% that depends on the reasoning while leaving the other 94% still paying for reasoning that the analysis showed changes nothing. It spreads the harm across the cases that mattered and keeps most of the waste.",
+        "C": "Removing reasoning entirely regresses the privilege-conflict documents, which in e-discovery are the highest-consequence documents in the corpus. Self-reported low confidence is also an unreliable trigger — the model is likeliest to be confidently wrong on exactly these conflicting-marker cases.",
+        "D": "Reasoning is a function of the individual document's content, not of the custodian or matter. Reusing another document's reasoning would attach conclusions drawn from different text, producing errors far more expensive than the tokens saved."
+      },
+      "concept": "Extended reasoning is a per-case decision, not a system-wide setting. When you can identify the subpopulation where reasoning changes the answer — and identify it cheaply, before the call — gate on that. Uniform on and uniform off both pay for the wrong cases.",
+      "tip": "When a stem gives you a small percentage of cases plus a cheap way to detect them in advance, the answer is routing. The measurement was provided precisely so you would use it as a gate."
+    }
+  },
+  {
+    "id": "ETO-C-018",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Cost saved on the API reappearing in the contact centre",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A telco cut its tier-1 deflection bot's per-call API spend by 38% by trimming escalation rules from the system prompt and dropping six of eight few-shot examples. Over the following month, containment fell from 61% to 49% of contacts. The contact centre charges the product team £4.10 per human handoff, and API spend was about £0.02 per contained contact before the change. Per 1,000 contacts, the blended cost moved from roughly £1,619 to roughly £2,103. The optimisation is still reported as a success on the platform team's cost dashboard. What is the correct conclusion?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The dashboard is correct within its scope; the containment fall is a separate quality problem for the conversation designers to address independently."
+      },
+      {
+        "key": "B",
+        "text": "The change should be retained and the handoff price renegotiated with the contact centre, since the per-handoff charge of £4.10 is what makes the blended arithmetic unfavourable rather than the prompt change itself."
+      },
+      {
+        "key": "C",
+        "text": "The saving should be recovered by moving the bot to a higher model tier, which will restore containment while keeping the shorter prompt."
+      },
+      {
+        "key": "D",
+        "text": "The optimisation moved cost rather than removing it and should be reverted; the trimmed content was load-bearing, and future savings must be sought where they do not touch the decision rules."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Per 1,000 contacts the change saved a few pounds of API spend and added roughly £490 of human handling — a net increase of about 30%. The prompt content that was removed was not padding; the escalation rules and examples were what let the bot resolve the marginal 12% of contacts. A dashboard that reports this as a win is measuring the wrong denominator, and the corrective action is to restore the content and look for savings in places that carry no decision logic, such as unreferenced context or discarded output.",
+      "distractors": {
+        "A": "Scoping a metric to one team's budget is how cost gets shuffled rather than reduced. The containment fall and the prompt change are the same event, and treating them as separate workstreams guarantees nobody connects the cause to the effect.",
+        "B": "The handoff price is roughly what a human contact costs; renegotiating it changes an internal transfer, not the real resource consumption. It also leaves 12% of contacts that the bot used to resolve now consuming an agent's time.",
+        "C": "A stronger tier may partially compensate, but it spends more per call to work around instructions that were deliberately deleted, and there is no evidence it restores rules the prompt no longer contains. Restoring the escalation logic is cheaper and directly addresses the cause."
+      },
+      "concept": "An optimisation is only real if the cost it removes does not reappear somewhere else on the balance sheet. Before accepting a saving, define the boundary wide enough to include human effort, downstream rework and escalation — and require that the containment or completion rate is reported alongside the spend.",
+      "tip": "When a stem gives you a per-unit human cost and a rate change, compute the blended figure. A dashboard described as still reporting success is a strong signal the item is about the boundary of the measurement."
+    }
+  }
+]

@@ -1,0 +1,182 @@
+[
+  {
+    "id": "FC-INT-001",
+    "domain": "Integration",
+    "topic": "Hybrid retrieval",
+    "difficulty": "medium",
+    "front": "Semantic search keeps missing exact part numbers and statute references. What retrieval design fixes this, and why?",
+    "back": "Hybrid retrieval: run dense vector search and sparse keyword/BM25 search together and fuse the results, then rerank the shortlist. Dense embeddings capture meaning but blur exact tokens; sparse matching catches literal identifiers and misses paraphrase. Neither alone covers both.",
+    "hook": "A stem where semantic search fails on identifiers is pointing at hybrid retrieval, not at a better embedding model."
+  },
+  {
+    "id": "FC-INT-002",
+    "domain": "Integration",
+    "topic": "Contextual retrieval",
+    "difficulty": "hard",
+    "front": "Retrieved chunks say things like \"revenue grew 3% that quarter\" with no indication of which company or period. What indexing change fixes this?",
+    "back": "Contextual retrieval: at index time, prepend a short chunk-specific blurb that situates the chunk in its parent document — entity, section, date range — then embed and keyword-index the augmented text. Retrieval precision rises with no added query-time latency, and the ambiguity is removed before the embedding is ever computed.",
+    "hook": "When chunks are individually ambiguous but the source document is unambiguous, the answer is enriching chunks at index time — not bigger chunks and not a larger top-k."
+  },
+  {
+    "id": "FC-INT-003",
+    "domain": "Integration",
+    "topic": "Chunk size and overlap trade-off",
+    "difficulty": "easy",
+    "front": "Your index uses very large chunks. Recall looks fine but the model's context is full of irrelevant text. Which trade-off are you hitting?",
+    "back": "Chunk size trades recall against precision. Large chunks preserve surrounding context and rarely miss a document, but the embedding averages several topics, so retrieved context is noisy and tokens are wasted. Small chunks sharpen the embedding but split ideas across boundaries; overlap recovers straddling sentences at the cost of duplicate hits.",
+    "hook": "\"Right document, wrong content\" is a precision/chunk-size symptom. \"Never surfaced the document at all\" is recall. The two have opposite fixes — read which one the stem describes."
+  },
+  {
+    "id": "FC-INT-004",
+    "domain": "Integration",
+    "topic": "Reranking versus better embeddings",
+    "difficulty": "medium",
+    "front": "The correct passage is retrieved but sits at rank 14 of 50. Why is a cross-encoder reranker the right fix rather than a stronger embedding model?",
+    "back": "Bi-encoder retrieval embeds query and document independently, so relevance is only approximated by vector distance. A cross-encoder scores the query and each candidate jointly and reorders the shortlist, which is exactly the failure described. The pattern is retrieve wide, rerank to a narrow top-k, and pass only that to the model.",
+    "hook": "If the stem says the answer is inside the retrieved set but not near the top, the bottleneck is ranking. Re-chunking and re-embedding solve a different failure."
+  },
+  {
+    "id": "FC-INT-005",
+    "domain": "Integration",
+    "topic": "Multi-tenant retrieval isolation",
+    "difficulty": "hard",
+    "front": "A multi-tenant RAG service must guarantee tenant A can never retrieve tenant B's documents. Why is filtering the result set insufficient?",
+    "back": "Post-filtering means the approximate nearest-neighbour search already ranked across all tenants; a dropped or mis-set filter leaks, and top-k can come back empty after filtering. Enforce isolation ahead of the search — per-tenant namespace, separate index, or a genuine pre-filtered query — and derive the tenant key from the authenticated session, never from prompt or model output.",
+    "hook": "Isolation stems test whether the boundary is enforced by the datastore or by application code after the fact. Only the former survives an audit or a code bug."
+  },
+  {
+    "id": "FC-INT-006",
+    "domain": "Integration",
+    "topic": "Tool descriptions as prompt surface",
+    "difficulty": "easy",
+    "front": "The model keeps calling `search_orders` when it should call `get_order_status`. Both tools execute correctly. Where do you look first?",
+    "back": "The tool definitions. Name, description and parameter descriptions are the only signal the model has about when each tool applies — they are prompt text, not documentation. Fix by stating the tool's purpose, when to use it, when not to, what it returns, and how it differs from the neighbouring tool it is being confused with.",
+    "hook": "Tool-selection errors with correct tool execution are description problems. The answer edits schemas and descriptions, never the model tier or the retry logic."
+  },
+  {
+    "id": "FC-INT-007",
+    "domain": "Integration",
+    "topic": "Returning tool errors to the model",
+    "difficulty": "medium",
+    "front": "A tool call fails argument validation. Should the harness raise to the calling application or return the error to the model?",
+    "back": "Return it as a tool result flagged as an error. Self-correction is the main recovery mechanism an agent has: given \"date must be ISO-8601\", it will reformat and retry. Raising discards the turn and its partial work. Return actionable messages rather than stack traces, and cap retries so a persistently failing tool escalates instead of looping.",
+    "hook": "The answer is \"to the model, for recoverable errors, with a bounded retry count.\" The distractor to reject is the version with no retry cap."
+  },
+  {
+    "id": "FC-INT-008",
+    "domain": "Integration",
+    "topic": "MCP transport selection",
+    "difficulty": "easy",
+    "front": "When does an MCP server use stdio transport versus a remote HTTP/SSE transport, and what does that choice pull in?",
+    "back": "stdio runs the server as a local child process of the client: no network surface, per-user, lifecycle tied to the client, trivial to configure. Remote HTTP/SSE runs it as a shared network service that many clients reach and that deploys and scales independently — but it now needs authentication, authorisation, transport security and its own availability target.",
+    "hook": "Any MCP stem mentioning multiple users, central governance, or independent deployment implies a remote server. A single developer's local utility implies stdio."
+  },
+  {
+    "id": "FC-INT-009",
+    "domain": "Integration",
+    "topic": "MCP tools versus resources versus prompts",
+    "difficulty": "medium",
+    "front": "MCP exposes tools, resources and prompts. What actually separates them?",
+    "back": "The axis is who initiates. Tools are model-controlled actions the model decides to invoke, typically with side effects. Resources are application-controlled read-only data the host chooses to attach to context. Prompts are user-controlled templates the user explicitly triggers. Modelling static reference data as a tool forces the model to guess when to fetch what the host could simply supply.",
+    "hook": "Do not classify by data type. Ask \"who decides this enters the context — model, host application, or user?\" and the correct MCP primitive follows directly."
+  },
+  {
+    "id": "FC-INT-010",
+    "domain": "Integration",
+    "topic": "Tool result shaping",
+    "difficulty": "hard",
+    "front": "An agent tool returns a huge raw JSON payload on every call and the loop degrades after a few calls. What is the fix, and where does it live?",
+    "back": "In the tool layer, not the prompt. Return a compact summary plus stable identifiers, paginate, and add a companion tool that fetches one record by id. Context is the scarce resource and every raw dump is re-paid on every subsequent turn. Shape results for a reader with a token budget, not for whatever the upstream API happened to emit.",
+    "hook": "Degradation that gets worse with each successive tool call is context accumulation. The fix is the tool's return shape — not a bigger model and not a longer system prompt."
+  },
+  {
+    "id": "FC-INT-011",
+    "domain": "Integration",
+    "topic": "Tool count and context budget",
+    "difficulty": "medium",
+    "front": "One agent is handed dozens of tools and its selection accuracy falls apart. What are the two structural fixes?",
+    "back": "Shrink the choice presented per turn. Either load tools dynamically — select the relevant subset for the current task and expose only those — or decompose into subagents that each own a small, coherent toolset behind an orchestrator. Both cut the selection space and the context spent on schemas. Consolidating overlapping near-duplicate tools helps before either.",
+    "hook": "A stem that quotes a tool count in the dozens is testing whether you narrow the toolset. Upgrading the model tier is the tempting non-answer."
+  },
+  {
+    "id": "FC-INT-012",
+    "domain": "Integration",
+    "topic": "Prompt cache prefix ordering",
+    "difficulty": "easy",
+    "front": "A team places retrieved documents ahead of their static system prompt and tool definitions, and sees almost no cache hits. Why?",
+    "back": "Prompt caching matches a prefix. Anything that varies invalidates every token after it, so the stable content — system prompt, tool schemas, long reference material — must sit first with the cache breakpoint after it, and the volatile per-request content must sit last. The design rule is simply: order by what changes least.",
+    "hook": "Cache-miss stems are usually ordering bugs. Check what sits in front of the breakpoint before you consider anything about size, expiry or eligibility."
+  },
+  {
+    "id": "FC-INT-013",
+    "domain": "Integration",
+    "topic": "Batch API qualification",
+    "difficulty": "easy",
+    "front": "A day's support tickets are classified overnight with results needed by morning. Why is this a batch workload rather than fanned-out realtime calls?",
+    "back": "Batch trades latency for throughput and cost on work with no interactive deadline: submit a large set of independent requests and collect results asynchronously, instead of hand-rolling concurrency that competes with live user traffic for the same rate limits. The qualifying test is that nobody is waiting and no request depends on another's output.",
+    "hook": "\"No user waiting + independent requests + a deadline in hours\" is the batch signature. If any request consumes a previous request's result, batch does not apply."
+  },
+  {
+    "id": "FC-INT-014",
+    "domain": "Integration",
+    "topic": "Streaming versus output guardrails",
+    "difficulty": "medium",
+    "front": "Streaming improved perceived latency, but the output moderation check now runs after the user has already read the text. What is the tension?",
+    "back": "Streaming improves time-to-first-token, not total generation time, and it gives up the ability to inspect a complete output before it is displayed. Options: buffer a small window and validate incrementally, run a fast classifier alongside the stream with authority to cut it, or do not stream on surfaces where a whole-output guardrail is mandatory.",
+    "hook": "When a stem pairs streaming with an output filter or a schema check, the trap is treating streaming as free. It relocates the validation point."
+  },
+  {
+    "id": "FC-INT-015",
+    "domain": "Integration",
+    "topic": "Retry policy for rate limiting",
+    "difficulty": "medium",
+    "front": "Under a spike, every client retries a 429 immediately and throughput collapses. State the correct retry policy and the two things it must be paired with.",
+    "back": "Exponential backoff with random jitter, honouring any retry-after hint, with a bounded attempt count. Jitter matters because synchronised clients otherwise retry in lockstep and recreate the spike. Pair it with a circuit breaker so a sustained outage sheds load rather than amplifying it, and with an idempotency key so a retried request that writes cannot double-apply.",
+    "hook": "If a stem says all clients retry together, the missing word is jitter. If the retried call has a side effect, the missing word is idempotency."
+  },
+  {
+    "id": "FC-INT-016",
+    "domain": "Integration",
+    "topic": "Stop reason handling",
+    "difficulty": "medium",
+    "front": "JSON parsing fails intermittently, only on long outputs, and the responses look well-formed until they suddenly stop. What was never implemented?",
+    "back": "A check on the response's stop reason. A generation that ended because it reached the maximum output token limit is truncated mid-structure and is textually indistinguishable from a complete one. Branch on stop reason: on a token-limit stop, raise the output budget, continue the generation, or fail the record explicitly — never hand it to a parser.",
+    "hook": "Intermittent parse failures correlated with output length mean truncation. It is not raised as an exception; the client has to read the stop reason and act."
+  },
+  {
+    "id": "FC-INT-017",
+    "domain": "Integration",
+    "topic": "Cloud-hosted versus first-party API",
+    "difficulty": "medium",
+    "front": "A regulated insurer already runs a governed Amazon Bedrock landing zone. What does routing Claude through it buy, and what does it cost?",
+    "back": "It buys reuse of existing cloud identity, private networking, regional controls, consolidated billing and an already-approved procurement path, so most of the enterprise integration work is done. It costs independence: capability and feature availability track the cloud provider's rollout rather than the first-party API, and quota, regions and support all flow through that provider.",
+    "hook": "\"Existing cloud commitment plus regulated data\" points to the cloud-hosted route. The trade-off you must be able to name is feature-rollout lag, not model quality."
+  },
+  {
+    "id": "FC-INT-018",
+    "domain": "Integration",
+    "topic": "Internal LLM gateway pattern",
+    "difficulty": "medium",
+    "front": "A dozen teams each hold their own API credentials and nobody can answer \"what do we spend, on what, and under which policy?\". What pattern fixes this?",
+    "back": "An internal LLM gateway: one proxy every team calls, holding provider credentials, enforcing per-team quotas and budgets, emitting request logs and cost attribution, applying shared guardrails and PII policy, and giving a single place to switch model or provider. It is also a new latency hop and a single point of failure, so it needs its own SLO and failover.",
+    "hook": "Central cost visibility, credential sprawl, or one policy across many teams all point to a gateway. A complete answer also names its availability cost."
+  },
+  {
+    "id": "FC-INT-019",
+    "domain": "Integration",
+    "topic": "Data residency and private networking",
+    "difficulty": "hard",
+    "front": "A subsidiary requires that prompt content never crosses the public internet and is processed only in its own region. Which three controls actually deliver that?",
+    "back": "Private connectivity from your VPC to the model endpoint so traffic stays off the public internet; a region-pinned endpoint so inference executes in the required geography; and a contractual data-handling commitment covering retention and training use. Encryption in transit is not residency — it protects the packets but says nothing about where the compute happened or what is kept.",
+    "hook": "Residency stems reward separating network path, processing location and retention commitment. A distractor offering TLS or field-level encryption answers only the first."
+  },
+  {
+    "id": "FC-INT-020",
+    "domain": "Integration",
+    "topic": "Synchronous versus asynchronous contract",
+    "difficulty": "hard",
+    "front": "A claims portal invokes a multi-minute Claude agent inside a synchronous web request and times out under load. What change actually fixes it?",
+    "back": "Change the contract, not the capacity. Accept the request, return a job id immediately, process from a durable queue, and notify by webhook or let the client poll. That decouples the caller's timeout from the agent's runtime, absorbs spikes, and makes retries safe. Webhook delivery then needs its own backoff, signing, and consumer-side idempotency keyed on the job id.",
+    "hook": "A long agent runtime behind a synchronous HTTP call is a contract defect. Adding workers or raising the client timeout treats the symptom and fails again at the next spike."
+  }
+]

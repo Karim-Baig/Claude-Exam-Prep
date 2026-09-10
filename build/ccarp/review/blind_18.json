@@ -1,0 +1,680 @@
+{
+ "batch": "blind_18",
+ "count": 60,
+ "answer_file": "build/ccarp/review/answers_18.json",
+ "items": [
+  {
+   "id": "INT-C-050",
+   "choose": 2,
+   "question": "An architect must give the finance and reliability teams a defensible worst case — not an average — for the cost and the elapsed time of a single request to a Claude-backed endpoint. Which TWO design choices actually bound those figures? (Choose TWO.)",
+   "options": {
+    "A": "An output allowance sized to the task, which caps the tokens any single response can produce.",
+    "B": "Prompt caching on the invariant prefix, which reduces what each request costs to process.",
+    "C": "Streaming, which delivers tokens to the caller incrementally as the model produces them.",
+    "D": "A propagated per-request deadline bounding total elapsed time across the attempt and its retries.",
+    "E": "A larger retry budget, which raises the probability that a given request eventually succeeds."
+   }
+  },
+  {
+   "id": "INT-C-051",
+   "choose": 1,
+   "question": "A games studio generates in-world dialogue lines at high volume. To be certain a line is never truncated, the team set the output allowance to the maximum the model accepts. Last week a prompt-template change caused a subset of requests to elicit long repetitive output; every affected request ran to the full allowance, and that endpoint's daily spend was several times budget before anyone noticed. Legitimate lines run 60 to 120 tokens, and the longest ever observed was 260.",
+   "options": {
+    "A": "Revert the template and leave the allowance at the maximum, since the template change was the actual defect.",
+    "B": "Add a post-generation length check that discards any response longer than 300 tokens before it reaches the game.",
+    "C": "Move the endpoint to the Batch API so runaway spend is contained inside a scheduled job rather than the live path.",
+    "D": "Size the allowance from the observed distribution of legitimate lines, and alert on the truncation rate."
+   }
+  },
+  {
+   "id": "INT-C-052",
+   "choose": 1,
+   "question": "A national rail operator's disruption-summary service streams responses that legitimately run past a minute during a major incident. The HTTP client enforces a single total-duration timeout. Set tight, it kills the long summaries produced exactly when the service matters most; set generously, genuinely hung connections hold worker threads for the whole duration and the pool exhausts during the same incidents.",
+   "options": {
+    "A": "Enforce a timeout on the gap between successive stream events, with a separate, generous overall deadline as a backstop.",
+    "B": "Set the total-duration timeout to the observed p99.9 so that both the long summaries and the hung connections are covered.",
+    "C": "Send a client-side keep-alive on the same connection to confirm the stream is still alive before continuing to wait.",
+    "D": "Split each summary into several shorter non-streamed calls so no individual call runs past a minute."
+   }
+  },
+  {
+   "id": "INT-C-053",
+   "choose": 3,
+   "question": "An architect is writing the pre-flight budget check for a request assembler. Which THREE of the following consume the model's context window and must therefore be included in the calculation? (Choose THREE.)",
+   "options": {
+    "A": "The request's HTTP headers, authentication token and correlation identifiers.",
+    "B": "The tool definitions supplied with the request, including their JSON schemas.",
+    "C": "The system content that carries the standing instructions and output schema.",
+    "D": "The reserved output allowance, because generated tokens share the window with the input.",
+    "E": "Nothing for the cached prefix, since content served from cache no longer occupies the window."
+   }
+  },
+  {
+   "id": "INT-C-054",
+   "choose": 1,
+   "question": "A home-goods retailer must have three million product descriptions generated before a seasonal launch in five days; nothing is customer-visible until launch. The delivery lead proposes a single Batch API submission of all three million requests, sent the day before launch so that the source catalogue data is as fresh as possible. The team has never run a batch of this size before.",
+   "options": {
+    "A": "Approve it: batch is the correct transport for this workload, and submitting the day before maximises freshness.",
+    "B": "Reject batch entirely; a deadline this firm needs the realtime endpoint driven by a pool of several hundred workers.",
+    "C": "Keep batch but submit early in tranches, track a burn-down, and hold a realtime spillover path for the remainder.",
+    "D": "Keep batch and the single late submission, but warm a prompt cache for the shared prefix first so the job processes faster."
+   }
+  },
+  {
+   "id": "INT-C-055",
+   "choose": 1,
+   "question": "A publishing platform streams long manuscript critiques to editors. About one stream in two hundred terminates with a mid-stream error after most of the text has been delivered. The product team wants editors to keep whatever arrived. The engineering lead points out that the critique's final section carries the overall recommendation, and that stored critiques are later quoted back to authors as the platform's assessment.",
+   "options": {
+    "A": "Resend the request and append the new response to the text that already arrived, so the editor sees one continuous critique.",
+    "B": "Persist what arrived as the critique and show a note in the editor's interface saying the stream ended early.",
+    "C": "Treat a mid-stream failure as a failed request and retry within budget; show the partial only as labelled non-final text.",
+    "D": "Disable streaming for critiques so that any failure surfaces before an editor has seen a single line of text."
+   }
+  },
+  {
+   "id": "INT-C-056",
+   "choose": 1,
+   "question": "A workload sends the same 20,000-token instruction and reference block on every call, followed by a short varying query, at a continuous high rate throughout the day. Which mechanism most directly reduces what that shared block costs to process?",
+   "options": {
+    "A": "Prompt caching, with a cache breakpoint placed at the end of the shared 20,000-token reference block.",
+    "B": "Streaming, so the shared block is processed while the response is being delivered.",
+    "C": "The Batch API, so the shared block is submitted once and applied across the whole batch.",
+    "D": "A larger output allowance, so fewer calls are needed to obtain a complete answer."
+   }
+  },
+  {
+   "id": "INT-C-057",
+   "choose": 1,
+   "question": "An accounting firm runs a reconciliation assistant with a 30,000-token rules prefix. Usage is extremely uneven: a dozen requests an hour across the three days around each month-end, and often several hours between requests for the rest of the month. After enabling caching, month-end costs fell noticeably while mid-month costs rose. The team is puzzled, since as they put it, 'it is the same prompt either way'.",
+   "options": {
+    "A": "The prefix exceeds the size that can be held during quiet periods, so caching is silently skipped whenever volume is low.",
+    "B": "Mid-month requests are served from a different capacity pool in which the cached entry is not visible to them.",
+    "C": "The rules prefix is edited between closes, so mid-month requests carry content that no longer matches the cached entry.",
+    "D": "Entries lapse after a period without use, so month-end traffic keeps one alive while mid-month gaps force a write."
+   }
+  },
+  {
+   "id": "INT-C-058",
+   "choose": 3,
+   "question": "A platform team is building a gateway that proxies streamed Claude responses to browser clients and also writes an interaction record used for evaluation and audit. Which THREE responsibilities belong to that gateway? (Choose THREE.)",
+   "options": {
+    "A": "Forward events onward without buffering them, so incremental delivery survives the extra network hop.",
+    "B": "Assemble the deltas and write one interaction record carrying the final text, the stop reason and the token usage.",
+    "C": "Hold the response until generation completes before forwarding, so browser clients receive events in a guaranteed order.",
+    "D": "Propagate a browser disconnect back upstream as a cancellation of the in-flight generation request.",
+    "E": "Write each delta as its own record, so the evaluation store retains maximum fidelity about the response."
+   }
+  },
+  {
+   "id": "INT-C-059",
+   "choose": 1,
+   "question": "An internal platform charges eleven teams for their Claude usage. It estimates each team's cost by counting the tokens in the request it assembled and applying a rate card. Finance reports that the sum of internal charges has drifted several percent from the actual invoice for three months running, always in the same direction, and the drift widened after prompt caching was rolled out to two of the teams.",
+   "options": {
+    "A": "Recalibrate the internal rate card against the invoice each month so that the eleven teams' totals reconcile.",
+    "B": "Attribute from the usage reported on each response, including its cache read and write split, keyed by correlation id.",
+    "C": "Charge teams by request count instead of tokens, since token estimates cannot be made reliable enough for chargeback.",
+    "D": "Count tokens with the dedicated counting endpoint before sending, so the estimate matches exactly what the model receives."
+   }
+  },
+  {
+   "id": "INT-C-060",
+   "choose": 1,
+   "question": "A design-software vendor's assistant lets a user go back, edit a question they asked five turns ago, and regenerate from there. The implementation edits the stored message in place, keeps the six turns that followed, and resends the whole transcript. Users report the assistant now contradicts itself and refers to answers that no longer make sense. Cost per regeneration has also jumped noticeably.",
+   "options": {
+    "A": "Fork at the edited turn: discard everything after it, regenerate forward, and keep the original as a stored branch.",
+    "B": "Keep the following turns but prepend a note to the transcript explaining that the earlier question was revised by the user.",
+    "C": "Regenerate only the reply that immediately followed the edited turn, leaving the five later turns untouched.",
+    "D": "Disallow editing of earlier turns and require the user to ask the corrected question as a new turn instead."
+   }
+  },
+  {
+   "id": "INT-C-061",
+   "choose": 1,
+   "question": "A parcel carrier's address-normalisation service calls Claude synchronously and has a well-tested rules-based fallback. For the past four minutes the dependency has returned overload errors. The retry helper backs off correctly with jitter, but every worker thread is now asleep inside a backoff wait, the inbound queue is growing, and health checks are beginning to fail — so the carrier is minutes away from losing a service that could be running on its fallback right now. What should be done next?",
+   "options": {
+    "A": "Increase the worker thread pool so healthy requests are not blocked behind the threads asleep in backoff.",
+    "B": "Shorten the backoff intervals so threads are released sooner and reach the rules-based fallback faster.",
+    "C": "Reduce the retry budget to a single attempt so failures surface faster, keeping the call path otherwise unchanged.",
+    "D": "Trip a circuit breaker: fail fast to the rules-based fallback, and probe periodically with a single request."
+   }
+  },
+  {
+   "id": "INT-C-062",
+   "choose": 1,
+   "question": "A B2B analytics vendor serves 60 customers through one organisation account. Yesterday one customer's overnight backfill consumed the account's throughput for 90 minutes and the other 59 saw rejections and stalled interactive dashboards. The vendor's contracts promise interactive availability to every customer and say nothing about relative priority. Customers are distributed across many time zones, so there is no shared quiet window.",
+   "options": {
+    "A": "Give every customer's interactive traffic a dedicated worker pool so it is never queued behind another customer's backfill.",
+    "B": "Enforce per-tenant admission quotas on the shared allowance, with a bounded overflow pool and backfills in a lower class.",
+    "C": "Detect the offending tenant during an incident and pause that customer's traffic manually until dashboards recover.",
+    "D": "Ask all 60 customers to schedule backfills outside their local business hours and monitor for compliance."
+   }
+  },
+  {
+   "id": "INT-C-063",
+   "choose": 2,
+   "question": "Which TWO statements about the economics of prompt caching are correct? (Choose TWO.)",
+   "options": {
+    "A": "Caching reduces the cost of the generated output as well as the cost of processing the cached prefix.",
+    "B": "Writing an entry costs more than processing the same content as input, so reads must repay the write.",
+    "C": "Caching reduces the number of tokens the cached prefix occupies in the model's context window.",
+    "D": "The saving scales with both the size of the invariant prefix and the ratio of reads to writes against it.",
+    "E": "Enabling caching cannot make a workload more expensive than leaving the feature switched off."
+   }
+  },
+  {
+   "id": "INT-C-064",
+   "choose": 1,
+   "question": "A telco's support-deflection assistant carries an internal target for cost per resolved conversation. The team monitors mean input tokens per request, which is stable and comfortably inside target. Finance reports that cost per conversation is close to double the target on conversations running past eight turns; those are about 15% of traffic but account for a much larger share of total spend. The assistant replays the full transcript on every turn.",
+   "options": {
+    "A": "Reduce mean input tokens per request further by shortening the system prompt and its worked examples.",
+    "B": "Cap conversations at eight turns and hand the customer to a human support agent at that point.",
+    "C": "Budget per conversation rather than per request, and trim or summarise older turns past a threshold.",
+    "D": "Track the p99 of cost per request instead of the mean and use that as the team's planning figure."
+   }
+  },
+  {
+   "id": "INT-C-065",
+   "choose": 1,
+   "question": "In a pipeline that may retry, what makes an operation idempotent?",
+   "options": {
+    "A": "It produces the same output for the same input on every execution.",
+    "B": "It can be executed concurrently by several workers without locking.",
+    "C": "It completes within a bounded time, so a retry is never required.",
+    "D": "Performing it more than once has the same effect as performing it once."
+   }
+  },
+  {
+   "id": "INT-C-066",
+   "choose": 1,
+   "question": "After a change that cancels the upstream request whenever a reader disconnects, a research tool now produces a steady stream of partial generations. The team must decide what to record. Stored conversations are used for three things: resuming a session later, sampling quality, and supplying candidate cases to the evaluation set.",
+   "options": {
+    "A": "Persist the partial flagged as incomplete with its cancellation reason, and keep it out of resume and sampling.",
+    "B": "Persist the partial as the assistant's turn, since it is genuinely what the model produced before the request ended.",
+    "C": "Discard cancelled generations entirely, since a partial answer carries no analytical or evaluation value.",
+    "D": "Persist the partial and re-run the request offline to completion, so the stored record always holds a finished answer."
+   }
+  },
+  {
+   "id": "INT-C-067",
+   "choose": 1,
+   "question": "A pharmacy chain's clinical-check assistant sends a 25,000-token invariant prefix behind a cache breakpoint. Its p50 time-to-first-token is 350ms and the team is pleased with it. The SLO signed with the business is on p99, which sits at 4.1 seconds. Investigation shows the slow requests are those arriving after a quiet period, when the prefix must be written rather than read. Traffic is spiky: busy weekday mornings, sparse evenings and weekends.",
+   "options": {
+    "A": "Report the p50 to the business, since the median reflects what the overwhelming majority of requests actually experience.",
+    "B": "Add a further cache breakpoint so more of the 25,000-token prefix is covered when a request arrives cold.",
+    "C": "Treat the cold-prefix path as the one the SLO measures: shrink the prefix so a miss is affordable, and warm it if cheap.",
+    "D": "Renegotiate the agreed p99 SLO up to 4.5 seconds so the current measured behaviour is compliant."
+   }
+  },
+  {
+   "id": "INT-C-068",
+   "choose": 2,
+   "question": "A team must reduce the number of tokens each request occupies in the model's context window, because long conversations in their product are approaching the limit and beginning to fail. Which TWO changes achieve that? (Choose TWO.)",
+   "options": {
+    "A": "Trim or summarise the oldest turns so they are no longer replayed in full on every request.",
+    "B": "Enable prompt caching on the invariant prefix so that it does not have to be reprocessed on each request.",
+    "C": "Move rarely-consulted reference material out of the request and load it only when a query needs it.",
+    "D": "Stream the response incrementally rather than returning the whole thing in a single body.",
+    "E": "Raise the output allowance so that long answers in this product are never truncated."
+   }
+  },
+  {
+   "id": "INT-C-069",
+   "choose": 1,
+   "question": "Compared with the realtime endpoint, what does the Batch API principally trade away?",
+   "options": {
+    "A": "The ability to use tools or to request structured output inside a batched request.",
+    "B": "Predictable per-request latency, in exchange for better throughput and unit economics on bulk work.",
+    "C": "Visibility of per-request token usage, since accounting is reported only for the whole job.",
+    "D": "Access to the higher-capability model tiers, which remain available only on the realtime path."
+   }
+  },
+  {
+   "id": "INT-C-070",
+   "choose": 3,
+   "question": "An architect is laying out a request for maximum cache reuse. It contains: a tool list that is identical for all callers, invariant system instructions, a large reference corpus identical for all callers, the caller's current question, and a timestamp rendered per request. Which THREE should sit ahead of the first cache breakpoint? (Choose THREE.)",
+   "options": {
+    "A": "The tool list, which is identical for every caller.",
+    "B": "The invariant system instructions and refusal rules.",
+    "C": "The caller's current question, exactly as typed this turn.",
+    "D": "The timestamp that is rendered fresh on each request.",
+    "E": "The large reference corpus, identical for all callers."
+   }
+  },
+  {
+   "id": "INT-C-071",
+   "choose": 1,
+   "question": "A logistics integrator enabled streaming across every Claude endpoint 'for consistency'. One endpoint is consumed by a downstream service that parses the complete JSON response and cannot act on anything partial. There is no human in that path, no requirement to cancel, and the calls complete in around two seconds. The consumer now carries delta-accumulation logic, and two production defects have already been traced to it.",
+   "options": {
+    "A": "Move the delta-accumulation logic into a shared library so the defect class is fixed once for every consumer.",
+    "B": "Keep streaming and enforce an inter-event timeout, since the defects most likely stem from stalled-stream handling.",
+    "C": "Keep streaming but lower the output allowance so each JSON response arrives in fewer, larger deltas.",
+    "D": "Turn streaming off for this endpoint: with no waiting human and a two-second call, it only adds failure surface."
+   }
+  },
+  {
+   "id": "INT-C-072",
+   "choose": 1,
+   "question": "An agritech platform's yield-advice assistant saw its cache hit rate fall from around 90% to roughly 15% after a refactor, with no change to the system prompt or the reference corpus. Latency and cost have both regressed. Reviewing the diff, the team finds that tool definitions are assembled at request time from a registry, and the refactor replaced an explicit ordered list with iteration over a hash map. What should the team do next?",
+   "options": {
+    "A": "Move the tool definitions to sit after the cache breakpoint so their ordering no longer affects the cached prefix.",
+    "B": "Serialise the tool list with a fixed explicit order and stable fields, and test that the prefix is byte-identical across runs.",
+    "C": "Reduce the number of registered tools so there are fewer orderings the assembler can produce from the registry.",
+    "D": "Add a cache breakpoint immediately after the tool list so that it is cached separately from the system prompt."
+   }
+  },
+  {
+   "id": "INT-D-001",
+   "choose": 1,
+   "question": "An architect must recommend whether a new Claude workload calls the first-party Anthropic API, Claude on Amazon Bedrock, or Claude on Google Vertex AI. Which consideration set most directly drives that decision?",
+   "options": {
+    "A": "Committed cloud spend and procurement route, how the workload authenticates and reaches the endpoint on the existing network, and where data may be processed.",
+    "B": "Whichever route the team can prototype fastest in a two-week spike, since a later switch is largely a configuration change the platform team can absorb in one sprint.",
+    "C": "The relative reasoning quality of each route, established by running the organisation's own eval suite against all three and selecting the highest scorer.",
+    "D": "The application's expected monthly token volume, since capacity scaling behaves identically on every route and volume is the only real differentiator."
+   }
+  },
+  {
+   "id": "INT-D-002",
+   "choose": 1,
+   "question": "A Dutch health insurer's data protection officer sets two conditions on a new claims-correspondence assistant: traffic carrying member data must never traverse the public internet, and processing must remain within the EU. The platform team provisions a private VPC endpoint to the model service inside their EU region, removes the NAT gateway, and reports both conditions satisfied. What is wrong with that conclusion?",
+   "options": {
+    "A": "Private connectivity governs the network path only; residency must be established separately by pinning the regional endpoint and keeping logs and artefacts in-region.",
+    "B": "Application-layer encryption of the payload under a key the insurer holds is what residency means; with that in place the region serving the request is irrelevant.",
+    "C": "Nothing is wrong; a private endpoint terminating inside the EU region necessarily means the request is off the internet, served by EU compute, and logged in-region.",
+    "D": "Private endpoints raise p95 latency by adding a hop, so meet the network condition with an IP allowlist on the public endpoint covering the insurer's egress ranges."
+   }
+  },
+  {
+   "id": "INT-D-003",
+   "choose": 2,
+   "question": "A Nordic public-sector agency runs a Claude-based citizen-correspondence summariser. Its regulator requires that all personal data processing stay within the EU/EEA, and the agency has separately committed to a 99.9% availability SLO. The SRE team wants automatic failover when the primary regional endpoint degrades. Which TWO design choices keep that failover consistent with the residency commitment? (Choose TWO.)",
+   "options": {
+    "A": "Restrict the failover target list to other EU/EEA regions and fail closed, queueing the citizen's request for later delivery, when no in-scope target is healthy.",
+    "B": "Encrypt payloads with an agency-held key before the call, so data processed in a non-EEA region no longer counts as personal data for residency purposes.",
+    "C": "Enable a provider-side routing feature that automatically selects the least-loaded region worldwide, since the 99.9% SLO is the binding commitment and requests are transient.",
+    "D": "Serve the most recent cached summary for that citizen whenever the in-region endpoint is unhealthy, so no request ever needs to leave the EU/EEA during a degradation.",
+    "E": "Ensure the failover path's request and response logging, traces and stored artefacts also land in EU/EEA storage rather than the primary region's default destination."
+   }
+  },
+  {
+   "id": "INT-D-004",
+   "choose": 1,
+   "question": "A telco's 4,000 contact-centre agents use an internal Claude assistant that drafts customer letters. Every call reaches the provider through one machine credential owned by the platform team. After a customer complaint, security asks which agent asked the model to draft a specific refund letter, and the only available evidence is provider-side usage against a single principal. What is the right way to close this gap?",
+   "options": {
+    "A": "Group the provider's usage reporting by workload tag and reconcile the call timestamps against contact-centre shift rosters to infer which agent asked.",
+    "B": "Prepend the agent's username and team code to the system prompt on every call so the identity is captured in the recorded prompt text and searchable later.",
+    "C": "Issue a separate provider credential to each of the 4,000 agents and map credential to employee so provider-side records identify the individual.",
+    "D": "Authenticate each agent to the gateway with their corporate SSO token, and record the subject, a correlation id and the call in the gateway's own audit store."
+   }
+  },
+  {
+   "id": "INT-D-005",
+   "choose": 1,
+   "question": "A workload runs on managed compute inside the same cloud account that hosts the managed Claude service it calls. Which credential approach gives the smallest blast radius if the compute node is compromised?",
+   "options": {
+    "A": "Inject the key as an environment variable from the deployment manifest at container start so it never lands on the node's disk or in an image layer.",
+    "B": "Store a long-lived key in the platform secret manager, fetch it at start-up, and rotate it on the standard quarterly schedule with an audited access trail.",
+    "C": "Attach a scoped workload identity to the compute so calls use automatically rotated short-lived credentials with no durable secret on the node.",
+    "D": "Share one key across development, staging and production and restrict its use with a network ACL that permits egress only from the workload's subnet."
+   }
+  },
+  {
+   "id": "INT-D-006",
+   "choose": 1,
+   "question": "A media group has nine product teams calling Claude directly with their own credentials. Finance cannot attribute spend, security cannot evidence what content left the estate, and a recent provider-side degradation hit all nine simultaneously with no coordinated fallback. The platform team is chartered to build a central gateway. Which division of responsibility should it adopt?",
+   "options": {
+    "A": "The gateway caches every response keyed on a hash of the request body, so repeated work across the nine teams is eliminated before any other concern is addressed.",
+    "B": "The gateway owns credential custody, per-team quota and cost attribution, audit logging and provider routing; applications keep prompts, retrieval and business validation.",
+    "C": "The gateway owns everything the applications currently do with the model, including prompt templates and retrieval, so all nine teams are held to a single prompting standard.",
+    "D": "The gateway operates as a transparent layer-4 proxy forwarding bytes unmodified, since anything that parses the payload adds latency to all nine teams' calls."
+   }
+  },
+  {
+   "id": "INT-D-007",
+   "choose": 1,
+   "question": "A logistics startup's on-call engineer is paged: a contractor pushed a first-party Claude API key to a public repository roughly forty minutes ago, and the usage graph shows a step change in traffic from a pattern the team does not recognise. Three production services use that one key, and there is no gateway — each holds the key in its own environment configuration. What should the engineer do next?",
+   "options": {
+    "A": "Force-push a rewritten history to remove the commit and delete the fork copies, then monitor usage for another hour before deciding whether rotation is needed.",
+    "B": "Reduce the key's permitted scope to the minimum the three services need, then rotate at the end of the sprint once the contractor's access review is complete.",
+    "C": "Apply an egress IP allowlist so the key is only usable from the startup's production ranges, and schedule rotation into the next release window.",
+    "D": "Revoke the leaked key immediately, accepting a short outage of the three services, and roll the replacement key out to their configurations in parallel."
+   }
+  },
+  {
+   "id": "INT-D-008",
+   "choose": 1,
+   "question": "An online marketplace triages return requests with Claude. Baseline load is steady, but during two-hour flash-sale windows volume rises roughly tenfold while the account's provisioned model capacity is unchanged. The current design calls the model synchronously from the web tier with client-side retries; during the last sale, shoppers received errors and the retry traffic made the window worse. Which change addresses the root cause?",
+   "options": {
+    "A": "Accept the return request into a durable queue, acknowledge the shopper immediately with a tracked case, and size worker concurrency to sustainable model capacity.",
+    "B": "Autoscale the web tier aggressively through the two-hour window, adding instances on request-queue depth so fewer shoppers are rejected at the front door.",
+    "C": "Raise the client retry count to five and lengthen the backoff to thirty seconds so transient rejections are absorbed inside the shopper's original request.",
+    "D": "Request a provisioned-capacity increase from the provider ahead of each announced flash sale and leave the synchronous web-tier contract unchanged."
+   }
+  },
+  {
+   "id": "INT-D-009",
+   "choose": 1,
+   "question": "An energy utility processes meter-dispute letters from a message queue. Each worker takes a message, calls Claude with extended thinking enabled, and creates a case in the CRM. The queue's visibility timeout is 60 seconds; measured end-to-end processing is 20 seconds at the median but exceeds three minutes on the long tail. Operations reports a small but steady stream of duplicate CRM cases, all for disputes with unusually long letters. What is the correct fix?",
+   "options": {
+    "A": "Raise the queue's maximum-receives threshold from five to twenty so long-running dispute messages take much longer to be parked in the dead-letter queue.",
+    "B": "Disable extended thinking and cap output at 500 tokens so even the longest dispute letters complete inside the existing 60-second visibility window.",
+    "C": "Switch the queue to FIFO ordering with content-based deduplication, so the same dispute message can never be handed to a second worker.",
+    "D": "Heartbeat the visibility timeout while the call is in flight, and make the CRM write idempotent on a deterministic dispute key."
+   }
+  },
+  {
+   "id": "INT-D-010",
+   "choose": 1,
+   "question": "An HR software vendor receives webhooks from an applicant-tracking system. Each webhook triggers a Claude call that summarises a CV, taking 5 to 20 seconds. The sending platform times out at 5 seconds and retries on timeout, and the vendor's team now sees most candidates summarised three or four times, with correspondingly inflated spend. What should the receiver do?",
+   "options": {
+    "A": "Keep processing synchronously and deduplicate at read time, showing recruiters only the most recent summary per candidate in the pipeline view.",
+    "B": "Validate the signature, persist the event, return success inside the sender's timeout, then process from a queue and deduplicate on the sender's event id.",
+    "C": "Move summarisation to the fastest model tier and trim the prompt to the first two pages of the CV so the call reliably lands inside 5 seconds.",
+    "D": "Raise a support case with the applicant-tracking vendor asking it to configure a 30-second webhook timeout for this receiver's endpoint before the next intake peak."
+   }
+  },
+  {
+   "id": "INT-D-011",
+   "choose": 3,
+   "question": "A veterinary practice-management vendor delivers an 'AI visit summary ready' webhook to about 1,200 clinic endpoints. Many are self-hosted on practice premises and are offline for hours at a time, and the summaries derive from patient records. Which THREE practices belong in the delivery design? (Choose THREE.)",
+   "options": {
+    "A": "Embed the full visit summary and the linked patient record in the body so receivers never need a callback, and retain undelivered bodies in the retry store indefinitely.",
+    "B": "Sign each delivery with a per-clinic secret and include a timestamp the receiver validates against a short freshness window before accepting the body.",
+    "C": "Include a monotonic sequence number or event version per clinic so a receiver can detect and discard a delivery that arrives out of order or is already superseded.",
+    "D": "Stop retrying an endpoint after two consecutive failures so the delivery queue never backs up, and require the clinic to poll for anything it missed.",
+    "E": "Retry failed deliveries with exponential backoff and jitter, park endpoints that exhaust the schedule in a dead-letter store, and expose an operator-triggered replay."
+   }
+  },
+  {
+   "id": "INT-D-012",
+   "choose": 1,
+   "question": "A Claude-backed job routinely runs longer than the caller's HTTP timeout. Which contract shape is the conventional asynchronous design?",
+   "options": {
+    "A": "Accept the request, return an accepted status with a job id and a status location, and let the client poll that location or receive a callback.",
+    "B": "Stream the response over server-sent events so the connection stays open for the full duration of the job and the caller sees tokens as they arrive.",
+    "C": "Hold the connection open and emit a keepalive byte every fifteen seconds, extending the caller's socket timeout to cover the longest observed job.",
+    "D": "Return a partial result immediately and require the client to re-issue the identical request every few seconds until the response is marked complete."
+   }
+  },
+  {
+   "id": "INT-D-013",
+   "choose": 1,
+   "question": "A regional insurer's policy-administration system runs as CICS and COBOL on z/OS with no outbound internet path and a quarterly change window. The business wants Claude-generated summaries of claim notes surfaced to underwriters. The estate already has an established IBM MQ integration between the mainframe and the distributed platform. What is the most appropriate integration approach?",
+   "options": {
+    "A": "Drive a terminal-emulation robot that reads the green screens on a schedule, calls the model, and types the summary back into the claim-notes field.",
+    "B": "Replicate the policy and claim-notes tables into a cloud database nightly and treat that replica as the integration point, retiring the mainframe interface over time.",
+    "C": "Have the mainframe put a claim-notes message on the existing MQ queue; a distributed adapter consumes it, calls the model, and replies on a reply queue.",
+    "D": "Open an outbound HTTPS path from the LPAR through the enterprise proxy and call the model synchronously inside the CICS transaction that opens the claim."
+   }
+  },
+  {
+   "id": "INT-D-014",
+   "choose": 1,
+   "question": "A grocery retailer's nightly load moves 6 million product records into its warehouse between 01:00 and 04:00, and reporting must be ready by 06:00. Merchandising wants Claude-generated category attributes on products. At the concurrency the team can obtain, enriching all 6 million records inside the window is impossible; roughly 40,000 products are new or changed on a typical night. What design meets the requirement without threatening the load SLA?",
+   "options": {
+    "A": "Generate attributes lazily at query time when a report first touches a product, caching the result in the warehouse for every subsequent read.",
+    "B": "Extend the load window from 04:00 to 06:00 and enrich inline as records land, since reporting is only required to be ready at 06:00.",
+    "C": "Enrich all 6 million records every night through an offline bulk path running alongside the load, so every product's attributes come from one prompt version.",
+    "D": "Enrich only new and changed records from the change feed, run that job off the load's critical path, and have the warehouse join on the last known good value."
+   }
+  },
+  {
+   "id": "INT-D-015",
+   "choose": 1,
+   "question": "A legal-tech vendor exposes a synchronous contract-review endpoint used by 60 enterprise clients, most with hard-coded integrations built years ago and documented against a 30-second client timeout. A new deep-review capability takes two to six minutes per contract. The product team wants it shipped this quarter. What should the platform team do next?",
+   "options": {
+    "A": "Change the existing endpoint to accept the request and return an accepted status with a job handle, and publish a migration note in the changelog.",
+    "B": "Introduce deep review as a separate versioned asynchronous endpoint alongside the existing synchronous one, leaving the current contract untouched.",
+    "C": "Keep the existing endpoint and stream the deep review over the open connection so clients receive partial findings inside their documented 30-second budget.",
+    "D": "Raise the documented timeout to ten minutes and coordinate a client-side configuration change across all 60 integrations before the capability launches."
+   }
+  },
+  {
+   "id": "INT-D-016",
+   "choose": 1,
+   "question": "An industrial manufacturer runs entirely in one public cloud. Its security standard states that no long-lived third-party credential may exist in any of its accounts, and the CISO has already refused an exception for this project. A second standard requires that traffic to managed services use the cloud's private service endpoints. Which approach fits these constraints with the least friction?",
+   "options": {
+    "A": "Consume Claude through that cloud's managed model service, authenticating with the workload's existing cloud identity over a private service endpoint.",
+    "B": "Build a gateway that holds the single first-party key in the platform secret manager and issues short-lived internal tokens to each calling workload.",
+    "C": "Use the first-party API with the key in the platform secret manager under a 30-day rotation policy, a documented compensating control and quarterly attestation.",
+    "D": "Use the first-party API over a NAT gateway with a single static egress address registered on the provider's source-address allowlist."
+   }
+  },
+  {
+   "id": "INT-D-017",
+   "choose": 1,
+   "question": "An education-technology startup bakes its Claude API key into the container image as a build-time environment variable, using a different key per environment. The release process is meant to promote the same tested artefact from staging to production, but today each environment gets its own build. What should change?",
+   "options": {
+    "A": "Move the keys into the CI system's protected variable store and keep baking the right one into a per-environment build at deploy time.",
+    "B": "Build one credential-free artefact and inject the environment's secret at container start from the platform secret store or the workload's cloud identity.",
+    "C": "Keep the per-environment builds but encrypt the value in the Dockerfile, shipping the decryption key in the same image so the entrypoint can unwrap it.",
+    "D": "Continue baking the key in but shorten its useful life by rebuilding and redeploying every environment on a weekly schedule."
+   }
+  },
+  {
+   "id": "INT-D-018",
+   "choose": 2,
+   "question": "A German medical-imaging reporting vendor must process and store patient data only in EU regions. Its Claude calls go to an EU regional endpoint that has been verified and pinned. An external audit nonetheless reports a residency gap. Which TWO findings are the most plausible causes? (Choose TWO.)",
+   "options": {
+    "A": "The application-performance-monitoring product is a SaaS hosted outside the EU, and its spans capture full prompt and response bodies.",
+    "B": "Responses are held briefly in an in-memory cache running inside the same EU cluster as the reporting application, keyed by study identifier.",
+    "C": "TLS terminates at a load balancer the auditors confirmed sits in the same EU region as the application, re-encrypting on the hop onward.",
+    "D": "The internal gateway writes complete request and response bodies to the company's central logging account, which sits in a non-EU region.",
+    "E": "The team pinned a specific model version rather than tracking the newest available one, so reports come from an older model snapshot."
+   }
+  },
+  {
+   "id": "INT-D-019",
+   "choose": 1,
+   "question": "A pharmaceutical company's clinical-document summariser runs on cloud compute using one role that carries broad permissions on the managed model service, including the ability to create, modify and delete provisioned capacity. A security review flags it. The service calls exactly one model tier in one region. What change should the team make?",
+   "options": {
+    "A": "Keep the single role and rely on the private endpoint and security-group rules, since nothing outside the VPC can reach the model service at all.",
+    "B": "Keep the single role and add detective controls that alert the security team within minutes whenever capacity-management actions are performed with it.",
+    "C": "Give the workload role invoke permission only, constrained to the model identifiers and region it uses, and move capacity actions to a pipeline role.",
+    "D": "Split the role by environment so development and production have separate identities, keeping the same broad action set in each and tagging calls by environment."
+   }
+  },
+  {
+   "id": "INT-D-020",
+   "choose": 1,
+   "question": "An airline's operations assistant runs across two hosting routes for resilience. Concrete provider model identifier strings appear in fourteen places across six services. A routine change to the identifier used on the secondary route was applied to four services and missed the rest, causing a partial outage during a failover drill. The resilience objective is not negotiable. What is the correct structural fix?",
+   "options": {
+    "A": "Configure every service to request the provider's newest available model alias rather than a pinned identifier, removing the need to update strings at all.",
+    "B": "Move all fourteen identifiers into one shared constants package that every service imports, and version that package on each route change.",
+    "C": "Have services request a logical model name, resolved to the route's concrete identifier by the gateway from environment configuration.",
+    "D": "Add a start-up health check to each service that validates its configured identifiers against both routes and refuses to start when either fails to resolve."
+   }
+  },
+  {
+   "id": "INT-D-021",
+   "choose": 2,
+   "question": "A maritime logistics firm wants the ability to move Claude workloads between hosting routes within a quarter if commercial terms change. An architect proposes an internal client library that every service uses. Which TWO responsibilities genuinely belong in that library? (Choose TWO.)",
+   "options": {
+    "A": "Guaranteeing identical token-level outputs across routes by fixing sampling parameters and seeds inside the library so migrations need no re-testing.",
+    "B": "Normalising the request and response envelope for the capabilities actually in use, and failing loudly on anything the target route has not been verified to support.",
+    "C": "Owning prompt templates and retrieval logic for all teams, so that a route change cannot alter the text the model receives anywhere in the estate.",
+    "D": "Resolving the endpoint and performing authentication for the active route, so callers never handle route-specific credentials, signing or URLs.",
+    "E": "Re-implementing client-side any capability one route offers and another lacks, so every route presents the same surface whatever it natively supports."
+   }
+  },
+  {
+   "id": "INT-D-022",
+   "choose": 1,
+   "question": "A nightly Claude-backed reconciliation job runs under a named engineer's personal credentials. Beyond policy compliance, what is the operational argument for changing this, and what should replace it?",
+   "options": {
+    "A": "Nothing operational is wrong; record the engineer as the documented owner in the service catalogue so the dependency is visible at handover.",
+    "B": "The job's lifecycle is tied to a person's employment and its actions are attributed to a human who did not perform them; bind it to a dedicated non-human identity.",
+    "C": "Personal credentials cannot be rotated automatically; create a shared team login whose password sits in the team's password manager and is shared with the on-call rota.",
+    "D": "Personal credentials carry too much permission; keep them but request an extended session lifetime from identity management so the job is never interrupted mid-run."
+   }
+  },
+  {
+   "id": "INT-D-023",
+   "choose": 1,
+   "question": "A national tax agency runs its CI runners on premises and cannot move them to the cloud within this programme. A nightly evaluation job on those runners calls the cloud-hosted Claude service using a long-lived cloud access key held in the CI variable store. The agency's standard is that no static cloud credential may exist outside the cloud. What should the team implement?",
+   "options": {
+    "A": "Move the key into an on-premises hardware security module and have the runner fetch it at job start over the agency's internal network.",
+    "B": "Keep the key but rotate it nightly from a scheduled CI pipeline that writes the new value into the variable store before the evaluation job runs.",
+    "C": "Terminate the calls at an on-premises forward proxy that holds the key and signs requests, so the runners themselves never handle a cloud credential.",
+    "D": "Establish a trust relationship so the runner exchanges its short-lived CI-issued identity token for temporary cloud credentials scoped to the evaluation role."
+   }
+  },
+  {
+   "id": "INT-D-024",
+   "choose": 1,
+   "question": "A hotel group routes all Claude traffic through a single central gateway. A bad configuration push took the gateway down for 25 minutes, and every AI feature across six products went dark simultaneously. An executive now wants the gateway removed and teams given direct provider access. As the platform architect, what do you propose instead?",
+   "options": {
+    "A": "Make the gateway fail open, forwarding requests unmodified to the provider whenever its own health checks fail, so an unhealthy gateway never blocks a product feature.",
+    "B": "Keep the gateway and run it as tier-zero: zonal and regional redundancy, progressive configuration rollout with automatic rollback, and a rehearsed break-glass path.",
+    "C": "Remove the gateway from the request path and keep it as an out-of-band collector that the six products report their usage to after the fact.",
+    "D": "Run two independently built gateways from different vendors in active-active behind one virtual address, so a defect in one cannot take out all six products."
+   }
+  },
+  {
+   "id": "INT-D-025",
+   "choose": 1,
+   "question": "A sports-media company's live commentary assistant streams Claude output into an editor's console, and editors were used to seeing the first words in well under a second. After the team moved all traffic behind a newly introduced gateway with a web application firewall in front of it, editors report that nothing appears until the whole response is ready, though total response time is unchanged. What is the most likely cause and fix?",
+   "options": {
+    "A": "The model tier changed as part of the migration; move back to the tier the console used before, which had the lower first-token latency.",
+    "B": "The gateway's request timeout is shorter than the generation time; raise it above the longest observed commentary and the response will begin arriving earlier.",
+    "C": "The gateway's regional placement added round-trip latency on every hop; move the gateway into the same region as the editors' console to remove it.",
+    "D": "An intermediary is buffering the response body before forwarding; configure every hop to stream through unbuffered and add a client-side first-token metric."
+   }
+  },
+  {
+   "id": "INT-D-026",
+   "choose": 1,
+   "question": "In an event-driven pipeline where workers call Claude to enrich incoming records, what is the purpose of a dead-letter queue?",
+   "options": {
+    "A": "To preserve message ordering when several consumers process the same enrichment queue in parallel, by parking records that arrive out of sequence.",
+    "B": "To isolate messages that still fail after the retry policy is exhausted, so they stop blocking progress and can be inspected and replayed.",
+    "C": "To retain successfully processed messages as an immutable record that satisfies audit retention and can be reprocessed after a prompt change.",
+    "D": "To hold messages while the account is being rate limited by the provider, releasing them back to the enrichment workers once capacity is available again."
+   }
+  },
+  {
+   "id": "INT-D-027",
+   "choose": 3,
+   "question": "An agricultural co-operative classifies roughly 200,000 sensor incident reports a day with Claude. Producers publish to a broker with at-least-once delivery; consumers call the model, write the classification to a data store, and notify an agronomist when severity is high. Which THREE properties must the consumer design have? (Choose THREE.)",
+   "options": {
+    "A": "A synchronous acknowledgement returned to the sensor gateway only once the classification has been stored, so producers can retry anything not confirmed in the window.",
+    "B": "Exactly-once delivery enabled on the broker, which removes the need for any consumer-side deduplication of the store write or the notification.",
+    "C": "Consumer concurrency bounded so in-flight requests stay within the account's sustainable model capacity, scaled on queue depth rather than error rate.",
+    "D": "A dead-letter path for events that fail deterministically, with alerting on dead-letter depth as well as consumer error rate and classification latency.",
+    "E": "A deterministic idempotency key derived from the source event, applied to both the data-store write and the agronomist notification."
+   }
+  },
+  {
+   "id": "INT-D-028",
+   "choose": 1,
+   "question": "A construction-equipment rental platform creates a damage report row and publishes an event that triggers a Claude-based damage assessment. Operations reports two intermittent faults: assessments occasionally exist for reports that were rolled back, and reports occasionally exist with no assessment ever produced. What design removes both?",
+   "options": {
+    "A": "Publish the event before committing the damage report, and issue a compensating deletion of the assessment if the transaction subsequently rolls back.",
+    "B": "Enrol the database and the broker in a single distributed two-phase commit under an XA coordinator so the row and the event succeed or fail together.",
+    "C": "Write the event to an outbox table in the same transaction as the damage report, and have a relay read the outbox and publish with at-least-once semantics.",
+    "D": "Publish after the commit inside the same request handler, retrying until the broker acknowledges and holding the client response open until it does."
+   }
+  },
+  {
+   "id": "INT-D-029",
+   "choose": 1,
+   "question": "A games studio receives webhooks from a payments partner that trigger a Claude-generated fraud narrative for analysts. The partner signs each request with an HMAC over the request body. After the studio inserted a managed API gateway that validates and re-serialises JSON and injects tracing headers, every signature check fails, though the payloads are otherwise correct. What should the engineer do next?",
+   "options": {
+    "A": "Ask the payments partner to sign a canonical JSON form of the payload so that the gateway's re-serialisation no longer changes the signed content.",
+    "B": "Disable signature verification at the receiver and authenticate the partner with mutual TLS plus a source-address allowlist maintained on the gateway.",
+    "C": "Have the gateway recompute the HMAC over the normalised body using the shared secret and forward the new value, so the receiver's check passes.",
+    "D": "Preserve the exact bytes the partner signed — pass the raw body through the gateway untransformed, or verify before any normalisation."
+   }
+  },
+  {
+   "id": "INT-D-030",
+   "choose": 1,
+   "question": "A telco processes roughly 3 million customer chat events a day through a Claude-based intent classifier. Ordering matters strictly within a single customer's conversation, because a later message can supersede an earlier one, but ordering between different customers is irrelevant. A single strictly ordered queue cannot sustain the volume. What design satisfies both requirements?",
+   "options": {
+    "A": "Use a single strictly ordered queue with many more consumers, since ordering is a property of the queue itself rather than of how it is consumed.",
+    "B": "Use an unordered queue and have each consumer buffer briefly and sort the events it receives by producer timestamp before calling the classifier.",
+    "C": "Partition the stream by customer identifier so ordering holds within each partition while partitions are consumed in parallel, and scale by adding partitions.",
+    "D": "Use an unordered queue with a global sequence number, and have consumers buffer any event that arrives ahead of the next expected number until the missing one lands."
+   }
+  },
+  {
+   "id": "INT-D-031",
+   "choose": 2,
+   "question": "A university regenerates Claude-produced plain-language explanations of policy documents whenever the source record changes, driven by a change-data-capture stream from the policy database. Costs are higher than forecast and the same explanation is sometimes regenerated repeatedly with identical text. Which TWO changes address this? (Choose TWO.)",
+   "options": {
+    "A": "Rely on the change stream's ordering guarantee so the newest version always wins, and store the explanation with no version field or content hash beside it.",
+    "B": "Filter the change stream to the fields that actually affect the generated text, so timestamp, flag and workflow-state updates do not trigger regeneration.",
+    "C": "Consume the change stream synchronously inside the policy database's commit path so no reader can see a policy without its current explanation.",
+    "D": "Key the enrichment on a hash of the contributing source fields plus the prompt version, and skip generation when that key already has a stored result.",
+    "E": "Send change events straight to the model without an intervening queue, since the change-data-capture system already retries any delivery that fails."
+   }
+  },
+  {
+   "id": "INT-D-032",
+   "choose": 1,
+   "question": "A client submits a long-running Claude job. The submission succeeds on the server but the client's connection times out before the response arrives, so the client retries. What element of the async contract prevents a second job from being created?",
+   "options": {
+    "A": "A client-supplied idempotency key on the submission, which the server binds to the created job and uses to return the original job handle on any repeat.",
+    "B": "Server-side deduplication on a hash of the request payload, retained indefinitely and shared across every client that calls the submission endpoint.",
+    "C": "Exponential backoff with jitter on the client's retry, spacing attempts far enough apart for the first submission to complete first.",
+    "D": "A status endpoint the client can poll to discover whether a job matching its request payload already exists before submitting again."
+   }
+  },
+  {
+   "id": "INT-D-033",
+   "choose": 1,
+   "question": "A roadside-assistance app must display a recommended action within a hard 3-second budget, a figure the product owner will not move because it is in a customer commitment. The Claude chain that produces the recommendation — retrieve incident history, classify, then draft the guidance — measures 4.5 seconds at p95 and 9 seconds at p99, and the steps are genuinely dependent. A deterministic rules engine can produce a usable, lower-quality recommendation in under 200 milliseconds. What should the architect propose?",
+   "options": {
+    "A": "Negotiate the budget up to 5 seconds on the basis that p95 would then be met, and treat the residual p99 tail as an acceptable error rate.",
+    "B": "Return the rules-engine recommendation inside the budget and push the model chain's refined guidance into the open session when it completes.",
+    "C": "Collapse the three steps into a single call on the fastest model tier so p95 fits inside the 3-second budget, accepting the quality reduction.",
+    "D": "Run the three steps concurrently and merge their outputs, so total latency approaches that of the slowest single step rather than their sum."
+   }
+  },
+  {
+   "id": "INT-D-034",
+   "choose": 1,
+   "question": "A waste-management operator writes Claude-generated explanations of route exceptions back into its dispatch platform, which is the operational system of record and is also read by supervisors, customers and an external auditor. Six months later the auditor cannot determine which explanations were machine-generated, and one supervisor's manual correction was silently overwritten by a regeneration. How should the write-back be redesigned?",
+   "options": {
+    "A": "Write generated text into dedicated fields carrying model and prompt version, a timestamp, source input identifiers and a review status a human edit sets.",
+    "B": "Stop writing back to the dispatch platform and keep generated explanations in the analytics warehouse, where lineage and versioning are already tracked.",
+    "C": "Add a single boolean on each record indicating that it contains AI-generated content, and version the whole record on every regeneration.",
+    "D": "Keep writing into the existing notes field but prefix every generated paragraph with a machine-readable marker that consumers and the auditor can filter on."
+   }
+  },
+  {
+   "id": "INT-D-035",
+   "choose": 2,
+   "question": "An architect must decide whether a new Claude-backed capability is exposed synchronously or asynchronously. Which TWO conditions most strongly indicate the asynchronous contract? (Choose TWO.)",
+   "options": {
+    "A": "The result must be read back consistently inside the same database transaction as the write the caller has just made, before that transaction commits.",
+    "B": "A person is waiting in an interactive session and the result has no value if it arrives after they have moved on to the next case.",
+    "C": "The capability needs to be callable directly from a single-page browser application that has no backend of its own to hold credentials.",
+    "D": "The p99 processing time exceeds a caller timeout that the calling system cannot change, such as a partner's fixed HTTP client limit.",
+    "E": "The work must survive caller disconnects, deploys and restarts, because re-running it is expensive or produces side effects."
+   }
+  },
+  {
+   "id": "INT-D-036",
+   "choose": 1,
+   "question": "An automotive parts distributor's gateway shows rising error rates and latency against its primary regional model endpoint. The gateway's synthetic probe against a secondary region — in the same residency scope — is healthy. The quarterly error budget is nearly spent. A large B2B catalogue-enrichment batch is mid-run; its items are individually idempotent and the whole job can be re-run. The failover path has never been exercised in production. What should the on-call architect do next?",
+   "options": {
+    "A": "Raise the gateway's retry count and timeouts so requests ride out the degradation, and open a support ticket with the provider in parallel.",
+    "B": "Fail all traffic over to the secondary region at once, so both interactive and batch workloads leave the degraded endpoint in a single change.",
+    "C": "Shift interactive traffic to the healthy secondary region through the gateway's routing configuration, and hold the batch job rather than migrating it too.",
+    "D": "Roll back the most recent application deployment, since a caller-side change is the most common cause of a sudden rise in errors and latency."
+   }
+  },
+  {
+   "id": "INT-D-037",
+   "choose": 1,
+   "question": "A legal team asks whether the organisation's data-residency obligation is satisfied simply by securing a commitment from the model provider that inputs and outputs are not retained after a request completes. What is the correct answer?",
+   "options": {
+    "A": "No, because retention commitments concern only whether data is used to train models, which is a question separate from both retention and residency.",
+    "B": "Yes, provided the payload is encrypted in transit and at rest with a key the organisation controls, since encrypted data falls outside residency rules.",
+    "C": "Yes. If nothing is retained, no data comes to rest in any jurisdiction, so a residency rule has nothing to attach to once the call has completed.",
+    "D": "No. Retention governs whether a copy persists; residency governs the jurisdiction of processing, which must be established independently."
+   }
+  }
+ ]
+}

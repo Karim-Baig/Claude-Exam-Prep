@@ -1,0 +1,719 @@
+[
+  {
+    "id": "INT-B-019",
+    "domain": "Integration",
+    "topic": "Projecting tool results instead of returning raw payloads",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A national retailer's support agent calls `get_order`, whose handler returns the order service's raw response verbatim: line-item tax breakdowns, warehouse routing metadata, and every status transition since creation, around 40 KB of JSON. Conversations average six lookups. Cost per conversation has tripled and the agent has started quoting an intermediate status as the current one. What should the team change?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Move to a model tier with a 1M-token context window so six 40 KB payloads fit."
+      },
+      {
+        "key": "B",
+        "text": "Minify the JSON and strip whitespace and indentation before the result is appended."
+      },
+      {
+        "key": "C",
+        "text": "Truncate each result to a fixed 4 KB character budget before appending it to the transcript."
+      },
+      {
+        "key": "D",
+        "text": "Return a projection of the fields support needs, plus a separate tool for full history."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Both symptoms come from the same cause: the result carries far more than the task needs, so it costs tokens on every turn and buries the current status among sixty historical ones. A projection fixes the cost and the accuracy problem together, because the model no longer has to pick the right status out of a list of candidates. Keeping a second tool for full history preserves the capability for the minority of conversations that need it, and paying for it only then is the point.",
+      "distractors": {
+        "A": "A bigger window makes the payload survivable, not useful. The cost still scales with six 40 KB results per conversation, and a larger haystack does not help the model find the current status — the accuracy symptom would persist.",
+        "B": "Minification shaves a modest fraction and leaves the relevance problem untouched. It is the kind of optimisation that feels like progress while the actual driver, returning data nobody asked for, is unchanged.",
+        "C": "A character cap cuts an unknown part of a structured document, so which fields survive depends on serialisation order. It can silently remove the current status while keeping tax breakdowns, which makes the accuracy problem worse and non-deterministic."
+      },
+      "concept": "A tool result is context you are choosing to buy on every subsequent turn. Shape it to the decision the model has to make, not to what the upstream service happens to return. Two tools with narrow, documented outputs almost always beat one tool that returns everything and hopes the model filters.",
+      "tip": "When a stem pairs rising cost with falling accuracy on the same tool, suspect result shape. Irrelevant content is not merely expensive — it competes for attention with the field that matters."
+    }
+  },
+  {
+    "id": "INT-B-020",
+    "domain": "Integration",
+    "topic": "Returning distinguishing labels alongside opaque identifiers",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A hospital's pathology agent calls `list_specimens`, which returns an array of UUIDs, then calls `get_result` with one of them. When a patient has several specimens in flight — a repeat draw, a send-out, and a same-day add-on — the agent passes the wrong UUID in roughly a tenth of cases and reports the wrong result. The UUIDs are required by the downstream system. What is the best fix?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Return each UUID with distinguishing attributes: collection time, test name and site."
+      },
+      {
+        "key": "B",
+        "text": "Return only the most recently collected specimen so there is nothing to choose between."
+      },
+      {
+        "key": "C",
+        "text": "Sort the array newest-first by collection time and document that the first entry is the one to use."
+      },
+      {
+        "key": "D",
+        "text": "Add a description instructing the agent to ask the patient which specimen number they mean."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "A UUID carries no information the model can match against what the user said. Asked about \"the repeat draw from this morning\", the model has three indistinguishable tokens and must guess. Attaching the attributes a human would use to tell them apart turns the selection into a match rather than a guess, while keeping the UUID as the thing actually passed downstream. The identifier stays authoritative; the label makes it bindable.",
+      "distractors": {
+        "B": "Returning one specimen resolves the ambiguity by discarding the cases the stem is about. A send-out and a same-day add-on are legitimately distinct clinical questions, and silently answering about the newest one is a patient-safety defect rather than a fix.",
+        "C": "A sort order plus a convention still relies on the model applying a rule instead of matching the user's words. Whenever the user means anything other than the newest specimen — which is the whole difficulty here — the convention produces a confident wrong answer.",
+        "D": "The patient does not know UUIDs and has already described the specimen in ordinary language. This spends a turn asking the user to resolve an ambiguity the tool result created and that the tool result could have removed."
+      },
+      "concept": "Whenever a tool returns identifiers the model must later pass back, return them alongside the attributes a human would use to disambiguate. Opaque keys are for systems; models bind on meaning. This is the same principle as an autocomplete showing a name next to a record id.",
+      "tip": "The clue is that the mistakes cluster where several candidates exist. Multi-candidate misselection points at insufficient discriminating information in the result, not at the model's reasoning or the call ordering."
+    }
+  },
+  {
+    "id": "INT-B-021",
+    "domain": "Integration",
+    "topic": "Returning results for a batch of parallel tool calls",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "Claude returns three `tool_use` blocks in a single assistant message and your harness executes all three. How must the results be sent back?",
+    "options": [
+      {
+        "key": "A",
+        "text": "As three separate user messages, each appended in the order its handler completed."
+      },
+      {
+        "key": "B",
+        "text": "As one `tool_result` whose content concatenates all three payloads in request order."
+      },
+      {
+        "key": "C",
+        "text": "As three `tool_result` blocks in a single user message, each carrying its matching `tool_use_id`."
+      },
+      {
+        "key": "D",
+        "text": "As a single user message listing the three payloads positionally in the order they were requested."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "A batch of parallel calls is one exchange: the assistant turn that requested them is answered by exactly one user turn containing one `tool_result` per `tool_use`, each linked by its `tool_use_id`. The id is what pairs a result with its call, which is what makes execution order irrelevant. Getting this shape right also matters behaviourally — a transcript that shows batches answered as batches is what keeps the model issuing them.",
+      "distractors": {
+        "A": "Splitting the results across separate user turns misrepresents one parallel batch as a sequence of exchanges. Beyond being the wrong transcript shape, it teaches the model from its own history that batching is not how this conversation works.",
+        "B": "Merging payloads discards the per-call linkage. There is no longer a result for two of the three ids, and the model has to infer which fragment answers which call from the text alone.",
+        "D": "Positional matching happens to work until a handler returns early, is retried, or the harness reorders. The protocol already provides an explicit identifier; relying on position throws it away for no benefit."
+      },
+      "concept": "Every `tool_use` block must be answered by exactly one `tool_result` block carrying the same `tool_use_id`, and all the results for one assistant turn belong in a single user message. Pair by identifier, never by position or arrival order, because concurrency, retries and early returns all break the correspondence between the two. The grouping is not cosmetic either: it is the transcript pattern the model learns from and reproduces on later turns.",
+      "tip": "This is the tool-use analogue of keying batch results by their request id. Any time an API hands you a correlation identifier, the exam answer uses it rather than relying on ordering."
+    }
+  },
+  {
+    "id": "INT-B-022",
+    "domain": "Integration",
+    "topic": "Transcript shape suppressing future parallel tool calls",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A logistics platform's agent looks up carrier ETAs across four systems and used to issue all four calls in one turn, hitting its 4-second budget. A release changed the harness to stream each result back as soon as its handler finished, appending each as its own user message. Handlers still run concurrently and each is as fast as before, but p95 has climbed past 9 seconds and traces show the model now issuing one call per turn. What is the cause and fix?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Parallel tool use was disabled by the release; clear `disable_parallel_tool_use` in the request."
+      },
+      {
+        "key": "B",
+        "text": "The one-result-per-message history taught the model to stop batching; return all results for a turn in a single user message."
+      },
+      {
+        "key": "C",
+        "text": "The tool descriptions no longer indicate independence; state in each that it may be called alongside the others."
+      },
+      {
+        "key": "D",
+        "text": "The harness is no longer concurrent in practice; increase the worker pool so four handlers genuinely overlap."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The model conditions on its own transcript. A history in which every assistant turn contains one call answered by one user message is a strong demonstration of how this conversation works, and the model reproduces it — which serialises four independent lookups into four round trips and explains a latency rise with unchanged handler timings. Restoring the batch shape, all four results in one user message, restores the behaviour. Nothing about the concurrency of the handlers ever changed.",
+      "distractors": {
+        "A": "Parallel tool use is on by default and nothing in the stem says it was turned off. The model is choosing not to batch, which is a behavioural response to the transcript rather than a configuration block.",
+        "C": "Independence hints in descriptions have some effect, but they are far weaker than dozens of turns of contrary evidence in the history. Fixing the message shape removes the cause; a description note argues against it.",
+        "D": "The stem explicitly states the handlers still run concurrently and are individually as fast as before. Adding workers addresses a bottleneck the trace rules out. It is the natural first hypothesis for a latency regression, which is why the stem rules it out explicitly rather than leaving it open."
+      },
+      "concept": "The conversation transcript is training data for the current turn. Structural choices in how you write history — how results are grouped, whether errors are represented, whether failed calls are silently removed — shape subsequent model behaviour as much as your prompt does. Keep the transcript an honest picture of the interaction pattern you want.",
+      "tip": "Latency regressions with unchanged component timings point to a change in the number of round trips. Ask what in the transcript would make the model take more turns to do the same work."
+    }
+  },
+  {
+    "id": "INT-B-023",
+    "domain": "Integration",
+    "topic": "Purpose of the tool result error flag",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A tool handler fails. What does returning a `tool_result` with `is_error` set to true accomplish, compared with returning the failure text as an ordinary result?",
+    "options": [
+      {
+        "key": "A",
+        "text": "It triggers an automatic server-side retry of the tool call before the turn continues."
+      },
+      {
+        "key": "B",
+        "text": "It excludes the failed call and its result from the billed input token count."
+      },
+      {
+        "key": "C",
+        "text": "It causes the API to return a non-success HTTP status the client can catch."
+      },
+      {
+        "key": "D",
+        "text": "It marks the content as a failure so the model adapts, while the turn stays well-formed."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The flag is a signal to the model, not to the platform. Marked as an error, the content is read as \"this attempt failed\" and the model typically corrects its arguments, tries an alternative route, or tells the user the capability is unavailable. Returned unmarked, the same text is read as data, and error strings get summarised into answers as though they were findings. Crucially the exchange remains valid — the call is still answered, so the conversation continues rather than dying.",
+      "distractors": {
+        "A": "Nothing retries on your behalf. Retry policy for transient failures belongs in your harness, which is the only component that knows whether the failure is transient and what backoff is appropriate.",
+        "B": "The blocks are ordinary content and are counted as such. Managing what an error costs you across a long run is a context-management decision, not something the flag performs. Context editing and result shaping are the levers for that; the flag only changes how the model reads the block it is attached to.",
+        "C": "The request succeeded — the model produced a valid turn and you answered it. Tool failures are application-level events carried inside a successful exchange, not transport errors. Treating a tool failure as a transport error would also abort the conversation, removing the model's chance to recover from something it could handle."
+      },
+      "concept": "Tool errors are in-band information for the model, not out-of-band exceptions for your code. Answer every tool call, mark failures explicitly, and write the content so the model can choose a different action. Silence and unmarked error text both produce worse behaviour than an honest, labelled failure.",
+      "tip": "Distinguish signals aimed at the model from signals aimed at your infrastructure. Anything inside the message body is for the model; retries, statuses and billing are yours to handle."
+    }
+  },
+  {
+    "id": "INT-B-024",
+    "domain": "Integration",
+    "topic": "Designing actionable error content for the model",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A public-sector benefits agent returns tool failures by passing the caught exception straight through: a 4 KB stack trace plus the failing query. Two problems have emerged. The model cannot tell what to do differently, so it repeats the same call; and fragments of the trace have appeared in citizen-facing replies. What should the error contract be?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Return an error result with no content, so there is nothing for the model to leak or misread."
+      },
+      {
+        "key": "B",
+        "text": "Keep the trace but instruct the model in the system prompt never to reproduce internal diagnostics."
+      },
+      {
+        "key": "C",
+        "text": "Return a stable code, a one-line reason, and what would have to change for a retry to succeed; log the trace."
+      },
+      {
+        "key": "D",
+        "text": "Let the handler raise, ending the turn, and surface a generic failure message in the application."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "A model-facing error is an instruction for the next action, so it needs exactly what drives that decision: an identity for the failure, a human-readable reason, and the change that would make a retry worthwhile. That is a handful of tokens and it is directly actionable, which stops the identical-retry loop. It also removes the leak at the source rather than relying on the model to withhold something it has been given. The trace still exists — in your logs, where the engineer who needs it is.",
+      "distractors": {
+        "A": "An empty failure tells the model only that something went wrong. It cannot distinguish a malformed argument it could fix from an outage it should report, so it will either retry blindly or give up on a recoverable case.",
+        "B": "This makes redaction a probabilistic property of the model's compliance, on a citizen-facing service. It also leaves the model with 4 KB of unactionable text and no statement of what to do next.",
+        "D": "Ending the turn removes the model's chance to recover from failures it could handle, such as a mistyped reference number. Reserve turn-ending failures for cases where no alternative action exists."
+      },
+      "concept": "Design a tool error contract as deliberately as the success contract: a stable machine-readable code, a short reason, and a recovery hint. Internal diagnostics go to logs. The test for a good error is whether a competent operator reading only that text would know what to try next.",
+      "tip": "Two symptoms with one root cause is a common construction. When both a behavioural failure and a disclosure failure trace to the same payload, the key reshapes the payload rather than adding a control on top of it."
+    }
+  },
+  {
+    "id": "INT-B-025",
+    "domain": "Integration",
+    "topic": "Unanswered tool call in a parallel batch",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A mining operations agent issued four `tool_use` blocks in one turn. Three handlers succeeded; the fourth threw before producing anything, and the harness's exception path skipped it, appending only three `tool_result` blocks. The next request into the conversation is rejected and the on-call engineer is looking at the transcript. What should they do next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Append a fourth `tool_result` with the missing `tool_use_id`, `is_error` set, and a short reason."
+      },
+      {
+        "key": "B",
+        "text": "Remove the assistant message containing the four `tool_use` blocks and re-issue the user's request."
+      },
+      {
+        "key": "C",
+        "text": "Keep the three results and add a text block explaining that the fourth tool failed."
+      },
+      {
+        "key": "D",
+        "text": "Re-run the failed handler until it succeeds, then append its result to the existing user message."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Every `tool_use` must be answered. An unanswered id leaves the exchange incomplete, which is why the next request is rejected rather than merely degraded. Supplying the missing result with the error flag and a brief reason completes the turn and gives the model something to act on — it can retry with different arguments, route around the failure, or report the gap. This is also why the harness's exception path is the bug: failure is a result, not an absence of one.",
+      "distractors": {
+        "B": "Rewriting history to remove the assistant turn discards three successful calls and the model's reasoning, and it hides a real failure from the transcript. It is also the reflex that turns a recoverable exchange into a lost conversation.",
+        "C": "A text block is not a `tool_result` and does not answer the outstanding id, so the exchange stays incomplete and the request stays rejected. The model may also read the note as commentary rather than as the outcome of its call.",
+        "D": "Blocking on retries until success is unbounded when the failure is not transient, and it leaves the conversation stalled meanwhile. Bounded retry belongs in the handler; whatever the outcome, the batch still needs an answer for that id."
+      },
+      "concept": "Treat the completeness of a tool batch as an invariant of your harness: for each `tool_use` emitted, exactly one `tool_result` returned, in the same user message, whatever happened during execution. Exception paths that return early are the most common way this invariant is broken.",
+      "tip": "When a stem tells you a request is rejected rather than answered badly, look for a protocol-shape violation. A missing result for a call the model made is the classic one."
+    }
+  },
+  {
+    "id": "INT-B-026",
+    "domain": "Integration",
+    "topic": "Conditions that force serial execution of a tool batch",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An agent harness executes the `tool_use` blocks in an assistant turn concurrently by default. Which TWO conditions in a given batch require the harness to serialise it instead? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Two calls mutate the same record and neither carries a version the handler can check."
+      },
+      {
+        "key": "B",
+        "text": "Two calls are routed to the same downstream inventory service over one connection pool."
+      },
+      {
+        "key": "C",
+        "text": "Two calls read the same record and no call in the batch modifies it."
+      },
+      {
+        "key": "D",
+        "text": "The downstream system requires the operations to be applied in a defined order."
+      },
+      {
+        "key": "E",
+        "text": "The batch contains more than three tool calls in the one assistant turn."
+      }
+    ],
+    "correct": [
+      "A",
+      "D"
+    ],
+    "explanation": {
+      "correct": "Concurrency is safe when the calls are independent, and these two conditions are precisely where independence fails. Unversioned concurrent mutation of one record is a lost update — whichever write lands second overwrites the first, with no conflict for anyone to detect. A downstream that defines behaviour in terms of application order means overlapping execution produces a state the system does not consider valid. Both are properties of your systems, invisible to the model, so the harness has to enforce them.",
+      "distractors": {
+        "B": "Sharing a downstream service is normal and usually the case worth parallelising. If that service cannot take concurrent requests, the correct control is a concurrency limit or a queue in front of it, not serialising the whole batch.",
+        "C": "Concurrent reads do not interfere. With nothing in the batch writing to that record, there is no lost update and no ordering hazard, so this is precisely the shape of work parallel execution exists for. Shared access only forces serialisation once one of the calls writes.",
+        "E": "Batch size is not a correctness property. A large batch may warrant a concurrency cap for resource reasons, but a count threshold has nothing to do with whether the calls interfere."
+      },
+      "concept": "The model decides what to call; the harness decides how to run it. Scheduling must be driven by properties the model cannot see — mutability, resource identity, ordering constraints, and idempotency. Classify tools by those properties once, and let the scheduler apply the policy rather than hoping the model behaves.",
+      "tip": "For multi-select on concurrency, test each option against \"does this make two calls interfere?\". Volume and shared endpoints are capacity concerns; only interference and ordering are correctness concerns."
+    }
+  },
+  {
+    "id": "INT-B-027",
+    "domain": "Integration",
+    "topic": "Lost update from concurrently executed mutating tools",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A warehouse management agent runs `check_stock`, `find_bin` and `list_orders` in parallel constantly, and the 2-second interaction budget depends on that. Twice this month it also emitted `adjust_stock` and `reserve_stock` for the same SKU in one turn; both read the same quantity, both wrote, and one adjustment was lost. The team's instinct is to switch parallel tool use off. What is the right design?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Set `disable_parallel_tool_use` on every request so the model emits at most one call per turn."
+      },
+      {
+        "key": "B",
+        "text": "Add a line to both stock-tool descriptions telling the model never to call them in the same turn."
+      },
+      {
+        "key": "C",
+        "text": "Retry the losing write when a conflict is detected, letting the second attempt overwrite the first."
+      },
+      {
+        "key": "D",
+        "text": "Classify tools in the harness and schedule reads concurrently, same-resource mutations serially."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The problem is not parallelism, it is unsynchronised mutation of one resource, and only the harness knows which tools mutate what. Classifying tools once and scheduling on that classification keeps the read concurrency the 2-second budget depends on while making the interfering case impossible. It also scales: every tool added later inherits the policy from its class rather than needing the model to be told about it. Note the stem's shape — the cheap global fix would pay for two incidents with a permanent latency regression.",
+      "distractors": {
+        "A": "This trades a rare correctness bug for a constant latency cost, serialising the three read-only lookups that the interaction budget was built around. It is the reflex the stem is inviting you to check.",
+        "B": "An instruction cannot be an isolation mechanism. It will hold most of the time, which is exactly what makes the residual failures rare, late-discovered, and expensive — the situation the team is already in.",
+        "C": "Retrying presupposes conflict detection, and the stem describes a lost update: both writes succeeded and nothing conflicted. Without a version check there is nothing to retry on, and adding one is a different fix from choosing to retry."
+      },
+      "concept": "Parallel tool use is a model capability; concurrency safety is a harness responsibility. Keep the capability broad and put the constraint where the knowledge is, by tagging tools as read-only, resource-scoped or ordered and enforcing that in the scheduler. Global switches make the model dumber to compensate for missing infrastructure.",
+      "tip": "When a stem quantifies the benefit of the current behaviour — a latency budget that depends on it — the answer preserves that benefit. A global disable that fixes two incidents by taxing every request is almost always the trap."
+    }
+  },
+  {
+    "id": "INT-B-028",
+    "domain": "Integration",
+    "topic": "Effect of disabling parallel tool use",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "With `tool_choice` left at `auto`, what does setting `disable_parallel_tool_use` guarantee?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The model emits exactly one `tool_use` block in every response."
+      },
+      {
+        "key": "B",
+        "text": "The model emits at most one `tool_use` block per response."
+      },
+      {
+        "key": "C",
+        "text": "The SDK executes tool handlers sequentially rather than concurrently."
+      },
+      {
+        "key": "D",
+        "text": "Results for separate calls may be returned in separate user messages."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The flag caps the number of tool calls in a single response at one. Combined with `auto`, the model retains the option of answering with no tool call at all, so the guarantee is an upper bound rather than an exact count. It constrains what the model emits and says nothing about how your code runs what it emits — with at most one call per turn there is nothing to run concurrently anyway, which is precisely the latency cost of using it.",
+      "distractors": {
+        "A": "\"Exactly one\" would require also removing the model's option not to call a tool, which `auto` deliberately preserves. Reading an upper bound as an exact count leads to harnesses that break the first time the model answers directly.",
+        "C": "Execution strategy is entirely yours. The API describes what the model produces; whether your handlers run on a thread pool, a queue, or sequentially is a decision it has no visibility into.",
+        "D": "The rule that all results for one assistant turn belong in one user message is unaffected by this setting. With at most one call per turn the question rarely arises, but the shape requirement does not change."
+      },
+      "concept": "Read tool-use controls as bounds on what the model may emit, not as instructions to your runtime. `auto` plus a parallelism cap yields zero-or-one calls; forcing a call is a separate control. Keep model-facing constraints and harness scheduling in separate mental columns.",
+      "tip": "Exam items love the gap between \"at most one\" and \"exactly one\". Whenever a mode allows the model to answer without tools, an added cap can only ever produce an upper bound."
+    }
+  },
+  {
+    "id": "INT-B-029",
+    "domain": "Integration",
+    "topic": "Reducing token cost of large tool results",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A genomics research agent calls `query_variants`, whose results run from 60 KB to 200 KB of tab-separated rows. A typical investigation takes about thirty tool calls and now exhausts the context window before the analysis is written up. Which THREE changes reduce token consumption while preserving the agent's ability to answer? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Raise `max_tokens` to the model's ceiling so there is room in the budget to work with the larger results."
+      },
+      {
+        "key": "B",
+        "text": "Project each result to the columns the question needs and document that in the tool description."
+      },
+      {
+        "key": "C",
+        "text": "Cap the rows returned and say in the result that it was capped, with guidance on narrowing the filter."
+      },
+      {
+        "key": "D",
+        "text": "Set `disable_parallel_tool_use` so at most one `query_variants` call is issued in any single turn."
+      },
+      {
+        "key": "E",
+        "text": "Write the full result to object storage and return a summary plus a handle for an analysis tool."
+      }
+    ],
+    "correct": [
+      "B",
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "All three attack the same quantity — bytes that enter the transcript — from different angles, and they compose. Projection removes columns nobody reads. An explicit cap bounds the worst case while telling the model the result is partial, which is what stops it from reasoning over a silently truncated set. Handles move bulk data out of context entirely, keeping only a summary and a reference the agent can hand to a tool that operates on the stored object. Together they turn an unbounded payload into a predictable one.",
+      "distractors": {
+        "A": "Output token budget governs how much the model may generate, not how much input it must carry. It cannot relieve pressure created by results already in the transcript, and raising it makes each turn more expensive.",
+        "D": "Serialising calls changes how many turns the work takes, not how large each result is. Thirty calls' worth of rows still arrive; they just arrive across more round trips, with more latency and the same total volume."
+      },
+      "concept": "Context spend from tools is a product of call count and result size, and result size is the lever you fully control. Project, cap with an honest partial-result marker, and externalise bulk data behind handles. Never let a tool return an unbounded payload into the transcript.",
+      "tip": "Sort candidate levers by whether they change the bytes that enter context. Output limits and call scheduling do not, which eliminates them quickly regardless of how sensible they sound."
+    }
+  },
+  {
+    "id": "INT-B-030",
+    "domain": "Integration",
+    "topic": "Representing an empty result unambiguously",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A veterinary group's booking agent calls `find_appointments`, which returns an empty array when nothing matches. Occasionally the agent then offers the client a slot that does not exist. What is the best change to the tool's output?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Return the empty result with the error flag set so the model treats it as a failure."
+      },
+      {
+        "key": "B",
+        "text": "Add a system-prompt rule forbidding the agent from offering appointments it has not seen."
+      },
+      {
+        "key": "C",
+        "text": "Return an explicit statement that no slots matched, with the criteria used and the nearest dates."
+      },
+      {
+        "key": "D",
+        "text": "Return `null` rather than an empty array so the absence of matching slots is unambiguous."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "An empty array is a valid but almost contentless result: it says nothing about what was searched or what the model should say next, which is the vacuum the invented slot fills. Stating the outcome in words, echoing the criteria and offering the nearest alternatives gives the model something true and useful to relay, and turns a dead end into a productive turn. The general rule is that a legitimate empty outcome deserves as deliberate a payload as a populated one.",
+      "distractors": {
+        "A": "Nothing failed. Marking a valid outcome as an error teaches the model to treat routine no-match cases as broken infrastructure, and it may then retry the same search or tell the client the system is unavailable.",
+        "B": "A prohibition removes one bad behaviour without supplying a good one. The model still has nothing to offer the client, and rules of this kind hold probabilistically while the missing information is structural.",
+        "D": "Null and an empty array are equally uninformative to the model. Changing which flavour of nothing you return does not address why nothing was a hard thing to answer with."
+      },
+      "concept": "Design the empty case deliberately. A no-result payload should confirm what was searched, state plainly that nothing matched, and where possible suggest the adjacent options — enough for the model to produce a helpful, truthful turn without inventing content to fill the gap.",
+      "tip": "Hallucination immediately after a tool call is usually a sign that the tool returned too little rather than that the model is unreliable. Ask what a competent human would have said with only that payload in front of them."
+    }
+  },
+  {
+    "id": "INT-B-031",
+    "domain": "Integration",
+    "topic": "Collapsing a dependent tool chain into one call",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An insurer's claims-status agent must call `get_policy` to obtain a customer id, pass it to `get_claims` for claim ids, then call `get_documents` for each claim. That is four round trips against a 3-second interaction budget it now misses on most conversations. The runtime is an on-premises service with no code-execution sandbox available. What is the most effective change?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Instruct the model to issue `get_policy`, `get_claims` and `get_documents` in one turn."
+      },
+      {
+        "key": "B",
+        "text": "Add a composite tool that runs the chain in the backend and returns the joined result."
+      },
+      {
+        "key": "C",
+        "text": "Raise the harness worker pool so the three claims handlers overlap rather than queue."
+      },
+      {
+        "key": "D",
+        "text": "Cache the intermediate policy and claim lookups in Redis so repeat conversations are faster."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Each step needs the previous step's output, so the round trips are not an artefact of scheduling — they are the dependency made visible. The only way to remove model round trips from a fixed chain is to stop routing the intermediate results through the model, and with no sandbox available a backend composite tool is how you do that. One call, one result, three of the four round trips gone, and the intermediate ids never consume context. The chain still runs; it just runs where it is cheap.",
+      "distractors": {
+        "A": "The calls cannot run in parallel: the second needs an id the first produces. Instructing the model to do it anyway produces either fabricated arguments or an immediate failure. Where a dependency is genuine, the only way to remove round trips is to move the chain out of the model's loop entirely.",
+        "C": "Concurrency helps when independent work can overlap. Here there is never more than one call in flight, so extra workers sit idle while the chain advances one step at a time.",
+        "D": "Caching improves repeats and does nothing for the first conversation about a claim, which is the common case in claims status. It also leaves the four-round-trip structure in place for every cold path."
+      },
+      "concept": "Round trips through the model are the expensive unit in an agent loop. Where a sequence is fixed and its intermediate values are not interesting to the model, compose it behind one tool. Reserve model-mediated chaining for steps where the model's judgement actually decides what happens next.",
+      "tip": "The detail about no available sandbox is there to close off the composition-in-code answer. Read the environment constraints before choosing between two techniques that solve the same problem."
+    }
+  },
+  {
+    "id": "INT-B-032",
+    "domain": "Integration",
+    "topic": "Contents of a model-facing tool error payload",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A shipping port is defining the error contract for the tools its terminal-operations agent calls. Which TWO items belong in the error returned to the model? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "The full stack trace from the failing terminal service, for diagnosis."
+      },
+      {
+        "key": "B",
+        "text": "A stable error code together with one line stating what was wrong with the call."
+      },
+      {
+        "key": "C",
+        "text": "An instruction telling the user to contact the port's service desk."
+      },
+      {
+        "key": "D",
+        "text": "Whether a retry could succeed, and what would have to change for it to."
+      },
+      {
+        "key": "E",
+        "text": "The exact query the handler executed against the terminal database."
+      }
+    ],
+    "correct": [
+      "B",
+      "D"
+    ],
+    "explanation": {
+      "correct": "The model's next action depends on two things: what went wrong and whether a different attempt is worth making. A stable code lets you monitor and route failures without parsing prose, and the one-line reason lets the model distinguish a bad argument it can fix from a resource that does not exist. The retry statement is what prevents both failure modes at the extremes — endless identical retries when nothing will change, and premature surrender when a small correction would have worked.",
+      "distractors": {
+        "A": "A trace is written for an engineer with the source in front of them. In a tool result it consumes context, offers the model nothing it can act on, and creates a disclosure path into user-visible text. It belongs in your logs, correlated by the error code.",
+        "C": "What the user should do is an application decision that depends on channel, hours and severity. Baking it into the tool result pre-empts the model's recovery attempts and hard-codes a support policy in the wrong layer.",
+        "E": "Internal query text exposes schema details and is not something the model can meaningfully change. If the argument mapping is wrong, say which argument and why, not how the handler used it."
+      },
+      "concept": "A tool error has two audiences with different needs. The model needs identity, cause and recoverability in as few tokens as possible. Your operators need detail, correlated by the same identity. Design both, and never let the operator payload travel into the model's context by default.",
+      "tip": "Test each candidate against \"could the model do something different because of this?\". Traces, internal queries and support scripts all fail that test, which resolves the count quickly."
+    }
+  },
+  {
+    "id": "INT-B-033",
+    "domain": "Integration",
+    "topic": "Routing transient failures away from the model",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "During a partial outage an e-commerce agent's search backend returned 503s. The harness passed each straight through as an error result reading \"503 Service Unavailable\". Traces show the model reissuing the identical call up to six times per turn, and spend for the hour was several times normal. What is the correct design?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Retry transient failures in the harness with backoff, then return a terminal unavailability result."
+      },
+      {
+        "key": "B",
+        "text": "Add a system-prompt rule that the model may retry any failed tool call at most once per turn."
+      },
+      {
+        "key": "C",
+        "text": "Cap the agent loop's iterations in the harness so a turn cannot make more than three tool calls."
+      },
+      {
+        "key": "D",
+        "text": "Return the 503 text without the error flag so the model reads it as ordinary data rather than a failure."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "A 503 is not information the model can act on — no change to its arguments makes the service available. Retrying it is the harness's job, where backoff, jitter and a bound can be applied cheaply without a model round trip each time. When retries are exhausted, the model needs a different message: not \"the call failed\" but \"this capability is unavailable\", which lets it degrade gracefully and tell the customer something true. Sorting failures by who can act on them is the whole design.",
+      "distractors": {
+        "B": "A prompt rule is a probabilistic cap on a cost that spiked several-fold in an hour. It also applies the same limit to failures the model genuinely should retry, such as a malformed argument it can correct.",
+        "C": "An iteration cap bounds the blast radius and is worth having, but it does not make the behaviour correct: the model still spends its allowance retrying something that cannot succeed, and still cannot tell the customer why.",
+        "D": "Unmarked error text is read as content and gets summarised into answers. Customers being told about 503s is a worse outcome than the retry loop, and the model loses the signal that anything went wrong."
+      },
+      "concept": "Classify every failure by who can act on it. Transport-level and transient faults belong to the harness, with bounded retry and backoff. Semantic faults — bad arguments, not found, forbidden — belong to the model. Exhausted retries convert into a terminal, actionable statement rather than a repetition of the transport error.",
+      "tip": "A cost spike during an outage is the signature of retry logic living at the wrong layer. Ask whether the model's next attempt could plausibly differ; if not, the retry should never have reached it."
+    }
+  },
+  {
+    "id": "INT-B-034",
+    "domain": "Integration",
+    "topic": "Correlating results by identifier rather than position",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A media company's transcoding agent issues several tool calls per turn. Its harness dispatches them to a worker pool and appends results in completion order, mapping the nth result to the nth call. Since a slow probe handler was added, users occasionally see one asset's metadata attributed to another. What should change?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Sort the results by completion timestamp before appending them to the user message."
+      },
+      {
+        "key": "B",
+        "text": "Execute the calls serially so completion order matches request order."
+      },
+      {
+        "key": "C",
+        "text": "Pair each result with its call by `tool_use_id` instead of by index."
+      },
+      {
+        "key": "D",
+        "text": "Add a sequence number to each tool's arguments so results can be reordered on it."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Concurrent execution means completion order is unrelated to request order, and a slow handler is exactly what makes that divergence visible. The protocol already provides the correlation key: each result carries the `tool_use_id` of the call it answers. Pairing on it makes the mapping correct regardless of scheduling, retries or early returns, and costs nothing. Index-based mapping was a latent bug from the day the worker pool was introduced; the probe handler only revealed it.",
+      "distractors": {
+        "A": "Sorting on completion time produces a deterministic order that still has no relationship to request order. It makes the wrong mapping stable rather than making it right. Any ordering rule not derived from the request itself will diverge again the moment handler timings change.",
+        "B": "Serialising restores the coincidence between the two orders, at the cost of the concurrency the worker pool exists to provide. It also leaves positional matching in place, so the bug returns the moment anything retries or short-circuits.",
+        "D": "Sequence numbers in arguments ask the model to generate bookkeeping it should not be responsible for, and they can be wrong. An authoritative identifier is already supplied by the platform."
+      },
+      "concept": "Whenever a platform gives you a correlation identifier, bind on it. Positional and arrival-order assumptions survive testing and break under concurrency, retries and partial failure — the conditions that only appear in production, and that make the resulting defect intermittent and hard to reproduce.",
+      "tip": "\"Occasionally attributed to another\" plus \"a slow handler was added\" is a race condition described in plain language. The fix is always an explicit key, never a stricter ordering assumption."
+    }
+  },
+  {
+    "id": "INT-B-035",
+    "domain": "Integration",
+    "topic": "Including provenance and as-of time in tool results",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A commodities desk's assistant calls `get_spot_price`, which serves from a cache that can be up to an hour behind. The handler returns a bare number, and traders have been quoted stale figures presented as live. What should the result include?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Nothing extra; shorten the cache lifetime so results are closer to live."
+      },
+      {
+        "key": "B",
+        "text": "Nothing extra; instruct the assistant to state that all prices may be delayed."
+      },
+      {
+        "key": "C",
+        "text": "The error flag whenever the cached value is older than a defined threshold."
+      },
+      {
+        "key": "D",
+        "text": "An `as_of` timestamp and the source of the quote alongside the value."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The model can only qualify what it can see. A bare number is indistinguishable from a live quote, so the assistant presents it as one — correctly, given its information. Returning the observation time and the source lets it say \"142.30 as of 09:14 from the settlement feed\", decide whether that is good enough for the question asked, and offer to refresh when it is not. The change costs a few tokens and removes an entire class of misrepresentation.",
+      "distractors": {
+        "A": "A shorter lifetime narrows the staleness window without closing it, and a five-minute-old price quoted as live is the same defect in smaller form. It also raises load on the upstream feed for no change in what the model knows.",
+        "B": "A blanket hedge on every answer is wrong most of the time, trains traders to ignore the caveat, and still leaves the assistant unable to say how stale any particular figure is.",
+        "C": "Staleness is not failure. A price from forty minutes ago is often exactly what the question needs; erroring throws away a usable answer and tells the model the capability is broken."
+      },
+      "concept": "Return provenance with any value that has a shelf life: observation time, source, and where relevant the confidence or method. The model cannot reason about freshness it was not told about, and users read unqualified figures as current.",
+      "tip": "If a scenario mentions caching or replication anywhere upstream of a tool, expect the answer to add an as-of marker to the payload rather than to tune the cache."
+    }
+  },
+  {
+    "id": "INT-B-036",
+    "domain": "Integration",
+    "topic": "Bulk export payload returned into the transcript",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "An agricultural co-operative's advisory agent calls `export_yield_data`, which returns a season's field-level records as a 2 MB CSV in the tool result. It worked for pilot farms; with the full membership loaded, requests now fail outright. The agent's actual job is to answer questions such as which fields underperformed their five-year average. What should the team do next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Return a short summary and a handle to the stored export, plus a tool that queries it."
+      },
+      {
+        "key": "B",
+        "text": "Truncate the CSV to the first five hundred rows and return those in the tool result."
+      },
+      {
+        "key": "C",
+        "text": "Move to a model with a 1M-token context window so the whole export fits in one turn."
+      },
+      {
+        "key": "D",
+        "text": "Split the export across ten sequential tool calls that the agent stitches back together."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The agent needs answers about the data, not the data. A summary tells it what is available, the handle keeps the bulk out of the transcript, and a query tool does the aggregation in code where it is exact and cheap. That also fixes an accuracy problem the stem implies: comparing every field against a five-year average is arithmetic over thousands of rows, which is work to push into a handler rather than into generation. Nothing about a bigger payload channel would have improved the answers.",
+      "distractors": {
+        "B": "An arbitrary prefix of a field-level export is not a sample of anything. The agent would compute underperformance over whichever fields happened to sort first and present the result as complete.",
+        "C": "Buying more room lets you keep making an expensive mistake. Every question would still carry two megabytes of rows the model must scan, at full cost, with no improvement in the aggregation it is being asked to do.",
+        "D": "Ten calls put the same two megabytes into context across more round trips, and add a stitching task the model has to get right. It multiplies the cost of the original design rather than replacing it."
+      },
+      "concept": "Bulk data belongs behind a reference, not inside a tool result. Return a summary and a handle, and give the model a tool that computes over the stored object. This keeps context proportional to the question rather than to the dataset, and moves aggregation into deterministic code.",
+      "tip": "Ask what the agent is being asked to produce. When the answer is a small aggregate over a large set, the design that ships the whole set into context is wrong no matter how large the window is."
+    }
+  }
+]

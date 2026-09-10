@@ -1,0 +1,454 @@
+[
+  {
+    "id": "SDA-D-019",
+    "domain": "Solution Design & Architecture",
+    "topic": "Bulkheading a shared worker pool across workload classes",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A B2B analytics vendor offers an \"explain this dashboard\" feature backed by Claude, served to all customers from one service with a fixed pool of 200 worker slots. Two enterprise customers began submitting explanations over 60-page board reports that occupy a slot for 40 to 90 seconds each. During their nightly batch windows the pool fills, the sub-second requests from around 300 smaller tenants queue behind them, and the vendor breached its availability objective for those tenants three nights running. The model endpoint itself has been healthy throughout. Which change addresses this?",
+    "options": [
+      { "key": "A", "text": "Increase the shared pool from 200 to 600 worker slots so there is enough headroom for the nightly batch window and interactive traffic together." },
+      { "key": "B", "text": "Partition the pool into capacity classes with their own concurrency limits and admission control, so each class consumes only its own share." },
+      { "key": "C", "text": "Put a circuit breaker on the long-running request path so it opens and sheds those calls when their p95 latency crosses 60 seconds." },
+      { "key": "D", "text": "Route long report explanations to a cheaper, faster model tier so each one occupies a worker slot for a fraction of the current time." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The stem rules out the usual suspects: the model endpoint is healthy, so this is not a dependency failure, and the harm is confined to tenants who did nothing unusual. That is resource contention, and the remedy is isolation rather than capacity. Giving each workload class its own concurrency limit means the batch window can saturate its own partition without touching the slots that serve interactive traffic, which converts a shared availability incident into slower batches for the two customers who caused it. Admission control matters too — without it the queue simply moves rather than being bounded.",
+      "distractors": {
+        "A": "Headroom is consumed by whatever grows fastest, and the batch workload scales with those customers' reporting habits rather than with the vendor's provisioning. Tripling the pool also triples the cost of the idle daytime state while leaving the coupling — any heavy class can still take every slot — completely intact.",
+        "C": "A breaker sheds traffic to a failing dependency, and nothing is failing; the long requests are slow because they are large. Opening it would reject the highest-value customers' legitimate work while the underlying contention mechanism stays in place for the next heavy workload.",
+        "D": "This shortens the occupancy of each slot without bounding how many slots the class can hold, so a larger batch reproduces the incident. It also degrades output quality for exactly the customers paying the most, to solve a problem caused by the absence of isolation."
+      },
+      "concept": "Bulkheads answer a different question from breakers and retries: not is the dependency healthy, but can one workload exhaust the resources another depends on. Partition finite resources — worker slots, connections, rate-limit share, queue depth — by tenant or workload class, and give each partition an explicit ceiling, so contention degrades one class instead of the service.",
+      "tip": "If a stem says the dependency was healthy the whole time, resilience patterns aimed at dependency failure are all wrong. The failure is internal contention, and the vocabulary you want is isolation, quota and admission control."
+    }
+  },
+  {
+    "id": "SDA-D-020",
+    "domain": "Solution Design & Architecture",
+    "topic": "Contents of an agent-to-human escalation handoff",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A wealth manager's Claude assistant answers client questions in chat and escalates to a human adviser whenever a question touches product suitability. Advisers receive a notification reading \"client needs help\" plus a link to the transcript. Average handling time after an escalation is now longer than for a cold inbound call, clients repeat information they already gave the assistant, and two advisers have contradicted commitments the assistant made earlier in the same conversation. What should the escalation carry?",
+    "options": [
+      { "key": "A", "text": "Escalate at the first mention of a product, so there is less accumulated context for the adviser to absorb before speaking to the client." },
+      { "key": "B", "text": "A model-generated paragraph summarising the conversation and the client's goal, so the adviser reads one screen instead of the full transcript." },
+      { "key": "C", "text": "Read access to the underlying request logs in the platform observability tool, so advisers can see exactly what the assistant was sent and what it returned." },
+      { "key": "D", "text": "A structured handoff record: the conversation, the assistant's commitments, the rule that fired, its draft position and open questions, and a case id." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Each symptom in the stem names a missing field. Clients repeat themselves because the conversation does not travel; advisers contradict the assistant because the commitments it made are not surfaced anywhere; handling time exceeds a cold call because the adviser is reconstructing state that the system already had. The escalation is a state transfer, and it has to be designed as one — with the trigger included, because the adviser needs to know which specific suitability rule fired, and with a shared case identifier, because otherwise the human's subsequent actions live in a different record from the machine's.",
+      "distractors": {
+        "A": "This changes how much context exists rather than whether it is transferred, and it pushes more conversations into a handoff interface that is already the bottleneck. Escalating earlier is worth considering once the handoff works; doing it first multiplies the defect.",
+        "B": "A summary is lossy in exactly the dimension that matters here — what the assistant promised — and it puts a generated artefact between the adviser and a regulated suitability conversation the adviser is now accountable for. Summaries supplement a handoff record; they cannot be it.",
+        "C": "Advisers already have the transcript link and are not short of raw material; they are short of structure. Request logs are a debugging surface for engineers, and pointing client-facing staff at them makes the reconstruction task harder rather than removing it."
+      },
+      "concept": "An escalation is a handoff of state and accountability, not a notification. Specify it as a record: the conversation so far, actions and commitments already taken, the trigger that fired, the machine's current position and its uncertainty, and a shared identifier that binds everything a human subsequently does back to the same case.",
+      "tip": "When the stem says post-escalation handling is slower than starting fresh, the design defect is always in what crosses the boundary. Count the symptoms; each one usually maps to a field the handoff omits."
+    }
+  },
+  {
+    "id": "SDA-D-021",
+    "domain": "Solution Design & Architecture",
+    "topic": "Turning at-least-once delivery into effectively-once processing",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A queue guarantees at-least-once delivery to a consumer that performs an external write. What property must the consumer's side effects have for the pipeline to behave effectively-once?",
+    "options": [
+      { "key": "A", "text": "They must be idempotent, or deduplicated at the point of effect, so a repeated delivery leaves the same end state." },
+      { "key": "B", "text": "They must be acknowledged to the broker before processing begins, so the message can never be redelivered after a crash." },
+      { "key": "C", "text": "They must be applied in strict message order by a single-threaded consumer reading one partition at a time." },
+      { "key": "D", "text": "They must complete inside the broker's visibility timeout window, so no message is ever returned to the queue." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "At-least-once means duplicates are a normal event, not an error, because a consumer can always act and then die before acknowledging. Nothing the broker offers removes that window once the effect is external to it. Effectively-once is therefore achieved at the sink: the operation is designed so that applying it twice is indistinguishable from applying it once, usually by keying the effect on a deterministic identifier the receiver deduplicates against. The delivery guarantee stays what it was; the observable end state becomes what you wanted.",
+      "distractors": {
+        "B": "Acknowledging before processing converts at-least-once into at-most-once and loses messages on any crash mid-work. It removes duplicates by removing reliability, which is the wrong side of the trade for a write that matters.",
+        "C": "Ordering and concurrency are a separate concern. A single-threaded ordered consumer still redelivers after a crash, so it produces exactly the duplicate this question is about, just one at a time.",
+        "D": "Finishing inside the visibility window makes redelivery less frequent, not impossible — a process killed at any point before acknowledgement still triggers one. Designing for a timing property you do not control is how duplicate writes reach production."
+      },
+      "concept": "Delivery semantics and processing semantics are different guarantees. Brokers can offer at-least-once cheaply and at-most-once cheaply; effectively-once is a property the application builds by making its side effects idempotent or deduplicated at the boundary where they land.",
+      "tip": "Whenever an option promises that redelivery cannot happen, be sceptical. Distributed systems items usually key on absorbing the duplicate rather than on preventing it."
+    }
+  },
+  {
+    "id": "SDA-D-022",
+    "domain": "Solution Design & Architecture",
+    "topic": "Properties a fallback chain needs to reduce total-failure risk",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A team is designing a three-stage fallback chain for a customer-facing Claude feature: primary model call, then a secondary model call, then a deterministic templated response. Which TWO properties must hold for the chain to genuinely reduce the probability of total failure rather than relocate it? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Each stage must cost less per call than the one before it, so the chain sheds spend at the same rate it sheds quality." },
+      { "key": "B", "text": "A fallback stage must not share failure modes with the stage it covers — endpoint, credential, quota pool or upstream dependency." },
+      { "key": "C", "text": "Each stage must use the same prompt template as the primary, so their outputs stay directly comparable in evaluation." },
+      { "key": "D", "text": "Each stage must be exercised routinely against real traffic, so it is not run for the first time during the incident it exists for." },
+      { "key": "E", "text": "A stage must be entered only once the preceding stage has exhausted its full retry policy, including every backoff interval it defines." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "A fallback chain is only as good as the independence of its links and the confidence that they run. Shared infrastructure is the classic way a chain collapses: if the secondary call goes through the same gateway, credential or quota pool, the event that took out the primary takes the fallback with it and the diagram's three stages are one stage. Routine exercise is the other half — untested fallback paths rot silently, because nothing in normal operation touches them, and an incident is the worst possible moment to discover a stale schema, an expired credential or a code path that no longer compiles against the current contract.",
+      "distractors": {
+        "A": "Cheaper fallbacks are common but not required, and treating cost as the ordering principle produces chains that degrade quality further than the incident warranted. The ordering principle is independence and adequacy, not price.",
+        "C": "A lower-capability stage usually needs a different, more constrained prompt to produce acceptable output, and a deterministic template has no prompt at all. Forcing prompt parity holds the fallback to a design that was tuned for something else.",
+        "E": "Retries and fallback both consume the request's deadline, so waiting for full retry exhaustion frequently means the fallback fires after the caller has already given up. Stage transitions should be driven by remaining budget and by breaker state, not by retry count alone."
+      },
+      "concept": "Two questions decide whether a fallback is real: does it fail for the same reasons as the thing it replaces, and does anyone ever run it? Independence has to be traced through every shared component, and the fallback path needs continuous exercise — scheduled drills, a slice of live traffic, or forced failover in a game day — to stay executable.",
+      "tip": "In fallback items, the correct pair is almost always one structural property and one operational one. Options about cost ordering or prompt parity are describing preferences, not the conditions under which the chain works."
+    }
+  },
+  {
+    "id": "SDA-D-023",
+    "domain": "Solution Design & Architecture",
+    "topic": "Choosing which capability to shed under reduced capacity",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A manufacturer's shop-floor assistant does three things for maintenance technicians: it maps a symptom description to a part number, it generates a step-by-step repair procedure as free text, and it summarises a machine's recent alarm history. Part numbers are validated against the parts master before display; procedures are followed directly by the technician with no second check; alarm history is already visible unformatted in the plant's existing control-system view. During a provider incident the team can sustain about a third of normal call volume and must decide what to keep. What is the right degradation plan?",
+    "options": [
+      { "key": "A", "text": "Keep all three capabilities but move every call to the cheapest tier, stretching the available call budget across the full feature set." },
+      { "key": "B", "text": "Keep procedure generation, which technicians rate as the most valuable, and disable symptom-to-part mapping and alarm summarisation." },
+      { "key": "C", "text": "Keep symptom-to-part mapping, leave alarm history to the existing control-system view, and route procedure requests to the indexed manual." },
+      { "key": "D", "text": "Queue all three request types and serve them from the backlog as capacity is restored, so no technician request is lost." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Rank the three by consequence of a bad output and by whether a non-model path exists. Part mapping is validated against the parts master, so a wrong answer is caught before a technician acts, and there is no cheap substitute — it earns the scarce capacity. Alarm summarisation has a zero-cost substitute already on the technician's screen, so it should never consume a call during an incident. Procedure generation is the dangerous one: free text a technician follows on live plant equipment, with no verifier, so its degraded state must be the indexed manual rather than a lower-quality generated version.",
+      "distractors": {
+        "A": "Uniform tier downgrade spreads quality loss evenly across outputs whose consequences are not even. It puts the reduction where it is most dangerous — the unverified procedure a person acts on — while spending scarce calls restating data the control system already displays.",
+        "B": "Ranking by user preference ignores both verifiability and the availability of substitutes. Technicians value procedures precisely because they act on them, which is the reason a degraded procedure is the highest-consequence output in the set, not the one to protect at reduced capacity.",
+        "D": "A technician standing at a stopped machine has no use for an answer that arrives later, and the queue accrues at full arrival rate while capacity is at a third, so it grows for the duration of the incident and then discharges a surge into a recovering dependency."
+      },
+      "concept": "Graceful degradation is decided per capability, not per service. For each one ask what the consequence of a wrong output is, whether anything verifies it, and whether a non-model substitute already exists. Shed the capabilities with substitutes first, protect the ones with verifiers, and replace unverified high-consequence generation with a deterministic source rather than a weaker model.",
+      "tip": "When a stem describes several features and quietly tells you which outputs are checked and which are not, that detail is the ranking key. Feature popularity is a decoy in degradation questions."
+    }
+  },
+  {
+    "id": "SDA-D-024",
+    "domain": "Solution Design & Architecture",
+    "topic": "Circuit breaker thresholds at low request volume",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A shipping line's berth-scheduling assistant makes roughly 30 model calls an hour, unevenly distributed. Its circuit breaker is configured to open when the error rate exceeds 50% over a rolling 10-second window. In practice the breaker flaps: a single failed call in an otherwise empty window trips it and sheds legitimate traffic, and separately it stayed closed through a 12-minute dependency outage on a quiet night shift while every call during that period failed slowly. How should the breaker be reconfigured?",
+    "options": [
+      { "key": "A", "text": "Require a minimum observation count before evaluating the ratio, size the window to the arrival rate, and add a periodic probe for sparse traffic." },
+      { "key": "B", "text": "Raise the error-rate threshold from 50% to 90% so a single isolated failure in an otherwise quiet window no longer trips the breaker." },
+      { "key": "C", "text": "Shorten the rolling window from 10 seconds to 2 seconds so failures are detected sooner and the breaker opens faster during a real dependency outage." },
+      { "key": "D", "text": "Remove the breaker and rely on a 5-second per-call timeout with two bounded retries, which suits a service at this volume better." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Both symptoms come from the same root cause: at 30 calls an hour a 10-second window usually contains zero or one observation, so the ratio is statistical noise. One failure reads as 100% and trips; a whole quiet outage produces windows too sparse to accumulate evidence and never trips. A minimum-observation gate stops the breaker acting on a sample of one, a window sized to arrival rate gives the ratio something to divide, and a periodic probe supplies the observations that live traffic does not — which is the only way state can advance during a genuinely quiet outage.",
+      "distractors": {
+        "B": "With one observation per window the ratio is either 0% or 100%, so any threshold between them behaves identically. Raising it changes nothing about the flap and makes the night-shift blindness marginally worse by demanding even more evidence the window cannot hold.",
+        "C": "A shorter window contains fewer samples, which amplifies the small-sample problem the service already has. Window shortening is the right lever for a high-throughput dependency where detection latency matters; here throughput is the constraint.",
+        "D": "Timeouts bound a single call; they do not stop a service from continuing to issue doomed calls for twelve minutes. The 12-minute outage described is precisely the regime a breaker exists for — the fix is to make it observable at this volume, not to delete it."
+      },
+      "concept": "Ratio-based health signals need a minimum sample size to mean anything. On low-throughput paths, gate the ratio behind a minimum observation count, size windows to arrival rate rather than to a default, consider consecutive-failure counting, and add active probing so state transitions do not depend on traffic that may not arrive.",
+      "tip": "Whenever a stem gives you a request rate and a window length, multiply them. If the product is around one, the item is about small-sample behaviour, and every option that only adjusts the threshold is wrong."
+    }
+  },
+  {
+    "id": "SDA-D-025",
+    "domain": "Solution Design & Architecture",
+    "topic": "Sampled traces versus complete records for a low-volume service",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A clinical genomics laboratory runs about 400 Claude-assisted variant-interpretation requests a day. Each one informs a clinical report and may be re-examined years later if a patient's diagnosis is revisited. The platform team applied the company's default observability configuration, which samples 1% of traces and retains them for seven days — a policy that works well for the high-volume web services it was written for. What should the architect specify instead?",
+    "options": [
+      { "key": "A", "text": "Raise trace sampling to 100% for this service while keeping the standard seven-day retention that the platform default applies." },
+      { "key": "B", "text": "Keep the 1% sampling rate but extend retention on the sampled traces to match the clinical review horizon of several years." },
+      { "key": "C", "text": "Keep a durable case record of every request's inputs, prompt and model version, output and reviewer decision for the clinical review horizon." },
+      { "key": "D", "text": "Record only the outputs and the reviewer's decision, since the inputs can be reconstructed from the laboratory information system when needed." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Two different artefacts are being conflated by the default configuration. Performance traces are a sampled, short-lived operational signal and 1% for seven days is a reasonable policy for them. What this service also needs is an audit record of each clinical decision — complete, not sampled, and retained for as long as the decision can be questioned. At 400 requests a day the cost of keeping everything is negligible, so the sampling economics that justify the default do not apply here at all. Separating the two lets each be sized by its own purpose.",
+      "distractors": {
+        "A": "This fixes coverage and leaves the horizon wrong. A trace deleted after seven days is unavailable for the re-examination the stem describes, which is the requirement that actually distinguishes this service from the web services the default was written for.",
+        "B": "Retaining the wrong 1% for years means that when a specific patient's interpretation is questioned, there is a 99% chance nothing exists. Sampling is acceptable for statistics about a population and never for the reconstruction of an individual decision.",
+        "D": "Reconstruction is not reproduction. The laboratory system holds the clinical facts but not the prompt version, the retrieved evidence or the exact rendered inputs, and those are what determine why the model said what it said."
+      },
+      "concept": "Separate operational telemetry from decision records. Telemetry may be sampled and short-lived because it answers questions about aggregates; a decision record must be complete and retained for the period over which the decision can be challenged. Volume determines the cost of the second, and low-volume high-consequence services should keep everything.",
+      "tip": "A stem that mentions both a small daily volume and a long re-examination horizon is telling you sampling is the wrong instrument. Check whether the default policy was written for a service with the same shape."
+    }
+  },
+  {
+    "id": "SDA-D-026",
+    "domain": "Solution Design & Architecture",
+    "topic": "Recovering from a contaminated checkpoint",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "An insurance-claims agent maintains a running case summary that it checkpoints after each step. One run has now failed and been automatically resumed four times. Each resume restarts from the latest checkpoint, whose summary contains a policy limit that the model fabricated during step three; every resume reads that figure and produces the same incorrect determination, and the repeated failures appear on the dashboard as transient errors. What should the engineer do next?",
+    "options": [
+      { "key": "A", "text": "Raise the resume limit from four to ten and add jitter between attempts, so the run has more chances to complete on its own." },
+      { "key": "B", "text": "Stop the automatic resume, roll the run back to the checkpoint before step three, and re-derive the policy limit from the policy system." },
+      { "key": "C", "text": "Clear all checkpoints across every in-flight claims run and restart them from the beginning to guarantee no contaminated state remains." },
+      { "key": "D", "text": "Add an instruction to the system prompt forbidding the model from stating a policy limit it has not retrieved from the policy system, then resume." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The repeated failure is deterministic, not transient — the bad value lives in persisted state that every resume faithfully reloads, so the run will fail identically forever. Recovery therefore means invalidating the contaminated checkpoint and restarting from the last boundary known to be clean, which is the one before the step that introduced the figure. Re-deriving the limit from the system of record rather than from the summary is what stops the same fabrication being reintroduced on the replay, and it is the change that also generalises into a validation rule for derived facts at checkpoint-write time.",
+      "distractors": {
+        "A": "More attempts at a deterministic failure produce more identical failures at proportional cost. The resume count is not the constraint; the state the resume loads is, and no number of retries changes a persisted value.",
+        "C": "This treats one run's contamination as a fleet-wide event. It destroys completed work on unaffected runs, replays their side-effecting steps, and turns a contained defect into a much larger recovery operation with its own failure surface.",
+        "D": "A prompt change may prevent the next fabrication but does nothing about the one already written to the checkpoint, which the resume will keep reading. Prevention and remediation are separate actions, and the stem is asking which comes next."
+      },
+      "concept": "Checkpointed state is authoritative on resume, so a bad value written into it converts a one-off model error into a permanent, deterministic failure. Recovery is a state operation: identify the step that introduced the contamination, roll back to the preceding boundary, and re-derive the affected facts from a system of record rather than from the agent's own prior output.",
+      "tip": "Repeated identical failures that are logged as transient are the signature of poisoned persistent state. If retrying produces the same wrong answer rather than a different one, stop looking at the retry policy."
+    }
+  },
+  {
+    "id": "SDA-D-027",
+    "domain": "Solution Design & Architecture",
+    "topic": "Bulkhead versus circuit breaker",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In a resilience design, what distinguishes a bulkhead from a circuit breaker?",
+    "options": [
+      { "key": "A", "text": "A bulkhead retries failed calls in a dedicated pool so retries do not compete with first attempts; a breaker decides how many are allowed." },
+      { "key": "B", "text": "A bulkhead applies only to read traffic and a breaker only to write traffic, so that writes are never lost during a dependency failure." },
+      { "key": "C", "text": "A bulkhead caps how long any single call may run; a breaker caps how many of them may run concurrently against one dependency." },
+      { "key": "D", "text": "A bulkhead partitions finite resources so one workload cannot consume another's capacity; a breaker stops calling a failing dependency." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The two patterns address different questions. A bulkhead is about containment inside your own process or cluster: connections, threads, queue depth and quota are divided so that one tenant, one workload class or one downstream integration cannot exhaust what everything else needs. A breaker is about a dependency's health: past a failure threshold it stops issuing calls at all, protecting the caller from waiting and the dependency from being hammered. Systems commonly need both, because contention and dependency failure are independent ways to lose availability.",
+      "distractors": {
+        "A": "Isolating retry traffic in its own pool is itself a bulkhead application, so this describes one use of a bulkhead while misattributing retry policy to the breaker. Breakers govern whether calls happen, not how many attempts a retry policy permits.",
+        "B": "Neither pattern is defined by the read or write nature of the traffic, and nothing here prevents write loss. Durability of writes during a dependency failure is a queueing and idempotency concern.",
+        "C": "The two halves are swapped and wrong. Capping call duration is a timeout; capping concurrency is one of the things a bulkhead does. Neither is what a breaker contributes."
+      },
+      "concept": "Resilience patterns each protect against one named failure mode: timeouts bound a single call, retries with jitter handle transient loss, breakers handle sustained dependency failure, bulkheads handle resource contention, and fallbacks handle the case where you must still answer. Choosing correctly starts with naming which mode is actually occurring.",
+      "tip": "Definition items in this area are usually built by swapping the mechanisms' effects. Fix each pattern's failure mode in mind first, then read the options for the one whose pairing is not scrambled."
+    }
+  },
+  {
+    "id": "SDA-D-028",
+    "domain": "Solution Design & Architecture",
+    "topic": "Composing an answer from partially failed parallel tool calls",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A hotel group's trip-assistant agent fans out five tool calls in parallel — room availability, loyalty balance, ancillary pricing, weather and local events — and then composes a recommendation in a single turn with a 4-second conversational budget. During a partner incident, loyalty balance and ancillary pricing time out at 800ms while the other three return normally. The agent currently waits for all five results and fails the turn when any is missing. What should it do instead?",
+    "options": [
+      { "key": "A", "text": "Compose from the tools that returned, pass each failed tool's status into the model's context, and have it state what it could not check." },
+      { "key": "B", "text": "Retry the two timed-out tools synchronously with one backoff before composing, so the recommendation still covers all five sources." },
+      { "key": "C", "text": "Substitute the most recent cached loyalty balance and ancillary prices for the two failed tools so the model receives a complete result set." },
+      { "key": "D", "text": "Compose from the three successful tools without telling the model the other two failed, since it will notice the absence and hedge accordingly." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Three of five tools carry enough for a useful recommendation, so failing the whole turn discards value the system already has. The essential detail is that the failure status has to be visible to the model, not merely absent from its context: a model given no loyalty data and no explanation will produce a fluent recommendation as though it had checked, and the customer cannot tell the difference. Passing explicit per-tool status turns an invisible gap into a stated limitation, which is the only version of partial success that is safe to show a customer.",
+      "distractors": {
+        "B": "A synchronous retry into a partner that is mid-incident is unlikely to succeed and consumes the conversational budget, so the common outcome is a turn that fails four seconds later instead of one that succeeds now with a caveat.",
+        "C": "Loyalty balance and ancillary pricing are the two volatile, customer-visible numbers in the set — a stale balance quoted as current is a support ticket. Cached substitution suits slowly changing context such as weather, not values a customer will act on.",
+        "D": "Models fill unexplained gaps rather than announcing them. Relying on the model to infer that a tool failed, from the fact that nothing arrived, is the mechanism that produces confidently invented balances."
+      },
+      "concept": "Partial failure in a fan-out needs an explicit representation that reaches both the aggregation logic and the model's context. Decide per tool whether its absence is tolerable, degrade the answer to what the available evidence supports, and make the model state the gap — an unlabelled gap is indistinguishable from a checked fact.",
+      "tip": "In agent partial-failure items, ask what the model is told about the failure. Options that simply omit the failed tool's result are the trap, because they look identical to success from inside the prompt."
+    }
+  },
+  {
+    "id": "SDA-D-029",
+    "domain": "Solution Design & Architecture",
+    "topic": "Required properties of an agent run checkpoint",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A platform team is standardising a checkpoint format for resumable Claude agent runs across several products, all of which call side-effecting internal services. Which THREE properties should the standard require? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "The checkpoint records the durable output and decision state of each completed step, addressable by a stable step identifier." },
+      { "key": "B", "text": "The checkpoint stores the complete raw message transcript, since fidelity of the conversation is what makes a resume correct." },
+      { "key": "C", "text": "The intent to perform a side-effecting step, together with its idempotency key, is committed before that side effect is issued." },
+      { "key": "D", "text": "The checkpoint write and the external tool call are committed inside a single database transaction so the two can never diverge." },
+      { "key": "E", "text": "The checkpoint carries the prompt template and tool-schema versions in force when it was written, so an incompatible resume is detected." }
+    ],
+    "correct": ["A", "C", "E"],
+    "explanation": {
+      "correct": "Step-addressable durable outputs are what make a resume cheap and deterministic — the run reloads results rather than recomputing them, and a stable identifier lets a partially complete run be reasoned about. Writing the intent and idempotency key before the side effect closes the ambiguous window: after a crash mid-step, the recovery logic knows an attempt may have landed and can replay it safely under the same key instead of guessing. Version stamping matters because resumes routinely happen after a deploy, and a checkpoint written under an older prompt and tool schema must fail loudly rather than be silently mixed with new definitions.",
+      "distractors": {
+        "B": "A transcript records what was said, not what was done, so replaying it re-issues side effects and reconstructs no external state. It is also the artefact most likely to be invalidated by the deploy that caused the restart, and it is far larger than the state actually needed.",
+        "D": "An external call cannot join a local transaction. The commit can succeed while the call has already been made, or the reverse — this is the dual-write problem, and it is the reason the intent-then-act ordering with an idempotency key exists in the first place."
+      },
+      "concept": "A checkpoint is a durable statement about progress, not a snapshot of a conversation. Make it step-addressable, record intent for side-effecting steps before they act so replay is unambiguous, and stamp it with the code and prompt versions that produced it so an incompatible resume is detected rather than tolerated.",
+      "tip": "Any option that puts a remote call inside a database transaction is wrong in every distributed-systems item you will see. Recognise the shape and eliminate it before reading the rest of the option."
+    }
+  },
+  {
+    "id": "SDA-D-030",
+    "domain": "Solution Design & Architecture",
+    "topic": "Reserving deadline budget for a mandatory output check",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A retailer's returns assistant has an 1,800ms p95 end-to-end budget. The chain allocates 1,500ms to generation and 250ms to a mandatory output check that requires the complete response to be valid, leaving 50ms of headroom. When generation runs long, the client's 1,800ms cancellation fires after generation finishes but before the check completes, and the current implementation returns the ungated draft to the customer rather than nothing. What is the correct fix?",
+    "options": [
+      { "key": "A", "text": "Raise the end-to-end p95 budget from 1,800ms to 2,200ms so the 250ms check has room to complete after a long generation." },
+      { "key": "B", "text": "Deadline generation at the budget minus the check's worst case, and fall back to a degraded response rather than return unchecked text." },
+      { "key": "C", "text": "Run the check concurrently with generation, streaming partial text into it, so it never contributes to the tail latency." },
+      { "key": "D", "text": "Cache check verdicts keyed by a hash of the response text so an identical response skips the 250ms check entirely." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "There are two defects and one option addresses both. The budget arithmetic treats the mandatory check as though it could be squeezed, when in fact its worst case has to be reserved before generation is allowed to begin — generation must be handed 1,550ms, not 1,500ms with hope. The more serious defect is the cancellation path returning ungated text, which means the control's effective enforcement drops exactly when the system is under pressure. Failing to a degraded response makes the guarantee unconditional: no output reaches the customer without the check, whatever the timing.",
+      "distractors": {
+        "A": "This relocates the boundary without changing the behaviour at it. A generation that overruns the new budget produces the same unchecked response at 2,200ms, and the product has paid for a slower p95 in exchange for nothing.",
+        "C": "The stem states the check requires the complete response to be valid, so it cannot begin meaningfully before generation ends. Concurrent or segment-wise checking is the right answer where a check can operate on partial text; it is unavailable here.",
+        "D": "Free-text responses to returns queries are close to unique, so the hit rate would be negligible, and skipping the check on a cache hit reintroduces the same gap this item is about. Caching addresses cost, not the cancellation race."
+      },
+      "concept": "In a chain with a mandatory terminal check, the check's worst case is reserved from the request budget first and the remainder is what generation may spend. Equally, define the behaviour when the deadline expires mid-chain: a mandatory control that is skipped under time pressure is not mandatory, and time pressure is correlated with incidents.",
+      "tip": "When a stem gives you the component timings, add them up and look at what happens at the boundary. The interesting defect is usually not the arithmetic but what the system does when the deadline arrives mid-step."
+    }
+  },
+  {
+    "id": "SDA-D-031",
+    "domain": "Solution Design & Architecture",
+    "topic": "Signals that reveal a silent retrieval degradation",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A grocery wholesaler's Claude-backed order-query assistant kept answering normally for nine days after an index migration silently caused the retrieval tool to return zero rows for one large product category. Answers for that category were fluent and wrong. Throughout the nine days, end-to-end latency, HTTP error rate and token spend were all unchanged. Which TWO instrumented signals would have surfaced the problem within hours? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "p95 end-to-end latency, tracked per endpoint with an alert on any week-over-week change beyond ten percent." },
+      { "key": "B", "text": "HTTP 5xx rate on the assistant's public API, alerted whenever it crosses a one-percent threshold over five minutes." },
+      { "key": "C", "text": "The proportion of turns in which the retrieval tool returned zero results, tracked per product category." },
+      { "key": "D", "text": "Token spend per request, averaged daily and alerted on a week-over-week change of more than ten percent." },
+      { "key": "E", "text": "The proportion of answers produced with no supporting retrieved document attached, tracked as a quality proxy." }
+    ],
+    "correct": ["C", "E"],
+    "explanation": {
+      "correct": "This failure produced no errors and no slowdown, which is exactly why it survived nine days — every conventional availability signal was healthy by construction, and the stem says so explicitly. Detecting it requires instrumenting the internal behaviour that changed: how often a tool comes back empty, sliced finely enough that one category going to zero is visible against the rest, and how often the system answers with no evidence behind it. Both are cheap counters that turn a semantic failure into a numeric one, which is the only way a fluent wrong answer becomes an alert.",
+      "distractors": {
+        "A": "The stem states latency was unchanged, and mechanically it would be — an empty retrieval result is faster to produce and faster to process. Latency monitoring detects saturation, not silent emptiness.",
+        "B": "No component returned an error. A retrieval call that succeeds with zero rows is a 200, and the assistant answered every request, so the error-rate panel stayed flat for the full nine days.",
+        "D": "Token spend was unchanged and would, if anything, drift slightly down as prompts carried less retrieved context — a movement in the reassuring direction. Cost monitoring is valuable but it is not a correctness signal."
+      },
+      "concept": "Availability telemetry cannot see quality failures, because a system returning confident nonsense is fully available. Design quality proxies alongside the health metrics: empty-result rates per tool, grounding or citation coverage, distribution shifts in output shape — and slice them by the dimension along which a partial failure could hide.",
+      "tip": "When a stem tells you which metrics stayed flat, it has eliminated those options for you. The remaining answers are always the ones measuring what the system did internally, not whether it responded."
+    }
+  },
+  {
+    "id": "SDA-D-032",
+    "domain": "Solution Design & Architecture",
+    "topic": "Purpose of a dead-letter queue in an async pipeline",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In an asynchronous Claude processing pipeline, what is the primary purpose of a dead-letter queue?",
+    "options": [
+      { "key": "A", "text": "To hold in-flight messages during a planned deployment so that nothing is lost while the worker fleet restarts." },
+      { "key": "B", "text": "To collect low-priority requests so that they can be processed later on a cheaper tier during off-peak hours." },
+      { "key": "C", "text": "To move messages that have exhausted their retry policy out of the main flow, preserving them for inspection and replay." },
+      { "key": "D", "text": "To store model outputs that failed a quality check, so they can be reviewed and fed back into prompt improvement." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Without a terminal destination for repeatedly failing work, a poison message either blocks the partition behind it or is retried indefinitely, consuming capacity and generating cost for an outcome that will never change. The dead-letter queue makes that failure explicit and bounded: the message leaves the hot path so healthy traffic flows, and it is retained so an engineer can look at what actually broke and replay it once the defect is fixed. Its depth is also one of the more informative alert signals a pipeline has.",
+      "distractors": {
+        "A": "Deployment safety comes from draining, acknowledgement discipline and redelivery, all of which operate on the main queue. A dead-letter queue is not part of the normal path and would not receive healthy in-flight work.",
+        "B": "Priority separation is done with separate queues or scheduling classes chosen up front. Dead-lettering is a failure outcome, not a routing decision, and messages arrive there having already consumed their full retry budget.",
+        "D": "Quality-failed outputs are an evaluation artefact and belong in a review store with their inputs. The dead-letter queue holds work units that could not be processed, not outputs that were produced and judged unsatisfactory."
+      },
+      "concept": "Every retry policy needs a defined terminal state. Dead-lettering supplies it: bounded attempts, then removal from the hot path with the message preserved for diagnosis and replay. A pipeline without one converts a single unprocessable item into either a stall or an unbounded cost leak.",
+      "tip": "Ask what happens after the last retry. If a design has no answer, the missing component is a dead-letter path plus an alert on its depth — one of the cheapest reliability additions available."
+    }
+  },
+  {
+    "id": "SDA-D-033",
+    "domain": "Solution Design & Architecture",
+    "topic": "Resuming a streamed generation after a client disconnect",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A legal-drafting product streams long clause drafts into the browser. Users on unstable connections lose the stream partway through; the client reconnects and re-issues the same request. The customer is charged for two generations, and the second draft frequently differs materially from the first, which confuses users who had already begun working from the visible portion. What is the right design?",
+    "options": [
+      { "key": "A", "text": "Set the sampling temperature to zero so that a re-issued request reproduces exactly the same draft the user was already reading." },
+      { "key": "B", "text": "Buffer the full response server-side and deliver it as one payload once it is complete, so a mid-stream disconnect cannot lose a partial draft." },
+      { "key": "C", "text": "Have the client post back the text it already received and ask the model to continue the clause from exactly where the stream stopped." },
+      { "key": "D", "text": "Create the generation once as a server-side resource under a client-supplied id, persisted as it streams, so a reconnect resumes from the offset." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The defect is that a transport interruption is being treated as a new business request. Promoting the generation to an addressable server-side resource decouples the two: the model is invoked once, its output accumulates durably, and reconnection becomes a read that resumes from an offset. That fixes all three symptoms at once — one charge, one canonical draft, and continuity with the text the user was already working from — and it is the same idempotency discipline that applies to any retryable operation, applied to a streaming response.",
+      "distractors": {
+        "A": "Sampling settings reduce variation but do not make a second invocation a continuation of the first, and they change output characteristics for every user in order to work around a network problem. Reproducibility of text is not the requirement; not regenerating is.",
+        "B": "This removes streaming, which is the product's whole latency story for long drafts, and a disconnect during the final delivery still loses everything. It also leaves the duplicate invocation and the duplicate charge untouched.",
+        "C": "Continuation prompting re-sends the partial output as input, pays for it again, and produces a seam where the two halves were generated under different conditions. It also depends on the client's copy of the text being complete and untampered."
+      },
+      "concept": "Treat a long generation as a resource with an identity rather than as the body of an HTTP response. Create it once under a caller-supplied id, persist output as it is produced, and let reconnects and retries attach to the existing resource by id. This is idempotency applied to streaming, and it removes duplicate cost and duplicate content together.",
+      "tip": "Any stem describing a duplicate charge after a client reconnect is an idempotency item wearing streaming clothes. The answer will involve a stable id and an existing resource, not a change to sampling."
+    }
+  },
+  {
+    "id": "SDA-D-034",
+    "domain": "Solution Design & Architecture",
+    "topic": "Conditions that should force a human approval gate",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A logistics operator is specifying when its autonomous procurement agent must pause and obtain human approval before continuing a run. The agent negotiates and places replenishment orders against pre-approved suppliers. Which THREE conditions should force the gate? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "The next action produces effects that the agent cannot reverse on its own authority once they have landed." },
+      { "key": "B", "text": "The action would exceed the run's pre-declared bound on spend, records touched or counterparties contacted." },
+      { "key": "C", "text": "The step consumed more input and output tokens than the rolling weekly median recorded for all other steps of its type." },
+      { "key": "D", "text": "The agent has replanned or looped more often than its normal trajectory profile, so it is outside tested behaviour." },
+      { "key": "E", "text": "The model's response contained a tool_use block rather than a plain-text reply addressed to the user." }
+    ],
+    "correct": ["A", "B", "D"],
+    "explanation": {
+      "correct": "Gates should fire on the three things that make autonomy dangerous. Irreversibility is the first, because it removes the option of correcting later and is precisely where a human decision earns its cost. Exceeding a declared bound is the second: every run should carry an explicit envelope for spend and reach, and crossing it means the run is doing something other than what was authorised. Abnormal replanning is the third and least obvious — a trajectory that loops far more than the tested profile is evidence the agent is off-distribution, which is when its outputs are least trustworthy and when a human should look before it acts further.",
+      "distractors": {
+        "C": "Token consumption is a cost signal and correlates weakly with risk; a long step can be routine and a cheap one can place a large order. Gating on it would interrupt harmless work while letting a single low-token irreversible action through untouched.",
+        "E": "Essentially every action the agent takes is a tool call, so this condition fires on the whole run and turns the agent into a manually driven form. A gate that never distinguishes anything trains reviewers to approve reflexively, which destroys the control."
+      },
+      "concept": "Autonomy is bounded by three gate conditions: irreversibility of the next effect, breach of a pre-declared resource or reach envelope, and evidence that the trajectory has left the distribution the system was tested on. Gates that fire on cost proxies or on ubiquitous events either miss real risk or generate volume that makes review meaningless.",
+      "tip": "Evaluate each proposed gate by how often it would fire and on what. A condition that triggers on nearly every step and a condition that triggers on none are both broken, and exam options usually include one of each."
+    }
+  },
+  {
+    "id": "SDA-D-035",
+    "domain": "Solution Design & Architecture",
+    "topic": "Trace continuity across asynchronous queue boundaries",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A publisher's article-enrichment pipeline runs as an HTTP ingest service, then a message queue, then a Claude summarisation worker, then a second queue, then a fact-check worker, then a write to the content system. Every service emits well-formed traces with spans and timings, but when an article is enriched incorrectly no engineer can follow that one article through the pipeline, because each service opens a new root trace at its own entry point. What is the fix?",
+    "options": [
+      { "key": "A", "text": "Correlate spans at query time in the tracing backend by joining on article id and overlapping timestamp ranges across the six services." },
+      { "key": "B", "text": "Propagate trace context in the message envelope so each consumer continues the existing trace, with the article id as a searchable attribute." },
+      { "key": "C", "text": "Have all six components write to one shared log stream on the central platform so their records for an article sit together." },
+      { "key": "D", "text": "Replace the queues with synchronous HTTP calls between the six services, so that trace context propagates automatically through the request headers." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Trace context propagates naturally over synchronous calls because it rides in headers; across a queue it has to be carried deliberately in the message itself, and nothing does that by default. Putting the trace and parent span identifiers in the envelope makes each consumer a continuation rather than a new root, which is what reassembles the six services into one story. The article id belongs there too, as a searchable attribute, so an engineer can start from the business object rather than from a trace id nobody recorded.",
+      "distractors": {
+        "A": "Timestamp matching breaks under exactly the conditions you need it for: retries, redeliveries and concurrent processing of the same article all produce overlapping windows, and article id alone cannot distinguish one attempt from another.",
+        "C": "Putting records in one place is co-location, not correlation. Without a shared identifier linking the entries, a single log stream just interleaves six services' output and makes the reconstruction harder rather than easier.",
+        "D": "This discards the queues' buffering, backpressure and retry semantics — the properties the pipeline is built on — in order to solve a telemetry problem that a few fields in the message envelope solve directly."
+      },
+      "concept": "Correlation must be designed at every boundary the request crosses, and asynchronous boundaries are the ones that silently drop it. Carry trace context in message envelopes and job payloads, continue the parent trace rather than starting a new one, and attach the business key so investigations can begin from the object rather than from a trace identifier.",
+      "tip": "Whenever a stem lists a pipeline with a queue in the middle and says traces exist but cannot be joined, the answer is context propagation in the envelope. Options that reshape the architecture to fix observability are over-corrections."
+    }
+  },
+  {
+    "id": "SDA-D-036",
+    "domain": "Solution Design & Architecture",
+    "topic": "A circuit breaker held open by an unrepresentative probe",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A hotel-booking platform's Claude concierge has had its circuit breaker open for 40 minutes. The provider incident that opened it was resolved 10 minutes ago and other services on the same account are succeeding normally. The breaker's half-open probe replays the last request that failed before it opened: a long multi-tool request that is still failing, but for an unrelated reason — one partner tool it calls has been down all week. The single breaker covers both the model call and the partner tool. What should the engineer do next?",
+    "options": [
+      { "key": "A", "text": "Shorten the open-state timer so the half-open probe is retried every 30 seconds rather than after the full cool-down period." },
+      { "key": "B", "text": "Disable the breaker for the concierge service entirely until the partner tool that has been down all week is restored." },
+      { "key": "C", "text": "Swap the captured request for a representative model probe, and give the model and the partner tool separate breakers." },
+      { "key": "D", "text": "Manually force the breaker closed and watch the error-rate panel for the next ten minutes to see whether it holds." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Two independent defects are keeping a healthy path offline. The probe is unrepresentative — it replays a request that cannot succeed regardless of the model's health, so it can never signal recovery — and the breaker's scope conflates two dependencies with different states, so a week-long partner outage holds the model path hostage. Fixing the probe restores the ability to detect recovery, and splitting the breaker restores the concierge functions that do not touch the failing partner while continuing to shed the ones that do. That is the smallest change that returns real capability.",
+      "distractors": {
+        "A": "Probing more often with a probe that cannot pass produces more failed probes. Frequency is the right lever when recovery detection is merely slow; here the signal itself is invalid.",
+        "B": "Disabling the breaker removes the amplification protection at the moment a dependency is genuinely down, and every request touching that partner tool will now wait for its timeout. It restores traffic by restoring the failure mode.",
+        "D": "Forcing closed re-admits full traffic including the requests that will still fail against the partner tool, so the breaker re-opens shortly afterwards and the unrepresentative probe leaves it there again. It relieves the symptom for a few minutes and leaves both defects in place."
+      },
+      "concept": "A circuit breaker is only as good as its probe and its scope. Probe with a request that is representative of the dependency's health rather than with a captured failure, and give each independently failing dependency its own breaker — a shared breaker makes the least healthy dependency the availability ceiling for everything behind it.",
+      "tip": "When a breaker will not close after a dependency has recovered, look at what the probe actually calls before touching timers or thresholds. Recovery detection failures are usually a scoping mistake, not a tuning one."
+    }
+  }
+]

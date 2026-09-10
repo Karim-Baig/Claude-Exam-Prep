@@ -1,0 +1,455 @@
+[
+  {
+    "id": "CPE-C-001",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "What counts against the shared context window budget",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An architect is drawing up a per-request token budget for a Claude agent. Which set of elements all compete for the same context window?",
+    "options": [
+      { "key": "A", "text": "Only the current user message and any retrieved documents; system prompts and tool schemas sit outside the window and are injected by the platform at inference time." },
+      { "key": "B", "text": "Input tokens only; generated output is discarded after each turn and never re-enters the window on subsequent turns of the same conversation." },
+      { "key": "C", "text": "The system prompt and conversation history only; tool definitions and their results are held server-side against the session and do not consume request tokens." },
+      { "key": "D", "text": "System prompt, tool definitions, every retained turn, retrieved documents and tool results." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Everything sent on a request occupies one shared budget: the system prompt, the full set of tool definitions, every prior turn still in the message list, any retrieved passages, and the text of every tool result the agent has accumulated. Prior assistant replies are re-sent as part of the transcript, so output becomes input on the next turn. Budgeting only for the user's question is how teams discover mid-incident that 60 tool schemas were the thing pushing them over the ceiling.",
+      "distractors": {
+        "A": "This is the mental model teams carry over from a stateless single-shot API. System prompts and tool definitions are part of the request payload and are tokenised like anything else — on tool-heavy agents they are frequently the largest fixed cost in the window.",
+        "B": "Output does not vanish. Each assistant reply is appended to the message list and re-sent on the following turn, which is exactly why long conversations grow superlinearly in cost unless something prunes or compacts them.",
+        "C": "There is no server-side session that holds tool definitions or results for you. The caller reconstructs the whole prompt on every request, so both the schemas and the accumulated results are re-billed and re-consume window space each time."
+      },
+      "concept": "The context window is a single shared budget, not a per-component allowance. Any token you send — instructions, schemas, history, retrieved text, tool output — displaces a token you could have spent elsewhere. Budgeting starts by enumerating every contributor and reserving headroom for the largest expected tool result plus the reply.",
+      "tip": "When a question asks what 'counts against' the window, assume everything in the request does. The distractors that carve out an exemption are almost always describing a stateful session model the API does not have."
+    }
+  },
+  {
+    "id": "CPE-C-002",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Choosing a compaction trigger for a long-running dispatch agent",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A freight brokerage runs a Claude agent that works one load-booking task through as many as 90 tool calls, hitting carrier APIs and a rate database. Runs now fail near the end because the transcript outgrows the window and the request is rejected. The team is adding compaction. Which trigger design is soundest for production?",
+    "options": [
+      { "key": "A", "text": "Measure token utilisation before each model call and compact once it crosses a threshold that leaves headroom for the largest expected tool result and the reply." },
+      { "key": "B", "text": "Compact every 20 tool calls, since telemetry shows past runs crossed the limit somewhere around that point in the trajectory." },
+      { "key": "C", "text": "Compact only after a request is rejected for exceeding the window, then summarise and replay the failed step — the error is the cheapest possible signal to act on." },
+      { "key": "D", "text": "Instruct the model in the system prompt to summarise its own history whenever it judges the transcript to be getting long, and let it self-manage the budget." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The failure is a budget failure, so the trigger must be measured in the unit that overflows. Counting tokens before each call and firing compaction at a threshold with reserved headroom means the agent never issues a request it cannot afford, and the headroom absorbs the one variable the agent cannot predict — how big the next carrier API response will be. Tool-call counts are a proxy for tokens that breaks the moment one call returns an unusually large payload.",
+      "distractors": {
+        "B": "A fixed call count is a proxy that decouples from the thing it is standing in for. One oversized rate-database response early in a run puts the agent over the ceiling well before call twenty, and on light runs it compacts needlessly and throws away context that was still useful.",
+        "C": "Treating the rejection as the trigger means every long run pays for at least one failed request, and replaying the step after compaction risks re-executing a non-idempotent booking call. Error-driven recovery is a backstop, not a budgeting strategy.",
+        "D": "The model cannot see its own token utilisation and has no reliable sense of how close the transcript is to the ceiling. Self-managed compaction fires unpredictably, and the run that most needs it — a heavy one — is the run where the model is least likely to volunteer."
+      },
+      "concept": "Compaction triggers belong in the control loop, not in the prompt, and should be expressed in tokens rather than in a proxy such as turn or tool-call count. Always reserve headroom for the largest single result the agent can receive plus the model's own reply, so the compaction check itself never straddles the ceiling.",
+      "tip": "When a stem describes an agent that fails 'near the end' of long runs, the answer is almost always a proactive, measured trigger. Options built on error handling or on the model policing itself are the two standard traps."
+    }
+  },
+  {
+    "id": "CPE-C-003",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Splitting stable policy from per-customer data across the prefix",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A telco's support assistant sends, on every turn, a large system block of policy and tone rules, a per-customer profile, and the live conversation. The profile is currently prepended above the policy text. Repeat-turn cost is far higher than the team modelled, and almost no request reuses a cached prefix. Which change addresses the cause?",
+    "options": [
+      { "key": "A", "text": "Shorten the policy text so fewer tokens are re-sent on each turn, and leave the profile where it is." },
+      { "key": "B", "text": "Move the entire system block into the first user message so the whole conversation becomes one contiguous cacheable region." },
+      { "key": "C", "text": "Keep a separate cached prefix per customer by keying it on customer id, so each customer's profile is cached together with the policy text." },
+      { "key": "D", "text": "Keep the invariant policy text as the leading prefix and move the per-customer profile below it, into turn content." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Reuse depends on a byte-identical leading prefix. Putting the customer profile first makes the very first tokens of every request differ, so nothing behind it can ever be reused no matter how invariant it is. Ordering the prompt so the truly shared material leads and the varying material follows restores a common prefix across the whole customer base. This is the general ordering rule for context assembly: most stable content first, most volatile content last.",
+      "distractors": {
+        "A": "Trimming the policy reduces the size of a block that is being reprocessed every turn but does not stop it being reprocessed. The cause is ordering, not volume, and a shorter prompt with the same broken prefix still yields no reuse.",
+        "B": "Relocating the block does not change which tokens vary first. The profile still leads the varying region, and moving durable instructions out of the system position also weakens their standing relative to user-supplied content.",
+        "C": "Per-customer prefixes work only where a customer generates enough traffic in a short window to keep the entry warm. Across a large telco subscriber base most entries are cold on first touch, so you pay to populate caches almost nobody hits twice."
+      },
+      "concept": "Assemble context in order of decreasing stability: fixed instructions, then slowly changing configuration, then per-request data, then the live conversation. Any volatile token placed early poisons everything after it for reuse, which makes prompt ordering a cost decision as much as a quality decision.",
+      "tip": "Cost that rises with conversation length while reuse sits near zero is a prefix-stability symptom. Look for the one variable block that was placed first, usually for readability rather than for any technical reason."
+    }
+  },
+  {
+    "id": "CPE-C-004",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Diagnosing mid-prompt instruction loss on long inputs",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An insurer's claims adjudication assistant reads a policy wording bundle plus the claim file — often well over a hundred thousand tokens — and applies a 40-rule checklist held in the system prompt. Compliance sampling shows the first eight and last six rules are applied reliably; rules in the middle are skipped, and the skip rate rises with bundle size. The same checklist on short synthetic bundles shows no gap. What is the most likely cause and the right first fix?",
+    "options": [
+      { "key": "A", "text": "The middle rules are ambiguously worded; rewrite them with worked examples so the model can apply them consistently." },
+      { "key": "B", "text": "The request exceeds the context window and the middle of the prompt is being silently truncated; chunk the bundle and process the parts in sequence." },
+      { "key": "C", "text": "Recall of mid-prompt material degrades as total length grows; restate the checklist adjacent to the task instruction and apply it in explicit passes over the bundle." },
+      { "key": "D", "text": "The capability tier is under-specified for a task of this complexity; move to a higher tier, which will hold the full rule set reliably regardless of bundle length or structure." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The pattern in the stem is diagnostic: performance is fine at the edges of the rule list, poor in the middle, and degrades as the surrounding context grows, while short-input evals are clean. That is context rot, not a rule-quality problem — if the rules were badly written the short-bundle evals would fail too. The fix is structural: bring the checklist next to the point of use rather than leaving it far above a hundred thousand tokens of bundle, and force explicit per-rule passes so no rule depends on being spontaneously recalled.",
+      "distractors": {
+        "A": "The short-bundle evals rule this out. Wording that works perfectly at small input sizes and fails at large ones is not ambiguous wording — it is wording whose retrieval from context has become unreliable. Rewriting rules would be the right move if the failures were length-independent.",
+        "B": "Requests that exceed the window are rejected outright, not quietly trimmed from the middle. Building a chunking pipeline on this premise adds real complexity and leaves the actual defect — an unreachable checklist — fully intact in every chunk.",
+        "D": "Higher-capability tiers do not exempt a prompt from length-related degradation, and the stem gives no evidence of a reasoning ceiling: the same model applies the same rules correctly when they sit near the edges. This is the expensive non-fix that also hides the defect."
+      },
+      "concept": "Degradation with context length is real and shows up as position-dependent recall: material at the start and end of a long prompt is used more reliably than material buried in the middle. Treat instruction placement and explicit staged passes as first-line remedies before reaching for a bigger model or a bigger window.",
+      "tip": "An accuracy gap that tracks position in the prompt and worsens with input size, while short-input evals stay clean, is context rot. Silent truncation is the classic wrong diagnosis — over-window requests fail loudly."
+    }
+  },
+  {
+    "id": "CPE-C-005",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Conditions favouring direct long-context loading over retrieval",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "Which condition most favours loading a corpus directly into the context window instead of putting it behind a retrieval step?",
+    "options": [
+      { "key": "A", "text": "The corpus is small and stable, and answering requires reasoning that spans most of the documents at once." },
+      { "key": "B", "text": "The corpus is large and refreshed hourly, and users ask narrow single-fact lookup questions." },
+      { "key": "C", "text": "Cost per request is the dominant constraint and the corpus grows every month." },
+      { "key": "D", "text": "Answers must quote an exact source passage, and the corpus contains many near-duplicate documents of uncertain provenance." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Direct loading wins when the whole corpus fits comfortably, changes rarely, and the question cannot be answered from any single retrievable passage. Cross-document synthesis is precisely the case retrieval handles worst: a top-k retriever selects passages independently, so relationships that only appear when several documents are read together are the ones most likely to be cut. Small and stable also means you are not repeatedly paying to load material that has changed since yesterday.",
+      "distractors": {
+        "B": "Large plus hourly refresh plus narrow questions is the textbook retrieval case. Loading everything would mean re-sending a large, mostly irrelevant corpus for a lookup that a targeted passage answers, and freshness would depend on reassembling the whole payload.",
+        "C": "Cost sensitivity argues against loading, not for it. Every request pays for the full corpus, and a corpus that grows monthly makes that bill grow with it — retrieval keeps per-request input roughly flat as the corpus expands.",
+        "D": "Exact-passage citation is achievable either way, and near-duplicate documents actively hurt the loading case: they consume budget with redundant text and give the model several equally plausible sources to attribute to."
+      },
+      "concept": "Long-context loading and retrieval are not competing implementations of one thing; they suit different question shapes. Loading suits bounded, stable corpora and questions requiring global reasoning. Retrieval suits large, changing corpora and questions answerable from a few localised passages. Corpus size, change rate and question locality are the three variables that decide it.",
+      "tip": "Read the question shape, not just the corpus size. 'Reasoning that spans the documents' points at loading; 'looks up a specific fact' points at retrieval, even when both corpora would technically fit."
+    }
+  },
+  {
+    "id": "CPE-C-006",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Making an external scratchpad load-bearing for a long run",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A utility runs a Claude agent that migrates 400 legacy report definitions one at a time across a multi-hour session. Engineers need the run to survive both compaction and a mid-run process restart. Which TWO practices make an external scratchpad genuinely load-bearing here? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Keep the scratchpad as an assistant message the agent rewrites each turn, so its current state is always visible without spending a tool call to read it." },
+      { "key": "B", "text": "Have the agent write each completed migration's outcome and the next pending item to a durable file immediately on finishing it, and re-read that file after any compaction." },
+      { "key": "C", "text": "Copy the full scratchpad into every compaction summary so its entire contents stay resident in the window at all times." },
+      { "key": "D", "text": "Give the scratchpad a fixed schema so a partially written entry is detectable and the agent can resume from a known point deterministically." },
+      { "key": "E", "text": "Keep the remaining-items list in the agent's reasoning and re-derive progress by re-querying the target system at the start of each turn." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "A scratchpad only earns its keep if it lives outside the window and is written at the moment state changes. Writing the outcome and the next pending item immediately after each migration means the file is never more than one item behind reality, and re-reading it after compaction is what turns a lossy summarisation into a recoverable checkpoint. A fixed schema makes partial writes detectable, so a restart mid-write resumes at a defined point instead of guessing whether item 214 completed.",
+      "distractors": {
+        "A": "An assistant message is part of the transcript, which means it is exactly the thing compaction discards and a restart loses. It also cannot be rewritten in place — each revision appends another copy, so the 'scratchpad' grows the window rather than relieving it.",
+        "C": "This inverts the purpose. The value of externalising state is that the window carries a pointer rather than the payload; copying the whole file back into every summary reintroduces the growth that compaction was meant to remove.",
+        "E": "Re-deriving progress from the target system on every turn is slow, adds load to the system being migrated, and is ambiguous for any item whose partial artefacts look like a completed one. Reasoning is not storage — it is discarded with the transcript."
+      },
+      "concept": "Durable external state beats in-window state for anything that must outlive a compaction or a restart. The two properties that make it work are write-on-change (so the file is authoritative) and a structured format (so partial writes are detectable and resumption is deterministic). The window should hold a reference, not a copy.",
+      "tip": "For scratchpad questions, ask where the data physically lives after compaction. Anything described as living in a message, in reasoning, or in a summary is inside the window and therefore not a scratchpad at all."
+    }
+  },
+  {
+    "id": "CPE-C-007",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Moving a code-review agent to just-in-time file loading",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A fintech's code-review agent begins each run by loading all 90 files a service touches, then answers the reviewer's question. On large services it exceeds the window, and reviewers also report it misses details in files it demonstrably did load. The team already ships a working file-search tool and a file-read tool. What should they do next?",
+    "options": [
+      { "key": "A", "text": "Pre-generate a summary of each of the 90 files and load the summaries instead, keeping the same load-everything-up-front shape but at a fraction of the tokens." },
+      { "key": "B", "text": "Load a repository map of paths, sizes and one-line purposes, then let the agent search and read individual files on demand as the question requires." },
+      { "key": "C", "text": "Fan the 90 files across nine parallel sub-agents and have an orchestrator merge their findings into a single review." },
+      { "key": "D", "text": "Raise the retrieval top-k so the most relevant files rank higher in the initial load and marginal ones fall away." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Two symptoms point the same way: the window overflows, and even loaded files are used poorly — the second is the tell that bulk loading is diluting attention, not just filling space. A lightweight map gives the agent enough to navigate, and the search and read tools already exist, so the agent can pull exactly the files a given question needs at full fidelity. Most review questions touch a handful of files; loading ninety to answer about three is the actual defect.",
+      "distractors": {
+        "A": "Summaries fix the overflow but sharpen the second problem: reviewers say detail is being missed, and a summary is a lossy representation of precisely the detail a code review depends on. It also front-loads work for files the question never touches.",
+        "C": "Sub-agent fan-out is a heavier change that multiplies model calls and adds an aggregation step, and it is premature when a cheaper mechanism — on-demand reads with tools the team already has — has not been tried. Fan-out suits genuinely parallel exploration, not narrowing.",
+        "D": "There is no retriever in this design; files are loaded wholesale, not ranked. Even if one existed, raising top-k pushes more content into the window, which is the opposite of what both symptoms are asking for."
+      },
+      "concept": "Just-in-time loading replaces a bulk upfront payload with lightweight identifiers plus the ability to fetch. The agent maintains a map of what exists and pulls full content only at the moment it is needed, which keeps the window small and keeps each loaded item at full fidelity rather than pre-compressed.",
+      "tip": "When a stem mentions that search and read tools already exist, it is signalling that the missing piece is a loading strategy, not new capability. 'Misses detail in files it did load' rules out any answer that compresses those files further."
+    }
+  },
+  {
+    "id": "CPE-C-008",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Why sub-agent context isolation helps the parent agent",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Beyond parallelism, what does giving a sub-agent its own context window do for the parent agent?",
+    "options": [
+      { "key": "A", "text": "Sub-agent tokens are not counted against the account's usage, so exploratory work effectively becomes free to the parent." },
+      { "key": "B", "text": "The parent can share its cached prefix with the sub-agent, so the sub-agent's calls reprocess only their new content." },
+      { "key": "C", "text": "The sub-agent's intermediate exploration never enters the parent's window; only its distilled result does." },
+      { "key": "D", "text": "Sub-agent results are deterministic, so the parent can cache them by task description and skip repeated work." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Isolation is a context-budget mechanism. A sub-agent may make twenty tool calls, read three dead ends and produce a great deal of intermediate text, and none of that lands in the parent's transcript — the parent receives a summary and continues. That keeps the parent's window occupied by decisions rather than by the search that produced them, which matters most on the orchestration loops that need to stay coherent longest.",
+      "distractors": {
+        "A": "Isolation is about where tokens sit, not whether they are billed. Every sub-agent call is a real request with real input and output tokens; fan-out generally increases total spend and buys parent-window cleanliness with it.",
+        "B": "Sharing a prefix would require the sub-agent to carry the parent's context, which is the exact thing isolation is avoiding. A sub-agent that inherits the parent's transcript is not isolated in any useful sense.",
+        "D": "Sub-agents are as non-deterministic as any other model call, and identical task descriptions can yield materially different trajectories. Caching their output by description would silently serve stale conclusions drawn from earlier state."
+      },
+      "concept": "Sub-agent isolation trades tokens for context hygiene: total consumption usually rises, but the orchestrator's window stays small and high-signal. Choose it when a subtask generates far more intermediate material than conclusion, and avoid it when the parent needs the intermediate material to make its next decision.",
+      "tip": "Isolation questions reward asking what the parent sees afterwards. Any option claiming a cost or determinism benefit is describing something isolation does not provide."
+    }
+  },
+  {
+    "id": "CPE-C-009",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Where multi-turn conversation state should be persisted",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A hospital group's patient-messaging assistant runs behind a stateless HTTP service deployed across three regions with round-robin routing. Threads can stay open for days. The team currently holds transcripts in each pod's memory and loses conversations whenever a pod recycles. Which design fixes this with the least new failure surface?",
+    "options": [
+      { "key": "A", "text": "Turn on sticky sessions at the load balancer so every request in a conversation is routed back to the pod that already holds it in memory." },
+      { "key": "B", "text": "Persist the canonical message list in a shared store keyed by conversation id, and rebuild the prompt from it on every request." },
+      { "key": "C", "text": "Have the assistant restate the running conversation inside each reply, so the next turn can be reconstructed from the last message alone." },
+      { "key": "D", "text": "Move the transcript to the client and send the whole thing with each request, keeping it in the browser's local storage between visits." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The service is stateless by design and the conversation is not; the fix is to give the conversation a home that outlives any pod. A shared store keyed by conversation id lets any region serve any turn, survives recycles and deploys, and keeps the transcript inside the organisation's control — which for patient messaging is also the data-governance answer. Prompt assembly becomes a pure function of stored state, which makes replay and audit straightforward.",
+      "distractors": {
+        "A": "Stickiness makes routing match the state but does nothing about durability: the transcript still dies with the pod, and now a recycle takes the conversation with it deterministically rather than occasionally. It also undermines the point of running three regions.",
+        "C": "Reconstructing history from the model's own restatement compounds paraphrase loss on every turn and puts clinical detail at the mercy of a summarisation the system never validated. It also inflates output on every single reply.",
+        "D": "Client-held transcripts are lost when the browser storage is cleared or the patient switches device, cannot be audited server-side, and place patient content somewhere the provider cannot guarantee retention or deletion behaviour."
+      },
+      "concept": "Multi-turn state belongs in durable storage that the request handler reads, not in process memory, not in the routing layer, and not in the model's own output. Treat the stored message list as canonical and the assembled prompt as a derived artefact rebuilt per request.",
+      "tip": "Stateless service plus long-lived conversation is a storage question wearing an LLM costume. Sticky routing is the tempting infrastructure answer that addresses locality while leaving durability untouched."
+    }
+  },
+  {
+    "id": "CPE-C-010",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Choosing what to prune first in a saturated support thread",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A retail marketplace's seller-support agent reaches its context ceiling on long escalation threads and must prune. The agent still has to resolve the open dispute and produce an answer a compliance reviewer can reconstruct. Which THREE are the safest to remove first? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "Raw payloads of tool results whose conclusions have already been written into the running summary." },
+      { "key": "B", "text": "The escalation policy in the system prompt, on the grounds that the agent has already applied it once in this thread." },
+      { "key": "C", "text": "Superseded drafts of the reply that the seller explicitly rejected, keeping only the stated reason for rejection." },
+      { "key": "D", "text": "The order id and refund amount the seller supplied, since the audit log outside the window already records both values." },
+      { "key": "E", "text": "Greeting and pleasantry turns on both sides that carry no decision content." }
+    ],
+    "correct": ["A", "C", "E"],
+    "explanation": {
+      "correct": "Safe pruning removes tokens whose information has either been preserved elsewhere in the window or never carried decision value. Raw tool payloads already distilled into the summary are redundant. Rejected drafts matter only for the reason they were rejected, which is retained. Social turns carry no state at all. Each of these three shrinks the transcript without changing what the agent knows about the dispute.",
+      "distractors": {
+        "B": "Instructions are not consumed by being followed once — they govern every remaining turn, and an agent that loses its escalation policy mid-thread will handle the next escalation inconsistently. The system prompt is the last thing to prune, not an early candidate.",
+        "D": "An external audit log is not readable by the model. Removing the identifiers the agent needs to issue the refund means it must ask the seller again or guess, and in either case the working context no longer contains the facts the next action depends on."
+      },
+      "concept": "Prune by information value, not by age. Content is safe to drop when its decision-relevant content is preserved somewhere the model can still reach, and unsafe when the only surviving copy lives outside the window. Standing instructions and unresolved identifiers are the two categories that should survive every pruning pass.",
+      "tip": "The 'it's recorded in the audit log' distractor recurs across this domain. A store the model cannot query during the turn does not count as preserving context — it preserves evidence for humans."
+    }
+  },
+  {
+    "id": "CPE-C-011",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Highest-priority content for verbatim carry-over in compaction",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "When an agent's transcript is compacted part-way through a task, which content has the strongest claim to verbatim carry-over rather than paraphrase?",
+    "options": [
+      { "key": "A", "text": "The earliest turns in the conversation, because they establish what the task originally was." },
+      { "key": "B", "text": "The complete text of every tool result received so far, so that no observation is lost." },
+      { "key": "C", "text": "The model's reasoning traces, so the summary can explain how the agent reached its current position." },
+      { "key": "D", "text": "Identifiers, exact values, and decisions still open and awaiting action." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Compaction is lossy by construction, so the question is what cannot survive a paraphrase. Identifiers and exact values cannot — an account number rounded or an amount restated approximately is a defect that surfaces as a wrong action, not a vague answer. Open decisions cannot either, because they are the agent's forward-looking state and a summary that blurs them causes repeated or contradictory work. Narrative context tolerates paraphrase; precise facts and pending commitments do not.",
+      "distractors": {
+        "A": "The original task statement should survive compaction, but it survives fine as a faithful restatement — it is prose, not precision-critical data. Reserving verbatim budget for the oldest turns crowds out the exact values that actually break when paraphrased.",
+        "B": "Carrying every tool result verbatim is not compaction; it is the growth the compaction was called to stop. Tool observations are the largest and most compressible category in most agent transcripts.",
+        "C": "Reasoning traces explain the past and are among the least useful things to preserve. What the agent concluded matters going forward; the intermediate deliberation that produced the conclusion generally does not."
+      },
+      "concept": "Compaction should preserve state, not narrative. Anything an incorrect paraphrase would turn into a wrong action — identifiers, amounts, dates, file paths, decisions taken and still pending — belongs in the summary verbatim. Everything else can be compressed, and the bulk of the savings comes from tool observations and reasoning.",
+      "tip": "Ask what breaks if a value is restated slightly differently. If the answer is 'the agent acts on the wrong record', that value is verbatim-critical."
+    }
+  },
+  {
+    "id": "CPE-C-012",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Shaping an oversized tool result before it enters the window",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A grid operator's incident agent calls a telemetry API that can return tens of thousands of sensor rows per call. Placing them in the transcript saturates the window within about three calls. The agent's job is to identify anomalous sensors and the time windows in which they misbehaved. What should the integration return to the model?",
+    "options": [
+      { "key": "A", "text": "The first several hundred rows with an explicit truncation marker, so the agent knows the result is partial and can request the remainder if needed." },
+      { "key": "B", "text": "Every row, serialised as CSV rather than JSON — the same information at a materially lower token count per row." },
+      { "key": "C", "text": "Per-sensor aggregates and flagged excursions, plus a handle for fetching raw rows for one named sensor." },
+      { "key": "D", "text": "Every row, with a standing instruction that the agent must summarise the result into a scratchpad file before it takes any further action." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The agent needs anomalies and their time windows, which is a tiny fraction of what the raw rows encode. Computing aggregates and excursion flags in the integration layer — deterministically, in code — puts exactly the decision-relevant signal in the window and leaves the volume outside it. The handle preserves the escape hatch: when the agent genuinely needs raw readings for one sensor, it can pull them, at a scale that fits. Shaping the result is cheaper and more reliable than asking the model to compress it after the fact.",
+      "distractors": {
+        "A": "Head truncation assumes the interesting rows are early, and for anomaly detection they are the ones you are least able to predict. The agent is left unable to tell whether an excursion is absent or merely beyond the cut, which is worse than a smaller honest result.",
+        "B": "Serialisation format is a genuine and worthwhile saving, but it is a constant-factor improvement against a volume problem. A payload that overflows in three calls as JSON simply overflows in slightly more calls as CSV.",
+        "D": "The full result still passes through the window before it can be summarised, so the cost is paid in full and the ceiling is still breached. Model-side summarisation of numeric telemetry is also less trustworthy than computing the same statistics in code."
+      },
+      "concept": "Tool results are designed artefacts, not raw API pass-throughs. Shape each result to the decision the agent has to make: compute the aggregation in code, return the signal, and hand back a reference the agent can use to drill into detail on demand. Deterministic pre-processing is almost always preferable to model-side compression.",
+      "tip": "When a stem names precisely what the agent must find, compare that against what the tool returns. A large gap between the two is the item telling you to reshape the result rather than to compress or truncate it."
+    }
+  },
+  {
+    "id": "CPE-C-013",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Ordering a long document against the task instruction",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In a single call that contains one long document and a question about it, where does the question generally belong relative to the document?",
+    "options": [
+      { "key": "A", "text": "Before the document, so the model knows what it is looking for while it reads." },
+      { "key": "B", "text": "Split across the document, with framing before and the specific ask afterwards." },
+      { "key": "C", "text": "After the document, near the end of the prompt." },
+      { "key": "D", "text": "Interleaved after each section of the document, so each part is queried locally as it is read." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Long inputs go at the top and the query goes at the end. Placing the ask last means it sits at the position the model attends to most reliably, and it prevents a long body of text from separating the instruction from the point where the answer is produced. It also keeps the bulk of the prompt — the document — in a stable leading position, which happens to be the arrangement that reuses best across multiple questions about the same document.",
+      "distractors": {
+        "A": "This matches the intuition that the model reads in order and benefits from knowing the goal first, but the ordering that measurably works better on long inputs is the opposite. It also puts the volatile part of the prompt first, which is the worst position for prefix reuse.",
+        "B": "Splitting the instruction gives the model two places to look for the task and invites it to treat the pre-document framing as the operative ask. Where framing genuinely is needed up front, keep it to orientation and put the actual question at the end.",
+        "D": "Interleaving turns one call into a series of local questions and destroys the model's ability to reason across sections. It is also structurally fragile: the document can no longer be swapped without rewriting the whole prompt."
+      },
+      "concept": "For single-call prompts over long inputs, order as document first, instruction last. This puts the ask in a high-salience position and keeps the largest, most stable block leading — which serves both answer quality and prefix reuse across repeated queries on the same material.",
+      "tip": "This one rewards knowing the documented ordering rather than reasoning from first principles, because the intuitive answer — state the task first — is the distractor."
+    }
+  },
+  {
+    "id": "CPE-C-014",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Pruning that mutates a previously stable prompt prefix",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A streaming service's content-metadata assistant handles long analyst sessions. To control spend, an engineer added a pruner that drops the oldest user/assistant pair once the transcript passes a size threshold. After the change, cost per session rose rather than fell, and median latency increased. What explains this?",
+    "options": [
+      { "key": "A", "text": "A shorter transcript forces the model to work harder to reconstruct what was dropped, which inflates output tokens and drives both cost and latency upward." },
+      { "key": "B", "text": "Dropping the oldest turns mutates the prompt prefix, so the previously reusable leading region no longer matches and each turn reprocesses from the beginning." },
+      { "key": "C", "text": "The pruner issues its own model call every turn to decide what to drop, and that extra round trip accounts for the added latency and cost." },
+      { "key": "D", "text": "With less history available the assistant asks more clarifying questions, adding turns to each session and multiplying the per-turn fixed cost." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Removing content from the front of the message list changes the bytes at the start of every subsequent request. Any reuse that previously covered the system prompt and early conversation is invalidated from the point of the first difference onward, so long sessions that used to reprocess only their newest turns now reprocess almost everything. That is the mechanism behind both symptoms at once: more tokens processed per turn means both a higher bill and a slower first token, which is exactly what the team observed.",
+      "distractors": {
+        "A": "The model does not detect and compensate for pruned history; it simply answers with what it has. Output-token growth from lost context is possible but small, and it would not produce a cost increase large enough to reverse the saving from a shorter input.",
+        "C": "The stem describes a threshold-based pruner, not a model-driven one, and nothing suggests an extra inference per turn. This is a real cost trap in LLM-driven compaction designs, but it is not the mechanism at work here.",
+        "D": "More clarifying questions would show up as longer sessions in the product telemetry rather than as higher cost on the same session, and it does not explain the latency change, which is a per-request effect rather than a per-session one."
+      },
+      "concept": "Pruning from the front is the most expensive place to prune. Anything that alters the leading region of a repeated prompt discards accumulated reuse, so context-reduction strategies should either drop content from the tail region, replace it in place with a same-position summary, or accept the invalidation as a deliberate, batched one-time cost.",
+      "tip": "Cost and latency moving together in the wrong direction after a context change almost always means reprocessing, not generation. Ask what the change did to the front of the prompt."
+    }
+  },
+  {
+    "id": "CPE-C-015",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Risk of over-filling the retrieved-context budget",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An architect is deciding how many retrieved passages to place in the window per request. What is the principal risk of setting that count generously high?",
+    "options": [
+      { "key": "A", "text": "The retriever begins returning duplicate passages, which the API rejects as malformed content blocks." },
+      { "key": "B", "text": "Recall falls, because a reranker only scores the top few candidates it is handed." },
+      { "key": "C", "text": "Latency is unaffected, but output tokens rise in proportion to the number of passages supplied." },
+      { "key": "D", "text": "Marginally relevant passages dilute the signal and can pull the answer toward the wrong source." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Retrieval ranking is monotonic in relevance, so every extra passage is by definition less relevant than the one before it. Past a point you are adding text that competes with the correct source for the model's attention, and a plausible-but-wrong passage sitting alongside the right one is a well-known cause of confidently wrong answers. Beyond quality, the extra tokens cost money and time on every request whether or not they contribute.",
+      "distractors": {
+        "A": "Duplicate passages are a real retrieval-quality problem and they waste budget, but nothing in the API rejects repeated content. They degrade the answer quietly rather than failing loudly, which is what makes them worth deduplicating.",
+        "B": "Recall increases with a larger passage count, not the reverse. This option inverts the actual trade-off, which is that recall rises while the precision of what reaches the model falls.",
+        "C": "Sending more input raises time to first token, so latency is affected. Output length is driven by the answer being asked for, not by how many passages were supplied to produce it."
+      },
+      "concept": "Context budget is a precision instrument. What reaches the window should be the passages that improve the answer, not everything that plausibly might — each marginal passage buys a small recall gain at the cost of attention, latency and money. Tune the count against answer quality, not against retrieval recall alone.",
+      "tip": "'More context is safer' is the intuition this item tests. Recall and answer quality diverge past a point, and the divergence is where over-filled windows do their damage."
+    }
+  },
+  {
+    "id": "CPE-C-016",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Reducing tool-definition overhead in an agent's window",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A logistics platform's agent carries 60 tool definitions, each with a long description and a deeply nested schema. The definitions alone consume a large share of every request, and tool-selection accuracy has degraded as tools were added. Which TWO changes address both problems at once? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Move the tool definitions out of the tools parameter and describe them as prose in the system prompt, where they can be written far more compactly." },
+      { "key": "B", "text": "Route each request to a narrowed tool set chosen by task class, exposing only the tools that class can legitimately use." },
+      { "key": "C", "text": "Add more few-shot examples demonstrating correct tool choice, covering all 60 tools so the model has a worked case for each." },
+      { "key": "D", "text": "Lower max_tokens so the model commits to a tool call sooner instead of deliberating across the full catalogue." },
+      { "key": "E", "text": "Collapse families of near-identical tools into a single tool with a discriminating parameter." }
+    ],
+    "correct": ["B", "E"],
+    "explanation": {
+      "correct": "Both problems have the same root cause — too many similar options presented at once — so the fixes that work reduce the number of choices rather than describe them better. Task-class routing means a request that could only ever need six tools is never shown sixty, which cuts both the token cost and the space of wrong selections. Merging near-duplicate tools removes the specific confusions that arise when several definitions overlap, and it shrinks the schema payload at the same time.",
+      "distractors": {
+        "A": "Prose descriptions lose the structured schema the model relies on to produce well-formed arguments, and they forfeit native tool-call formatting. It trades a token saving for a correctness regression in exactly the area — argument construction — where structure earns its cost.",
+        "C": "Sixty worked examples add a large block of context to a request that is already too large, and they attack presentation when the problem is the size of the choice set. Few-shot selection helps when a small number of tools are genuinely confusable.",
+        "D": "The output cap has no bearing on how many tools are described in the input or on how the model discriminates between them. Constraining it mainly risks truncating a legitimate call mid-arguments."
+      },
+      "concept": "Tool definitions are context, and their cost is paid on every request. When a catalogue grows past what a single request plausibly needs, narrow it dynamically by task class and consolidate overlapping tools — selection accuracy and token cost improve together, because both degrade for the same reason.",
+      "tip": "When token cost and selection accuracy fall off together as a catalogue grows, the answer reduces the catalogue. Options that add explanatory material are moving in the wrong direction on both axes."
+    }
+  },
+  {
+    "id": "CPE-C-017",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Sectioned extraction versus one long-context pass",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A car maker must extract 30 warranty-relevant clauses from each supplier contract. Contracts run 150 to 400 pages and the longest exceed the window. Twenty-eight of the clauses depend only on their own section; two require reconciling defined terms used throughout the document. The job runs nightly in batch with no latency pressure. What is the right processing shape?",
+    "options": [
+      { "key": "A", "text": "Send each contract in one call, truncating the longest from the tail where boilerplate normally sits." },
+      { "key": "B", "text": "Index every contract in a vector store and retrieve top passages per clause, keeping each call small and uniform in size." },
+      { "key": "C", "text": "Process sections strictly in sequence, carrying the accumulated extraction forward so that each later section is judged against everything already found earlier in the same contract." },
+      { "key": "D", "text": "Section the contract, extract in parallel per section, then run a focused second pass over the definitions sections and the candidate spans for the two cross-cutting clauses." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The stem separates the work into two populations and the right design honours that split. Twenty-eight clauses are section-local, so they parallelise cleanly and each call stays small enough to avoid length degradation. The two cross-cutting clauses need global reconciliation, but only over defined terms and the spans already identified — a far smaller input than the whole contract. Batch execution with no latency pressure means the extra pass costs nothing that matters, and parallelism keeps the wall-clock reasonable.",
+      "distractors": {
+        "A": "Truncation makes exhaustive extraction impossible, and the assumption about where boilerplate sits is exactly the kind of premise that fails on one supplier's template. A clause missed because it fell outside the cut is indistinguishable from a clause that was not there.",
+        "B": "Retrieval optimises for finding the best passages, not for covering every occurrence. Warranty extraction is a completeness task, and a top-k retriever gives no guarantee that all instances of a clause type were surfaced across a 400-page document.",
+        "C": "Sequential carry-forward reintroduces the overflow it was meant to avoid, because the accumulated extraction grows with every section. It also serialises a job that is embarrassingly parallel, for a dependency that only two of thirty clauses actually have."
+      },
+      "concept": "Decompose by the dependency structure of the task, not by the size of the input. Section-local work should be parallelised at small context; genuinely global work should get a second pass over a deliberately narrowed input. Batch settings make this two-phase shape cheap, because the only thing it costs is calls.",
+      "tip": "Notice when a stem quantifies the exception — 'two of thirty require global reasoning'. That ratio is the instruction to handle the common case cheaply and give the exception its own targeted pass."
+    }
+  },
+  {
+    "id": "CPE-C-018",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Contents of the handoff brief at a compaction boundary",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A benefits agency's caseworker assistant compacts at a fixed utilisation threshold. After each compaction the agent re-runs eligibility checks it had already completed, and it has occasionally contradicted a determination it made earlier in the same case. Which TWO items belong in the compaction output to stop this? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "The full text of every policy document the agent read before compaction, so that no supporting evidence is lost from the case." },
+      { "key": "B", "text": "The agent's step-by-step reasoning for each determination, reproduced verbatim so the chain of logic remains inspectable." },
+      { "key": "C", "text": "The determinations already made, each with its rule identifier and a reference to the evidence it rested on." },
+      { "key": "D", "text": "The open questions and the next planned action, so the agent resumes the case rather than restarting it." },
+      { "key": "E", "text": "A stated remaining token budget for the rest of the run, so the agent can pace its remaining work." }
+    ],
+    "correct": ["C", "D"],
+    "explanation": {
+      "correct": "The two symptoms map to two missing pieces of state. Repeated checks mean the agent does not know what it has already concluded, so the summary must carry the determinations with their rule identifiers and evidence references — identifiers rather than prose, so a later determination can be checked against an earlier one rather than merely recalled. Contradictions and restarts mean it does not know where it was, so the summary must also carry the open questions and the next intended action. Together these turn the compaction boundary into a handoff rather than a reset.",
+      "distractors": {
+        "A": "Reinstating the full policy text is the thing compaction exists to avoid, and it will push the agent straight back to the threshold. References to the evidence are sufficient, because the documents remain retrievable when a specific one is needed again.",
+        "B": "Verbatim reasoning is bulky and backward-looking. What prevents contradiction is the recorded conclusion and the rule it was made under; the deliberation that produced it adds volume without constraining the next decision.",
+        "E": "The agent cannot act usefully on a token figure — it has no reliable way to price its own remaining steps, and telling it to hurry tends to degrade thoroughness rather than improve budgeting. Pacing belongs in the orchestration layer."
+      },
+      "concept": "A compaction summary is a handoff brief to a successor with no memory. It should answer two questions: what has been decided (with enough precision to be checked, not just recalled) and what happens next. Everything that merely explains how the agent got here is the first thing to compress.",
+      "tip": "Match each named symptom to a missing field. Repeated work means completed state is absent; contradiction means decisions were not recorded in a checkable form. Options that restore bulk are compaction working against itself."
+    }
+  }
+]

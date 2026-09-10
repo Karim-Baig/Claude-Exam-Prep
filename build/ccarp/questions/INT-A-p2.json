@@ -1,0 +1,724 @@
+[
+  {
+    "id": "INT-A-019",
+    "domain": "Integration",
+    "topic": "Chunking consultation transcripts for clinical search",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A telehealth provider indexes transcripts of clinician-patient consultations so clinicians can ask questions such as \"what has this patient previously said about medication adherence?\". The current pipeline uses fixed 500-token windows, which cut across speaker turns; retrieved fragments frequently attribute the patient's words to the clinician or vice versa. What is the right chunking design?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Index one chunk per complete consultation, so that no conversational context can ever be severed."
+      },
+      {
+        "key": "B",
+        "text": "Group consecutive speaker turns into topically coherent windows, keep the speaker label and relative timestamp inside the chunk text, and carry consultation id, date, and clinician as metadata."
+      },
+      {
+        "key": "C",
+        "text": "Keep the 500-token windows but raise overlap to 30%, so any severed turn also appears intact in a neighbouring chunk."
+      },
+      {
+        "key": "D",
+        "text": "Chunk at the level of individual utterances for maximum retrieval precision, reconstructing the surrounding dialogue from the transcript store when the answer is generated so no context is permanently lost."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Attribution errors are a chunking-boundary failure, and the boundary that matters in dialogue is the speaker turn. Snapping chunks to turn boundaries removes the severing entirely, while grouping consecutive turns keeps enough exchange in one unit for a question-and-answer pair to stay together. Carrying the speaker label inside the embedded text is what makes \"the patient said\" queries work at all, since the distinction is semantic rather than structural. Consultation-level fields go to metadata because they are filtered on by date and by patient, not reasoned over.",
+      "distractors": {
+        "A": "A whole consultation is far too coarse a retrieval unit: one adherence remark inside forty minutes of unrelated discussion contributes almost nothing to the chunk vector, so the consultation will not be retrieved for an adherence query at all.",
+        "C": "Overlap makes a severed turn recoverable but does not stop the severing, so mis-attributed fragments still enter the top-k. It also inflates the index for a problem that snapping to turn boundaries solves outright.",
+        "D": "Conversational utterances are often a few words long and semantically empty in isolation — \"yes, sometimes\" carries no retrievable signal. Reconstructing context afterwards cannot help when the utterance was never retrieved."
+      },
+      "concept": "Chunk on the boundary that carries meaning in the source format: speaker turns in dialogue, sections in manuals, clauses in contracts, functions in code. Fixed-length windows are a fallback for unstructured prose, not a default to apply to structured formats.",
+      "tip": "When the reported symptom is that retrieved text is attributed to the wrong entity, the fault is nearly always the chunk boundary rather than the ranking. Look for the option that changes where chunks are cut."
+    }
+  },
+  {
+    "id": "INT-A-020",
+    "domain": "Integration",
+    "topic": "Recall collapse under highly selective metadata pre-filters",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An e-commerce marketplace runs semantic product search over 60 million listings in one graph-based ANN index. Most queries carry a conjunctive pre-filter — seller, category, ships-to region, in stock — that matches well under 0.1% of the corpus. Unfiltered queries are fast and accurate; heavily filtered ones either time out or return an obviously incomplete set. What is happening, and what is the right correction?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Switch to post-filtering: run an unfiltered search at a large k and discard the non-matching results afterwards, which keeps the traversal on the densely populated part of the graph."
+      },
+      {
+        "key": "B",
+        "text": "Replace the embedding model, since the failure shows its vectors do not separate listings within a single category well enough."
+      },
+      {
+        "key": "C",
+        "text": "Add read replicas and raise query concurrency so the additional traversal work is spread out and the latency spike disappears."
+      },
+      {
+        "key": "D",
+        "text": "Selective predicates make the traversal visit far more nodes before finding enough matching neighbours; partition along the dominant filter dimension so the predicate routes."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The two symptoms are the same phenomenon at different settings. A graph traversal that must skip 99.9% of what it visits either keeps walking until it exhausts its budget — the timeout — or stops early with too few matches — the incomplete set. No amount of tuning changes the underlying geometry: the matching subset is sparse and scattered across the graph. Partitioning so that the most selective, highest-cardinality-of-use dimension becomes the index the query is routed to converts an expensive filter into a cheap lookup, and the traversal then runs over a dense population of eligible vectors.",
+      "distractors": {
+        "A": "Post-filtering has the worse failure mode here. When the predicate matches under 0.1% of listings, the global top-k is almost entirely ineligible and is discarded, so the query returns nothing at all far more often than the pre-filter does.",
+        "B": "Unfiltered queries are accurate, which exonerates the embeddings. The stem separates the two cases specifically so that any explanation blaming a component shared by both can be eliminated.",
+        "C": "Replicas raise throughput, not per-query recall. The incomplete result sets are not caused by contention, and adding hardware to an algorithmic problem simply buys the same wrong answers faster."
+      },
+      "concept": "Filtered ANN is a distinct workload from plain ANN. When a predicate is highly selective and appears on most queries, treat it as a partitioning key — separate index, namespace, or shard — rather than as a filter. Reserve in-query filters for low-selectivity or infrequently-used predicates.",
+      "tip": "Timeouts and truncated result sets appearing on the same queries is the fingerprint of filtered graph traversal. Any option that treats them as two unrelated bugs, or blames a component that unfiltered queries prove healthy, is a distractor."
+    }
+  },
+  {
+    "id": "INT-A-021",
+    "domain": "Integration",
+    "topic": "Selecting an embedding model under deployment constraints",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A patent law firm is building prior-art search over 8 million chunks of claims and specifications. Client confidentiality means embeddings must be computed on hardware the firm controls, so no hosted embedding endpoint is permitted. Associates have already produced 600 labelled query-to-passage pairs from real prior-art searches. A partner asks which embedding model to use. What is the correct selection process?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Shortlist by hard constraints — self-hostable licence, memory at 8 million vectors, sequence length — then rank the shortlist by recall@k on the firm's 600 labelled pairs."
+      },
+      {
+        "key": "B",
+        "text": "Adopt whichever model currently tops the public MTEB retrieval leaderboard, since that average aggregates results over dozens of tasks and many domains of text."
+      },
+      {
+        "key": "C",
+        "text": "Choose the model with the largest output dimensionality available, because more dimensions retain more of the signal in dense, highly technical claim language."
+      },
+      {
+        "key": "D",
+        "text": "Fine-tune an embedding model on the firm's own corpus before running any comparison at all, since general-purpose models cannot represent patent claim language adequately."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Two things make this decision tractable. The deployment constraints are absolute and eliminate most of the field before any quality question arises — a model that cannot be self-hosted is not a candidate regardless of how good it is. What remains is then decided by the only evidence that predicts behaviour on this corpus: the firm's own labelled pairs, drawn from the searches associates actually run. Six hundred pairs is thin for training but entirely adequate for ranking a handful of candidates, and it makes the choice defensible to the partner.",
+      "distractors": {
+        "B": "Leaderboard aggregate performance is a weak predictor for a specialised corpus, and it ignores the binding constraint: the top-ranked model may be available only as a hosted service, which confidentiality forbids. Aggregate rankings also hide large per-domain variance.",
+        "C": "Dimensionality is not a quality ordering across different models; it is a cost. At 8 million vectors a larger dimension multiplies memory and search time, and models with smaller outputs routinely outperform larger ones on domain retrieval.",
+        "D": "Fine-tuning before measuring means optimising without a baseline, and 600 pairs is far too few to train on while also serving as the evaluation set. Establish which off-the-shelf model is best first; fine-tuning is a later increment against a known number."
+      },
+      "concept": "Model selection is constraint satisfaction followed by measurement, in that order. Enumerate the non-negotiables — hosting, licence, sequence length, memory, latency — to get a shortlist, then decide it on a labelled set drawn from your own query distribution. Public rankings are for building the shortlist, never for making the choice.",
+      "tip": "When a stem mentions labelled data the organisation already possesses, the answer almost always uses it. Owned evaluation data is the strongest signal in the question."
+    }
+  },
+  {
+    "id": "INT-A-022",
+    "domain": "Integration",
+    "topic": "Asymmetric query and document embedding prefixes",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A pipeline embeds documents using an embedding model's document-side instruction prefix but embeds user queries with no prefix at all. What is the consequence?",
+    "options": [
+      {
+        "key": "A",
+        "text": "No effect: the prefix is a corpus-authoring convention that the tokeniser strips before encoding, so it never reaches the vector computation."
+      },
+      {
+        "key": "B",
+        "text": "The two sides end up with different dimensionality, so the index rejects the query vector and the call fails loudly with a shape mismatch."
+      },
+      {
+        "key": "C",
+        "text": "For a model trained with asymmetric instructions, query and document vectors land in offset regions of the space, so ranking degrades while every call still succeeds."
+      },
+      {
+        "key": "D",
+        "text": "Only exact-match behaviour is affected; semantic similarity is unchanged, because a constant prefix contributes a constant offset that cancels out under cosine similarity."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Models trained for asymmetric retrieval learn to place a short question and the long passage that answers it near each other, and the instruction prefix is the switch that tells the model which role it is encoding. Omitting it on one side means the query is encoded as though it were a document, so it is compared against passages using the wrong half of the learned mapping. Nothing errors, nothing is logged, and ranking is quietly worse — which is why this defect commonly survives to production and is found only when someone runs a retrieval evaluation.",
+      "distractors": {
+        "A": "The prefix is part of the model input and is tokenised and attended over like any other text. For models that were trained with it, it materially changes the output vector.",
+        "B": "Output dimensionality is fixed by the model architecture and is unaffected by input text. That is precisely the problem: the call succeeds and the vectors are comparable in shape, so nothing signals the mistake.",
+        "D": "A prefix does not add a constant vector that cancels; it changes the attention over the whole input, and cosine similarity is not invariant to whatever shift it does produce. There is also no separate 'exact match' pathway inside a dense encoder."
+      },
+      "concept": "An embedding model has a calling convention — instruction prefixes, normalisation, pooling, maximum sequence length — and query-side and document-side conventions can differ. Pin that convention in one shared code path used by both ingest and query, and assert it in tests, because violating it fails silently.",
+      "tip": "Distinguish failures that error from failures that degrade. Whenever an option says a mismatch would fail loudly at query time, ask whether anything in the stack actually validates it; usually nothing does."
+    }
+  },
+  {
+    "id": "INT-A-023",
+    "domain": "Integration",
+    "topic": "Reranking gains that do not reach answer quality",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A university research-administration assistant answers grant-compliance questions for 900 principal investigators. Adding a cross-encoder reranker raised nDCG@10 on the retrieval evaluation set from 0.61 to 0.79, but subject-matter reviewers scored end-to-end answer correctness at 71% before the change and 72% after. Which TWO explanations are consistent with that result? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Cross-encoder rerankers reduce the number of passages forwarded to the generator, so answers lose the supporting detail that the wider, unranked candidate set had previously provided them."
+      },
+      {
+        "key": "B",
+        "text": "Relevance scores produced by a cross-encoder are not comparable between queries, which prevents nDCG from being computed reliably."
+      },
+      {
+        "key": "C",
+        "text": "In most queries the answer passage was already inside the set handed to the generator, so promoting it to a better position changes little about what the model can see."
+      },
+      {
+        "key": "D",
+        "text": "Reranking adds latency to each request, and the reduced time available lowers the quality of the generated answer."
+      },
+      {
+        "key": "E",
+        "text": "In a substantial share of queries the required evidence is absent from the first-stage candidate list altogether, and reranking cannot introduce candidates that were never retrieved."
+      }
+    ],
+    "correct": [
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "Both keyed explanations describe a ceiling that reranking cannot break through. If the evidence is already in the context window, better ordering is a marginal effect — the generator reads all of it, so moving a passage from rank six to rank two changes little. If the evidence never entered the candidate pool, reordering that pool cannot conjure it. Between them these cover the two situations in which a large ranking-metric gain is genuinely compatible with a flat answer-quality number, and they point at different next actions: reduce k in the first case, widen first-stage recall in the second.",
+      "distractors": {
+        "A": "How many passages reach the generator is an independent configuration choice. Reranking changes the order of the candidate list; the cut-off applied afterwards is whatever the team sets it to and need not change at all.",
+        "B": "nDCG is computed from rank positions and graded relevance labels, not from the raw model scores, so cross-query score calibration is irrelevant to whether the metric is trustworthy.",
+        "D": "Additional latency does not degrade generation quality; the model does not perform worse because an earlier stage took longer. Latency is a real cost of reranking, but it is a budget problem, not a quality mechanism."
+      },
+      "concept": "A retrieval metric and an end-to-end metric can move independently, and the gap between them is diagnostic. Reranking pays off only in the band where the right evidence is retrieved but ranked below the cut-off; above and below that band it is wasted spend. Always measure both.",
+      "tip": "When a stem gives you a before-and-after on two metrics and only one moved, the question is asking why the improvement did not transmit. Look for options describing a bottleneck elsewhere in the chain, not options attacking the metric itself."
+    }
+  },
+  {
+    "id": "INT-A-024",
+    "domain": "Integration",
+    "topic": "Lexical analysis for a multilingual sparse branch",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An airline indexes operations manuals in English, French, and Japanese and runs hybrid retrieval. The lexical branch performs well on English and French queries and contributes almost nothing on Japanese ones, while the dense branch performs comparably across all three languages. What is the most likely cause?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The dense branch is masking the problem; disabling it for Japanese queries would let the lexical scores dominate and recover the matches."
+      },
+      {
+        "key": "B",
+        "text": "The lexical index is tokenising on whitespace, which does not segment Japanese into terms, so the Japanese content needs a morphological analyser at both index and query time."
+      },
+      {
+        "key": "C",
+        "text": "Inverse-document-frequency weighting is undefined for non-Latin scripts and must be replaced with raw term frequency for the Japanese portion of the corpus, which is why that branch contributes nothing."
+      },
+      {
+        "key": "D",
+        "text": "Japanese queries should be machine-translated into English before reaching the lexical branch, since the index is majority English."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Sparse retrieval scores terms, and a term only exists once text has been segmented into one. Japanese is written without spaces, so a whitespace tokeniser emits enormous pseudo-terms — often an entire sentence as a single token — that match almost nothing at query time. The dense branch is unaffected because subword tokenisation inside the embedding model handles unsegmented script perfectly well, which is exactly why the stem tells you the dense branch is healthy. The fix is a language-appropriate analyser, applied identically at index and query time so the term vocabularies agree.",
+      "distractors": {
+        "A": "Removing the dense branch does not create lexical matches that do not exist. It would leave Japanese queries served by a branch that is producing almost no signal, which is strictly worse than the current state.",
+        "C": "Inverse-document-frequency is a count-based statistic over whatever terms the analyser produces and is entirely script-agnostic. Discarding it would degrade ranking rather than fix segmentation.",
+        "D": "Translating the query cannot help when the indexed Japanese text is unsegmented, and it would fail on the many manuals that exist only in Japanese. It also introduces a translation dependency into the request path for no benefit."
+      },
+      "concept": "A lexical index is only as good as its analyser, and the analyser must be identical on the index and query sides. In multilingual corpora, route each language to the analyser appropriate to it — usually by indexing per-language fields — rather than assuming one default configuration generalises.",
+      "tip": "When a stem tells you one branch is healthy and another is not on the same content, the cause has to lie in something only the failing branch uses. That single observation eliminates every option touching a shared component."
+    }
+  },
+  {
+    "id": "INT-A-025",
+    "domain": "Integration",
+    "topic": "Bridging query-document vocabulary asymmetry",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A mining group indexes forty years of exploration reports written in dense specialist geology prose. The users are commercial analysts, not geologists, and they ask short, plain-language questions such as \"where have we seen the same kind of alteration around a porphyry before?\". Retrieval is weak, and inspection shows the query vectors sit far from every relevant report because the questions share almost no vocabulary or register with the documents. Which change targets the actual cause?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Add a BM25 branch, since lexical matching is more robust than dense embeddings whenever the query vocabulary and the document vocabulary diverge as sharply as they do between these analysts and these reports."
+      },
+      {
+        "key": "B",
+        "text": "Raise top-k substantially and let a reranker recover the relevant reports from the wider candidate pool."
+      },
+      {
+        "key": "C",
+        "text": "Re-chunk the reports into smaller units so each chunk covers a narrower topic and therefore matches a short query more closely."
+      },
+      {
+        "key": "D",
+        "text": "Have a model draft a hypothetical passage that would answer the question, embed that draft, and fuse its results with those of the raw query so a misdirected draft cannot dominate."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The diagnosis in the stem is asymmetry: short lay questions on one side, long specialist prose on the other, with the two occupying different regions of the space. Generating a hypothetical answer moves the query into the register of the corpus before it is embedded — the draft will use the technical phrasing the reports use, because that is how such an answer is written. Fusing the hypothetical-document results with the raw query's results is the necessary safeguard, since a model writing about a topic it knows little of can invent a plausible passage pointing in the wrong direction.",
+      "distractors": {
+        "A": "Vocabulary mismatch is the case where lexical retrieval is weakest, not strongest. If the analyst's words do not appear in the reports, BM25 has nothing to match on and will contribute noise or nothing.",
+        "B": "A reranker scores the same query against the same passages and inherits the same mismatch. Widening k enlarges a candidate pool that is being ordered by a signal the stem has already shown to be misaligned.",
+        "C": "Smaller chunks change the granularity of what is matched, not the register. A short chunk of specialist geology prose is still specialist geology prose and remains distant from a lay-language question."
+      },
+      "concept": "When retrieval fails, decide first whether the defect is on the document side, the query side, or the matching function. Query-side transformation — rewriting, expansion, hypothetical document generation — is the lever when the user's expression of the need is systematically unlike the corpus, and no amount of index-side work substitutes for it.",
+      "tip": "Stems that describe the users as non-specialists reading specialist documents are pointing at query-side transformation. The clue is the description of who is typing, not what is indexed."
+    }
+  },
+  {
+    "id": "INT-A-026",
+    "domain": "Integration",
+    "topic": "Retrieval for conjunctive multi-hop questions",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "An investment research firm's analyst assistant is asked questions such as \"which of our portfolio companies disclosed a going-concern warning and also has debt maturing before 2027?\". Going-concern language lives in narrative filings in the vector index; maturity schedules live in a governed portfolio database. Single-shot dense retrieval on the whole question returns filings that mention either idea and rarely both. Which TWO changes address the structure of the problem? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Increase top-k so that passages covering both facts are more likely to co-occur in the candidate set."
+      },
+      {
+        "key": "B",
+        "text": "Decompose the question into sub-questions, retrieve independently for each, and assemble the combined evidence before generation."
+      },
+      {
+        "key": "C",
+        "text": "Embed the question as a single vector, since a sufficiently strong dense representation captures conjunctive constraints across the separate clauses of a question."
+      },
+      {
+        "key": "D",
+        "text": "Route the structured half of the question — debt maturity dates — to the portfolio database and keep only the narrative half in vector retrieval."
+      },
+      {
+        "key": "E",
+        "text": "Add a reranker trained on conjunctive queries so that passages satisfying both conditions rank first."
+      }
+    ],
+    "correct": [
+      "B",
+      "D"
+    ],
+    "explanation": {
+      "correct": "The question is a join across two sources, and no single passage satisfies it, so no ranking change can. Decomposition converts one unanswerable retrieval into two answerable ones whose results are combined outside the retriever. Routing the structured predicate to the database is the second half of the same insight: maturity dates are exact, comparable facts held authoritatively elsewhere, and asking a vector index to evaluate a date inequality is asking the wrong component. Together they turn a similarity problem into a retrieval-plus-query problem, which is what the question actually is.",
+      "distractors": {
+        "A": "Widening k multiplies passages that satisfy one condition each. Because no document in the corpus satisfies both, the probability of the conjunction appearing in a single passage does not rise with depth.",
+        "C": "A single dense vector represents topical similarity, not logical conjunction. It cannot distinguish a document about both ideas from one strongly about either, which is precisely the behaviour the stem reports.",
+        "E": "A reranker can only score candidates that exist. Where no passage meets both conditions, training the scorer on conjunctive queries changes which single-condition passage wins, not whether the conjunction is satisfied."
+      },
+      "concept": "Not every question posed to a RAG system is a retrieval question. Multi-hop and conjunctive queries need a planning step that decomposes the request and routes each part to the component that can answer it authoritatively — vector search for narrative, a database for structured predicates, a calculation for arithmetic.",
+      "tip": "The signal is a question containing 'and also', 'compared with', or a numeric threshold. These are joins. If you find yourself choosing between ranking tweaks, none of them is the answer."
+    }
+  },
+  {
+    "id": "INT-A-027",
+    "domain": "Integration",
+    "topic": "Constructing a gold retrieval set from query logs",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A rail operator's engineering-standards assistant has been live for eight months with no retrieval evaluation of any kind. There are 400,000 logged queries, no relevance labels, and three subject-matter experts who can each spare roughly a day a month. The team needs an evaluation set it can regress against on every release. How should it be built?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Have a model generate a question from each of 5,000 randomly sampled chunks and treat the source chunk as the single relevant passage for that question."
+      },
+      {
+        "key": "B",
+        "text": "Label the 100 most frequent queries from the head of the log, since they account for the bulk of traffic and give the best return on three expert-days a month."
+      },
+      {
+        "key": "C",
+        "text": "Cluster the query log by intent, sample across clusters including rare and zero-result queries, have experts mark relevant passages, then freeze the set."
+      },
+      {
+        "key": "D",
+        "text": "Derive relevance labels from the click-through and dwell-time signals the interface already logs, treating any citation opened for over ten seconds as relevant."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "An evaluation set is only useful if its distribution resembles the traffic you care about and it includes the cases that currently fail. Clustering the log gives you the intent structure of real usage; stratified sampling across clusters means each intent is represented rather than drowned by the head; and deliberately including zero-result and rare queries puts the known failures inside the measurement rather than outside it. Freezing the result is what makes it a regression set — the value comes from comparability across releases, which is lost if the set is regenerated each time.",
+      "distractors": {
+        "A": "A question written from a chunk is answerable by that chunk by construction, so recall scores high while the evaluation stays blind to vocabulary mismatch, multi-hop questions, and content that is missing from the index entirely. Synthetic sets are useful for smoke tests, not as the primary measure.",
+        "B": "Head queries are the ones already working, because the system has been tuned against them implicitly for eight months. Labelling only them produces a set that cannot detect the failures users are experiencing in the tail.",
+        "D": "Click signals are conditioned on what the current ranker chose to display and are heavily biased by position and presentation. Using them as ground truth trains and grades the system to reproduce its existing behaviour, including its mistakes."
+      },
+      "concept": "Build evaluation sets from the real query distribution, stratified so that rare intents survive sampling, and weight toward known failures. Scarce expert time is spent on labelling a small representative set well, not on labelling a large convenient one. Freeze the set so results are comparable over time.",
+      "tip": "Where a stem quantifies how little expert time is available, the answer is the option that spends it on the most informative sample, not the option that avoids spending it. Cheap label sources in these items are nearly always biased."
+    }
+  },
+  {
+    "id": "INT-A-028",
+    "domain": "Integration",
+    "topic": "Choosing the first-stage metric for a fixed context set",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A RAG system hands the top eight retrieved chunks to the generator on every request. Which first-stage retrieval metric should govern tuning of the retriever, and why?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Recall@8: the first stage's job is to get the needed evidence into the set handed on, and ordering inside the eight is absorbed downstream."
+      },
+      {
+        "key": "B",
+        "text": "Mean reciprocal rank, because the position of the first relevant chunk determines how much of the answer the model can ground."
+      },
+      {
+        "key": "C",
+        "text": "Precision@1, because the top-ranked chunk sits nearest the instruction in the assembled prompt and anchors the model's reading of the question."
+      },
+      {
+        "key": "D",
+        "text": "nDCG over the full ranked list, because it is the only one of these metrics that accounts for graded rather than binary relevance judgements."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Match the metric to what the downstream consumer actually uses. The generator reads all eight chunks, so the binary question of whether the evidence is among them dominates: a missing passage is an unrecoverable failure, while a passage at position six is read anyway. Position effects within a context window are real but second-order, and they are addressed by the reranking stage rather than by how the first stage is tuned. Choosing recall at the exact cut-off used in production also keeps the offline number aligned with the deployed configuration.",
+      "distractors": {
+        "B": "Mean reciprocal rank rewards getting one relevant item high and ignores everything after it. In a system that consumes eight chunks and often needs evidence from more than one, it can improve while the evidence the answer requires is being dropped.",
+        "C": "Precision@1 is the right metric when a single result is surfaced — a 'best answer' box or a routing decision. Here seven further chunks are used, so a metric that ignores them will drive the retriever toward the wrong optimum.",
+        "D": "nDCG over the full list credits ordering improvements far below position eight, which never reach the generator. It is a good comparative metric for reranker development and a poor tuning target for a fixed context set."
+      },
+      "concept": "Pick retrieval metrics from the consumption pattern: a fixed set handed to a model makes recall at that cut-off primary; a ranked list a human scans makes rank-sensitive metrics primary. Reporting the metric at the k actually used in production keeps offline tuning and live behaviour aligned.",
+      "tip": "Note the k in the stem and check whether each option's metric is evaluated at that k. Options quoting a metric at a different cut-off than production uses are usually the ones to drop."
+    }
+  },
+  {
+    "id": "INT-A-029",
+    "domain": "Integration",
+    "topic": "Meeting a seconds-level index freshness requirement",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A commodities trading desk requires that a published research note be retrievable by the analyst assistant within sixty seconds of publication. The current pipeline is a job that runs every fifteen minutes and re-scans the entire research corpus, re-parsing and re-embedding anything whose hash has changed. Volume is roughly 200 new notes a day against a corpus of 1.4 million documents. What should the architect change?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Reduce the batch interval from fifteen minutes to sixty seconds, since the pipeline already works correctly and only its cadence needs to change."
+      },
+      {
+        "key": "B",
+        "text": "Bypass the index for recent material by querying the research content system directly with keyword search and merging those results into every answer."
+      },
+      {
+        "key": "C",
+        "text": "Trigger embed-and-upsert from the publish event itself so a note enters the index within seconds, and retain the periodic job as a reconciliation and backfill pass rather than the primary path."
+      },
+      {
+        "key": "D",
+        "text": "Keep the fifteen-minute batch but place the most recently published notes directly in the system prompt, so they are available to every query regardless of what state the index happens to be in."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Two hundred notes a day against 1.4 million documents is a vanishingly small change rate, so scanning the whole corpus to find them is the wrong shape entirely — the work should be proportional to what changed, not to what exists. Publication is already a discrete event, so making it the ingest trigger meets the sixty-second requirement directly and cheaply. Keeping the periodic job matters: an event-driven path drops messages, and a reconciliation pass that diffs source against index is what stops silent gaps from accumulating unnoticed.",
+      "distractors": {
+        "A": "Running a full-corpus scan sixty times more often multiplies the load on the source system and the pipeline by the same factor while still finding almost nothing on each pass, and it leaves the worst-case lag at a full interval rather than seconds.",
+        "B": "This creates a permanent second retrieval path with different ranking semantics that must be merged into every answer, and it never converges — the special case for recent material becomes a permanent fixture with its own failure modes.",
+        "D": "System-prompt injection of recent notes grows without bound, cannot be filtered or ranked, and spends context on material irrelevant to most queries. It also produces two different retrieval behaviours depending on document age."
+      },
+      "concept": "Size the ingest mechanism to the change rate, not the corpus size. Where the source emits events, drive incremental ingest from those events and keep a periodic reconciliation pass to repair the gaps that event delivery inevitably leaves. Freshness requirements measured in seconds rule out scan-based pipelines outright.",
+      "tip": "Compare the change rate to the corpus size whenever a stem gives you both. A tiny ratio is telling you that any full-scan option is the wrong answer before you evaluate anything else."
+    }
+  },
+  {
+    "id": "INT-A-030",
+    "domain": "Integration",
+    "topic": "Cross-tenant leakage channels in shared retrieval",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A legal-technology SaaS serves 600 law-firm tenants from shared retrieval infrastructure with a correctly enforced server-side tenant pre-filter on the vector search. A security review is asked to identify remaining cross-tenant disclosure channels. Which THREE of the following are genuine leakage channels that require a control, rather than non-issues? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "A cached query-result layer keyed on the query string alone, so the same question from two tenants returns the first tenant's passages."
+      },
+      {
+        "key": "B",
+        "text": "A shared cross-encoder reranker instance scoring passages from many different tenants inside the same stateless inference process running on shared hardware."
+      },
+      {
+        "key": "C",
+        "text": "Corpus-level term statistics for the lexical branch computed across all tenants, exposing document-frequency information about other tenants' holdings."
+      },
+      {
+        "key": "D",
+        "text": "A single frozen embedding model used to vectorise the documents belonging to every tenant on the platform."
+      },
+      {
+        "key": "E",
+        "text": "Few-shot examples baked into the production system prompt that were lifted from a real customer's documents during development."
+      }
+    ],
+    "correct": [
+      "A",
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "Each keyed item is a path by which one tenant's content or information about it reaches another. A cache keyed without the tenant dimension serves tenant A's passages to tenant B verbatim, and it defeats the pre-filter entirely because the search never runs. Global lexical statistics are an inference channel rather than a content channel — score behaviour reveals how rare a term is across the whole corpus, which discloses something about other tenants' holdings and matters where the mere existence of a matter is confidential. Development-time few-shot examples are the most common real incident of the three: customer text pasted into a prompt and shipped to everyone.",
+      "distractors": {
+        "B": "A stateless scorer receives passages that have already been restricted to the requesting tenant and retains nothing between calls. Sharing compute is not sharing data; if it were, no multi-tenant service could use shared infrastructure at all.",
+        "D": "A frozen model's parameters do not change in response to the documents it encodes, so no tenant's content is absorbed into it. This would be a genuine concern if the model were being fine-tuned or adapted on tenant corpora, which is the distinction the option omits."
+      },
+      "concept": "Tenant isolation must be traced through every component that holds state or derives statistics, not just the search predicate. Caches, aggregate corpus statistics, evaluation artefacts, logs, and prompt content are all places where a correctly filtered query still leaks. Include the tenant in every cache key by construction.",
+      "tip": "Distinguish shared compute from shared state. Options describing a stateless component processing multiple tenants' data are usually the non-issues; options describing anything cached, aggregated, or hard-coded are usually the real ones."
+    }
+  },
+  {
+    "id": "INT-A-031",
+    "domain": "Integration",
+    "topic": "What contextual retrieval changes in the pipeline",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In contextual retrieval, what is changed relative to a conventional chunking pipeline?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Each chunk gains a metadata field holding a summary of its parent document, which the vector search then applies as an additional filter."
+      },
+      {
+        "key": "B",
+        "text": "A summary of the parent document is prepended to each retrieved chunk after retrieval, immediately before the generation call."
+      },
+      {
+        "key": "C",
+        "text": "The embedding model is fine-tuned with a contrastive objective so that chunks from the same source document cluster tightly together."
+      },
+      {
+        "key": "D",
+        "text": "A short model-written passage situating the chunk in its source document is prepended before the chunk is embedded and lexically indexed."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The whole point is that the added context must be present at index time, in the text that is actually indexed. A chunk reading \"revenue declined 12% quarter over quarter\" becomes retrievable for \"how did the Nordics segment perform in Q3\" only if the chunk itself now says which company, which segment, and which quarter. Because the augmented text is both embedded and fed to the lexical index, the dense and sparse branches both benefit, which is why the technique is normally described alongside hybrid search rather than as a replacement for it.",
+      "distractors": {
+        "A": "Storing a summary in metadata leaves the embedded text unchanged, so it cannot alter which chunks the vector search finds. Metadata fields are filtered on, not matched semantically.",
+        "B": "Adding context after retrieval helps the generator interpret a chunk but cannot change the retrieval outcome. The chunks that were too ambiguous to surface are still absent from the results.",
+        "C": "Fine-tuning is a different intervention with a different cost profile, and clustering chunks by source document is not the objective — the objective is that an isolated chunk carries enough context to match a specific query."
+      },
+      "concept": "Whatever you want retrieval to match on must be present in the indexed representation. Techniques that enrich a chunk are index-time techniques by definition; anything applied after the search can improve how the answer reads but cannot improve what was found.",
+      "tip": "For any proposed retrieval improvement, ask where in the pipeline it takes effect. Index-time, query-time, and post-retrieval changes fix different failures, and options that place a technique at the wrong stage are the standard distractor for this topic."
+    }
+  },
+  {
+    "id": "INT-A-032",
+    "domain": "Integration",
+    "topic": "Shrinking a resident index that no longer fits in memory",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An automotive manufacturer's service-documentation index has grown to 120 million chunks and no longer fits in memory across its search cluster; nodes are now paging and p95 latency has tripled. Finance has declined a proportional increase in cluster size. Retrieval quality is currently good and there is an established evaluation set. What is the appropriate response?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Quantise the resident vectors to shrink memory and rescore a small top candidate set against full-precision vectors, validating the recall loss on the evaluation set."
+      },
+      {
+        "key": "B",
+        "text": "Truncate every vector to its first 256 dimensions, which preserves most of the signal because embedding models order their output dimensions by descending importance as a matter of course."
+      },
+      {
+        "key": "C",
+        "text": "Remove older documents from the index until it fits, since retrieval quality on recent service material is what technicians actually notice."
+      },
+      {
+        "key": "D",
+        "text": "Move to exact brute-force search over vectors held on disk, trading latency for memory and eliminating approximation error altogether."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Quantisation attacks memory directly and is the standard lever at this scale, but the reason it is safe here is the second half: keeping full-precision vectors on cheaper storage and rescoring only the top candidates recovers most of the ranking accuracy that compression costs, so the loss is confined to candidate generation rather than final order. The existing evaluation set is what turns this from a gamble into a decision — the recall delta can be quantified before rollout and traded explicitly against the memory saved, which is exactly the conversation finance is asking for.",
+      "distractors": {
+        "B": "Dimension truncation is valid only for models explicitly trained so that prefixes of the vector remain useful. Nothing in the stem indicates that, and for an ordinary model the leading dimensions carry no privileged meaning, so this discards signal arbitrarily.",
+        "C": "Dropping old content is a silent coverage reduction presented as a cost saving. Service documentation for older vehicles is precisely the long-tail material technicians cannot find elsewhere, and the loss will not show up in aggregate latency or quality metrics.",
+        "D": "Exact search over 120 million vectors per query is orders of magnitude more work than the graph traversal it replaces. Eliminating approximation error is worthless if the resulting latency is unusable."
+      },
+      "concept": "Vector memory is traded against recall along a well-understood curve: quantise to fit, then rescore the shortlist at full precision to buy back most of the lost accuracy. Any compression decision should be made against a measured recall delta on an evaluation set, not on a vendor's compression ratio.",
+      "tip": "When a stem mentions both a cost ceiling and an existing evaluation set, the answer usually involves making the quality cost measurable rather than avoiding it. Options that reduce cost by silently reducing coverage are the trap."
+    }
+  },
+  {
+    "id": "INT-A-033",
+    "domain": "Integration",
+    "topic": "Result diversity when boilerplate dominates the top-k",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A central government procurement body indexes 40,000 supplier contracts. Most are built from the same standard clause library, so thousands of contracts contain textually near-identical clauses. Officers asking \"what are the termination-for-convenience terms with Supplier X?\" receive a top-8 consisting almost entirely of the same standard clause drawn from eight different contracts, while the negotiated amendment specific to Supplier X — which is what changes the answer — is pushed out. The tenant filter and reranker are both working as designed. What should be changed?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Deduplicate at index time by hashing chunk text and keeping a single copy of each standard clause across the whole corpus."
+      },
+      {
+        "key": "B",
+        "text": "Apply a diversity constraint after reranking — maximal marginal relevance or a per-document cap — so the top-8 spans distinct contracts."
+      },
+      {
+        "key": "C",
+        "text": "Raise top-k from 8 to 40 and let the reranker order them, so the supplier-specific amendment appears somewhere in the larger set."
+      },
+      {
+        "key": "D",
+        "text": "Impose a minimum similarity threshold and discard everything below it, which removes the weaker duplicate copies from the result set."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Relevance ranking is doing exactly what it was asked to do: eight copies of the standard clause genuinely are the eight most similar passages. The defect is that the result set has no notion of marginal value, so the ninth-best passage — the amendment that actually differentiates this supplier — never gets a slot. A diversity step applied after relevance ordering fixes precisely that, and a per-document cap is the cheap version of it, guaranteeing the top-8 covers eight sources. Note this must sit after reranking, so relevance still decides which representative of each cluster survives.",
+      "distractors": {
+        "A": "The copies are near-identical rather than identical, so hashing will not catch most of them. More importantly each copy belongs to a different contract, and collapsing them destroys the provenance that makes a procurement answer citable and auditable.",
+        "C": "Redundancy scales with depth: at k=40 the officer receives forty copies of the same clause rather than eight, plus the token cost. Depth helps when the target is ranked low; here it is crowded out by items ranked legitimately high.",
+        "D": "Duplicates score high, not low, so a similarity floor removes the tail of the distribution and leaves the redundant head untouched. It would also discard the amendment if the amendment happens to score modestly."
+      },
+      "concept": "Relevance and usefulness diverge when a corpus contains heavy templating. Add an explicit diversity or per-source cap stage after ranking so the context window covers distinct sources rather than restating the strongest match. The signal that this is needed is a corpus of documents generated from shared templates.",
+      "tip": "A stem that says the ranking components are working as designed is ruling out ranking fixes. When the complaint is redundancy rather than irrelevance, look for the option that changes result-set composition, not result-set ordering."
+    }
+  },
+  {
+    "id": "INT-A-034",
+    "domain": "Integration",
+    "topic": "Offline retrieval scores strong while production complains",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "An agritech company's agronomy assistant scores recall@10 of 0.93 on its retrieval evaluation set, which has been maintained since the pilot. Field agronomists nevertheless report that the assistant \"cannot find anything useful\" and usage has fallen for three consecutive months. The evaluation runs green on every release. What should the team do next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Increase candidate depth and add a reranker, since production traffic is evidently harder than the evaluation set the team has been maintaining."
+      },
+      {
+        "key": "B",
+        "text": "Rebuild the evaluation set from scratch using model-generated questions across the whole corpus, giving broader coverage than the current one."
+      },
+      {
+        "key": "C",
+        "text": "Cluster recent production queries, weighted toward zero-result and poorly rated sessions, and compare that distribution to the evaluation set."
+      },
+      {
+        "key": "D",
+        "text": "Add thumbs-up and thumbs-down controls to the interface and wait a quarter for enough labelled sessions to accumulate before changing anything."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "A green evaluation alongside falling usage means the evaluation set has stopped representing the traffic — it was built at pilot, and what agronomists ask a year in is not what they asked in week two. Before changing the retriever, establish what the gap is: cluster real queries, weight the sample toward the sessions that visibly failed, and lay that distribution against the evaluation set. The output is a list of intents the measurement is blind to, which both explains the discrepancy and gives you the cases to add. Tuning before that is optimising against a known-stale target.",
+      "distractors": {
+        "A": "This tunes the system against the same unrepresentative evaluation set, so any improvement will be measured on cases that were already passing. It may also make things worse for the unmeasured intents with no way to detect it.",
+        "B": "Model-generated questions over the corpus give coverage of the documents, not of the query distribution. The new set would be broader and just as disconnected from what agronomists actually ask.",
+        "D": "The evidence needed is already in the query logs, including the zero-result and abandoned sessions. Waiting a quarter while usage continues to fall is not a next step, it is a deferral."
+      },
+      "concept": "Evaluation sets decay. When offline metrics and user experience diverge, suspect the measurement before the system, and re-anchor the set to the current query distribution. Schedule periodic refresh of the evaluation set from production traffic as an explicit maintenance task, not as incident response.",
+      "tip": "Divergence between a green dashboard and unhappy users is almost always a validity problem in the measurement. The next step in such items is nearly always to inspect the measurement, not to tune the thing being measured."
+    }
+  },
+  {
+    "id": "INT-A-035",
+    "domain": "Integration",
+    "topic": "Tail latency regression after enabling hybrid retrieval",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A postal logistics operator enables hybrid retrieval on its dispatch-support assistant. Retrieval quality improves on the evaluation set. In production, p50 retrieval latency rises from 90 ms to 105 ms, but p99 rises from 240 ms to 1,900 ms. Search-tier CPU utilisation is under 40% and unchanged. What should the engineer do first?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Instrument the dense branch, the lexical branch, and the fusion step separately, since a fan-out's tail is set by whichever branch is slowest."
+      },
+      {
+        "key": "B",
+        "text": "Roll the hybrid change back behind its feature flag to restore the 240 ms p99, then revisit the design in the next planning cycle."
+      },
+      {
+        "key": "C",
+        "text": "Add a global retrieval timeout that returns whichever branch has completed, so the p99 is bounded by construction regardless of query shape."
+      },
+      {
+        "key": "D",
+        "text": "Scale out the search tier, since the added lexical branch has roughly doubled the total retrieval workload the cluster must absorb."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The shape of the regression is the clue: a modest p50 shift with an eightfold p99 shift, at 40% CPU, describes a small subset of queries doing something pathological rather than a system under load. A parallel fan-out completes when its slowest branch completes, so the tail belongs to one branch on one class of query — very long queries, extremely common terms, or an unbounded posting-list scan are all candidates. Attributing the latency per branch takes minutes, costs nothing, and determines whether the fix is a query-side guard, an analyser change, or a cut-off, none of which can be chosen blind.",
+      "distractors": {
+        "B": "Rolling back discards a measured quality gain to avoid a defect affecting roughly one percent of requests, and it destroys the evidence needed to reintroduce the change safely. Reversion is a mitigation of last resort, not a first diagnostic step.",
+        "C": "This is a reasonable eventual mitigation but changes result semantics silently: some queries would be served dense-only. If the slow branch is the lexical one, the queries that get degraded are the identifier-heavy ones hybrid was adopted to fix, and nothing would surface that.",
+        "D": "Capacity addresses saturation, and the stem rules saturation out — CPU is under 40% and unchanged, and p50 barely moved. Scaling out would spend money without touching the mechanism producing the tail."
+      },
+      "concept": "In a parallel fan-out, tail latency is the maximum over branches, not the average, so a single slow branch on a narrow query class sets p99 for the whole system. Instrument each branch independently from the outset; aggregate retrieval latency hides exactly the distribution you need in an incident.",
+      "tip": "Read the percentile spread before the options. A large p99 move with a flat p50 and idle CPU always means a subset of requests, never a capacity shortfall — that single inference eliminates the scaling and rollback answers."
+    }
+  },
+  {
+    "id": "INT-A-036",
+    "domain": "Integration",
+    "topic": "Chunk metadata required for regulated citation",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A pension administrator must be able to show its regulator, for any figure quoted to a member, which source document the figure came from and which version of that document was in force on the date of the enquiry. The team is specifying what to attach to each chunk at index time. Which TWO attributes are required to satisfy that obligation? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "A copy of the full parent document text held inside every chunk, so that a citation can always be rendered without a second lookup against the content store."
+      },
+      {
+        "key": "B",
+        "text": "A model-generated plain-language summary of the chunk, used as the citation text shown to the member."
+      },
+      {
+        "key": "C",
+        "text": "A stable source-document identifier together with the document version, carried through retrieval into the citation attached to the answer."
+      },
+      {
+        "key": "D",
+        "text": "The document's effective-from and effective-to dates, so retrieval can be restricted to the version that was in force on the enquiry date."
+      },
+      {
+        "key": "E",
+        "text": "The similarity score the chunk achieved on the most recent evaluation run, stored alongside it."
+      }
+    ],
+    "correct": [
+      "C",
+      "D"
+    ],
+    "explanation": {
+      "correct": "The obligation has two halves and each keyed attribute serves one. Identity and version answer \"where did this come from\" and must survive the whole path from chunk to rendered citation, which means they have to be attached at index time rather than reconstructed later. Effective dates answer \"which version applied\", and because that is a range comparison against the enquiry date it has to be a structured filter rather than something the model infers from text. Together they let the administrator reproduce, not merely describe, the basis of a past answer.",
+      "distractors": {
+        "A": "Duplicating full document text into every chunk multiplies storage without adding any information a stable identifier does not already provide, and it makes version correctness harder because the same document text is now stored in many places that can drift.",
+        "B": "A summary is a derived artefact, not a source. Showing a member paraphrased text as the citation is the opposite of what the regulator asked for, since the paraphrase cannot be verified against the document that governed the decision.",
+        "E": "An evaluation score is a property of a test run, not of the document, and it says nothing about provenance. It would also be stale the moment the retriever changed."
+      },
+      "concept": "Traceability requirements decompose into identity, version, and time-of-applicability, and all three must be structured metadata that survives every stage of the pipeline. Reproducing a past answer additionally requires logging the query, the retrieved chunk identifiers, and the model version at answer time — metadata on the chunk is necessary but not sufficient.",
+      "tip": "When a stem specifies both a source and a point-in-time obligation, expect two keys covering those two distinct requirements. Options offering derived or duplicated content instead of an identifier are the standard wrong turn."
+    }
+  }
+]

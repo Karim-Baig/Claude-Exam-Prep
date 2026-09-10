@@ -1,0 +1,724 @@
+[
+  {
+    "id": "INT-B-037",
+    "domain": "Integration",
+    "topic": "Which party controls each MCP primitive",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In MCP, which statement correctly matches the three primitives to the party that decides they are used?",
+    "options": [
+      {
+        "key": "A",
+        "text": "All three are invoked by the model at its discretion; the host only chooses which servers to connect to."
+      },
+      {
+        "key": "B",
+        "text": "Resources are invoked by the model, tools are attached by the host, and prompts are emitted by the server on connection."
+      },
+      {
+        "key": "C",
+        "text": "Tools are invoked at the model's discretion, resources are selected by the host application, and prompts are initiated by the user."
+      },
+      {
+        "key": "D",
+        "text": "Tools and resources are both invoked by the model, and prompts are pushed by the server when it detects a matching intent."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The three primitives differ by who is in control, and that is the distinction the protocol is built around. Tools are model-controlled: they are advertised to the model, which decides when to call one. Resources are application-controlled: the host decides what context to attach, typically from a user selection or its own policy. Prompts are user-controlled: they surface in the host's interface as something a person deliberately invokes. Getting this wrong is what produces servers whose capabilities are never reached or fire when nobody asked.",
+      "distractors": {
+        "A": "If everything were model-invoked there would be no reason for three primitives. It also removes the host's ability to decide what context enters a conversation, which is the main reason resources exist.",
+        "B": "This inverts tools and resources. A host attaching tools and a model pulling arbitrary resources is the opposite of the control model, and it is the mental picture behind servers that expose documents as freely callable fetches.",
+        "D": "Servers do not push prompts based on inferred intent. A prompt is offered for a person to choose; a server that decided when to interject would be making a product decision on the host's behalf."
+      },
+      "concept": "Choose an MCP primitive by asking who should decide it is used. Model decides, use a tool. Application or user selects the context, use a resource. A person triggers a parameterised interaction from the interface, use a prompt. The control question determines the primitive far more reliably than what the capability does.",
+      "tip": "Reduce the three primitives to one word each — model, application, user — and the recall items fall out. Most wrong options swap exactly two of the three, so check each pairing rather than reading for overall plausibility."
+    }
+  },
+  {
+    "id": "INT-B-038",
+    "domain": "Integration",
+    "topic": "Modelling attachable reference documents as resources",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A law firm's MCP server fronts its matter-management system. Fee-earners want to pick which contracts from a matter are attached to a drafting conversation. Client confidentiality rules mean the assistant must never pull a document the fee-earner did not choose. Documents are read-only and each has a stable identifier. How should they be exposed?",
+    "options": [
+      {
+        "key": "A",
+        "text": "As a `get_document` tool the assistant calls with a document identifier when it needs one."
+      },
+      {
+        "key": "B",
+        "text": "As resources addressed by URI, which the host lists for the fee-earner to select and attach."
+      },
+      {
+        "key": "C",
+        "text": "As one prompt per document, so each appears as an entry in the host's prompt menu."
+      },
+      {
+        "key": "D",
+        "text": "By returning every document in the matter in a single tool result at the start of the conversation."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The confidentiality rule is a control-model requirement: a human decides what enters the conversation. That is precisely the resource primitive — read-only content, addressed by a stable URI, listed by the server and attached by the host on the user's instruction. The documents already have stable identifiers, so they map onto URIs directly, and nothing about the design depends on the model deciding to reach for them. Modelled this way, the confidentiality boundary is enforced by the interaction shape rather than by hoping the model behaves.",
+      "distractors": {
+        "A": "A tool hands the choice to the model, which is exactly what the rule forbids. It would then be free to fetch any document whose identifier it could infer, and the only defence left would be an instruction not to.",
+        "C": "Prompts are parameterised interactions a user starts, not containers for content. A menu of several thousand entries, one per document, misuses the primitive and gives the host nothing sensible to render.",
+        "D": "Bulk attachment ignores the selection requirement and floods the context with documents nobody asked for. It also means the confidential set is present in the transcript whether or not it was relevant."
+      },
+      "concept": "When a human or the application must decide what context is available, use resources. When the model should decide, use a tool. Access control expressed through the choice of primitive is structural; access control expressed as an instruction to the model is not.",
+      "tip": "A phrase like \"must never retrieve anything the user did not choose\" is a control-model statement. It rules out the tool primitive before you have considered anything about the data itself."
+    }
+  },
+  {
+    "id": "INT-B-039",
+    "domain": "Integration",
+    "topic": "Exposing a clinician-triggered workflow as an MCP prompt",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A hospital trust wants clinicians to start a standard discharge-summary drafting flow from a menu in their assistant, supplying the patient identifier and discharge date, which preloads the conversation with the trust's approved wording and checks. Governance requires that the assistant never begins this flow on its own initiative. How should the MCP server expose it?",
+    "options": [
+      {
+        "key": "A",
+        "text": "As a `draft_discharge_summary` tool whose description says to use it only when a clinician asks."
+      },
+      {
+        "key": "B",
+        "text": "As a resource whose content is the trust's approved discharge-summary template."
+      },
+      {
+        "key": "C",
+        "text": "By having the host prepend the approved template to its system prompt for every conversation."
+      },
+      {
+        "key": "D",
+        "text": "As a prompt that takes the patient identifier and discharge date as arguments."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Everything in the requirement points at the prompt primitive: it appears in the host's interface for a person to pick, it takes arguments the clinician supplies, and it seeds the conversation with server-authored content. Governance's condition is satisfied structurally, because nothing about a prompt is reachable by the model. That is the difference from a tool with a well-behaved description — one is a property of the protocol, the other is a request the model usually honours.",
+      "distractors": {
+        "A": "A tool is model-invocable by definition, so the governance condition rests entirely on the description being obeyed. It also loses the parameterised, menu-driven entry point that the clinicians actually asked for.",
+        "B": "A resource can carry the template text but cannot start an interaction or take a patient identifier. The clinician would still have to explain what to do with the attached content.",
+        "C": "A global system prompt applies the discharge wording to every conversation, including the ones that have nothing to do with discharge, and it cannot be parameterised per patient. It also cannot be offered as a deliberate action."
+      },
+      "concept": "Prompts are user-initiated, parameterised entry points that a host surfaces in its interface. Reach for them when a workflow should be started by a person, needs arguments, and should seed the conversation with server-controlled content. They are the right primitive for standardised procedures in regulated settings.",
+      "tip": "Three signals together — appears in a menu, takes arguments, must not be self-started — identify a prompt. A tool with an instruction not to self-start is the standard trap for this pattern."
+    }
+  },
+  {
+    "id": "INT-B-040",
+    "domain": "Integration",
+    "topic": "Choosing transports for local and shared capabilities",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A semiconductor design organisation needs two MCP capabilities. One inspects multi-gigabyte simulation dumps that live on each engineer's workstation and requires a node-locked licence tied to that machine. The other queries a central design-rule database that four hundred engineers and the CI fleet must reach. The platform team wants a single answer for consistency. What should the architect recommend?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Two servers: the workstation capability over stdio, the shared service over HTTP with its own authentication."
+      },
+      {
+        "key": "B",
+        "text": "One remote HTTP server for both, with a companion daemon installed on each workstation for the local capability."
+      },
+      {
+        "key": "C",
+        "text": "One local stdio server for both, reaching the central design-rule database from each workstation."
+      },
+      {
+        "key": "D",
+        "text": "HTTP for both, since a single transport is simpler to operate, document and monitor centrally."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Transport follows where the capability has to run, and here the two capabilities have opposite requirements. A node-locked licence and gigabyte-scale local files make a per-user local subprocess the only sensible host for the first, and stdio is exactly that. A service four hundred people and a CI fleet must reach cannot be a per-workstation process, so it needs a network endpoint with real authentication. Uniformity is a preference; the licence binding and the data volume are constraints, and constraints win.",
+      "distractors": {
+        "B": "This reinvents the local transport. A bespoke daemon on every workstation, reached from a remote server, is a stdio server with extra hops, extra failure modes and a new remote-access path into engineers' machines.",
+        "C": "Putting the shared service behind a local process means distributing database credentials to four hundred workstations and gives CI, which has no interactive local process, no route to it at all.",
+        "D": "Choosing uniformity here means either shipping gigabytes of waveform data over the network on every inspection or breaking the node-locked licence. The stem's specifics are there to make this trade explicit."
+      },
+      "concept": "MCP transport is an architectural placement decision, not a house style. Local stdio subprocesses suit capabilities bound to a user's machine, its files and its device-scoped credentials. Remote HTTP endpoints suit shared, centrally operated services. A system may legitimately use both, and forcing one is how you end up rebuilding the other.",
+      "tip": "When a stem gives two capabilities with clashing requirements and then mentions a desire for consistency, the desire is the distractor. Check whether either capability is physically pinned to a machine before considering uniformity."
+    }
+  },
+  {
+    "id": "INT-B-041",
+    "domain": "Integration",
+    "topic": "Standard output collision on the stdio transport",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A locally launched MCP server runs fine in the team's own test harness. As soon as an engineer enables its verbose logging flag, the host reports protocol parse failures and drops the connection. What is the most likely cause?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The server writes its log lines to standard output, which is the channel carrying the protocol messages."
+      },
+      {
+        "key": "B",
+        "text": "Log volume exceeds the pipe buffer, so writes block and protocol messages are lost."
+      },
+      {
+        "key": "C",
+        "text": "Verbose logging slows start-up past the host's initialisation timeout, so the handshake fails."
+      },
+      {
+        "key": "D",
+        "text": "The server must declare a logging capability during initialisation before emitting any log output."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Over stdio the server's standard output is the transport. Anything written there that is not a protocol message corrupts the stream, which is why the failure appears the instant verbose logging is switched on and never appears in a harness that reads the process differently. Diagnostic output belongs on standard error, which the host captures without parsing. This is the most common first-day defect when writing a local MCP server, and it is easy to miss because the server itself looks healthy.",
+      "distractors": {
+        "B": "Buffer pressure produces stalls and backpressure, not parse errors. The symptom in the stem is the host reading something it cannot interpret, which points at content on the channel rather than volume through it.",
+        "C": "A start-up timeout fails before any successful exchange. The stem describes a working connection that breaks when extra output starts flowing, which is a runtime corruption rather than an initialisation race.",
+        "D": "Capability negotiation governs protocol-level logging messages. It has nothing to do with a process writing plain text to a file descriptor, and no declaration would make that text parseable as protocol."
+      },
+      "concept": "On stdio the process's standard streams are divided: standard output carries protocol traffic only, standard error carries everything human-readable. Any library, dependency or debug statement that prints to standard output breaks the connection, so audit third-party output as well as your own.",
+      "tip": "\"Works until logging is enabled\" on a local server is close to diagnostic of the stdout collision. Match the symptom's trigger to the channel it shares before considering timing or capacity explanations."
+    }
+  },
+  {
+    "id": "INT-B-042",
+    "domain": "Integration",
+    "topic": "Session state behind a load balancer on HTTP transport",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An insurance broker platform runs a remote MCP server as three replicas behind a layer-7 load balancer. Long-running tool calls stream progress back to clients. Users intermittently lose the stream part-way through a call, and the follow-up request returns an error saying the session is unknown. Failures rise with traffic. What is the correct fix?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Raise the load balancer's idle timeout so long-running streams are not cut mid-call."
+      },
+      {
+        "key": "B",
+        "text": "Move the server to stdio so each user runs a dedicated process on their own machine."
+      },
+      {
+        "key": "C",
+        "text": "Use session affinity, or externalise session state so any replica can serve it."
+      },
+      {
+        "key": "D",
+        "text": "Disable streaming and return each tool's output as one response at the end of the call."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The session lives in the memory of whichever replica handled the initialisation, while the balancer is free to route the next request anywhere — so a follow-up landing on a different replica finds no such session, and the odds of that grow with traffic and replica count. There are only two consistent resolutions: keep every request for a session on the replica that owns it, or stop owning it in a single process by moving the state to a shared store. Both make the server's statefulness explicit rather than accidental.",
+      "distractors": {
+        "A": "A longer idle timeout helps a stream that is being cut for inactivity. It does nothing for a follow-up request that reaches a replica with no record of the session, which is the error the stem actually reports.",
+        "B": "A remote service used by many users across an organisation cannot be a per-user local subprocess. This abandons the deployment model rather than fixing the state problem inside it. It also gives up the central operation, shared caching and single upgrade path that made a hosted server attractive in the first place.",
+        "D": "Removing streaming shortens the connections but leaves the session identifier being resolved per request against replicas that may not hold it. The unknown-session errors continue, now without progress feedback. It is worth separating the two symptoms: one is about how long a connection lives, the other about where the session's state lives."
+      },
+      "concept": "A remote MCP server behind more than one instance must decide explicitly where session state lives. In-process state requires routing affinity; horizontal scaling without affinity requires shared or client-carried state. Failures that scale with instance count and traffic are the signature of that decision never having been made.",
+      "tip": "Two symptoms — a dropped stream and an unknown session on the next call — are one cause. Prefer the option that explains both; options that address only the connection lifetime explain one."
+    }
+  },
+  {
+    "id": "INT-B-043",
+    "domain": "Integration",
+    "topic": "Selecting resources over tools on a quality-system server",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A manufacturer is designing an MCP server for its quality management system. Which TWO of the following capabilities should be exposed as resources rather than as tools or prompts? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Submitting a completed non-conformance report into the quality management system."
+      },
+      {
+        "key": "B",
+        "text": "The current revision of a work instruction, addressed by URI, which an operator chooses to attach."
+      },
+      {
+        "key": "C",
+        "text": "A parameterised \"start a corrective action investigation\" interaction offered in the host's menu."
+      },
+      {
+        "key": "D",
+        "text": "The read-only ISO certificate for a given plant, fetched by its stable URI."
+      },
+      {
+        "key": "E",
+        "text": "Recalculating a control chart's limits from the most recent two hundred measurements."
+      }
+    ],
+    "correct": [
+      "B",
+      "D"
+    ],
+    "explanation": {
+      "correct": "Both keyed items are addressable, read-only content that the application or the user decides to place in context — a document revision and a certificate, each identified by a stable URI. Neither involves the model deciding to act, and neither has a side effect. That is the whole definition of a resource. The two are also representative of the common cases: an operator-chosen procedure and a reference artefact that a policy might attach automatically.",
+      "distractors": {
+        "A": "Filing a non-conformance changes state in the quality system. Anything with a side effect is a tool, so that the host can gate, audit and rate-limit it — none of which the resource primitive provides.",
+        "C": "A menu-driven, parameterised interaction started by a person is the prompt primitive. It is not content to be attached; it is a way to begin a conversation with server-authored framing.",
+        "E": "A recalculation is a computation the model decides to run when the analysis needs it. Even though it is read-only, the deciding party is the model, which makes it a tool."
+      },
+      "concept": "Test a candidate capability on two axes: does it have a side effect, and who decides it happens? Read-only plus application-or-user-decides gives a resource. Model-decides gives a tool, whether or not it mutates anything. User-starts-a-parameterised-flow gives a prompt.",
+      "tip": "Read-only is necessary but not sufficient for a resource. The recalculation option exists to catch candidates who stop at the side-effect test and never ask who initiates."
+    }
+  },
+  {
+    "id": "INT-B-044",
+    "domain": "Integration",
+    "topic": "MCP server granularity and ownership boundaries",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A retailer built one MCP server wrapping twelve internal systems — orders, inventory, pricing, loyalty, CRM and more — owned by five different teams. It now advertises about 140 tools. Every change needs a coordinated release across those teams, and last month a pricing defect took every agent in the company offline. What should change?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Keep one server and gate each tool behind a feature flag so faulty tools can be switched off."
+      },
+      {
+        "key": "B",
+        "text": "Keep one server and move it from stdio to HTTP so it can be scaled and restarted independently of hosts."
+      },
+      {
+        "key": "C",
+        "text": "Keep one server and merge related tools into dispatcher tools to bring the advertised count down."
+      },
+      {
+        "key": "D",
+        "text": "Split it into servers aligned to ownership boundaries, each versioned, deployed and enabled independently."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Three problems — coupled releases across five teams, a shared blast radius, and 140 tools advertised to every agent — all follow from one server spanning twelve domains. Splitting along ownership lines lets each team ship on its own cadence, contains a pricing defect to agents that use pricing, and lets a host enable only the servers a given agent needs, which shrinks the advertised surface as a side effect. This is the ordinary bounded-context argument applied to a protocol boundary.",
+      "distractors": {
+        "A": "Flags give an operator a switch after an incident has started, inside a single deployment that all five teams still share. The release coupling and the single process are untouched.",
+        "B": "Transport determines how hosts reach the server, not who owns it or what fails together. The same monolith over HTTP has the same release train and the same blast radius.",
+        "C": "Dispatcher tools hide the surface without reducing it, and they cost the host its ability to gate individual actions. The count is a symptom of the scope problem, not the problem."
+      },
+      "concept": "Treat an MCP server as a deployable service with an owner, not as a catalogue. Draw its boundary where a team's release cadence, failure domain and access policy already sit. Hosts compose several small servers far more comfortably than one team can operate a shared one.",
+      "tip": "When a stem lists symptoms across three different axes — release process, availability and context cost — look for the option that changes the boundary rather than one that manages consequences inside it."
+    }
+  },
+  {
+    "id": "INT-B-045",
+    "domain": "Integration",
+    "topic": "Propagating a changed tool list to connected hosts",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A SaaS provider's MCP server advertises a `refund_charge` tool only to tenants whose plan includes it; the contract with resellers requires that unentitled tenants cannot see it. When a tenant upgrades mid-session, connected hosts keep showing the previous tool set until the user quits and reopens the assistant, and support tickets are climbing. What should the team do next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Document that users must restart the assistant after a plan change and surface a banner when one occurs."
+      },
+      {
+        "key": "B",
+        "text": "Emit the protocol's tool list-changed notification on entitlement change so connected hosts refetch the list."
+      },
+      {
+        "key": "C",
+        "text": "Advertise the tool to every tenant and return a permission error when an unentitled tenant calls it."
+      },
+      {
+        "key": "D",
+        "text": "Have each connected host poll the server for its tool list on a thirty-second interval."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The protocol already handles this: a server whose capability set changes tells connected clients, and they refetch. Entitlement is exactly such a change, so the fix is to fire the notification when the plan changes rather than waiting for a reconnect. It preserves the contractual requirement that unentitled tenants never see the tool, needs no user action, and is a small change on the side of the system that actually knows the entitlement changed.",
+      "distractors": {
+        "A": "A documented restart is an operational workaround for a protocol feature the team has not implemented. It leaves a stale window whose length is decided by user behaviour, and it keeps generating the tickets it is meant to reduce.",
+        "C": "Advertising to everyone breaks the reseller contract, since unentitled tenants can now see the capability exists. It also spends a model round trip discovering a refusal that could have been prevented by not offering the tool.",
+        "D": "Polling puts the burden on hosts the provider does not control, wastes requests on the overwhelming majority of intervals where nothing changed, and still lags. The protocol provides a push for precisely this reason."
+      },
+      "concept": "A server's advertised capabilities are a live contract, not a static manifest. When entitlements, feature flags or backend availability change what a server can do, notify connected clients so they refetch. Designing tool visibility as dynamic from the start avoids restart-driven workarounds later.",
+      "tip": "If a stem says a change only takes effect after a restart, ask whether the protocol has a change notification. Next-step items frequently reward using a mechanism that already exists over building one around it."
+    }
+  },
+  {
+    "id": "INT-B-046",
+    "domain": "Integration",
+    "topic": "How MCP resources are addressed and templated",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "How does an MCP client identify a specific resource, and how does a server advertise a family of related resources without listing every member?",
+    "options": [
+      {
+        "key": "A",
+        "text": "By a numeric index into the resource list, with families exposed as nested lists."
+      },
+      {
+        "key": "B",
+        "text": "By URI, with families exposed as resource templates carrying parameterised URIs."
+      },
+      {
+        "key": "C",
+        "text": "By tool name, since resources are fetched through a reserved read tool."
+      },
+      {
+        "key": "D",
+        "text": "By local file path, which is why only locally launched servers can expose resources."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Resources are URI-addressed, which is what lets a server expose content from any backing store — a database row, an object in a bucket, a wiki page — behind one uniform addressing scheme. When the family is large or unbounded, the server advertises a template with parameters in the URI rather than enumerating members, so a client can construct a valid address for any member without the server listing millions of them. Addressing and templating together are what make the primitive scale.",
+      "distractors": {
+        "A": "Positional indices would break the moment the list changed, and they carry no information about what a resource is. Stable, meaningful addressing is the reason a URI scheme was chosen.",
+        "C": "Resources are a distinct primitive with their own listing and read operations. Routing them through a tool would hand the model the decision about what content is attached, which is the control boundary resources exist to keep.",
+        "D": "URIs are not file paths. A remote server can expose resources perfectly well, and many of the most useful ones are not files at all. Treating resources as a filesystem concept is what leads teams to skip designing a URI scheme at all, and then to change it later."
+      },
+      "concept": "Resources are identified by URI, and resource templates parameterise those URIs so a server can offer an unbounded family without enumeration. Design the URI scheme deliberately — it is the stable public identifier your hosts, audit logs and citations will all refer to.",
+      "tip": "When two mechanisms appear in one question — how something is named and how a family is offered — check that the option gets both halves right. Distractors often pair a correct addressing scheme with a wrong scaling story."
+    }
+  },
+  {
+    "id": "INT-B-047",
+    "domain": "Integration",
+    "topic": "Where a model call belongs when a server needs one",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A transport authority's MCP server returns incident logs that routinely run to hundreds of pages, so raw returns are not viable. Investigators ask varied questions, so a fixed nightly summary would not serve them. The server team proposes provisioning its own model API key and summarising inside the tool handler before returning. The security architect objects. What is the better design?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Provision the server's own key but restrict it to one model and cap its monthly spend at £500."
+      },
+      {
+        "key": "B",
+        "text": "Have the host pass its model credential to the server as a tool argument, so one account is used."
+      },
+      {
+        "key": "C",
+        "text": "Request the completion from the client through the protocol's sampling capability."
+      },
+      {
+        "key": "D",
+        "text": "Pre-summarise each incident log nightly in a batch job and return the stored summary."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "MCP anticipates servers needing model inference and puts the call on the client's side of the boundary: the server asks, the client performs the completion under its own model choice, credentials, policy and human oversight. That keeps one credential, one budget and one audit trail, and it means the host can refuse or modify the request. A server holding its own key creates a second inference path that the host cannot see, cannot govern, and did not authorise — which is the architect's objection.",
+      "distractors": {
+        "A": "Caps and model restrictions limit the damage from a shadow inference path without removing it. The host still cannot see the calls, apply its own safety policy, or attribute the spend, and the credential still lives somewhere new.",
+        "B": "Sending a credential as a tool argument puts it into the transcript and into the server's logs, and hands the server the ability to make arbitrary calls as the host. This is a straightforward credential-disclosure defect.",
+        "D": "The stem rules this out: investigators ask varied questions, so a summary written last night without knowing the question discards exactly the detail this investigation needs. Pre-computation suits fixed questions."
+      },
+      "concept": "When a server needs inference, ask the client for it rather than acquiring your own model access. Keeping inference on the host side preserves a single credential boundary, one place to enforce policy and approval, and one accounting of spend. A component that quietly acquires its own model access is a governance gap regardless of how well it is capped.",
+      "tip": "The option that adds guardrails to the flawed design is a recurring trap. Ask whether the guardrail removes the objection or merely bounds it; here the objection is the existence of an ungoverned path."
+    }
+  },
+  {
+    "id": "INT-B-048",
+    "domain": "Integration",
+    "topic": "Evolving a tool contract without breaking connected hosts",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An MCP server is consumed by four host applications on release cadences its team does not control. The team needs `create_ticket` to start accepting a `severity` field. Which TWO changes can ship without breaking hosts that have not updated? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Add `severity` to the tool's required list and increment the server's advertised version."
+      },
+      {
+        "key": "B",
+        "text": "Rely on hosts refetching the tool list at connection time so they receive the new schema."
+      },
+      {
+        "key": "C",
+        "text": "Add `severity` as an optional property with a documented default when it is omitted."
+      },
+      {
+        "key": "D",
+        "text": "Describe the new field in the tool description and leave the input schema unchanged."
+      },
+      {
+        "key": "E",
+        "text": "Introduce a `create_ticket_v2` tool with the new contract and keep the original until hosts migrate."
+      }
+    ],
+    "correct": [
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "Both keyed options preserve the existing contract while adding the new one. An optional property with a default means every call that was valid yesterday is still valid, and callers that know about severity can set it. A parallel versioned tool leaves the old contract entirely untouched and lets each host migrate on its own schedule, at the cost of a temporarily larger surface. Which you choose depends on whether the change is additive or a genuine redefinition; both are safe.",
+      "distractors": {
+        "A": "A newly required field invalidates every existing call. Advertising a new version communicates the break but does not prevent it, and the four hosts cannot all adopt it on the day you ship.",
+        "B": "Refetching gives hosts the current schema; it does not make an incompatible schema compatible. The breaking change lands the moment the refetch happens, which makes this a delivery mechanism for the break rather than a mitigation.",
+        "D": "A field described in prose but absent from the schema is not part of the contract. The handler cannot depend on receiving it, and depending on the schema's strictness the call may be rejected or the value silently dropped."
+      },
+      "concept": "Treat a published tool schema like any other versioned API. Additive, optional changes with defaults are safe; anything that invalidates a previously valid call is breaking and needs a parallel definition and a migration window. The advertised version number documents the change, it does not soften it.",
+      "tip": "Apply the ordinary API compatibility test: would a call that was valid before this change still be valid after it? That single question sorts these options without any protocol-specific knowledge."
+    }
+  },
+  {
+    "id": "INT-B-049",
+    "domain": "Integration",
+    "topic": "Responsibilities acquired by moving a server to HTTP",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A team is moving an MCP server from stdio, where each user launched their own process under their own account, to a remote HTTP deployment shared across the organisation. Which TWO responsibilities does the server acquire that it did not previously have? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Serialising its messages as JSON-RPC, which the stdio transport did not require it to do."
+      },
+      {
+        "key": "B",
+        "text": "Authenticating callers and verifying that a presented token was issued for this server."
+      },
+      {
+        "key": "C",
+        "text": "Defining its tools with JSON Schema, which only the remote HTTP transport validates on arrival."
+      },
+      {
+        "key": "D",
+        "text": "Isolating concurrent users from one another, since one process now serves many identities."
+      },
+      {
+        "key": "E",
+        "text": "Deciding whether to offer resources and prompts, which servers launched locally cannot expose."
+      }
+    ],
+    "correct": [
+      "B",
+      "D"
+    ],
+    "explanation": {
+      "correct": "A local subprocess inherits its trust from the operating system: it runs as the user who launched it, sees only that user's data, and never receives a request from anyone else. A network endpoint has neither property. It must establish who is calling and confirm the credential was minted for this service rather than merely being valid somewhere, and it must keep one caller's data, state and cached results away from another's inside a single process. Both are new obligations created purely by the change of transport.",
+      "distractors": {
+        "A": "Message serialisation is the same on both transports; only the channel differs. Nothing about moving to HTTP changes how a request is encoded. Both transports carry the same protocol and only the channel differs, which is why a server can usually support either with very little change.",
+        "C": "Tool schemas are part of the protocol's definition of a tool, independent of transport. A local server declares them the same way, and the transport is not what validates them.",
+        "E": "All three primitives are available regardless of transport. A locally launched server can expose resources and prompts exactly as a remote one can. Choosing a transport never restricts which primitives you may offer; it changes who can reach them and how you establish who they are."
+      },
+      "concept": "Changing transport changes the trust model. Stdio borrows the operating system's identity and isolation; HTTP requires the server to supply both itself — caller authentication with audience validation, plus per-tenant isolation of state and data. Plan the authorisation design as part of the transport decision, not after it.",
+      "tip": "Sort the options into \"protocol semantics\" and \"deployment properties\". Transport changes only ever affect the second group, which eliminates the encoding, schema and primitive-availability options immediately."
+    }
+  },
+  {
+    "id": "INT-B-050",
+    "domain": "Integration",
+    "topic": "Mis-modelling a model-invoked action as a prompt",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A team exposed \"summarise this ticket\" from their MCP server as a prompt. They expected the agent to use it automatically whenever a long ticket came up mid-conversation, and are puzzled that it never does. What is going on?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Prompts are user-initiated and not model-invocable; that capability must be a tool."
+      },
+      {
+        "key": "B",
+        "text": "The prompt's description lacks trigger conditions telling the model when to use it."
+      },
+      {
+        "key": "C",
+        "text": "The host has not switched on automatic prompt invocation for this server's capabilities."
+      },
+      {
+        "key": "D",
+        "text": "Prompts must be converted into resources before the model can read and use them."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The behaviour is exactly as designed. Prompts exist for a person to choose from the host's interface; they are not advertised to the model as callable capabilities, so no amount of describing them will cause one to fire mid-conversation. If the model should decide when summarisation happens, that capability belongs in the tool primitive. The team modelled a model-controlled action with a user-controlled primitive, and the protocol is behaving correctly.",
+      "distractors": {
+        "B": "Trigger conditions are the right lever for a tool the model under-uses. They cannot help here because the model never sees the prompt as an option in the first place.",
+        "C": "There is no automatic prompt invocation to enable. Introducing one would erase the distinction between prompts and tools and remove the user's control over when a prompt runs. If a host did offer such a switch, the sensible response would be to model the capability as a tool rather than to enable it.",
+        "D": "Resources carry content the host attaches; they are not model-invoked either. Converting the prompt into a resource would leave the same gap for a different reason. Resources answer the question of what content is in context, not the question of which capability the model is allowed to invoke."
+      },
+      "concept": "Pick the primitive from the control question first. A capability the model should decide to use is a tool, always. Prompts and resources are how the user and the application put things into the conversation, and neither becomes model-invocable through configuration or wording.",
+      "tip": "\"We expected the model to use it automatically\" plus a non-tool primitive is a complete diagnosis. Resist options that offer to tune the wording; the capability is not on the model's menu at all."
+    }
+  },
+  {
+    "id": "INT-B-051",
+    "domain": "Integration",
+    "topic": "Resource enumeration consuming the context budget",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A county archive's MCP server exposes 4,200 scanned record series as individual static resources. Hosts that list resources when they connect now spend a substantial slice of the context window on the listing before the researcher has asked anything, and researchers report the assistant struggling to pick the right series. What should the team do next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Paginate the resource listing so hosts fetch it in pages of fifty entries."
+      },
+      {
+        "key": "B",
+        "text": "Move the series out of resources and return matching series from a tool instead."
+      },
+      {
+        "key": "C",
+        "text": "Shorten each resource's name and description to reduce the listing's size."
+      },
+      {
+        "key": "D",
+        "text": "Expose resource templates plus a search tool that returns matching URIs."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Four thousand entries is a catalogue, and a catalogue should be searched rather than enumerated. Templates let the server describe the shape of addressable series in a handful of entries, and a search tool turns \"find the right one\" into a query answered against an index rather than a scan of everything in context. That fixes both symptoms at once: the connection-time listing shrinks to almost nothing, and the model gets a short, ranked candidate set instead of 4,200 near-identical descriptions to discriminate between.",
+      "distractors": {
+        "A": "Pagination changes how the listing arrives, not how much of it a host that wants the full picture must eventually pull. It also leaves the selection problem untouched — the model still has to choose from thousands of similar entries.",
+        "B": "Returning the same volume from a tool moves the cost from connection time to call time and hands the model the choice of what to attach, which is a change to the control model made for the wrong reason.",
+        "C": "Trimming text scales the problem down by a constant factor while the number of entries, which is what makes it unmanageable, is unchanged. It also removes the description detail the model uses to discriminate."
+      },
+      "concept": "Static resource listings are for sets a host can reasonably show a user and a model can reasonably scan. Beyond that, expose the addressing scheme as templates and provide search as a tool. Discovery of a large corpus is a retrieval problem; enumeration is not a substitute for it.",
+      "tip": "When a stem gives both a context cost at connection time and a selection-accuracy complaint, the answer replaces enumeration with search. Options that compress or paginate the same list address only the first symptom."
+    }
+  },
+  {
+    "id": "INT-B-052",
+    "domain": "Integration",
+    "topic": "Implicit connection state versus explicit tool parameters",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A construction firm's MCP server has a `select_project` tool that sets a current project held per connection; every other tool operates implicitly on it. Two problems have surfaced. After a laptop wakes and the host reconnects, tools act on the wrong project. Since the server was scaled to three replicas, results for the same question differ between calls. What is the correct fix?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Persist the selected project in a shared Redis store keyed by session so all replicas agree."
+      },
+      {
+        "key": "B",
+        "text": "Make the project a required parameter on every tool and remove the implicit selection."
+      },
+      {
+        "key": "C",
+        "text": "Have the host re-issue `select_project` automatically after every reconnect and resume."
+      },
+      {
+        "key": "D",
+        "text": "Pin each session to one replica using load balancer affinity on the session id."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Both failures come from the same source: a parameter that determines the answer is invisible in the call. Making it explicit means every invocation is self-contained, so it is correct after a reconnect, correct on any replica, and correct when two conversations run at once. It also makes the model's intent auditable — a log line now records which project was queried, rather than requiring you to replay the session to find out. Statelessness at the call boundary is what makes the rest of the deployment simple.",
+      "distractors": {
+        "A": "A shared store makes the replicas agree on a value that is still hidden from the model and still tied to a session that reconnects create anew. It fixes the divergence symptom and leaves the wrong-project-after-reconnect symptom intact.",
+        "C": "This requires the host to know a reconnect happened, know what was selected before, and re-establish it in the right order. It rebuilds hidden state more elaborately, and the model still cannot tell which project it is operating on.",
+        "D": "Affinity addresses replica divergence only, and only while the connection lasts. The reconnect case, which is the one causing wrong-project results, is unaffected because a new connection has no prior state."
+      },
+      "concept": "Prefer self-contained tool calls. Hidden per-connection state couples correctness to session lifetime and process identity, breaks under reconnects, concurrency and scaling, and hides the deciding argument from your logs. Where the model must choose a scope, make it a parameter and let the host or a discovery tool supply the options.",
+      "tip": "Two symptoms with different triggers — one from reconnects, one from scaling — usually mean one root cause with two surfaces. Prefer the option that explains both; the others each fix exactly one."
+    }
+  },
+  {
+    "id": "INT-B-053",
+    "domain": "Integration",
+    "topic": "Which component executes an MCP tool call",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Claude, running in a host application connected to an MCP server, decides to call one of that server's tools. Which component executes it?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The MCP server, after the host's client forwards the invocation over its connection."
+      },
+      {
+        "key": "B",
+        "text": "The host application, from a local copy of the handler it obtained during discovery."
+      },
+      {
+        "key": "C",
+        "text": "The model provider's infrastructure, as part of generating the response."
+      },
+      {
+        "key": "D",
+        "text": "The host's client, which implements the tool and uses the server only for schema discovery."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The model only ever emits a request to call a tool. The host application — which holds the conversation and the connection — forwards that request through its MCP client to the server that advertised the tool, the server executes it against whatever system it fronts, and the result comes back the same way. That chain is why the host is the enforcement point for approval and logging: every invocation passes through it, and it is the only component positioned to refuse one.",
+      "distractors": {
+        "B": "Discovery returns descriptions and schemas, never executable code. If handlers were distributed to hosts, the server would lose control of its own backend access and every host would need its credentials.",
+        "C": "Inference produces the request to call a tool; it does not perform the action. Confusing the two is what leads teams to assume tool execution is somehow governed by the model provider.",
+        "D": "This inverts the relationship. The server exists to implement the capability; a client that implemented it would have no reason to connect to a server at all. Keeping execution on the server side is also what lets one server be shared by many hosts without distributing its backend access."
+      },
+      "concept": "The chain is model requests, host mediates, server executes, host returns the result to the model. Because every invocation traverses the host, that is where approval prompts, policy enforcement, redaction and audit logging belong — not in the model's instructions and not solely in the server.",
+      "tip": "Anchor on the fact that the model can only emit text and structured requests. It never performs an action, which immediately eliminates any option in which inference does the work."
+    }
+  },
+  {
+    "id": "INT-B-054",
+    "domain": "Integration",
+    "topic": "Properties of the stdio transport",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "Which TWO statements are true of MCP's stdio transport? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "The server runs as a child process and exchanges protocol messages over standard input and output."
+      },
+      {
+        "key": "B",
+        "text": "A single server process serves many simultaneous remote clients over one shared listener socket."
+      },
+      {
+        "key": "C",
+        "text": "One server process serves exactly the one client that launched it, and exits with it."
+      },
+      {
+        "key": "D",
+        "text": "The server must implement an authorisation flow of its own before a client may call any of its tools."
+      },
+      {
+        "key": "E",
+        "text": "It supports tools only; resources and prompts require a network-reachable transport instead."
+      }
+    ],
+    "correct": [
+      "A",
+      "C"
+    ],
+    "explanation": {
+      "correct": "Stdio is deliberately minimal: the host spawns the server as a child process and the two exchange protocol messages over that process's standard input and output. The relationship is one-to-one — the process exists for the client that started it and terminates with it. That pairing is what gives the transport its security properties, because the process runs under the launching user's identity and needs no network listener, no token validation and no tenant separation.",
+      "distractors": {
+        "B": "There is no listener and no network endpoint; the only peer is the parent process holding the pipes. Serving many clients is the remote transport's job, and it is exactly what forces the authentication and isolation work stdio avoids.",
+        "D": "Authorisation flows exist for network-reachable servers that must establish who is calling. A local subprocess inherits the operating system's answer to that question, and typically takes any backend credentials it needs from its environment.",
+        "E": "All three primitives are transport-independent. Local servers routinely expose file-backed resources and menu-driven prompts, and a host renders them exactly as it would for a remote server. The primitives are defined by the protocol; the transport only decides who can reach them."
+      },
+      "concept": "Stdio is a one-client, one-process, locally launched transport whose trust comes from the operating system. Understanding that is what makes the transport choice obvious: capabilities scoped to one user's machine and credentials fit it naturally, while anything shared needs a network transport and the authorisation work that goes with it.",
+      "tip": "For transport recall, hold the process model in mind — one parent, one child, two pipes. Every true statement follows from it, and the false options all quietly assume a listener that does not exist."
+    }
+  }
+]

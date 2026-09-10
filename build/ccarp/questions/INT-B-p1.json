@@ -1,0 +1,719 @@
+[
+  {
+    "id": "INT-B-001",
+    "domain": "Integration",
+    "topic": "Raising should-call rate with trigger conditions",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Two tools in a production agent are schema-correct and their handlers work, but Claude frequently answers from its own knowledge instead of calling either one. Which part of the tool definition is the primary lever?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The tool `name`, lengthened so it names the domain object the tool acts on."
+      },
+      {
+        "key": "B",
+        "text": "The `description`, rewritten to state the conditions under which the tool must be called."
+      },
+      {
+        "key": "C",
+        "text": "The `input_schema`, with more properties moved into `required` so the call is unambiguous."
+      },
+      {
+        "key": "D",
+        "text": "`max_tokens`, raised so there is room for the model to emit a `tool_use` block."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The description is what the model reads when deciding whether this turn needs a tool at all. Descriptions that only say what a tool does leave the should-call decision to inference; descriptions that state triggers — \"call this whenever the user asks about current stock levels, even if a figure appears earlier in the conversation\" — turn it into a match. Under-calling is almost always a description problem, and it is fixed by writing prescriptive trigger conditions rather than by tightening the schema or forcing tool use.",
+      "distractors": {
+        "A": "A specific name helps the model pick between two tools once it has decided to use one, but it carries far less signal about when a tool is needed. Renaming is worth doing alongside a description rewrite, not instead of it.",
+        "C": "The required list constrains the arguments of a call that is already happening. It has no bearing on whether the model decides a call is warranted, and over-marking properties as required causes the model to fabricate values.",
+        "D": "Output token budget is unrelated to tool selection. A `tool_use` block is small; if the model wanted to call the tool it would. This distractor is the reflex of treating every model behaviour as a sampling parameter."
+      },
+      "concept": "A tool description is a decision procedure, not documentation. It should answer \"when do I reach for this?\" before it answers \"what does it do?\". Include negative triggers as well as positive ones. Treat the description as the highest-leverage prompt in the system, because for tool selection it is the only prompt the model consults.",
+      "tip": "When a stem says the tools work but are not being called, the failure is in selection, not execution. Selection lives in the description. Schema and sampling changes are almost always the wrong layer."
+    }
+  },
+  {
+    "id": "INT-B-002",
+    "domain": "Integration",
+    "topic": "Splitting an action-dispatcher tool into typed tools",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A freight brokerage exposes one `manage_shipment` tool to its Claude dispatch agent. It takes `action` (an eleven-value enum covering quote, book, amend, cancel, tender and tracking) and a free-form `payload` object that accepts any keys. In production roughly one call in six carries payload keys belonging to a different action, and the handler rejects it. The team also needs its approval service to gate `cancel` and `tender` while leaving read-only actions ungated. What should they change?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Keep the single tool and add a worked example of each payload shape to the description."
+      },
+      {
+        "key": "B",
+        "text": "Keep the single tool and validate the payload in the handler, returning an error naming the expected keys."
+      },
+      {
+        "key": "C",
+        "text": "Replace it with eleven tools, one per action, each with its own typed input schema."
+      },
+      {
+        "key": "D",
+        "text": "Keep the single tool and force it with `tool_choice` set to that tool name on every turn."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "One tool per action solves both problems at once. Each schema now constrains the arguments to the fields that action actually takes, so the mismatched-payload class of error becomes unrepresentable rather than caught late. And the harness gets an action-specific hook: gating on the tool name `cancel_shipment` is trivial, whereas gating on a string value buried inside an opaque payload means parsing arguments before deciding policy. The stem's approval requirement is the tell — a dispatcher tool gives the harness the same shape for every action.",
+      "distractors": {
+        "A": "Examples reduce the error rate but do not change what the schema permits, and they cost tokens on every request. More importantly they leave the approval service parsing payloads to work out whether a call is destructive.",
+        "B": "Handler validation recovers the turn but pays a full round trip each time, and it still gives the approval service nothing to gate on. It is the right move for errors you cannot design out, not for a shape the schema could enforce.",
+        "D": "Forcing the tool changes whether it is called, not whether the arguments are right. If anything it makes things worse by removing the model's option to ask a clarifying question when the request is underspecified."
+      },
+      "concept": "A tool's granularity is a harness design decision, not just a modelling one. Promote an action to its own tool when you need to gate, audit, render, or schedule it differently from its neighbours — the harness can only act on distinctions that are visible in the tool name and typed arguments.",
+      "tip": "Whenever a stem mentions an approval or audit requirement that applies to some actions but not others, look for the option that makes those actions separately addressable. Generic dispatcher tools defeat every policy layer above them."
+    }
+  },
+  {
+    "id": "INT-B-003",
+    "domain": "Integration",
+    "topic": "Enum constraint for a small stable value set",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A hospital network's appointment agent calls `book_slot`, whose `department` parameter is typed as a plain string. The network has nine departments and the list has not changed in four years. In production the model sometimes sends values such as \"Cardiology Outpatients\" or \"Heart Clinic\", which the booking system rejects. Which schema change best fits this situation?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Keep the string type and list the nine valid departments in the system prompt."
+      },
+      {
+        "key": "B",
+        "text": "Keep the string type and have the handler fuzzy-match the value against the department table."
+      },
+      {
+        "key": "C",
+        "text": "Add a `list_departments` tool and instruct the model to call it before every booking."
+      },
+      {
+        "key": "D",
+        "text": "Constrain `department` to an `enum` of the nine valid values with a property description."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Nine values that have been stable for four years is exactly the case an enum exists for. The permitted set travels with the tool definition, so it is visible at the moment the model constructs the call rather than several thousand tokens away, and it costs no extra round trip. The list is small enough that the token overhead is negligible and stable enough that the schema will not need redeploying. Anything more elaborate is paying for volatility this domain does not have.",
+      "distractors": {
+        "A": "The system prompt is shared across every tool and drifts independently of the booking service. Putting a per-parameter constraint there separates the rule from the thing it constrains, and the model treats it as guidance rather than as the parameter's domain.",
+        "B": "Fuzzy matching guesses at clinical intent. \"Heart Clinic\" could map to cardiology or to cardiothoracic surgery, and a silently wrong match in a hospital booking system is worse than a rejected call.",
+        "C": "A discovery call is the right pattern when the value set is large or volatile — thousands of SKUs, or a catalogue that changes daily. Here it adds a round trip to every booking to retrieve nine values that could have been inlined."
+      },
+      "concept": "Choose between an inline `enum` and a lookup tool on two axes: cardinality and volatility. Small and stable belongs in the schema, where it is enforced at construction time. Large or fast-changing belongs behind a discovery tool, where the cost of a round trip buys freshness.",
+      "tip": "The stem's \"nine\" and \"four years\" are the load-bearing details. When a question hands you both a cardinality and a rate of change, it is asking you to place the value set, not to fix the string."
+    }
+  },
+  {
+    "id": "INT-B-004",
+    "domain": "Integration",
+    "topic": "Limits of strict schemas for numeric range enforcement",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An energy trading desk exposes `submit_bid` to a Claude-assisted bidding workflow. Business rules require `price_per_mwh` between 0 and 500 and `volume_mw` to be a multiple of 5. The team enabled strict tool use and added `minimum`, `maximum` and `multipleOf` to the schema, expecting the arguments to be guaranteed valid. A bid at 640 per MWh reached the exchange and had to be withdrawn. What is the correct design response?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Move the constraints into the property descriptions as \"0 to 500\" and \"multiples of 5\", and rely on the model."
+      },
+      {
+        "key": "B",
+        "text": "Enforce the ranges in the handler and return a tool error naming the permitted price and volume bounds."
+      },
+      {
+        "key": "C",
+        "text": "Force the tool with `tool_choice` so the model commits to the schema rather than free-form text."
+      },
+      {
+        "key": "D",
+        "text": "Switch the bid path to a structured-output response format that declares the same numeric bounds."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Strict tool use guarantees the shape and types of the arguments — that the object has the declared properties with the declared types and no others. Value-range predicates such as minimum, maximum and multiple-of are not part of what that layer enforces, so a well-typed number outside the business range passes cleanly. The only place a range is genuinely enforced is code you control. Validate in the handler, and return the failure as a tool error that states the permitted range, so the model can retry within it rather than the turn dying.",
+      "distractors": {
+        "A": "Descriptions raise compliance but are instructions, not enforcement. For an order that reaches an exchange, a probabilistic constraint is not a constraint. Descriptions belong alongside handler validation, never in place of it.",
+        "C": "Forced tool use changes whether the model calls the tool, not what values it puts in the fields. The stem's failure was a call that happened and was well-formed; forcing more of them does nothing.",
+        "D": "Structured response formats constrain the shape of the model's output in the same way strict tool arguments do, and carry the same limits on value predicates. Swapping the mechanism moves the problem rather than solving it."
+      },
+      "concept": "Schema enforcement guarantees structure, not semantics. Type, presence and permitted-key constraints can be enforced at construction; value ranges, cross-field invariants and business rules cannot. Draw the line explicitly in your design and put everything below it in the handler, returning violations as recoverable tool errors rather than exceptions.",
+      "tip": "A trap built on over-trusting a real feature. Strict mode is genuinely strong for shape, and candidates who know it exists over-extend it. Ask what class of guarantee a feature makes before assuming it covers your rule."
+    }
+  },
+  {
+    "id": "INT-B-005",
+    "domain": "Integration",
+    "topic": "Schema prerequisites for strict tool use",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A team turns on strict tool use for an existing tool and the request is rejected as invalid. What does the input schema have to satisfy?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Every object in the schema must set `additionalProperties: false` and declare a `required` list."
+      },
+      {
+        "key": "B",
+        "text": "Every property must carry a non-empty `description` so the constrained decoder knows what to emit."
+      },
+      {
+        "key": "C",
+        "text": "The schema must contain no arrays, since `minItems` and `maxItems` cannot be honoured under strict mode."
+      },
+      {
+        "key": "D",
+        "text": "The tool must be the only entry in the request's `tools` array, since strict is a request-level setting."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Strict argument generation needs a closed schema: for the guarantee to mean anything, the set of permitted keys must be finite and known, and the mandatory ones must be declared. That means `additionalProperties: false` on every object in the schema, including nested ones, plus a `required` list. An open schema is precisely the thing strict mode cannot make a promise about, which is why the request is rejected rather than silently downgraded.",
+      "distractors": {
+        "B": "Property descriptions are strongly recommended for accuracy — they are how the model learns what a field means — but they are a quality practice, not a validity precondition for strict generation.",
+        "C": "Arrays are supported. What is not supported is a range of value-level constraints such as numeric bounds and length limits; that is a limitation on what gets enforced, not a rule that rejects the definition.",
+        "D": "Strict is a per-tool flag. Several tools, strict and non-strict, can coexist in one request; nothing about the mechanism requires a single-tool array. Reach for the flag on the tools whose arguments must be exactly right, and leave it off where a permissive schema is genuinely intended."
+      },
+      "concept": "Constrained generation requires a closed world. Any mechanism that promises schema-valid output — strict tool arguments or a structured response format — needs `additionalProperties: false` and explicit required lists, because the guarantee is defined over a finite key space.",
+      "tip": "Recall items about a feature's prerequisites usually reward asking what the feature would have to know to keep its promise. A closed key set is the minimum for a validity guarantee."
+    }
+  },
+  {
+    "id": "INT-B-006",
+    "domain": "Integration",
+    "topic": "Disambiguating two overlapping tool definitions",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A telco field-service agent exposes `lookup_customer` and `search_accounts`. Their purposes overlap and trace logs show the model picking the wrong one on about a fifth of turns, producing empty results and a wasted round trip. Which TWO changes most directly reduce the wrong-tool rate? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Set `tool_choice` to `any` so the model must commit to one of the two tools on every turn."
+      },
+      {
+        "key": "B",
+        "text": "Add `additionalProperties: false` to both input schemas so invented fields are rejected."
+      },
+      {
+        "key": "C",
+        "text": "Rewrite each description to state when to call it and when the other tool applies instead."
+      },
+      {
+        "key": "D",
+        "text": "Raise `max_tokens` so the model has more room to deliberate before emitting the call."
+      },
+      {
+        "key": "E",
+        "text": "Rename them `get_customer_by_msisdn` and `search_accounts_by_address` after the access path."
+      }
+    ],
+    "correct": [
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "Wrong-tool selection is a discrimination problem, and the model discriminates on exactly two signals: name and description. Naming the object and the access path collapses most of the ambiguity before the descriptions are even read — an identifier-based fetch and an address-based search are obviously different operations. Adding mutual exclusion to the descriptions closes the remainder, because a boundary stated from both sides is far more reliable than two descriptions that each only advertise themselves. Together they make the choice a lookup rather than an inference.",
+      "distractors": {
+        "A": "Forcing a tool call raises the number of calls without improving which one is chosen. On a set where the model is already calling a tool five times in five, it changes nothing about the failure in the stem.",
+        "B": "Closing the schemas constrains the arguments of whichever tool is picked. It cannot influence the pick itself, which happens before any argument is generated. It is worth doing for a different reason — keeping the handler safe from invented fields — but that is an argument-validity benefit, not a selection one.",
+        "D": "Output budget has no bearing on selection quality. Tool-use blocks are short, and the model was not truncated — it chose the wrong tool and completed the call. Treating a selection failure as a generation-length problem is a common misdiagnosis, and it raises the cost of every request thereafter."
+      },
+      "concept": "Tool selection is driven by name and description only. Everything else in the definition — schema shape, strictness, required lists — governs what happens after the choice. When selection is the failure, only those two fields are in scope, and stating the negative boundary is as valuable as stating the positive one.",
+      "tip": "For multi-select, sort options by which stage of the tool-call lifecycle they touch. Selection failures are fixed at the selection stage; anything that acts on arguments or sampling is off the critical path by construction."
+    }
+  },
+  {
+    "id": "INT-B-007",
+    "domain": "Integration",
+    "topic": "Mid-session tool array churn and cached prefix loss",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A streaming media company runs a long-lived rights-clearance agent. Its system prompt is large and static, sessions run twenty or more turns, and caching was carrying most of the cost. To keep the fixed tool set small the team adds a `fetch_rights_window` tool to the `tools` array only at the turn where licensing first comes up. Since that change, cache reads fall to zero for every turn after the insertion and spend has roughly doubled. What should they do next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Add a second cache breakpoint immediately after the tool array so tools cache separately from the system prompt."
+      },
+      {
+        "key": "B",
+        "text": "Extend the cache lifetime to the extended one-hour tier so entries survive the gaps between turns."
+      },
+      {
+        "key": "C",
+        "text": "Declare the full tool set at session start and leave the array untouched for the session's lifetime."
+      },
+      {
+        "key": "D",
+        "text": "Collapse the tool set to a single generic `call_api` tool and describe the available operations in the system prompt."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Tool definitions sit at the very front of the request prefix, ahead of the system prompt and the conversation. Caching is a prefix match, so editing the tool array changes the first bytes of the prefix and invalidates everything behind it — which is why the loss began exactly at the insertion turn and persisted. For a twenty-turn session, a fixed tool set declared once is worth far more than the handful of schema tokens saved by deferring one definition. Stability of the prefix is the asset here.",
+      "distractors": {
+        "A": "Breakpoints mark where a cacheable prefix ends; they cannot protect content that sits behind a byte that changed. A breakpoint after the tools still depends on the tools matching, so it invalidates with them.",
+        "B": "Lifetime governs how long an unchanged prefix stays warm. Nothing in the stem suggests entries were ageing out — they were being invalidated on the very next request, which is a content problem, not a time problem.",
+        "D": "A single generic tool restores prefix stability but throws away typed arguments, per-action gating and any chance of the harness auditing what was called. It also moves the same churn into the system prompt, which is also in the cached prefix."
+      },
+      "concept": "Treat the tool array as part of the cached prefix and therefore as session-scoped configuration, not per-turn state. If a tool set genuinely must grow mid-session, use a discovery mechanism that appends definitions rather than rewriting the array — appending preserves the existing prefix, rewriting does not.",
+      "tip": "The timing detail is the whole question: cache loss that starts at a specific turn and never recovers points at a prefix mutation, not at expiry. Expiry looks like intermittent misses; invalidation looks like a cliff."
+    }
+  },
+  {
+    "id": "INT-B-008",
+    "domain": "Integration",
+    "topic": "Encouraging use of a genuinely optional parameter",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An online grocery agent calls `place_order`, which has an optional `substitution_policy` parameter. Customers regularly state a preference in conversation (\"no dairy substitutes\"), but the model almost never populates the field, so orders fall back to the store default. What is the right fix?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Move `substitution_policy` into `required` so the model always supplies a value."
+      },
+      {
+        "key": "B",
+        "text": "Drop the parameter and read the customer's stored preference in the handler instead."
+      },
+      {
+        "key": "C",
+        "text": "Split into two tools, one that permits substitutions and one that does not."
+      },
+      {
+        "key": "D",
+        "text": "Give the property a description stating when to set it and what happens if it is omitted."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "An optional property with no description is invisible guidance: the model can see the field exists but has no basis for deciding this turn warrants it. A property description that names the trigger — \"set this whenever the customer states a preference about replacements; omitted means the store default applies\" — converts a judgement call into a match against the conversation. It keeps the field optional, which matters because most orders genuinely have no stated preference.",
+      "distractors": {
+        "A": "Making it required forces a value on every call, including the majority where the customer said nothing. The model will invent one, and a fabricated substitution policy is a worse outcome than the store default.",
+        "B": "The stem says the preference is stated in this conversation. A stored profile cannot know about a one-off instruction, and silently overriding what the customer just said is a defect, not a fix.",
+        "C": "Two tools for one boolean-ish dimension is combinatorial. If a second optional dimension appears you now need four tools, and the selection problem gets harder rather than easier. It also fragments the traces and metrics for what is really one operation, making the ordering funnel harder to reason about."
+      },
+      "concept": "Every property in a tool schema needs a description, and for optional properties that description must state the trigger for supplying it. Optionality is a statement about the API; the model needs a statement about the conversation. Required-marking is not a substitute — it trades omission for fabrication.",
+      "tip": "When a field is under-populated, ask whether the model lacks permission or lacks a cue. Almost always it is the cue. Reaching for `required` swaps a silent default for an invented value, which is harder to detect."
+    }
+  },
+  {
+    "id": "INT-B-009",
+    "domain": "Integration",
+    "topic": "Typing a date parameter against relative expressions",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An airline's crew-rostering agent calls `find_open_pairings` with a `start_date` parameter typed as a plain string. Crew schedulers speak in relative terms, and the model passes values such as \"next Tuesday\" and \"the Monday after the bank holiday\". The roster service accepts only ISO dates and rejects roughly a tenth of calls. What is the best design?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Keep the free-text field and resolve it in the handler with a natural-language date parsing library."
+      },
+      {
+        "key": "B",
+        "text": "Type it as an ISO-8601 date, say so in the description, and put the current date in the request."
+      },
+      {
+        "key": "C",
+        "text": "Reject non-ISO values with a tool error quoting the expected `YYYY-MM-DD` format so the model resends."
+      },
+      {
+        "key": "D",
+        "text": "Add a `resolve_date` tool that converts phrases like \"next Tuesday\" into ISO dates before booking."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The model is perfectly capable of resolving \"next Tuesday\" — it just needs to know what today is, and to know that the field wants a resolved date. The request context is a stateless API's only source of the current date, and the property description is where the format expectation belongs. Together they move the resolution to the one place that has both the conversational context and the reference date, at zero extra round trips. The service keeps its strict input contract.",
+      "distractors": {
+        "A": "Server-side natural-language parsing has to guess the reference date and the timezone, and \"next Tuesday\" is genuinely ambiguous in a crew-rostering context spanning time zones. It also hides the ambiguity from the model, which is the only party that saw the conversation.",
+        "C": "Erroring back works but pays a round trip on a tenth of calls, and the model still cannot resolve the phrase without knowing the date. It will either guess or ask the user something the user already answered.",
+        "D": "A dedicated resolver adds a mandatory hop to every booking and still needs the current date from somewhere. It is the right pattern for genuinely domain-specific resolution, such as fiscal periods, not for ordinary calendar arithmetic."
+      },
+      "concept": "The API is stateless and the model has no clock. If any parameter is relative to now — dates, ages, deadlines, \"recent\" windows — inject the current time into the request and type the parameter as an absolute value. Never make a downstream handler infer a reference point it does not have.",
+      "tip": "Any stem with relative time expressions is testing whether you remember the model cannot read a clock. The answer combines an absolute parameter type with a supplied reference point; options that supply only one of the two are incomplete."
+    }
+  },
+  {
+    "id": "INT-B-010",
+    "domain": "Integration",
+    "topic": "Making contradictory boolean flag states unrepresentable",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A property and casualty insurer's claims agent calls `search_claims`, which exposes fourteen boolean flags including `include_closed`, `open_only` and `reopened_only`. Trace review shows the model regularly sets contradictory pairs, and the handler's behaviour in those cases was never defined, so results vary. Which change addresses the root cause?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Replace the mutually exclusive booleans with a single `status_filter` enum."
+      },
+      {
+        "key": "B",
+        "text": "Detect contradictory pairs in the handler and return a tool error listing them."
+      },
+      {
+        "key": "C",
+        "text": "Document the exclusivity rules in the tool description, listing which flag pairs conflict."
+      },
+      {
+        "key": "D",
+        "text": "Mark all three flags as required with documented defaults so no combination is implicit."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Three booleans express eight states, of which most are nonsense. An enum expresses exactly the states that mean something, so the contradiction is not merely detected or discouraged — it cannot be written down. That also removes the undefined handler behaviour the stem flags, because there is no longer a combination to have undefined behaviour for. The general move is to make the schema's expressible states match the domain's legal states as closely as the schema language allows.",
+      "distractors": {
+        "B": "Detection turns a silent wrong answer into a visible round trip, which is an improvement, but it treats the symptom. The schema still advertises eight states for a three-state concept, and the model will keep exploring them.",
+        "C": "A prose rule about which flags conflict competes with a schema that plainly permits the conflict. When the structure and the instructions disagree, the structure wins often enough to keep producing the failure.",
+        "D": "Requiring all three makes every combination explicit, including the contradictory ones. It removes ambiguity about intent but not the contradiction itself, and it forces the model to make three decisions where the domain has one."
+      },
+      "concept": "Prefer schemas in which illegal states are unrepresentable. Mutually exclusive booleans, parallel optional fields where exactly one must be set, and free strings over a closed set are all invitations for the model to produce something your handler must then reason about. Collapse them into enums or discriminated shapes.",
+      "tip": "Count the states a schema can express and compare with the states the domain has. A wide gap is the defect, and the fix is always narrowing the schema rather than adding validation on top of it."
+    }
+  },
+  {
+    "id": "INT-B-011",
+    "domain": "Integration",
+    "topic": "Exposing a destructive operation on an internal MCP server",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A pharmaceutical manufacturer runs an internal MCP server over the network that fronts its manufacturing execution system. Product owners want to add a batch-record purge capability, used only to clear quarantined trial batches. Released batches are GxP records and must never be touched. Which THREE design decisions belong in the server's tool surface? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Rely on the tool's destructive-operation annotation to make the host prompt an operator before executing."
+      },
+      {
+        "key": "B",
+        "text": "Expose `purge_batch_record` as its own tool rather than a `mode: \"purge\"` value on the write tool."
+      },
+      {
+        "key": "C",
+        "text": "Require the caller to pass the record version read earlier, and fail if the stored version has moved since."
+      },
+      {
+        "key": "D",
+        "text": "Run the purge path under a credential that can only reach records in the quarantined state."
+      },
+      {
+        "key": "E",
+        "text": "Move the server to a stdio transport so the purge tool is reachable only from the host machine."
+      }
+    ],
+    "correct": [
+      "B",
+      "C",
+      "D"
+    ],
+    "explanation": {
+      "correct": "Three independent controls, each covering a failure the others do not. A dedicated tool name gives the host something to gate, log and rate-limit — a mode flag inside a general write tool gives it nothing without parsing arguments. Passing the previously read version turns a stale purge into a failed call rather than a destroyed record, which matters because agent turns interleave with human edits. And scoping the purge credential to quarantined records means that even a perfectly formed call aimed at a released batch fails at the data layer, where the GxP boundary actually is.",
+      "distractors": {
+        "A": "Tool annotations are advisory metadata supplied by the server. A host may use them to decide how to present a call, but they are not an enforcement mechanism and a host is free to ignore them. Treating a hint as a control leaves the destructive path ungated.",
+        "E": "Transport choice determines how the host reaches the server, not what the model may invoke once connected. A stdio server has exactly the same tool surface, and this server fronts a networked MES that a local subprocess could not serve anyway."
+      },
+      "concept": "Defence for a destructive tool is layered and each layer answers a different question: the tool name makes the action addressable by policy, the version parameter makes it safe against concurrent change, and the credential makes it bounded even when everything above fails. Metadata hints and transport choices answer none of those questions.",
+      "tip": "When a stem names a hard regulatory boundary, expect the key set to include a control at the data layer, not only at the model or protocol layer. Options that only change presentation or plumbing are there to be eliminated."
+    }
+  },
+  {
+    "id": "INT-B-012",
+    "domain": "Integration",
+    "topic": "Flattening a deeply nested tool input schema",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A telco's order-management agent calls `create_order`, whose input schema nests six levels deep: order, then customer, then service address, then each of two product lines with their own option groups. Arguments always validate against the schema, but about one order in eight puts a correct value in the wrong branch — a broadband option landed under the mobile line. Which change addresses this?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Enable strict tool use so every argument object is guaranteed to conform to the nested schema."
+      },
+      {
+        "key": "B",
+        "text": "Add a fully worked nested example order to the tool description, covering both product lines."
+      },
+      {
+        "key": "C",
+        "text": "Split it into six sequential tools, one per nesting level, each returning a handle for the next."
+      },
+      {
+        "key": "D",
+        "text": "Flatten the schema to named top-level parameters and rebuild the payload in the handler."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The failure is placement, not validity — the stem says arguments always validate. Deep nesting makes the model track which branch it is currently inside while generating, and structurally identical sibling objects give it nothing to disambiguate on. Flattening to `mobile_line_data_allowance` and `broadband_line_speed_tier` removes the tracking problem entirely: every field names its own destination. Reassembling the nested payload in the handler is trivial code that runs deterministically, which is exactly the kind of work to keep out of the model.",
+      "distractors": {
+        "A": "Strict generation guarantees the arguments conform to the schema. The stem already states they do; a broadband option under the mobile line is a schema-valid document. Strict mode cannot distinguish a semantically wrong branch from a right one.",
+        "B": "An example raises the hit rate somewhat but is paid for on every request and still requires the model to maintain branch position while generating. It also becomes stale as the product catalogue changes.",
+        "C": "Six chained calls turn one round trip into six and force the model to carry handles between turns. Sequencing is the right answer when steps genuinely depend on each other's results; here they are one atomic order."
+      },
+      "concept": "Model-facing schemas are not internal data models. Structurally identical siblings under a deep hierarchy are the shape most prone to misplacement, because nothing in the local context tells the model which branch it is in. Flatten with self-describing names at the boundary and rebuild the hierarchy in code.",
+      "tip": "\"Arguments always validate\" is the sentence that eliminates every schema-enforcement option. When the stem tells you the output is well-formed but wrong, look for the option that changes what the model has to keep track of."
+    }
+  },
+  {
+    "id": "INT-B-013",
+    "domain": "Integration",
+    "topic": "Where a parameter's unit must be documented",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A tool takes a `timeout` parameter measured in milliseconds. For Claude to populate it correctly, where does that unit have to be documented?",
+    "options": [
+      {
+        "key": "A",
+        "text": "In the handler function's docstring, next to the code that consumes it."
+      },
+      {
+        "key": "B",
+        "text": "In the property's `description` inside the tool's input schema."
+      },
+      {
+        "key": "C",
+        "text": "In the API gateway's request-validation rules for the downstream service."
+      },
+      {
+        "key": "D",
+        "text": "In the OpenAPI document that the tool definition was generated from."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The model sees the tool definition and nothing else about your implementation. Whatever is not in the name, description or schema does not exist as far as argument construction is concerned. A bare `timeout` of type integer is a coin flip between seconds and milliseconds, and the model will pick whichever its priors favour. The property description is the only channel, which is why every unit, format convention and permitted range belongs there even when it is documented elsewhere too.",
+      "distractors": {
+        "A": "A docstring serves the humans and tooling on your side of the boundary. It is never transmitted, so it cannot influence what the model generates. The same applies to type hints, validators and inline comments: useful to your team, invisible to the model constructing the call.",
+        "C": "Gateway validation can reject a wrong unit after the fact, turning a silent bug into an error. It does not tell the model what to send, and rejection costs a round trip.",
+        "D": "An OpenAPI document may well be the source you generated the tool from, but unless its field documentation is carried through into the property description it never reaches the model."
+      },
+      "concept": "The tool definition is the entire interface contract with the model. Units, formats, timezone conventions, identifier shapes and rounding rules must be stated in the schema itself. Documentation living anywhere else in the stack is invisible at generation time, no matter how authoritative it is.",
+      "tip": "For any \"where should this be documented\" item, ask what the model actually receives in the request. Only the tool definitions, the system prompt and the messages qualify — and per-parameter facts belong in the definition."
+    }
+  },
+  {
+    "id": "INT-B-014",
+    "domain": "Integration",
+    "topic": "Cursor pagination versus offset arithmetic in tool inputs",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A city council's planning agent calls `list_permits`, which takes `offset` and `limit`. Long research runs walk hundreds of results. Audit found the agent occasionally re-reads a page or skips one, and because new permits are inserted continuously, offsets shift under it. The council needs reproducible enumeration for its own audit trail. What should the tool's input contract become?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Return an opaque `next_cursor` from each call and accept it as an optional `cursor` parameter."
+      },
+      {
+        "key": "B",
+        "text": "Raise the maximum page size to 200 rows so most enumerations complete in two or three calls."
+      },
+      {
+        "key": "C",
+        "text": "Keep offset and limit but state the arithmetic rule in the description so the model advances correctly."
+      },
+      {
+        "key": "D",
+        "text": "Have the handler track each conversation's position server-side and ignore the offset the model sends."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Two problems, one fix. Offsets require the model to maintain a running count across turns, which is exactly the kind of state it drops, and they are unstable against concurrent inserts — the same offset means a different row after a write. An opaque cursor makes the model's job copying a token rather than doing arithmetic, and lets the server anchor the position to a stable key so an insert cannot shift it. That anchoring is what gives the council reproducible enumeration.",
+      "distractors": {
+        "B": "A bigger page moves the boundary without removing it, and it pushes far more retrieved text into the context window on every call. Runs that walk hundreds of results still cross the boundary, and now each crossing is more expensive.",
+        "C": "Describing the arithmetic asks the model to be a reliable counter across many turns. Even with perfect arithmetic it does not fix the drift caused by inserts between pages, which is the reproducibility problem the council cares about.",
+        "D": "Hidden server-side position keyed by conversation breaks the moment two calls run in parallel or a turn is retried, and it makes the tool non-idempotent. State that the model must control belongs in the arguments, not in an invisible session."
+      },
+      "concept": "Design tool inputs so the model transports state rather than computes it. Opaque cursors, echoed version tokens and returned identifiers all follow the same rule: the model is reliable at carrying a value forward and unreliable at deriving one. Keeping the state in the arguments also keeps calls idempotent and retry-safe.",
+      "tip": "Two clues point the same way here — a long enumeration and a continuously written table. Either alone might tolerate offsets; together they make the reproducibility requirement in the last sentence decisive."
+    }
+  },
+  {
+    "id": "INT-B-015",
+    "domain": "Integration",
+    "topic": "Open schemas and silently discarded invented arguments",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "An automotive parts marketplace runs a Claude ordering agent. Its `create_fulfilment` schema leaves `additionalProperties` at the default, and the model began emitting a `warehouse_hint` field it inferred from conversation. The handler ignores unknown keys, so orders shipped from the default depot for three weeks before a regional manager noticed the freight bill. The team is on a model tier that supports strict tool use. What is the right next step?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Add `warehouse_hint` to the schema and implement it in the handler."
+      },
+      {
+        "key": "B",
+        "text": "Add a system-prompt instruction telling the model not to invent parameters."
+      },
+      {
+        "key": "C",
+        "text": "Set `additionalProperties: false` throughout the schema and enable strict tool use."
+      },
+      {
+        "key": "D",
+        "text": "Strip unknown keys in the gateway and log them to the order-audit stream."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The defect is not the specific field, it is that the interface accepted arguments the implementation does not honour and said nothing. Closing the schema and enabling strict generation makes that class impossible: the model can no longer produce a key the handler does not implement, so intent can never be silently dropped again. Three weeks of undetected mis-shipping is the cost of a permissive contract, and the fix has to remove the permissiveness rather than patch this instance of it.",
+      "distractors": {
+        "A": "Implementing the field is reasonable product work and may well be worth doing, but it closes exactly one hole. The next inferred field the model invents will be discarded just as quietly.",
+        "B": "An instruction competes with a schema that plainly permits extra keys. Even at high compliance, a rule enforced probabilistically will not hold across the volume implied by a marketplace's order flow.",
+        "D": "Stripping and logging preserves the silent-drop behaviour and merely records it. It shortens time-to-detection at best, and only if someone reads the log — which is the same assumption that failed for three weeks."
+      },
+      "concept": "An open input schema is an implicit promise you did not intend to make. Where the model can express intent the handler will not act on, that intent disappears without an error. Close the key space and enforce it at generation time so the failure surfaces as a rejected call rather than a plausible wrong outcome.",
+      "tip": "Silent-failure stems reward options that convert the failure into a loud one. Prefer making the bad state impossible over detecting it, and be suspicious of any option whose value depends on someone reading a log."
+    }
+  },
+  {
+    "id": "INT-B-016",
+    "domain": "Integration",
+    "topic": "Tool description drift after an implementation change",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A university's student-records agent calls `get_enrolments`. Three months ago the platform team narrowed it to return only the current term, for query-performance reasons that still hold. The description was not touched. Since then the agent has confidently told students that withdrawn prior-term modules \"do not appear on your record\", and the registrar has escalated. What is the correct response?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Add a note to the system prompt explaining that enrolment results cover the current term only."
+      },
+      {
+        "key": "B",
+        "text": "Add an output check that flags answers referring to prior terms before they reach the student."
+      },
+      {
+        "key": "C",
+        "text": "Revert the narrowing so the query returns all terms and matches the description again."
+      },
+      {
+        "key": "D",
+        "text": "Update the description to state the current-term scope, and version it with the implementation."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The description is the model's entire contract with the tool, so a behaviour change that skips it ships a lie into the prompt. The model was reasoning correctly from what it was told; it was told something false. Correcting the text fixes the incident, and binding description changes to implementation changes — same review, same release — fixes the class. If prior terms are still needed, that is now a scoped parameter added deliberately rather than a silent assumption the model was making.",
+      "distractors": {
+        "A": "This splits one contract across two artefacts that are owned and deployed separately. The system prompt is shared across many tools and will drift again; the next person changing the query has no reason to look there.",
+        "B": "An output check catches some phrasings of a wrong answer without correcting the model's belief. The agent still reasons from a false premise, and the check has to anticipate every way that premise can surface.",
+        "C": "The stem says the performance reason still holds. Reverting trades a documentation defect for the operational problem the change was made to solve, and the description would still be untrustworthy in principle."
+      },
+      "concept": "Tool descriptions are production code. They are the interface specification the model compiles against, so they belong in the same repository, review and release as the handler, and a behaviour change without a description change should fail review the way a breaking API change without a version bump would.",
+      "tip": "When an agent is confidently wrong but the tool returned exactly what it was asked for, suspect the description. The model's errors are usually faithful consequences of what you told it."
+    }
+  },
+  {
+    "id": "INT-B-017",
+    "domain": "Integration",
+    "topic": "Typing a monetary amount in a tool schema",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A cross-border payments platform is designing `create_payout` for its Claude support agent. Accounts hold balances in several currencies simultaneously, and settlement is to the cent with defined rounding. Which TWO parameter-typing decisions are correct? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Take the amount as a `number` with `multipleOf: 0.01` so sub-cent values are rejected at generation."
+      },
+      {
+        "key": "B",
+        "text": "Take the amount as an integer in minor units alongside a `currency` parameter constrained to an enum."
+      },
+      {
+        "key": "C",
+        "text": "Accept a formatted string such as `\"1,234.56 EUR\"` and parse amount and currency in the handler."
+      },
+      {
+        "key": "D",
+        "text": "Omit `currency` and have the handler resolve it from the account's default currency setting."
+      },
+      {
+        "key": "E",
+        "text": "State the minor-unit and rounding convention in the `amount` property description."
+      }
+    ],
+    "correct": [
+      "B",
+      "E"
+    ],
+    "explanation": {
+      "correct": "Integer minor units remove floating-point representation from the interface entirely, and an explicit enumerated currency is mandatory once an account can hold more than one — there is no safe default to fall back on. The schema can carry the type but not the convention, so the description has to say that 1250 means twelve euros fifty and how rounding is applied. Together they give the model an unambiguous encoding and the reason behind it, which is what keeps a support agent from sending a hundredfold payout.",
+      "distractors": {
+        "A": "Value predicates such as multiple-of are outside what the schema layer enforces during argument generation, so this buys nothing. It also keeps a floating-point amount in the interface, which is the representation problem it was meant to solve.",
+        "C": "A formatted string pushes parsing of thousands separators, decimal marks and currency placement into the handler, and locale conventions differ across the corridors a cross-border platform serves. It converts a typed field into a free-text field.",
+        "D": "The stem states accounts hold several currencies at once, so there is no unambiguous account default. Inferring one moves a decision the conversation determined into code that cannot see the conversation."
+      },
+      "concept": "For money, make the interface exact and explicit: integer minor units, an enumerated currency, and the convention written in the description. Never let a currency be implicit when more than one is possible, and never rely on schema value predicates to protect a financial invariant — that belongs in handler validation.",
+      "tip": "The multiple-of option is the trap, because the keyword is real JSON Schema and looks like enforcement. Ask which layer actually evaluates a keyword before counting it as a control."
+    }
+  },
+  {
+    "id": "INT-B-018",
+    "domain": "Integration",
+    "topic": "Consequence of over-marking parameters as required",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A tool schema lists every property in `required`, including several the user frequently does not mention. What is the most likely production consequence?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The model stops calling the tool and asks a clarifying question when a value is missing."
+      },
+      {
+        "key": "B",
+        "text": "The model fabricates plausible values for the properties the user never mentioned."
+      },
+      {
+        "key": "C",
+        "text": "The API rejects the tool definition, since `required` cannot list every property."
+      },
+      {
+        "key": "D",
+        "text": "The handler receives explicit nulls for those properties, distinguishable from omitted keys."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "A required property is an instruction that a valid call must include it. Faced with a call it wants to make and a field the conversation did not determine, the model fills the field — usually with something plausible drawn from context or priors. This is worse than omission, because a fabricated value looks like a deliberate one to every layer downstream, and no error is raised anywhere. Reserve `required` for properties without which the operation is genuinely meaningless.",
+      "distractors": {
+        "A": "Abstaining is occasionally what happens, but it is not the common outcome. The model's strong bias is to complete a call it has decided is warranted, and the required list reads as a completion instruction rather than a veto.",
+        "C": "There is no such validation. Marking everything required produces a perfectly legal definition, which is exactly why this failure survives review. Nothing in the platform knows which of your parameters a user is likely to omit, so the mistake is caught only by production behaviour.",
+        "D": "Nothing in the required list makes the model emit nulls. Even if it did, the handler still could not distinguish an intentional null from a field the user never mentioned."
+      },
+      "concept": "`required` is not a hint about importance, it is a statement that the operation is undefined without the value. Over-marking converts silence into invention, and invented arguments are the hardest tool-use defect to detect because they pass every validation layer you have.",
+      "tip": "Prefer the option describing a plausible-but-wrong output over one describing a hard failure. Tool schema mistakes usually degrade quality silently; they rarely produce an error someone would have caught in staging."
+    }
+  }
+]

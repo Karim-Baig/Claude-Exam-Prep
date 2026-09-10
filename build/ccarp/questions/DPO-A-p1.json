@@ -1,0 +1,456 @@
+[
+  {
+    "id": "DPO-A-001",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Enforcing an unlowerable security floor across many engineers",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A payments processor has 40 engineers using Claude Code across a dozen repositories. After an incident where an agent read a developer's local `.env` file into a transcript, the security team issues a hard requirement: no engineer, on any machine, may configure Claude Code so that it can read environment files or execute infrastructure apply commands. Engineers currently manage their own configuration and several have added broad allow rules for convenience. Which placement of the restriction actually satisfies the requirement?",
+    "options": [
+      { "key": "A", "text": "Commit the deny rules to each repository's `.claude/settings.json` and protect that file with a CODEOWNERS rule so changes require security review before merge." },
+      { "key": "B", "text": "Add an explicit prohibition to the root `CLAUDE.md` of every repository, stating in imperative language that the assistant must never open environment files or run infrastructure apply commands." },
+      { "key": "C", "text": "Deploy the deny rules through enterprise-managed policy settings distributed by the fleet's device management, and use the same policy to remove the permission mode that skips prompting." },
+      { "key": "D", "text": "Ship a one-time onboarding script that writes the deny rules into each engineer's user-level settings file at `~/.claude/settings.json` when they join the team." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The requirement is that no engineer can lower the floor, which rules out anything stored in a file the engineer can edit. Enterprise-managed policy settings sit above project, project-local, user, and command-line sources, and a key set there is not overridable from below. Closing the bypass-permissions escape hatch in the same policy matters just as much: a deny rule is worthless if the engineer can switch to a mode that skips the permission layer entirely. Managed policy plus mode restriction is the only combination here that survives a motivated local user.",
+      "distractors": {
+        "A": "Review gates protect the branch, not the working copy. An engineer can edit the checked-out settings file on their own disk, or simply add a personal local settings file, and the session honours whatever is on the machine at launch. Code review controls what ships, not what runs locally.",
+        "B": "A memory file is an instruction to the model, not an enforcement point. It biases behaviour and will usually work, but it can be overridden by a later instruction, ignored under long-context pressure, or edited by the developer. A security floor stated in prose is a preference, not a control.",
+        "D": "User-level settings are the lowest-precedence source and live in a file the engineer owns. A one-time write is trivially reverted, and anything set there is overridden by a project or project-local rule the same developer can add. It also does nothing for machines provisioned outside onboarding."
+      },
+      "concept": "Deterministic enforcement beats an instruction, and managed policy beats local configuration. When a control must hold against the person operating the tool, it has to live at a layer that person cannot write to, and it must also close the modes that bypass the layer being enforced.",
+      "tip": "When a stem says a restriction must survive the developer rather than merely guide them, discard every option whose artefact lives inside the repository or the home directory. Ask who owns the file, not how strongly it is worded."
+    }
+  },
+  {
+    "id": "DPO-A-002",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Highest-precedence Claude Code settings source",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "The same Claude Code settings key is defined in four different places. Which source wins?",
+    "options": [
+      { "key": "A", "text": "The project's shared settings file at `.claude/settings.json`, because it is the one the whole team agreed on and it is under version control." },
+      { "key": "B", "text": "Enterprise-managed policy settings deployed by the organisation." },
+      { "key": "C", "text": "The user's personal settings at `~/.claude/settings.json`, because the person at the keyboard is closest to the running session." },
+      { "key": "D", "text": "The project-local settings file at `.claude/settings.local.json`, because it is the most specific file and it is written last." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Managed policy settings are the top of the precedence chain. They are deployed by the organisation rather than written by the developer, and a key set there is not overridden by project, project-local, user, or command-line configuration. This is what makes them the correct home for a compliance control; everything below them exists to express team convention and personal preference, which are negotiable by definition.",
+      "distractors": {
+        "A": "Shared project settings outrank user settings and are the right home for team convention, but they are still a file inside the repository working copy. They lose to project-local settings on the same machine and lose to managed policy everywhere.",
+        "C": "User settings are the lowest-precedence source, not the highest. They apply to every project on one machine, which makes them useful for personal preferences such as an editor integration, but any project-scoped or managed value takes priority over them.",
+        "D": "Project-local settings outrank both the shared project file and user settings, which is why they are gitignored personal overrides. They still sit below managed policy, so they cannot be used to escape an organisational control."
+      },
+      "concept": "Claude Code resolves settings from a fixed precedence chain running from organisation-managed policy at the top down through command-line arguments, project-local, shared project, and finally user settings. Specificity increases as you descend, but authority decreases.",
+      "tip": "Do not confuse specificity with precedence. The most specific file usually wins among the files a developer owns, but the whole developer-owned stack sits underneath organisational policy."
+    }
+  },
+  {
+    "id": "DPO-A-003",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Interaction between conflicting allow and deny permission rules",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A logistics platform team wants Claude Code to run their build scripts without prompting, so their shared project settings contain an allow rule matching all `npm run` invocations. A separate rule set, added later by the release engineer, contains a deny rule matching `npm run deploy`. During a session Claude proposes `npm run deploy`. What happens, and why?",
+    "options": [
+      { "key": "A", "text": "The call is refused, because permission rules are evaluated deny first and the first matching rule in that order decides the outcome." },
+      { "key": "B", "text": "The call runs without prompting, because the allow rule was defined in the higher-precedence settings file and precedence is resolved before rule category." },
+      { "key": "C", "text": "The user is prompted to approve or reject, because a rule conflict is treated as an unresolved case and falls back to interactive confirmation." },
+      { "key": "D", "text": "The call runs without prompting, because the more general allow rule matched a longer prefix of the command string than the narrower deny rule did." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Permission rules are not resolved by file precedence or by specificity. They are evaluated by category in a fixed order, with deny considered first, then ask, then allow, and the first match settles the outcome. A deny rule therefore blocks a command even when a broader allow rule in a higher-precedence file also matches it. That ordering is what makes deny usable as a safety mechanism: a team can grant convenience allowances generously, knowing the carve-outs still hold.",
+      "distractors": {
+        "B": "File precedence decides which value of a key survives merging, not which permission category wins for a given call. Once the merged rule set exists, category order takes over, and deny is considered before allow regardless of which file each rule came from.",
+        "C": "There is no conflict-resolution fallback to prompting. Prompting is the behaviour when no rule matches at all, or when an ask rule matches. A matching deny produces a refusal, which is deliberately different from a prompt because a prompt can be approved.",
+        "D": "Match length is not part of the evaluation. Introducing a longest-match rule would make deny rules unreliable, since any team could neutralise a carve-out by writing a broader allow pattern. Category order deliberately removes that possibility."
+      },
+      "concept": "In Claude Code's permission model, deny is evaluated before ask, and ask before allow. This means a narrow prohibition survives any number of broad permissions, so the safe way to grant convenience is generous allow rules plus explicit deny carve-outs.",
+      "tip": "When an item pits an allow rule against a deny rule, do not reason about which file is more authoritative. Category order settles it before precedence ever becomes relevant."
+    }
+  },
+  {
+    "id": "DPO-A-004",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Structuring memory files across a large monorepo",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A telecom operator keeps eleven services in one monorepo. Each service has its own test runner, its own migration conventions, and in two cases a hard rule about never touching generated client code. A staff engineer's first attempt put every service's rules into one root memory file, which grew past a thousand lines and measurably crowded out working context on short tasks. How should the guidance be organised?",
+    "options": [
+      { "key": "A", "text": "Keep the single root memory file but compress it aggressively into terse bullet points, so all eleven services stay described in a fraction of the tokens." },
+      { "key": "B", "text": "Move the service-specific rules into each engineer's user-level memory file, so people only carry the conventions for the services they personally work on." },
+      { "key": "C", "text": "Move all eleven rule sets into a single shared wiki page owned by the platform team, and have the root memory file instruct the assistant to fetch that page over the network before it starts any task." },
+      { "key": "D", "text": "Keep only repo-wide conventions in the root memory file and put each service's rules in a memory file inside that service's own directory, where they load when work touches that subtree." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Memory files are hierarchical: a file placed inside a subdirectory is picked up when the session works on files under that directory, rather than being paid for on every task. Splitting along the directory boundary that already exists means an engineer touching one service loads that service's conventions plus the repo-wide ones, and nothing else. It also puts each rule set next to the code it governs, so it is reviewed by the people who own that service and rots more slowly.",
+      "distractors": {
+        "A": "Compression treats the symptom. Eleven services' rules are still loaded on a task that touches one of them, and terser prose makes the two hard prohibitions easier to skim past. Shrinking always-loaded context is worth less than making most of it conditional.",
+        "B": "User-level memory is personal and per-machine. Conventions that the whole team must follow would then be invisible to new joiners, absent in CI, and impossible to review. It also fragments the rules so no two engineers are working from the same instructions.",
+        "C": "A fetch-on-demand pointer relies on the model deciding to follow it and on the document being reachable, which makes the guidance advisory rather than loaded. It also moves team conventions outside the review path of the repository that they govern."
+      },
+      "concept": "Memory files compose hierarchically rather than replacing one another, so place each instruction at the narrowest scope that covers everything it governs. Repo-wide truth in the root file, subtree truth in the subtree, personal preference in the user file.",
+      "tip": "A stem that mentions a memory file crowding out working context is pointing at scope, not at wording. The fix is moving instructions down the hierarchy so they load conditionally, not rewriting them shorter."
+    }
+  },
+  {
+    "id": "DPO-A-005",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Deciding what belongs in the committed project settings file",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A 40-person platform team is splitting its Claude Code configuration between the repository-committed `.claude/settings.json`, personal files, and organisational policy. Which TWO items belong in the repository-committed project settings file? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "The credential the team uses to reach its internal model gateway, stored inline so every clone authenticates identically without extra setup." },
+      { "key": "B", "text": "A hook, shared by the whole team, that rejects edits to the directory of generated protocol buffer stubs." },
+      { "key": "C", "text": "Deny rules that the security organisation requires to remain in force regardless of what any individual engineer configures on their machine." },
+      { "key": "D", "text": "Allow rules covering the repository's own build, lint, and test commands, so that a fresh clone stops prompting for the commands everyone runs constantly." },
+      { "key": "E", "text": "One engineer's preferred default model and custom status line, which they have tuned over several months and want applied whenever they open this repository." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "The committed project file is for configuration that is true of the repository and identical for everyone who clones it. A shared hook protecting generated code qualifies: it is a property of this codebase, it should be reviewed like code, and every contributor benefits from it. So do allow rules for the repository's own build and test commands, which turn a stream of repetitive prompts into a one-time reviewed decision. Both are team facts, both are reviewable in a pull request, and neither is a secret or a personal taste.",
+      "distractors": {
+        "A": "Committing a credential puts a secret into version control and into every clone, fork, and CI artefact. Credentials belong in the environment or behind a credential helper the settings file merely names, never in the file itself.",
+        "C": "A requirement that must hold regardless of local configuration cannot be met by a file inside the working copy, because the engineer can edit their checked-out copy or add a local override. That control belongs in enterprise-managed policy settings.",
+        "E": "Personal preferences applied to one person's sessions belong in that person's own settings, either user-level or the gitignored project-local file. Committing them imposes one engineer's taste on 39 colleagues and produces churn in review."
+      },
+      "concept": "Sort configuration by who it is true for. Repository truth goes in the committed project file; personal truth goes in user or project-local files; organisational requirements go in managed policy; secrets go in none of them.",
+      "tip": "For placement questions, test each candidate with two questions: would a teammate cloning this repo want this, and can the person it constrains edit it? A yes to the first and a no to the second is the committed project file's exact niche."
+    }
+  },
+  {
+    "id": "DPO-A-006",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Permission strategy for an unattended CI job",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A media company adds a nightly job that runs Claude Code non-interactively to regenerate changelog entries and open a pull request. The runner has a checkout of the repository and a token that can push branches. Nobody watches the job. The first attempt hung until the job timed out. Which permission configuration should the team adopt?",
+    "options": [
+      { "key": "A", "text": "Leave the default permission mode in place and configure the runner to answer prompts automatically by feeding approvals to standard input as they appear." },
+      { "key": "B", "text": "Run in print mode with an explicit allowlist naming only the tools and commands the changelog job needs, executed inside a container that holds nothing beyond the checkout and the push token." },
+      { "key": "C", "text": "Enable the mode that skips permission prompts entirely on the runner, since there is no human present to approve anything and the job must not stall again." },
+      { "key": "D", "text": "Have each engineer add the necessary allow rules to their own user settings file, so that whichever engineer's configuration the runner inherits already covers the job's needs." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The hang is the diagnostic: an unattended run cannot answer a prompt, so every tool the job legitimately needs has to be pre-authorised and everything else has to fail closed rather than wait. An explicit allowlist scoped to the job's actual work does exactly that, and because the runner holds a push token, the surrounding container is what limits the damage if the model does something unexpected inside the allowed set. Automation gets a tighter permission surface than an interactive developer, not a looser one.",
+      "distractors": {
+        "A": "Scripted approval reproduces bypassing while pretending to be a review. Anything the model proposes is accepted, including calls the team never anticipated, and the mechanism is brittle against any change in prompt shape. If every prompt is auto-approved, the prompt is not a control.",
+        "C": "Removing prompting on a runner that holds push credentials maximises blast radius at exactly the moment nobody is watching. Skipping prompts is only defensible inside an isolation boundary that bounds what the unprompted actions can reach, and even then it is a fallback to a narrow allowlist rather than a substitute for one.",
+        "D": "User settings live on developer machines and are not present on a CI runner. Even if they were copied there, inheriting one engineer's accumulated personal allowances gives the pipeline a permission surface nobody designed and nobody reviews."
+      },
+      "concept": "Automation needs tighter permissions than interactive use, because the human approval step that backstops an interactive session does not exist. Enumerate the tools the job needs, allow exactly those, and rely on the surrounding isolation for everything the enumeration missed.",
+      "tip": "A stem where an unattended job hangs is telling you a prompt appeared with nobody to answer it. The fix is pre-authorising a narrow set, not disabling the question."
+    }
+  },
+  {
+    "id": "DPO-A-007",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Invoking headless mode with machine-readable output",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A script must run Claude Code without a terminal UI and parse the result programmatically. Which invocation is correct?",
+    "options": [
+      { "key": "A", "text": "Launch the interactive session normally and capture the terminal output, then strip the rendering escape sequences before parsing the remaining text." },
+      { "key": "B", "text": "Use the resume flag with a stored session identifier, which replays the prior session and emits its transcript in a structured form for the script to read." },
+      { "key": "C", "text": "Use the print flag to run non-interactively, together with the output-format option set to a structured format rather than plain text." },
+      { "key": "D", "text": "Use the verbose flag, which switches the CLI out of interactive rendering and into a line-delimited structured log suitable for parsing." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Print mode is the non-interactive entry point: it runs the request and exits rather than opening the terminal UI, which is what a script or CI step needs. Pairing it with a structured output format gives the caller a parseable payload instead of prose that has to be scraped, and it is the supported basis for streaming variants when the caller wants incremental results. These two options are the standard headless invocation.",
+      "distractors": {
+        "A": "Scraping a rendered interactive session is fragile by construction: the layout is presentation, not an interface, and it changes between releases. It also still requires a terminal, which many automation environments do not provide.",
+        "B": "Resuming attaches to a previous session rather than starting the work the script wants done, and resumption is orthogonal to how output is formatted. It is a session-continuity feature, not a headless-invocation feature.",
+        "D": "Verbose increases the detail of diagnostic output for a human reading along. It does not switch the CLI out of interactive mode and it is not a substitute for selecting a structured output format."
+      },
+      "concept": "Headless use of Claude Code is print mode plus an explicit output format. Everything else in an automation recipe — permissions, working directories, configuration pinning — is layered on top of that invocation.",
+      "tip": "Recall items about automation usually reward the boring documented path. If an option involves parsing something designed for human eyes, it is not the intended interface."
+    }
+  },
+  {
+    "id": "DPO-A-008",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Choosing a hook event to normalise edited files",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A fintech team's review queue is clogged with formatting-only diff noise from files Claude Code has edited. The repository has a formatter with a single canonical configuration. The tech lead wants every file the assistant writes to come out formatted, every time, without depending on the model remembering. What should be configured?",
+    "options": [
+      { "key": "A", "text": "A post-tool-use hook matched to the file-editing tools that runs the formatter against the file that was just written." },
+      { "key": "B", "text": "A pre-tool-use hook matched to the file-editing tools that runs the formatter against the target path before the edit is applied." },
+      { "key": "C", "text": "A line in the project memory file telling the assistant to run the repository formatter immediately after every file it edits." },
+      { "key": "D", "text": "A stop hook that runs the formatter across the whole repository once the assistant finishes responding, catching anything that was left unformatted." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The requirement is determinism, so the mechanism has to be a hook rather than an instruction, and the correct event is the one that fires after a tool has run with knowledge of what it touched. Matching the editing tools and formatting the specific path that was just written gives exactly one formatter invocation per edit, scoped to the file that changed. Nothing outside the assistant's own edits is touched, so the diff stays clean and the review queue stops filling with whitespace churn.",
+      "distractors": {
+        "B": "The pre-tool-use event fires before the write happens, so the content the formatter would need does not exist yet. Formatting the previous version of the file achieves nothing, because the pending edit immediately overwrites it.",
+        "C": "A memory-file instruction depends on the model choosing to comply on every edit across long sessions. It will mostly work and will silently fail sometimes, which is the exact failure mode the lead is trying to eliminate. Deterministic post-processing belongs in a hook.",
+        "D": "Running the formatter over the entire repository at the end of a turn reformats files the assistant never touched, producing unrelated changes in the same commit. It also loses the association between an edit and its normalisation, which makes failures hard to attribute."
+      },
+      "concept": "Use hooks where you need a guarantee and memory files where you need guidance. Post-tool-use is the event for reacting to what a tool actually did; pre-tool-use is for deciding whether it should happen at all.",
+      "tip": "The words \"every time, without depending on the model remembering\" are the tell for a hook. Then pick the event by asking whether you need to inspect the intent or the result."
+    }
+  },
+  {
+    "id": "DPO-A-009",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Blocking a content-dependent read before it happens",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A hospital group's engineering team uses Claude Code on a records system. De-identified test fixtures are safe to read, but a subset of fixture files carry a classification marker in their header indicating they still contain real patient data, and those files must never enter a model context. The markers are not predictable from filenames or directory layout — they are added by a data-governance job. Approving on a case-by-case basis has already failed once. What mechanism meets the requirement?",
+    "options": [
+      { "key": "A", "text": "A deny rule listing the fixture paths, regenerated by the governance job each night so the rule set tracks whichever files are currently marked." },
+      { "key": "B", "text": "A post-tool-use hook that scans the returned file content for the classification marker and redacts it before the result reaches the model." },
+      { "key": "C", "text": "A memory-file rule instructing the assistant to open each fixture's header first and abandon the read if it finds a classification marker." },
+      { "key": "D", "text": "A pre-tool-use hook matched to the read tool that inspects the target file's header and returns a deny decision when the marker is present." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The condition is a property of file content, not of the path, so the control has to run arbitrary logic at the moment of the call. The pre-tool-use event fires before the tool executes and can return a decision that denies it, with a reason surfaced back to the model — which is precisely a programmable veto over a specific tool invocation. Because it reads the header itself, it stays correct as the governance job moves markers around, and because it blocks rather than warns, a developer approving a prompt cannot let the data through.",
+      "distractors": {
+        "A": "Path-based deny rules are the right tool when the boundary is expressible as a location, but here it is not. A nightly regenerated list is stale for up to a day, and the window between a file being marked and the rule set catching up is exactly when the leak happens.",
+        "B": "Post-tool-use runs after the tool has executed, so the file has already been read. Redacting downstream may keep the marker out of the visible transcript, but the requirement is that the content never enters context at all, and the after-the-fact event cannot deliver that.",
+        "C": "Asking the model to police itself makes the safety property depend on the model's compliance on every single read. It also costs a read to decide whether the read is allowed, and the stem already reports that case-by-case human judgement failed once."
+      },
+      "concept": "When an access boundary depends on something only code can evaluate at call time, express it as a pre-execution hook that can deny, not as a static rule and not as an instruction. Pre-execution is the only point where a veto still prevents the disclosure.",
+      "tip": "Ask whether the rule is expressible as a pattern. If the condition depends on content, timing, or external state, static permission rules cannot carry it and you need a hook that runs before the tool."
+    }
+  },
+  {
+    "id": "DPO-A-010",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Responding to engineers running with permission prompts skipped",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "An internal audit at an insurance carrier finds that three of 60 engineers have been launching Claude Code with permission prompting disabled on their laptops, because a slow approval flow was interrupting them. No harm resulted. The engineering director has already agreed to fix the underlying friction by broadening the allow rules for routine build and test commands. What should be done next?",
+    "options": [
+      { "key": "A", "text": "Publish an acceptable-use note explaining why prompting matters and ask the three engineers to confirm in writing that they have stopped using the mode." },
+      { "key": "B", "text": "Deploy an organisational policy setting that removes the prompt-skipping mode from the set of modes a session can select, so the choice is unavailable regardless of local configuration." },
+      { "key": "C", "text": "Add deny rules to every repository's shared project settings covering the destructive commands that a session with prompting disabled could otherwise reach." },
+      { "key": "D", "text": "Add a monitoring hook to each engineer's user settings that reports the active permission mode to a central endpoint at the start of every session." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The friction is already being addressed separately, so what remains is closing the escape hatch that made the workaround possible. Organisational policy can make the prompt-skipping mode unselectable, and because policy settings cannot be overridden from a user or project file, the control holds without depending on anyone's cooperation. Pairing removal of the shortcut with the broadened allowances is the complete fix: the legitimate need is served and the unsafe route is gone, in that order.",
+      "distractors": {
+        "A": "Written attestation restates the rule that was already being broken and produces no change in what the tool permits. It is a reasonable accompaniment to a technical control but is not itself one, and it leaves the other 57 engineers with the same shortcut available.",
+        "C": "Deny rules are worth adding on their own merits, but they do not reach the problem in the stem. A session in the prompt-skipping mode is bypassing the permission layer these rules live in, so hardening that layer while the bypass remains available addresses the wrong surface.",
+        "D": "Detection tells you afterwards that someone did it, which is the position the audit already reached. A hook installed in a user settings file is also removable by the same user, so the reporting is defeated by whoever most needs to be observed."
+      },
+      "concept": "When a policy is being violated because the safe path is inconvenient, fix the inconvenience and remove the unsafe path. Removing it means making it unavailable at a layer the user cannot edit, not documenting that it is forbidden.",
+      "tip": "Next-step items reward reading what has already been done. Here the friction fix is stated as agreed, so any option that only addresses friction or only addresses awareness is redundant with work already in flight."
+    }
+  },
+  {
+    "id": "DPO-A-011",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Choosing the MCP configuration scope for a shared server",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A public-sector delivery team of 25 has built an MCP server that exposes their case-management sandbox. Every engineer working in the main repository should get it, with the same command, arguments, and endpoint, and it should arrive automatically for new joiners and for anyone who clones the repo. The server needs a per-developer access token that must not be committed. How should it be configured?",
+    "options": [
+      { "key": "A", "text": "Configure it at user scope on each machine, so that it is available in every repository the engineer opens and does not need to be repeated per project." },
+      { "key": "B", "text": "Configure it at local scope on the tech lead's machine and export the resulting configuration as a snippet in the team wiki for others to paste in." },
+      { "key": "C", "text": "Configure it at project scope so it is written to the repository's `.mcp.json` and committed, with the token supplied through environment-variable expansion rather than a literal value." },
+      { "key": "D", "text": "Commit a setup script that each engineer runs once, which adds the server at local scope with their own token baked into the generated configuration." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Project scope exists for exactly this case: the definition lives in a file at the repository root that is committed, so cloning the repo brings the server with it and a change to the server's endpoint is reviewed like any other change. The per-developer secret is kept out by referencing an environment variable in the configuration rather than embedding a value, so the committed artefact is identical for everyone while the credential stays on each machine. Shared definition, private credential.",
+      "distractors": {
+        "A": "User scope makes the server available across all of that engineer's projects but is invisible to anyone else. Twenty-five people would each configure it by hand, they would drift apart over time, and a new joiner gets nothing from cloning the repository.",
+        "B": "A wiki snippet is documentation of a configuration rather than the configuration itself. It has no review path, no way to propagate a change, and no guarantee that any two engineers pasted the same version.",
+        "D": "A setup script is a worse version-controlled artefact than the configuration file it generates: it still has to be run manually, it drifts from the committed source once anyone edits their generated output, and baking a token into generated configuration puts a secret in a file on disk that nothing is protecting."
+      },
+      "concept": "MCP client configuration has distinct scopes for distinct audiences — private to one project, shared with the repository, or private across all projects. Pick by asking who should receive the server, then keep credentials out of the shared artefact by referencing the environment.",
+      "tip": "Two requirements are doing the work here: everyone gets it automatically, and the token is not committed. Only the option that separates the shared definition from the per-machine secret satisfies both."
+    }
+  },
+  {
+    "id": "DPO-A-012",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Naming an MCP tool inside a permission rule",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A team wants a permission rule that targets one specific tool exposed by an MCP server. How is that tool named in the rule?",
+    "options": [
+      { "key": "A", "text": "With an `mcp` prefix, then the server name, then the tool name, joined by double underscores." },
+      { "key": "B", "text": "With the server's transport type followed by a colon and the tool name, so that stdio and HTTP servers are distinguishable in the rule set." },
+      { "key": "C", "text": "With the bare tool name as the server advertises it, since tool names are required to be unique across all connected servers." },
+      { "key": "D", "text": "With the absolute path to the server's configuration entry followed by a slash and the tool name, matching how the server was registered." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "MCP tools are surfaced to the permission layer under a namespaced identifier that carries the `mcp` prefix, the server name, and the tool name separated by double underscores. Namespacing by server is what lets two servers expose a tool of the same name without colliding, and it is what makes it possible to write rules at either granularity — the whole server, or one tool on one server.",
+      "distractors": {
+        "B": "Transport is a connection detail and has no bearing on identity. Two servers reachable over the same transport would be indistinguishable under such a scheme, which defeats the purpose of naming a tool in a rule.",
+        "C": "Tool names are not globally unique. Different servers routinely expose similarly named operations, which is precisely why the identifier includes the server name. A bare name would make a rule ambiguous the moment a second server is added.",
+        "D": "Permission rules reference tools by their runtime identifier, not by where their configuration happens to be stored. Tying rules to a file path would break them whenever a server was moved between configuration scopes."
+      },
+      "concept": "MCP tools enter the permission model as server-namespaced identifiers, which lets a team allow or deny an entire server or a single operation on it. Rules written at the server level are coarse but stable; tool-level rules are precise but need maintenance as the server evolves.",
+      "tip": "If you are unsure of the exact separator under exam pressure, reason from the requirement: the identifier must disambiguate two servers exposing the same tool name, which eliminates every option that omits the server."
+    }
+  },
+  {
+    "id": "DPO-A-013",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Packaging a long procedure without paying for it every session",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A manufacturing software group has a release runbook: 40 steps covering version bumps, signed artefact publication, and a rollback drill. It is used perhaps twice a month, but when it is used the assistant must have the full text and must apply it inside the working tree. Adding it to the project memory file made every unrelated session pay for it in context. The group wants it loaded only when relevant, and available whether an engineer asks for it by name or the assistant recognises a release is under way. What should they build?",
+    "options": [
+      { "key": "A", "text": "A skill in the repository whose front matter describes when it applies, so only that description is carried until the procedure is actually needed." },
+      { "key": "B", "text": "A subagent carrying the runbook in its system prompt, delegated to whenever a release starts, returning its findings to the main session when finished." },
+      { "key": "C", "text": "A wrapper script that appends the runbook to the system prompt at launch whenever the engineer passes a release flag to the CLI." },
+      { "key": "D", "text": "A pre-compact hook that reinjects the runbook whenever the session compacts, keeping it present in later stages of long release sessions." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Skills are built around progressive disclosure: the name and description are what the session carries, and the body loads only when the skill is actually invoked. That matches the stem exactly — a rarely used but bulky procedure, discoverable by description, and expanded in the current session so the steps are executed against the working tree the engineer is already in. Twice-monthly use stops taxing the other 28 days, without hiding the runbook behind a flag someone has to remember.",
+      "distractors": {
+        "B": "A subagent runs in its own context and reports back a summary, which is the right shape for research and the wrong shape here. The main session needs the steps in order to act in the working tree, and a delegated agent's summarised return loses the procedural detail the engineer needs to follow along.",
+        "C": "Launch-time injection puts the whole runbook in context for the entire session, so it saves nothing on release days and requires the engineer to have predicted at launch that a release was coming. It also lives outside the repository's review path.",
+        "D": "Compaction hooks address retention of context that already exists; they do not decide what is worth loading in the first place. Reinjecting a 40-step document at each compaction makes long sessions more expensive, not less."
+      },
+      "concept": "Skills trade a small permanent cost — the description — for on-demand loading of a large body. That makes them the right container for infrequently needed but detailed procedures, in contrast to memory files, which are always loaded, and subagents, which isolate context and return summaries.",
+      "tip": "Distinguish the three by what they do to context. Memory is always paid, a skill is paid when invoked, and a subagent is paid in a separate window and returns only its conclusion."
+    }
+  },
+  {
+    "id": "DPO-A-014",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Properties of enterprise-managed policy settings",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A regulated brokerage is preparing to roll out organisation-managed Claude Code settings to 300 engineers. Which TWO statements about managed policy settings are correct? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "For the same key, a managed value takes precedence over project-local, shared project, and user settings." },
+      { "key": "B", "text": "Managed settings are stored in the repository alongside the project settings file so that the team can review policy changes in pull requests." },
+      { "key": "C", "text": "A deny rule set by policy is still evaluated ahead of allow rules contributed by any other configuration source." },
+      { "key": "D", "text": "An engineer can override a managed value for a single run by passing their own settings file to the CLI on the command line." },
+      { "key": "E", "text": "Managed settings govern interactive terminal sessions only; non-interactive print-mode runs resolve configuration from the user's settings instead." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "Two properties make managed policy usable as an organisational control. First, it sits at the top of the precedence chain, so a key set there survives every lower source. Second, the permission category ordering is unaffected by where a rule came from — a policy-set deny is evaluated before any allow, wherever that allow lives. Together these mean a security team can state a floor once and have it hold across 300 machines regardless of what individual engineers or repositories configure.",
+      "distractors": {
+        "B": "Policy settings are distributed by the organisation to the machine, not carried in the repository. Storing them in the repo would place them in a file the engineers being governed can edit, which defeats the purpose; review of policy happens in whatever change process the organisation runs for its fleet.",
+        "D": "Passing a settings file on the command line inserts a source into the chain below policy, not above it. If a command-line argument could displace a managed value, no organisational control would be enforceable, since the argument is under the engineer's control.",
+        "E": "Configuration resolution does not branch on whether a session is interactive. Print-mode runs read the same chain, which is essential given that automated runs typically hold broader credentials than a developer laptop does."
+      },
+      "concept": "Managed policy is defined by two things: unconditional precedence for the keys it sets, and independence from how the session was launched. Everything a team wants to be non-negotiable must therefore be expressed there rather than in any repository or home-directory file.",
+      "tip": "In multi-select items about a control layer, the plausible-sounding false options usually propose an escape hatch. Any statement offering a way for the governed party to override the governance is worth immediate suspicion."
+    }
+  },
+  {
+    "id": "DPO-A-015",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Bounding blast radius for a long unattended agent run",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An energy utility wants to let Claude Code run multi-hour autonomous refactors overnight with minimal prompting. The team accepts that the session will take actions nobody reviewed in advance, and wants to bound what those actions can reach. Which TWO measures actually contain the blast radius? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Raising the default command timeout so long-running builds are not cut short mid-refactor and do not leave the tree in a half-migrated state." },
+      { "key": "B", "text": "Recording the prohibition on destructive commands in the project memory file so the model has the constraint in context throughout the run." },
+      { "key": "C", "text": "Executing the session inside a container that mounts only the working repository and applies a default-deny outbound network policy." },
+      { "key": "D", "text": "Enabling verbose output so an engineer can read the full transcript in the morning and see exactly which commands the session chose to run." },
+      { "key": "E", "text": "Adding deny rules for credential paths and destructive commands, which are evaluated ahead of any allow rule the run is operating under." }
+    ],
+    "correct": ["C", "E"],
+    "explanation": {
+      "correct": "Containment means limiting what an unreviewed action can touch. An isolation boundary does this at the environment level: if the only filesystem present is the repository and outbound network is denied by default, a mistake cannot reach production credentials or exfiltrate anything, whatever the model decides to run. Deny rules do it at the tool level, and because deny is evaluated before allow, they survive the broad allowances that a low-prompting run necessarily operates under. One bounds the environment, the other bounds the tool surface.",
+      "distractors": {
+        "A": "Timeout tuning changes how long a command may run, not what it may do. A longer timeout arguably enlarges exposure rather than reducing it, and the half-migrated tree it prevents is a correctness concern rather than a containment one.",
+        "B": "An instruction in a memory file shapes intent and does nothing to constrain capability. Over a multi-hour unattended run — with compaction, long tool chains, and content pulled in from the repository — it is the least durable form of control available.",
+        "D": "A readable transcript is detection, not containment. It tells the team in the morning what happened; by then whatever the run reached has already been reached. Observability is necessary for an unattended run but is not a boundary."
+      },
+      "concept": "Autonomy is safe in proportion to the boundary around it, not the instructions inside it. Bound an unattended run with an environment the actions cannot escape and a deny layer the allowances cannot outrank; treat logging as evidence rather than protection.",
+      "tip": "Sort candidate controls into prevent, constrain, and detect. Blast-radius questions are asking for the first two only, and the detect options are usually the most reasonable-sounding traps."
+    }
+  },
+  {
+    "id": "DPO-A-016",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Stabilising a pipeline against repository configuration drift",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A retailer runs a Claude Code step in its release pipeline that generates migration notes. It was stable for months. Last week it began behaving inconsistently between runs: sometimes it produces the expected note, sometimes it times out. Investigation shows a contributor recently added a new MCP server and two hooks to the repository's checked-in configuration, and the pipeline picks up whatever is in the working tree at run time. The pipeline's own requirements have not changed. What is the right next step?",
+    "options": [
+      { "key": "A", "text": "Ask the contributor to move the new server and hooks into personal configuration so the repository's checked-in configuration returns to what it was when the pipeline was stable." },
+      { "key": "B", "text": "Pin the pipeline's model and lower its turn limit, so that whichever configuration is present the step finishes inside the release window rather than timing out." },
+      { "key": "C", "text": "Have the pipeline copy the repository's configuration into an artefact at the start of each run, so that when a run misbehaves the exact configuration used can be reconstructed." },
+      { "key": "D", "text": "Give the pipeline an explicit configuration of its own — its own settings file and its own MCP configuration, with discovery of repository-supplied servers switched off." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The pipeline's requirements are fixed, but its inputs are not, because it inherits configuration that developers change for their own reasons. Giving the automation an explicitly declared configuration and disabling discovery of repository-supplied servers makes its dependency surface a deliberate, reviewed decision rather than a side effect of whatever landed in the repo that week. That is the durable fix: the contributor's additions remain available to humans, and the pipeline stops being coupled to them.",
+      "distractors": {
+        "A": "This restores today's behaviour by removing something a colleague added for a legitimate reason, and it leaves the coupling intact. The next useful addition breaks the pipeline again, and the team has now established that the pipeline vetoes repository configuration changes.",
+        "B": "Pinning the model and capping turns are sensible hygiene for an automated step, but they treat the timeout symptom rather than its cause. A step that inherits an unbounded set of servers and hooks stays unpredictable in ways a turn limit only truncates.",
+        "C": "Capturing the configuration used improves diagnosis of a run after it has gone wrong, which is worth doing, but the team already knows what changed and why. Better forensics on a known cause is not a fix."
+      },
+      "concept": "Automation should declare its dependencies rather than discover them. A pipeline that reads whatever configuration is in the working tree has taken an implicit dependency on every contributor's local decisions, and its reliability becomes a function of unrelated pull requests.",
+      "tip": "When a stem says a step was stable and only the surrounding repository changed, the fix is to sever the accidental coupling, not to freeze the repository or to add better logging of the coupling."
+    }
+  },
+  {
+    "id": "DPO-A-017",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Distinguishing personal from team-shared configuration files",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "Which TWO statements about the split between personal and team-shared Claude Code configuration are correct? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Configuration committed in a project's `.claude/settings.json` only takes effect for a teammate after they re-run the CLI installer or clear their session cache." },
+      { "key": "B", "text": "The project-local settings file is intended for personal, machine-specific overrides and is kept out of version control." },
+      { "key": "C", "text": "A subagent defined in the user's personal agents directory overrides a project-defined subagent that shares its name." },
+      { "key": "D", "text": "Settings at `~/.claude/settings.json` apply across every project on that machine and are the lowest-precedence source in the chain." },
+      { "key": "E", "text": "Shared credentials belong in the committed project settings file so that every clone authenticates the same way without per-developer setup." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "The two true statements describe the ends of the developer-owned range. The project-local file is the personal override slot: it sits above the shared project file in precedence precisely so an individual can adjust things for their own machine, and it is deliberately excluded from version control so those adjustments never reach a teammate. The user-level file is the opposite — broad in reach across every project on the machine, and lowest in precedence, so any project-scoped decision wins over it.",
+      "distractors": {
+        "A": "Committed project configuration is read from the working tree, so a teammate who pulls the change has it. There is no install or cache-clearing step gating it, which is exactly what makes the committed file a workable channel for team convention.",
+        "C": "Precedence runs the other way for subagents: a project-scoped definition takes priority over a personal one of the same name. That ordering lets a repository guarantee which agent a contributor gets rather than having it silently shadowed by whatever they have in their home directory.",
+        "E": "Committing a credential distributes a secret to every clone, fork, and build artefact and puts it in the repository's history permanently. Shared authentication is arranged through the environment or a credential helper, not by checking the secret in."
+      },
+      "concept": "Three developer-owned layers exist for three audiences: user settings for one person everywhere, committed project settings for everyone in one repository, project-local settings for one person in one repository. Secrets belong to none of them.",
+      "tip": "For each statement, name the audience it implies. Options that put a personal preference in a shared file, or a shared requirement in a personal one, are wrong regardless of how plausible the mechanism sounds."
+    }
+  },
+  {
+    "id": "DPO-A-018",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "How memory files at different levels combine",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A repository has a `CLAUDE.md` at its root and the engineer also has one at `~/.claude/CLAUDE.md`. How are the two treated in a session opened in that repository?",
+    "options": [
+      { "key": "A", "text": "Only the project file is used, because a project-scoped memory file replaces the user-level one for any session opened inside that project." },
+      { "key": "B", "text": "Only the user file is used, because personal memory reflects the engineer's own working preferences and is applied ahead of repository guidance." },
+      { "key": "C", "text": "Both are loaded and their contents combine, with the more specific project file layered over the broader personal one." },
+      { "key": "D", "text": "Both are loaded, but the session must be told which one to consult for a given task before either takes effect on its behaviour." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Memory is additive rather than substitutive. Files from the applicable levels are all loaded and their guidance combines, so an engineer's personal conventions and the repository's conventions are both in effect. That is what makes the hierarchy useful: a team states what is true of the codebase, an individual states how they like to work, and neither has to anticipate the other. Direct contradictions are the case worth avoiding, which is why teams keep repository files factual about the codebase rather than prescriptive about style preferences.",
+      "distractors": {
+        "A": "Replacement semantics would mean that adopting any project memory file silently discards everything an engineer has configured personally, including preferences that have nothing to do with the repository. That is not how the hierarchy behaves.",
+        "B": "Personal memory does not outrank repository memory, and treating it as an override would let one engineer's home directory quietly disable a team's stated conventions on their machine. Both apply.",
+        "D": "There is no per-task selection step. Loaded memory is in context and influences behaviour without being requested, which is the entire point of the mechanism compared with a document the assistant would have to be told to read."
+      },
+      "concept": "Memory files compose. Levels accumulate rather than overriding, so the design question is not which file wins but where each instruction should live so it applies to exactly the sessions that need it.",
+      "tip": "Settings and memory behave differently, and items exploit the confusion. Settings keys resolve by precedence with one winner; memory files are concatenated so every applicable file contributes."
+    }
+  }
+]

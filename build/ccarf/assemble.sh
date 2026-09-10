@@ -33,4 +33,13 @@ node -e '
 node shuffle.js
 cat part1_head.html part2_meta.js .qb_final.js part5_app.js part6_exam.js part9_tail.html > "$OUT"
 rm -f .syn.js .dat.js .qb_final.js
+
+# "10 Things to Know" rail. Injected post-build rather than woven into the parts,
+# because it is fixed-position and owns no space in this layout — so it stays
+# independent of the page structure above. Idempotent; skipped if content is absent.
+TT10="../tenthings/ccarf.json"
+if [ -f "$TT10" ]; then
+  python ../tenthings/inject.py "$OUT" "$TT10" --key ccarf
+fi
+
 echo "Built      : $OUT  ($(du -h "$OUT" | cut -f1))"

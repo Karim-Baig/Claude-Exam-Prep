@@ -1,0 +1,455 @@
+[
+  {
+    "id": "CPE-C-037",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Reserving headroom for the reply in a token budget",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "When budgeting a request, why must an architect reserve headroom beyond the size of the assembled input?",
+    "options": [
+      { "key": "A", "text": "The reply is generated into the same window, so an input that only just fits leaves no room for a complete answer." },
+      { "key": "B", "text": "The provider holds back a fixed fraction of the advertised window for internal use, and that portion is never available to the caller." },
+      { "key": "C", "text": "Tokenisation of an assembled prompt is non-deterministic, so the true count on the server can exceed whatever the caller estimated locally." },
+      { "key": "D", "text": "Headroom is needed so that a retry following a transient error can re-send the request with additional diagnostic context attached." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Input and output share one budget. A request that fills the window to the brim is not a request that barely succeeds — it is one that either fails outright or produces a reply cut off mid-sentence, which in a pipeline is worse than a clean failure because downstream parsing sees malformed output. Budgeting therefore starts from the longest reply the task can legitimately need and treats the remainder as the ceiling for everything else.",
+      "distractors": {
+        "B": "This describes a reserved allocation that is not how the budget works; the caller can use the window, and the reason to leave room is that the response has to fit in it too. Believing otherwise leads teams to under-reserve on tasks with long outputs.",
+        "C": "Tokenisation is deterministic for a given input and tokeniser, so a locally computed count is reliable. Small discrepancies come from assembling a different prompt than you measured, which is a pipeline bug rather than a reason to hold back budget.",
+        "D": "Retry payloads are assembled fresh rather than appended to the original, so there is nothing to reserve for them. Adding diagnostic context on retry is a debugging technique, not a budgeting constraint."
+      },
+      "concept": "Budget the output first, then fit the input into what remains. Any context strategy that consumes the window right up to the limit has implicitly assumed a zero-length reply, and the resulting failures show up as truncated generations rather than as clean errors.",
+      "tip": "Whenever a stem gives you a window size and an input size, check whether the reply was accounted for. Forgetting the output half of the budget is one of the most common production oversights this domain tests."
+    }
+  },
+  {
+    "id": "CPE-C-038",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Mixing whole-corpus loading with retrieval by question type",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An agritech firm's advisory assistant answers agronomist questions from a 90-document crop-protocol library that fits comfortably in the window, and the team loads the whole library on every request. Broad synthesising questions are answered excellently. Narrow ones — the re-entry interval for a specific product on a specific crop — are inconsistent and sometimes cite the wrong crop. Cost per request is high. What should change?",
+    "options": [
+      { "key": "A", "text": "Reorder the library so that the most frequently queried protocols appear first, where they will be attended to most reliably." },
+      { "key": "B", "text": "Continue loading the whole library, but require the assistant to quote the exact protocol section it is relying on before it gives any answer to the agronomist." },
+      { "key": "C", "text": "Add a retrieval step so narrow questions are answered from the few relevant sections, and keep whole-library loading for the synthesising questions." },
+      { "key": "D", "text": "Split the library across two calls of roughly equal size and merge the two answers into a single response." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The failure is selective: it appears only on questions whose answer lives in one small section, and it takes the form of confusion between similar protocols — the classic effect of surrounding the right passage with eighty-nine near-identical wrong ones. That argues for narrowing the window on those questions, not for changing how the whole library is presented. Keeping the loading path for synthesis preserves what already works, and routing means the cheap path serves the majority of traffic.",
+      "distractors": {
+        "A": "Reordering by query frequency helps whichever protocol happens to be popular and does nothing for the long tail, which is where specific product-crop combinations live. It also makes the ordering a moving target that has to be maintained as query patterns shift.",
+        "B": "Quote-first grounding is a reasonable technique when a model is inventing content, but here it is picking the wrong real section from among many similar ones. It will happily quote the wrong crop's re-entry interval and then answer consistently with it.",
+        "D": "An arbitrary split has no relationship to where the answer lives, and merging two independent answers gives no mechanism for deciding which half was right. It also breaks the synthesising questions, which currently work precisely because everything is present at once."
+      },
+      "concept": "Fitting in the window is not the same as belonging in it. When narrow questions degrade while broad ones do not, the corpus is acting as a distractor rather than as context — route by question type so each class gets the amount of context it actually needs.",
+      "tip": "Watch for a stem where one question class works and another does not on the same context. That asymmetry points at routing, and it rules out any answer that changes the presentation for everyone."
+    }
+  },
+  {
+    "id": "CPE-C-039",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Shared reference documents duplicated across sub-agents",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A retailer refactored its merchandising agent so each of five product categories is analysed by its own sub-agent, specifically to keep the orchestrator's window clean. Total token spend tripled and end-to-end latency roughly doubled, while answer quality is unchanged. All five analyses need the same three reference documents: the pricing policy, the current promotional calendar and the category taxonomy. What went wrong?",
+    "options": [
+      { "key": "A", "text": "The shared reference documents are loaded five times over, so isolation duplicated the bulk of the context instead of reducing it." },
+      { "key": "B", "text": "The sub-agents should be run sequentially rather than in parallel, so that each can reuse the previous one's findings and avoid redundant analysis." },
+      { "key": "C", "text": "The orchestrator's schema for sub-agent returns is too permissive, allowing each worker to return far more material than the orchestrator needs." },
+      { "key": "D", "text": "The five product categories are too coarse a decomposition, and splitting them further would give each sub-agent a smaller and more tractable slice." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Isolation saves tokens only when the sub-agents' contexts are largely disjoint. Here three documents are common to all five, so every one of them is paid for five times, and the parallel calls also mean five copies are in flight at once — which explains why cost tripled while quality stayed flat. The refactor moved context around rather than removing it. Fan-out is worth its overhead when workers explore genuinely different material, not when they share most of their input.",
+      "distractors": {
+        "B": "Serialising would make latency worse rather than better, and it would not reduce duplication: each sequential worker still needs the same three documents. It also reintroduces the accumulating context that isolation was meant to avoid.",
+        "C": "Loose return contracts are a real fan-out defect and would show up as an orchestrator window under pressure. The stem reports the opposite — the orchestrator's window is clean — and locates the cost increase across the whole system.",
+        "D": "Finer decomposition multiplies the number of workers, and since each still needs the shared documents, it multiplies the duplication too. This makes the observed problem strictly worse while adding coordination overhead."
+      },
+      "concept": "Before fanning out, measure how much context the workers would share. Sub-agent isolation trades total tokens for a clean parent window, and the trade only pays when each worker's context is mostly its own. Heavily shared input is a signal to keep the work in one context or to move the shared material behind a tool.",
+      "tip": "Cost multiplying by roughly the fan-out factor while quality is flat is the signature of duplicated shared context. Look in the stem for material that every worker needs."
+    }
+  },
+  {
+    "id": "CPE-C-040",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Meaning of progressive disclosure as a context strategy",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "As a context strategy, what does progressive disclosure mean?",
+    "options": [
+      { "key": "A", "text": "Revealing the agent's intermediate reasoning to the end user in stages, so they can follow how a conclusion was reached." },
+      { "key": "B", "text": "Exposing a high-level index first and loading detail only for the parts the agent selects." },
+      { "key": "C", "text": "Raising the context budget gradually across a conversation as it demonstrates that the extra material is being used well." },
+      { "key": "D", "text": "Releasing a new prompt version to a small share of production traffic before rolling it out to everyone." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The pattern is a layered view of a large body of material: the agent first sees enough structure to know what exists — a directory, a table of contents, a schema outline, a list of endpoint names — and drills into any one branch only when its current step requires it. Detail is disclosed as the agent's need for it becomes concrete, which keeps the resident context proportional to the work rather than to the size of the corpus.",
+      "distractors": {
+        "A": "This is a user-experience pattern about surfacing reasoning to a human. It has no bearing on what occupies the model's window, and in fact tends to add tokens rather than remove them.",
+        "C": "Nothing adapts the budget automatically in response to how well context is being used, and the window ceiling is fixed regardless. This describes an autoscaling behaviour that does not exist in this setting.",
+        "D": "Staged rollout to a fraction of traffic is a deployment technique. It shares the word 'progressive' and nothing else — it changes who sees a change, not what the model sees in its context."
+      },
+      "concept": "Progressive disclosure keeps a large corpus addressable without keeping it resident. Give the agent a map at low cost, and make detail retrievable at full fidelity on request. The design question is what the smallest useful index is, not how to compress the underlying content.",
+      "tip": "Several plausible-sounding techniques share this name across disciplines. In a context-engineering item it always means index first, detail on demand."
+    }
+  },
+  {
+    "id": "CPE-C-041",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "State management when an earlier turn is edited",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An education platform lets tutors edit an earlier message in a conversation with the lesson-planning assistant and regenerate from that point. The team is deciding how to manage conversation state. Which TWO statements about this design are correct? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "The stored conversation has to be a tree or a versioned list, because an edit creates a branch rather than an append." },
+      { "key": "B", "text": "An edit can be applied by appending a correction turn at the end, which is functionally equivalent to editing the message in place." },
+      { "key": "C", "text": "Everything after the edited turn must be dropped from the prompt, because it was produced in response to text that no longer exists." },
+      { "key": "D", "text": "Any summary produced from turns after the edit point stays valid, since summarisation output does not depend on the turns that preceded it." },
+      { "key": "E", "text": "Because only a single turn changed, the rest of the request is unaffected and the assembled prompt remains reusable end to end." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "An edit is a fork, not a mutation: the original branch may still be needed for audit or for the tutor to return to, so the store has to represent both. And everything downstream of the edit point was generated conditioned on text that is now gone, so carrying it forward produces a transcript in which the assistant answers a question nobody asked. Truncating at the edit point and regenerating is what keeps the conversation internally coherent.",
+      "distractors": {
+        "B": "A correction turn leaves the original text in the window, so the model sees both the mistaken statement and the correction and has to reconcile them. It is a reasonable product affordance in some settings, but it produces a different context and different behaviour from an edit.",
+        "D": "A summary of later turns was computed over content that is being discarded, so it summarises a branch that no longer exists. Reusing it silently reintroduces exactly the material the edit was meant to remove.",
+        "E": "Everything from the edit point onward changes, so only the region strictly before it is unchanged. Treating the whole request as unaffected is how stale post-edit content survives into the regenerated response."
+      },
+      "concept": "Editable conversations make history a versioned structure rather than an append-only log. Any derived artefact — summaries, extracted state, cached prefixes — is valid only for content at or before the edit point, and must be recomputed for everything after it.",
+      "tip": "For branching-conversation items, locate the edit point and ask what was computed downstream of it. Everything downstream is invalidated, including derived state that is easy to forget about."
+    }
+  },
+  {
+    "id": "CPE-C-042",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Volatile tool results going stale inside the transcript",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A food-delivery platform's order-support assistant carries the full chat transcript. Complaints centre on it quoting an order status that was true twenty minutes earlier: the status arrived in a tool result early in the conversation and has stayed in the window ever since. Timestamps were added to every tool result last quarter, which reduced but did not eliminate the problem. What is the right correction?",
+    "options": [
+      { "key": "A", "text": "Compact the transcript more aggressively, so that older tool results are summarised away sooner in the conversation." },
+      { "key": "B", "text": "Make the timestamp more prominent by moving it onto a header line above each tool result rather than leaving it inline." },
+      { "key": "C", "text": "Add a system-prompt instruction telling the assistant never to rely on a tool result from an earlier turn of the conversation." },
+      { "key": "D", "text": "Classify tool results by durability and strip volatile ones from the transcript once superseded, refetching status on demand." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The stem has already shown that giving the model better information about staleness only helps partially — two plausible answers in the window will sometimes yield the wrong one. The reliable fix removes the ambiguity: mark results whose truth expires, drop them once they are superseded, and make the current value obtainable by asking. Durable results, like the customer's address, can stay. This puts the correctness guarantee in the pipeline rather than in the model's judgement.",
+      "distractors": {
+        "A": "Compaction summarises rather than deletes, so a stale status is just as likely to be carried into the summary as an established fact — and once there it has lost its timestamp entirely. This makes the failure harder to spot, not less frequent.",
+        "B": "This is a variation on a remedy the stem reports as already tried and insufficient. Improving the salience of a timestamp still leaves two candidate answers in the window and still relies on the model choosing correctly every time.",
+        "C": "A blanket prohibition throws away every durable fact the conversation established, so the assistant would re-fetch the delivery address and the order contents on each turn. It also gives the model no way to distinguish what actually goes stale."
+      },
+      "concept": "Classify context by whether its truth expires. Volatile facts should not persist in a transcript: strip them once superseded and refetch on demand, so the window contains one answer rather than a history of answers. Durable facts can and should persist, which is what makes the classification worth doing.",
+      "tip": "When a stem says a mitigation 'reduced but did not eliminate' the problem, it is ruling out that whole family of answers. Look for the option that removes the failure mode instead of making it less likely."
+    }
+  },
+  {
+    "id": "CPE-C-043",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Search-then-read instead of bulk log loading",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A mining company's plant-diagnostics agent investigates equipment faults from operational logs. It currently pulls the last 24 hours of logs for the affected asset — often hundreds of thousands of lines — into context and then reasons over them. Most investigations turn on a handful of lines. Runs are slow, expensive, and the agent frequently overlooks the relevant entries. The log store supports pattern search with time filters. What should the team do next?",
+    "options": [
+      { "key": "A", "text": "Expose the log store's search as a tool and have the agent iterate: search for candidate patterns, then read only the surrounding window around each match." },
+      { "key": "B", "text": "Pre-summarise each hour of logs into a digest and load the twenty-four digests instead of the raw lines." },
+      { "key": "C", "text": "Narrow the retrieval window from twenty-four hours down to two hours around the reported fault time." },
+      { "key": "D", "text": "Move the diagnostics agent onto a capability tier with demonstrably stronger recall over long inputs, and keep the existing twenty-four-hour loading strategy unchanged." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The stem describes a needle-in-haystack task where the haystack is already indexed and searchable — the capability needed is sitting unused. Search-then-read narrows hundreds of thousands of lines to a handful of candidate regions before anything enters the window, which addresses all three symptoms at once: cost falls because almost nothing is loaded, latency falls with it, and the entries that matter arrive at full fidelity in a small context where they will actually be attended to.",
+      "distractors": {
+        "B": "Hourly digests compress away exactly what diagnostics needs. A single anomalous line — a transient sensor fault, one failed handshake — is precisely the kind of detail an hour-level summary drops, and the agent would be reasoning from a description of normality.",
+        "C": "A tighter time window reduces volume without changing the mechanism, and it introduces a new failure: root causes often precede the reported fault by hours. It trades a recall problem the team has for one they cannot detect.",
+        "D": "Better long-context recall would soften the third symptom while leaving cost and latency untouched, and it accepts loading hundreds of thousands of lines to read ten of them. Buying capability to compensate for an avoidable design is the expensive non-fix."
+      },
+      "concept": "When the corpus is already searchable, let the agent search it rather than reading it. Retrieval by pattern followed by a bounded read is the general shape for needle-finding over large, structured, queryable stores — it keeps the working set proportional to the answer rather than to the source.",
+      "tip": "A stem that mentions an existing search capability is telling you the answer uses it. Options that load, summarise or truncate the whole corpus are all working around a tool the team already has."
+    }
+  },
+  {
+    "id": "CPE-C-044",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "The characteristic risk of chained re-summarisation",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A long-running agent compacts repeatedly, and each pass summarises a context that already contains the output of previous passes. What is the characteristic risk?",
+    "options": [
+      { "key": "A", "text": "The summary lengthens with every pass, because the model tries to preserve everything it is shown and never discards enough." },
+      { "key": "B", "text": "Detail is lost irreversibly and small distortions compound, because each pass has only the previous summary as its source." },
+      { "key": "C", "text": "Latency grows with each pass, because the summariser is handed progressively more input than the pass before it." },
+      { "key": "D", "text": "The summary starts to contradict the system prompt, because the standing instructions get re-paraphrased along with the conversation." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Each compaction sees only what the previous one chose to keep, so the original is unreachable after the first pass. Information dropped at pass two cannot be recovered at pass four, and a small imprecision introduced early gets treated as ground truth by every pass afterwards, sometimes sharpening into a confident but wrong statement. The degradation is monotonic and invisible from inside the run, which is why long-horizon agents pair compaction with a durable record of the source facts.",
+      "distractors": {
+        "A": "Summaries under a length constraint get shorter, not longer, and the whole point of the pass is to reduce. Runaway growth would at least be obvious in the token counts; the real failure is silent and shows up as an agent acting on a fact nobody can trace.",
+        "C": "Input to the summariser is roughly bounded by the compaction threshold, so successive passes see similar volumes rather than growing ones. Latency is a per-pass cost that does not accumulate in the way this suggests.",
+        "D": "Standing instructions live in the system prompt and are normally excluded from the compacted region entirely. If they are being summarised the design has a different and more serious defect, but it is not what makes chained summarisation inherently risky."
+      },
+      "concept": "Every compaction is lossy against the pass before it, not against the original, so error and omission accumulate across a chain. Counter it by anchoring summaries to durable external state — source references, a checkpoint file, a structured fact record — so at least some content is re-derivable rather than only ever re-summarised.",
+      "tip": "Chained-summarisation items reward thinking about what each pass can see. Once you notice the source of pass N is the output of pass N-1, the compounding follows directly."
+    }
+  },
+  {
+    "id": "CPE-C-045",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Cross-session memory versus replaying past conversations",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A gaming company's support assistant handles players who return weeks apart, and product wants it to remember past tickets. An engineer proposes concatenating every previous conversation with that player into the window at session start. Sessions are typically short and most players have a long history. What is the sounder design?",
+    "options": [
+      { "key": "A", "text": "Maintain a durable player profile of resolved issues, entitlements and preferences, load it at session start, and retrieve a full past transcript only when the current session refers to one." },
+      { "key": "B", "text": "Concatenate only the five most recent conversations, which bounds the growth of the session-start payload while keeping the assistant reasonably well informed about the player's recent history with support." },
+      { "key": "C", "text": "Regenerate a single running player summary at the end of every session from that player's complete conversation history to date." },
+      { "key": "D", "text": "Keep loading the entire history and rely on compaction to bring the assembled context back within the window." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "What the assistant needs across sessions is a small set of durable facts — what has already been resolved, what the player is entitled to, how they prefer to be handled — not the conversations that produced them. A maintained profile makes the common case cheap and stable regardless of how long the player has been a customer, and keeping transcripts retrievable means the rare session that genuinely needs to revisit an old ticket can still do so at full fidelity.",
+      "distractors": {
+        "B": "A fixed count of recent conversations is arbitrary against what matters: a relevant issue from a year ago falls outside it while five trivial recent chats fall inside. It bounds cost without making the retained content any more likely to be the useful part.",
+        "C": "Summarising from the complete history each time means loading that complete history each time, so the expense the design was meant to avoid is simply moved to the end of the session. It also has no escape hatch when a specific past exchange needs to be quoted.",
+        "D": "Compaction after assembly means paying to build an oversized context and then paying again to shrink it. Every session starts with that overhead, and the compaction is summarising material that was largely irrelevant to this session in the first place."
+      },
+      "concept": "Cross-session memory should be a maintained artefact, not a replayed archive. Extract the durable facts once, keep them small and structured, and leave the raw history retrievable for the minority of sessions that need it. Conversation history is evidence; a profile is state.",
+      "tip": "'Remember past interactions' almost never means 'reload past interactions'. Look for the option that distinguishes the derived facts from the conversations that produced them."
+    }
+  },
+  {
+    "id": "CPE-C-046",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Protecting must-be-verbatim text from compaction",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A pharmaceutical company's regulatory-writing assistant drafts sections of a submission dossier over long sessions, compacting as the session grows. QA has found that extracts from the approved product label, which must appear word-for-word, are subtly reworded in later drafts — the compaction paraphrased them. What is the correct fix?",
+    "options": [
+      { "key": "A", "text": "Instruct the summariser to reproduce any quoted material exactly and never to rephrase text that appears inside quotation marks." },
+      { "key": "B", "text": "Have QA diff the finished draft against the approved label and correct any wording that has drifted before submission." },
+      { "key": "C", "text": "Hold protected extracts outside the compacted transcript in a pinned block, referenced by identifier when the drafting step needs them." },
+      { "key": "D", "text": "Disable compaction for regulatory sessions so that the original extracts remain in the window for the whole drafting run." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Text with a word-for-word requirement should never pass through a step whose job is to rewrite. Keeping the protected extracts in a region compaction cannot touch, and having the drafting step pull them by identifier, makes exactness a structural property rather than something the summariser has to be trusted to honour. It also scales: the pinned block stays small because it holds only the extracts, while everything genuinely compressible continues to compact normally.",
+      "distractors": {
+        "A": "This makes a regulatory guarantee contingent on an instruction being followed on every pass, across a chain of summarisations. Instructions like this raise compliance most of the time, and 'most of the time' is not a standard a submission dossier can be built on.",
+        "B": "A downstream diff catches drift after the fact, which is worth having as a control, but it does nothing to stop the assistant reasoning and drafting from reworded text throughout the session. By the time QA sees it, later sections have been written on a corrupted basis.",
+        "D": "Turning off compaction guarantees the session hits the window ceiling before a long dossier section is finished. It also protects everything indiscriminately, when only a small, identifiable subset of the content carries the verbatim requirement."
+      },
+      "concept": "Separate content by whether it may be rewritten. Anything with an exactness requirement — regulated text, quoted contract language, code, identifiers — belongs in a protected region that compaction skips, addressed by reference. Everything else compacts freely, which is what keeps the protected region small enough to pin.",
+      "tip": "A stem containing 'must appear word-for-word' is asking for a structural guarantee. Instructions to the summariser and downstream checks are both the wrong class of answer."
+    }
+  },
+  {
+    "id": "CPE-C-047",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Why context assembly should be deterministically ordered",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Why should a context-assembly step emit its blocks in a deterministic order?",
+    "options": [
+      { "key": "A", "text": "Non-deterministic ordering makes the prefix differ between otherwise identical requests, destroying reuse and making failures hard to reproduce." },
+      { "key": "B", "text": "The model needs blocks in a fixed sequence in order to parse XML delimiters correctly and associate closing tags with their openers." },
+      { "key": "C", "text": "Ordering determines which block the model treats as authoritative, so a fixed order guarantees the system prompt wins any instruction conflict." },
+      { "key": "D", "text": "A deterministic order is what allows the assembly step to guarantee that the finished prompt will fit inside the context window." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Ordering that varies — because blocks come from an unordered map, or from whichever retrieval task returned first — produces a different prompt on every call even when the inputs are identical. That destroys any shared prefix, since the first divergence invalidates everything after it, and it makes production incidents miserable to investigate because you cannot rebuild the prompt that produced the bad output. Determinism costs nothing and buys both.",
+      "distractors": {
+        "B": "Delimiter parsing depends on well-formed nesting within each block, not on the order the blocks appear in. Shuffled but individually well-formed blocks parse fine; they simply produce a different and unpredictable prompt.",
+        "C": "Position does influence how competing instructions are weighed, but no ordering guarantees an outcome — instruction precedence has to be stated explicitly rather than implied by placement. Relying on order for this is how conflicting instructions get resolved unpredictably.",
+        "D": "Whether a prompt fits is a function of total size, which is unaffected by the order of the parts. Fitting is enforced by counting and trimming, and a deterministic order neither helps nor hinders that check."
+      },
+      "concept": "Treat prompt assembly as a pure, ordered function of its inputs. Deterministic output makes prefixes reusable, makes production failures reproducible from logged inputs, and makes prompt changes reviewable as diffs — three benefits that all disappear the moment ordering depends on iteration or timing.",
+      "tip": "Reproducibility and reuse are the two payoffs to look for. Options that attribute parsing or fitting behaviour to ordering are attaching real concerns to the wrong mechanism."
+    }
+  },
+  {
+    "id": "CPE-C-048",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Selecting the contents of a session-start context brief",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An automotive dealer group's sales assistant assembles a context brief at the start of each customer session. Sessions are short, the CRM is large, and the assistant already has read access to the CRM through tools. Which TWO items belong in the brief itself rather than behind a tool call? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "The group's full new and used vehicle inventory, so availability questions can be answered without a round trip to the CRM." },
+      { "key": "B", "text": "The customer's current open enquiry and the vehicle it concerns." },
+      { "key": "C", "text": "The customer's complete service history across every vehicle they have owned from the group." },
+      { "key": "D", "text": "The customer's finance pre-approval status and its expiry date, which gate what the assistant may offer at all." },
+      { "key": "E", "text": "The full text of the group's warranty terms, so that any wording the assistant quotes is exact." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "The brief should carry what every turn depends on and nothing else. The open enquiry is the subject of the session, so fetching it would put a tool call in front of the first useful reply. Pre-approval status and its expiry gate the whole conversation — an offer made without it is one the assistant should never have made — so it has to be present before the assistant speaks, and both items are small enough that preloading them costs almost nothing.",
+      "distractors": {
+        "A": "Inventory is large and changes constantly, so a snapshot taken at session start is both expensive and liable to be wrong by the time it is quoted. Availability is exactly the kind of question a tool call answers better than a preload.",
+        "C": "A full multi-vehicle service history is bulky and relevant only in the minority of sessions that turn on it. Loading it for every customer trades a reliably large cost against an occasional round trip.",
+        "E": "Warranty terms are invariant across customers and rarely quoted in full, which makes them a poor fit for a per-session brief. They belong in a retrievable reference the assistant consults when a warranty question actually arises."
+      },
+      "concept": "Preload only what is needed on essentially every turn and is small and stable enough to be cheap; leave everything else behind a tool. The two qualifying tests are universality of use and cost of being wrong — gating facts qualify even when small, and large volatile datasets never do.",
+      "tip": "For preload-versus-fetch items, ask how often the item is used per session and whether a stale copy would be harmful. Anything large, volatile, or occasionally relevant belongs behind a tool."
+    }
+  },
+  {
+    "id": "CPE-C-049",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Partitioning oversized datasets across isolated workers",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An airline's irregular-operations assistant must reason over crew rosters, aircraft rotations, passenger connections and maintenance holds during a disruption. Each dataset is large and together they exceed the window. The four analyses are largely independent, but the final recommendation has to trade them off against one another. Duty controllers need an answer within a few minutes. Which shape fits?",
+    "options": [
+      { "key": "A", "text": "Four workers, each with its own window and dataset, returning a bounded structured assessment to an orchestrator that sees only those four assessments and makes the trade-off." },
+      { "key": "B", "text": "One agent that loads each of the four datasets in turn and summarises as it goes, so that by the end of the sequence it is holding a single condensed view of all four datasets together." },
+      { "key": "C", "text": "A retrieval layer spanning all four datasets, with a single agent issuing queries across them as the disruption analysis proceeds." },
+      { "key": "D", "text": "Four sequential calls, each carrying the previous calls' outputs forward, with the final call producing the overall recommendation." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The datasets do not fit together but each fits alone, and the analyses are independent right up to the final trade-off — which is the exact shape isolation is for. Four workers keep each analysis at full fidelity in its own window, and the orchestrator's job needs only their conclusions, so its context stays small enough to reason well. Running them in parallel is also what makes the few-minute budget achievable, which none of the sequential shapes can promise.",
+      "distractors": {
+        "B": "Sequential loading with summarisation means the first dataset has been compressed three times by the time the recommendation is made, so the trade-off is struck between one detailed view and three degraded ones. It is also serial, which is the wrong choice under a time budget.",
+        "C": "Retrieval suits localised lookups, and these are not lookups: assessing rotation feasibility or connection exposure requires reasoning over a whole dataset rather than over its most similar passages. Top-k selection would silently omit the constraints that make a plan infeasible.",
+        "D": "Carrying outputs forward makes each call larger than the last and leaves the final call holding three previous results plus its own dataset. It reintroduces the window pressure the design was meant to avoid, and it serialises work that has no ordering dependency."
+      },
+      "concept": "Partition by dataset when analyses are independent and the union does not fit, then reserve the parent's context for the cross-cutting decision. The orchestrator should see conclusions, not evidence; the workers should see evidence, not each other.",
+      "tip": "Look for the phrase that says the subtasks are independent except for a final combination step. That structure is the strongest signal in the domain for isolated workers plus a thin orchestrator."
+    }
+  },
+  {
+    "id": "CPE-C-050",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "What source headers on retrieved passages buy you",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "Retrieved passages are placed in the window each with a short header giving source document, section and date. What does that header primarily buy?",
+    "options": [
+      { "key": "A", "text": "Better retrieval recall, because the embedding model has more signal to work with when it scores candidate passages." },
+      { "key": "B", "text": "A reduction in the tokens the passages consume, because the header replaces repeated context inside the passage body." },
+      { "key": "C", "text": "Protection against retrieved text being read as instruction, because headers mark the boundary of untrusted content." },
+      { "key": "D", "text": "The ability to attribute claims and to weigh conflicting passages by recency or source authority." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Passages arrive stripped of everything that surrounded them, so without a header the model cannot tell whether it is reading last year's policy or this year's, or which of two contradictory statements comes from the authoritative source. The header restores enough provenance for the model to cite what it used and to prefer the newer or more authoritative of two conflicting passages — both of which are decisions it otherwise has to make blind.",
+      "distractors": {
+        "A": "Recall is determined at index and query time by what was embedded and how it was scored. A header added when the passage is placed into the prompt arrives long after retrieval has finished and cannot influence which passages were selected.",
+        "B": "Headers add tokens rather than removing them. They are worth the cost, but the justification is what they let the model do, not any saving — and the passage body is not shortened by their presence.",
+        "C": "Marking boundaries helps a little, but a header is a label rather than a control, and injected instructions inside a passage body are not neutralised by one. Treating retrieved content as untrusted requires explicit handling instructions and output-side controls."
+      },
+      "concept": "Retrieved content should carry the provenance the model needs to use it responsibly: where it came from, which part of the source, and how current it is. Attribution and conflict resolution are inference-time capabilities, and they depend on metadata travelling with the passage into the window.",
+      "tip": "Separate what happens at index time from what happens at inference time. Anything added while assembling the prompt cannot change which passages the retriever chose."
+    }
+  },
+  {
+    "id": "CPE-C-051",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Diagnosing repeated requests for facts already supplied",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A construction firm's permitting assistant handles applications that run over several days. Users report that it asks them to re-supply the site address and parcel number they already provided, and it happens after long gaps in the conversation. Logs confirm the conversation record is intact across those gaps and that compaction fired during each one. What is the defect?",
+    "options": [
+      { "key": "A", "text": "The conversation store is dropping turns during idle periods, so the earlier exchanges are genuinely absent when the user returns." },
+      { "key": "B", "text": "The system prompt does not instruct the assistant to retain and reuse facts the user has already supplied during the application." },
+      { "key": "C", "text": "The compaction summary preserves the narrative of the conversation but drops the structured facts the workflow depends on." },
+      { "key": "D", "text": "Users are starting fresh conversations after the gap rather than resuming the existing one, so the assistant has no prior context." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Two facts in the stem pin this down: the record is intact, so nothing was lost in storage, and compaction ran during exactly the gaps where the symptom appears. That leaves the summary as the point of loss. A summariser optimising for readable narrative will happily write 'the applicant provided site details' and drop the address and parcel number themselves, which reads perfectly well and leaves the workflow with nothing to act on.",
+      "distractors": {
+        "A": "The logs rule this out directly — the conversation record survives the gap. Chasing a storage bug here means instrumenting a layer the evidence has already cleared while the summariser keeps discarding identifiers.",
+        "B": "Instructing the model to remember facts it can no longer see does nothing. The assistant is not choosing to forget; the values are absent from the context it was handed after compaction.",
+        "D": "New-conversation behaviour would produce an assistant with no memory of anything, not one that recalls the application in general terms while missing specific values. The partial recall in the symptom is what points at summarisation rather than at a fresh session."
+      },
+      "concept": "Compaction summarisers optimise for readable prose unless told otherwise, and prose is where identifiers go to die. Any summary feeding a workflow needs an explicit slot for the structured facts downstream steps consume, kept as values rather than as descriptions of values.",
+      "tip": "When a symptom correlates precisely with when compaction runs, the summary is the suspect. Note also which competing diagnoses the stem's evidence has already eliminated for you."
+    }
+  },
+  {
+    "id": "CPE-C-052",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Defining an agent's working set",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In context engineering, what does an agent's \"working set\" refer to?",
+    "options": [
+      { "key": "A", "text": "The maximum number of tokens the model will accept in a single request, as published in the specification for that model version." },
+      { "key": "B", "text": "The subset of the available information that the agent actually needs resident in order to complete its current step." },
+      { "key": "C", "text": "The collection of tools the agent has been granted permission to call for the duration of the session." },
+      { "key": "D", "text": "The number of tokens already consumed by the conversation up to the current point in the run." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The working set is a property of the task at a moment in time, not of the model or of the conversation. It answers a different question from the window size: not how much can I fit, but how little do I need right now. Designing around it is what produces just-in-time loading and progressive disclosure, because once you know the working set is small you stop trying to make the whole corpus fit and start making it reachable.",
+      "distractors": {
+        "A": "That is the context window, a fixed model property. Conflating the two is the mistake the concept exists to correct — the window sets an upper bound, while the working set is what the current step actually requires.",
+        "C": "The granted toolset is an authorisation boundary. Tools do consume window space through their definitions, but the set of things the agent may call is unrelated to the information it needs resident to reason.",
+        "D": "Consumed tokens are a measure of current utilisation. They tell you how full the window is, not how much of what is in it is contributing to the step in progress — which is frequently a small fraction."
+      },
+      "concept": "Design to the working set rather than to the window. The window is a ceiling; the working set is the requirement. Systems that keep resident context close to the working set stay fast, cheap and accurate as their underlying corpora grow, because growth changes what is reachable rather than what is loaded.",
+      "tip": "Vocabulary items in this domain usually contrast a capacity with a requirement. If two options describe a limit and one describes a need, the need is normally the concept being defined."
+    }
+  },
+  {
+    "id": "CPE-C-053",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Making dynamically assembled context reconstructable for audit",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A wealth manager's advice-drafting assistant produces suitability notes. The regulator requires the firm to show, for any note, exactly which client facts and which product documents informed it, for six years after issue. Today context is assembled dynamically from a CRM and a product library, and the team logs only the final note and the adviser's prompt. The regulator has announced a thematic audit for next year that will sample notes and require the firm to evidence what informed each one. What should the team do next?",
+    "options": [
+      { "key": "A", "text": "Plan to re-run the assistant against the CRM and product library at audit time, reproducing any note the regulator samples to show how it was derived." },
+      { "key": "B", "text": "Log the model version and sampling parameters going forward, so that any note can be regenerated deterministically on demand." },
+      { "key": "C", "text": "Ask the CRM and product library owners to retain their full change histories, so that the inputs to any sampled note can be inferred retrospectively." },
+      { "key": "D", "text": "Persist, alongside each note, either the fully assembled prompt or a manifest naming every context block with its source identifier and version." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The obligation is evidential: show what informed a specific note. Only a record captured at generation time can do that, because by the time a note is sampled the CRM and the product library will both have moved on. Persisting the assembled prompt, or a manifest that names each block with the exact source version it came from, makes the answer a lookup rather than a reconstruction — and a manifest is usually the better form, since it is compact enough to retain for six years and avoids duplicating client data.",
+      "distractors": {
+        "A": "Reproduction against the data of the day answers a different question: what the assistant would say then. Client circumstances and product terms will have moved on, so a matching output would be coincidence and a differing one would prove nothing about the original.",
+        "B": "Version and parameter logging is worth having, but it cannot recover context that was never recorded. Regenerating with identical settings over different inputs does not reproduce the original note, and a probabilistic system will not reproduce it exactly in any case.",
+        "C": "Change histories let you reconstruct what the sources contained on a given date, which is not the same as knowing which parts of them were retrieved and placed in the window. It is expensive forensic work that yields an inference rather than a record."
+      },
+      "concept": "If a system must later prove what informed an output, the context it assembled is part of the output and has to be persisted with it. Log a manifest of blocks with source identifiers and versions rather than relying on the ability to re-derive: dynamic assembly over mutable sources is not reproducible after the fact.",
+      "tip": "A retention requirement measured in years is a signal to capture inputs at the time, not to plan for regeneration. Any option built on re-running or regenerating is answering a reproducibility question the regulator did not ask."
+    }
+  },
+  {
+    "id": "CPE-C-054",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Justified context differences between batch and interactive paths",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A broadcaster runs summarisation in two places: an interactive newsroom tool with a sub-second expectation, and an overnight batch over the day's wire feed. An architect argues the two should use different context strategies. Which TWO of the proposed differences are justified? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "The batch path should be configured with a larger context window than the interactive path, since it has no latency constraint to respect." },
+      { "key": "B", "text": "The batch path can afford multi-pass processing — mapping over sections then reducing — where the interactive path must answer in a single call." },
+      { "key": "C", "text": "The interactive path should skip retrieval entirely, because a retrieval hop always breaches a sub-second budget." },
+      { "key": "D", "text": "The interactive path benefits more from a stable shared prefix, because it issues many similar requests in quick succession." },
+      { "key": "E", "text": "The batch path should disable compaction, since compaction exists to reduce latency and there is no latency pressure overnight." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "Latency is the variable that legitimately separates the two. With no response-time constraint, the batch path can decompose a long input into several calls and combine the results, which usually beats a single pass over a long context on quality. The interactive path issues many near-identical requests in a short window, which is exactly the traffic shape where a stable leading prefix pays off — the same design would earn far less on an overnight job whose requests are spread out and dissimilar.",
+      "distractors": {
+        "A": "The window is a property of the model, not a per-path setting a caller can raise. Both paths face the same ceiling; what differs is how many calls each can afford to make within it.",
+        "C": "Retrieval hops can be fast, and plenty of sub-second experiences include one. Ruling it out categorically discards the main mechanism for keeping the interactive path's context small, which is precisely what a tight latency budget needs.",
+        "E": "Compaction exists to keep a growing context inside the window, not to manage latency. A long batch job is if anything more likely to need it, since it may process far more material per run than an interactive session does."
+      },
+      "concept": "Let the latency budget, not the workload label, drive the context strategy. Slack in response time buys multi-pass decomposition and larger effective working sets; tight budgets favour small contexts, prefix stability and single-call shapes. Window size and compaction are not among the levers that differ.",
+      "tip": "In batch-versus-interactive items, check each proposed difference against what actually varies. Options that treat a fixed model property as tunable per path are reliably wrong."
+    }
+  }
+]

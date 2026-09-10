@@ -1,0 +1,455 @@
+[
+  {
+    "id": "CPE-C-019",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "What the term context rot actually describes",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In context engineering, the term \"context rot\" refers to which observed behaviour?",
+    "options": [
+      { "key": "A", "text": "Performance on a task degrades as total context length grows, even when the needed information is present." },
+      { "key": "B", "text": "A cached prompt prefix reaches the end of its lifetime and has to be reprocessed from scratch on the next request." },
+      { "key": "C", "text": "A summary drifts progressively further from the source as it is re-summarised across successive compactions." },
+      { "key": "D", "text": "Retrieved passages become stale relative to the source system because the index refresh lags behind the underlying corpus." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The defining property is that quality falls with length rather than with content. The relevant material can be sitting in the window, correctly formatted, and still be used less reliably simply because there are far more tokens around it. This is why a prompt that passes evals at short input sizes can fail in production on real-world inputs, and why 'the information was in there' is not a defence when an agent misses it.",
+      "distractors": {
+        "B": "Cache expiry is a cost and latency event with no effect on answer quality — the same tokens are simply reprocessed. It is worth managing, but confusing it with quality degradation leads teams to tune lifetimes when they should be reducing context.",
+        "C": "Successive re-summarisation drift is a real and closely related hazard, but it is a property of a compaction chain rather than of context length. A single long prompt with no summarisation at all can still exhibit degradation.",
+        "D": "Index staleness is a retrieval freshness problem: the content in the window is wrong because the pipeline supplied outdated material. Degradation with length happens with perfectly current content."
+      },
+      "concept": "Treat context as a finite attention budget, not just a storage limit. Every token added competes for the model's attention, so the marginal value of extra context can go negative well before the window is full. The design question is always what to leave out, not only what fits.",
+      "tip": "Distinguish the four failure modes that all get loosely called 'context problems': length degradation, summarisation drift, cache invalidation and index staleness. Exam items separate them deliberately."
+    }
+  },
+  {
+    "id": "CPE-C-020",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Designing what a sub-agent returns to its orchestrator",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A pharmaceutical company's competitive-intelligence agent spawns six sub-agents, one per competitor, each searching news, regulatory filings and trial registries. Each sub-agent currently returns its full working transcript to the orchestrator, which then writes the brief. The orchestrator's window now fills before it can write, and the briefs have become unfocused. What should each sub-agent return instead?",
+    "options": [
+      { "key": "A", "text": "Its transcript with tool results stripped out, keeping only the sub-agent's own messages, intermediate reasoning and final conclusions." },
+      { "key": "B", "text": "A structured finding set — claims, each with a source reference and a confidence — against a schema the orchestrator defined up front." },
+      { "key": "C", "text": "A free-text narrative summary of what it found, written in whatever form the sub-agent judges most useful for the brief." },
+      { "key": "D", "text": "A pointer to its full transcript in object storage, which the orchestrator reads only when it needs supporting detail." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Returning transcripts defeats the point of isolation: the orchestrator inherits six sub-agents' exploration and is left to do the distillation itself, in a window that no longer has room for it. A schema defined by the orchestrator before fan-out fixes both symptoms at once — it bounds what comes back, and it makes the six returns commensurable, so the orchestrator can compare and merge claims instead of re-reading six unstructured narratives. Source references keep the brief defensible without carrying the evidence itself.",
+      "distractors": {
+        "A": "Removing tool results shrinks the payload but leaves six variable-length, unstructured narratives to merge, and it strips exactly the source material that makes a competitive claim checkable. The orchestrator still spends its window on reading rather than writing.",
+        "C": "Free-text summaries at the sub-agent's discretion produce six documents with different shapes, different levels of detail and no consistent notion of confidence. Merging them is the work the orchestrator was already struggling with, just at a smaller scale.",
+        "D": "Deferred reads suit cases where the orchestrator needs detail rarely. Here it needs every competitor's findings to write the brief, so it would fetch all six anyway — with an extra round trip each and no structure when they arrive."
+      },
+      "concept": "Define the sub-agent return contract before you fan out. A schema that names the fields the parent will actually use turns isolation into a real context saving, because the boundary compresses in a way the parent can consume directly. Unbounded returns convert a fan-out into a slower way of filling one window.",
+      "tip": "Whenever a stem says sub-agents 'return their transcript', the answer involves a return contract. Pick the option that constrains the shape, not the one that merely reduces the size."
+    }
+  },
+  {
+    "id": "CPE-C-021",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "An error propagated forward through a compaction chain",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A bank's reconciliation agent works a single break for up to two hours, compacting three or four times along the way. A post-incident review finds a run where the agent misread a currency code twelve minutes in, the misreading entered the first compaction summary as an established fact, and every later summary faithfully repeated it. The agent never went back to the source record. Which change most directly addresses this failure mode?",
+    "options": [
+      { "key": "A", "text": "Record each derived conclusion in the summary with a reference back to the source observation, and require re-verification before any irreversible action." },
+      { "key": "B", "text": "Compact less frequently, so fewer summaries are chained together and the original observation stays in the window for longer." },
+      { "key": "C", "text": "Use the higher-capability tier for the compaction step, on the basis that a stronger summariser is less likely to propagate an error it has been handed." },
+      { "key": "D", "text": "Add a standing system-prompt instruction telling the agent to double-check every fact it relies on before acting." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Once a conclusion is written into a summary as a bare fact, it becomes indistinguishable from an observation and nothing downstream can tell it was inferred. Carrying a source reference alongside each conclusion preserves that distinction, which is what makes re-verification possible at all — the agent knows which record to go back to. Gating irreversible actions on that re-check is what converts a recoverable misreading into something caught before it costs money, which is the specific consequence this scenario carries.",
+      "distractors": {
+        "B": "Fewer compactions reduce how many times the error is copied but not whether it enters the chain. One bad summary is enough, and on a two-hour run the alternative to compaction is running out of window. This treats the symptom's multiplicity rather than its origin.",
+        "C": "The summariser did nothing wrong: it accurately recorded what the agent had concluded. A stronger model at that step produces a more articulate version of the same wrong fact, because it has no access to the source record either.",
+        "D": "A blanket instruction to verify everything is unactionable — the agent cannot tell which of its beliefs came from reading a record and which came from a summary, so it has no basis for choosing what to re-check. Verification needs a target, which is what the reference provides."
+      },
+      "concept": "Compaction erases provenance unless provenance is explicitly preserved. Distinguish observations from conclusions in the summary and attach a source handle to each conclusion, so a downstream step can re-verify cheaply. Without that, a single early error becomes permanent and self-reinforcing for the remainder of the run.",
+      "tip": "When a stem traces an error through several summaries, the fix acts at the moment the error was recorded, not at how often summarisation happens or which model performs it."
+    }
+  },
+  {
+    "id": "CPE-C-022",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Replacing repeated whole-file reads with targeted queries",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "An e-commerce team's deployment agent reads the same large infrastructure manifest on most turns of a long session, because different steps need different parts of it. The manifest is big enough that even one resident copy leaves little working room, and the agent typically uses two or three blocks at a time. It does not change during a session. Sessions now hit the ceiling within the hour. What should the team do next?",
+    "options": [
+      { "key": "A", "text": "Replace the whole-file read with a query tool that returns only the block the agent names." },
+      { "key": "B", "text": "Read the manifest once at session start and pin that single copy in the stable leading region of the prompt." },
+      { "key": "C", "text": "Add a rule permitting the agent at most three manifest reads per session, forcing it to plan its reads." },
+      { "key": "D", "text": "Have the agent summarise the manifest after the first read and work from the summary for the rest of the session." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Two facts in the stem decide this: one resident copy already crowds the window, and the agent only ever needs a couple of blocks at a time. That combination rules out any strategy that keeps the whole file in context and points at fetching by name. A block-level query tool gives the agent full-fidelity content for exactly what it asks for, keeps resident context near zero between reads, and works regardless of how many different blocks a long session ends up touching.",
+      "distractors": {
+        "B": "Pinning would be right if the file were modest and the duplication were the whole problem. Here the stem says a single copy already leaves little working room, so paying for it permanently — for the entire session, including the many turns that touch none of it — trades one ceiling breach for a chronically cramped window.",
+        "C": "Capping reads rations the symptom without changing the unit of transfer. Three whole-file reads still cost three whole files, and forcing the agent to hoard reads makes it more likely to load the manifest speculatively rather than when it actually needs a block.",
+        "D": "A deployment manifest is consumed for its exact values — image tags, resource limits, selectors. A summary is precisely the wrong representation, and acting on a paraphrased infrastructure spec is how a session produces a confidently wrong change."
+      },
+      "concept": "When a large artefact is read repeatedly but used in slices, change the unit of transfer rather than the frequency or the fidelity. A tool that returns a named region gives just-in-time access at full precision, which is strictly better than either caching the whole thing or compressing it.",
+      "tip": "Check what the stem says about how much of the artefact is used per step. 'Two or three blocks at a time' out of something large is the signal for a query interface rather than a resident copy."
+    }
+  },
+  {
+    "id": "CPE-C-023",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "The principal trade-off of just-in-time context loading",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A just-in-time context strategy replaces bulk preloading with on-demand fetching by identifier. What does it primarily trade away?",
+    "options": [
+      { "key": "A", "text": "Answer fidelity, because anything fetched on demand has to be delivered in a compressed form to fit the remaining budget." },
+      { "key": "B", "text": "Auditability, since nothing in the design records which items the agent chose to pull into its context." },
+      { "key": "C", "text": "Wall-clock latency, because the agent spends extra round trips fetching what it decides it needs." },
+      { "key": "D", "text": "The ability to plan, because the agent cannot form a strategy until the whole corpus is resident in the window." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Deferred loading converts one large request into a sequence of smaller ones with model turns in between. Each fetch is a round trip the preloading design did not pay for, so a task that needs four documents costs four extra hops before the answer starts. That is the real cost, and it is why interactive, latency-sensitive surfaces sometimes justify preloading that a batch job never would.",
+      "distractors": {
+        "A": "On-demand loading generally improves fidelity rather than reducing it: the item arrives at full resolution because the window is not being shared with dozens of documents that turned out to be irrelevant. Preloading is the strategy that pushes teams toward pre-summarised content.",
+        "B": "Fetches are tool calls, and tool calls are among the most straightforward things in an agent to log. If anything, a just-in-time design produces a cleaner record of what was consulted than a bulk load that dumps everything regardless of use.",
+        "D": "Agents plan from a map, not from the full contents. A directory listing, an index, or a set of file paths with one-line descriptions is normally enough to decide what to open, which is the same way an engineer approaches an unfamiliar repository."
+      },
+      "concept": "Just-in-time loading buys context economy and fidelity with latency. Choose it when the working set is a small and unpredictable subset of a large corpus, and prefer preloading when the whole set is genuinely needed and the round trips would breach a response budget.",
+      "tip": "Every context strategy trades one resource for another. Name the resource before comparing options: just-in-time spends time to save window, preloading spends window to save time."
+    }
+  },
+  {
+    "id": "CPE-C-024",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Reducing per-turn payload in a document-heavy assistant",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A government tax-filing assistant re-sends, on every turn, the taxpayer's full prior-year return plus the entire conversation. Past about turn twenty responses are slow and the assistant has begun conflating figures between years. Which TWO changes reduce the window pressure without losing its ability to answer detailed questions about the return? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Replace the full return with an extracted figures table, and expose a tool that fetches any named schedule in full on request." },
+      { "key": "B", "text": "Move the full return into the system prompt so it stops counting as conversation history." },
+      { "key": "C", "text": "Summarise turns older than the most recent few into a rolling digest, keeping the recent turns verbatim." },
+      { "key": "D", "text": "Drop the conversation history each turn and answer from the return alone, since the return is the authoritative source." },
+      { "key": "E", "text": "Tag every figure the assistant states with the tax year it came from, and carry the current filing year in the system prompt." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "The payload has two growing parts and each needs its own treatment. The return is large but mostly unread on any given turn, so an extracted figures table plus a fetch-by-schedule tool keeps the common case small while preserving full-fidelity access when a specific schedule is genuinely needed. The conversation grows without bound, so a rolling digest with the recent turns kept verbatim caps it while protecting the part of the history that is most likely to be referenced next.",
+      "distractors": {
+        "B": "Placement does not change accounting. Content in the system prompt occupies the same window as content in a user turn, and moving a large, taxpayer-specific document to the front also destroys any prefix that could have been shared across requests.",
+        "D": "This trades one failure for a worse one. Without the conversation the assistant loses everything the taxpayer said about the current year's circumstances, which is exactly the material the prior-year return does not contain.",
+        "E": "Year tagging is a sensible remedy for the conflation symptom, but it adds tokens rather than removing them and does nothing about the window pressure the question asks about."
+      },
+      "concept": "Attack each growing component with the mechanism suited to it: bounded-but-large reference documents become an index plus on-demand fetch, while unbounded conversation history becomes a rolling digest with a verbatim recent tail. A single strategy applied to both usually over-compresses one and under-compresses the other.",
+      "tip": "When a stem names two symptoms but asks about only one, options addressing the other are non-responsive however sensible they read. Re-read what the question actually asked you to fix."
+    }
+  },
+  {
+    "id": "CPE-C-025",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Tenant-variable data misplaced as system-level configuration",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A SaaS HR platform serves 900 employer tenants. Its policy-question assistant concatenates the tenant's entire handbook — anywhere from twenty to two hundred pages — into the system prompt on every request. Cost now scales with tenant handbook size rather than with usage, large tenants get measurably worse answers than small ones, and onboarding a tenant requires editing a prompt template. What is the core design error?",
+    "options": [
+      { "key": "A", "text": "The system prompt has simply grown too long and needs to be edited down to the sections that matter most." },
+      { "key": "B", "text": "Tenant-variable data is being treated as system-level configuration; the handbook belongs behind retrieval as request-scoped context." },
+      { "key": "C", "text": "Tenants should be sharded across separate deployments so each instance carries only the handbooks it serves." },
+      { "key": "D", "text": "Handbooks should be pre-summarised once during tenant onboarding, with the resulting summary used in the system prompt from then on." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "All three symptoms trace to one misclassification. The system prompt is for content that is invariant across requests; a per-tenant handbook is data, and treating it as configuration is what couples cost to handbook size, makes long handbooks degrade quality through sheer length, and turns tenant onboarding into a prompt edit. Moving it behind retrieval scoped to the request makes every symptom disappear at once: cost tracks usage, only relevant passages reach the window, and onboarding becomes an indexing job.",
+      "distractors": {
+        "A": "Deciding centrally which handbook sections 'matter most' means guessing, for 900 different employers, which policies their staff will ask about. Any static selection is wrong for some tenant, and the answer quality problem for large handbooks remains for whatever is kept.",
+        "C": "Sharding redistributes the same per-request payload across more infrastructure. Each request still carries a whole handbook, so cost per request and length-related degradation are unchanged, and the platform gains a fleet to operate.",
+        "D": "HR policy answers turn on exact entitlements, notice periods and eligibility wording. A summary drops precisely that specificity, and it makes the assistant unable to quote the clause an employee is being held to — the thing that makes the answer defensible."
+      },
+      "concept": "Sort context by what varies. Invariant instructions belong in the system prompt; per-tenant or per-request data belongs in request-scoped context, retrieved rather than embedded. When cost scales with a data dimension instead of with traffic, some data has been mistaken for configuration.",
+      "tip": "Three symptoms with one cause is a common hard-item shape. Test each candidate answer against all three: options that resolve one and leave two standing are the near-misses."
+    }
+  },
+  {
+    "id": "CPE-C-026",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Handling passages retrieved repeatedly across a session",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A legal research assistant retrieves eight passages per turn and appends them to the transcript. Across a ten-turn session the same three landmark authorities come back repeatedly, and by the end they occupy a large share of the window. The assistant must be able to cite, in its closing memo, any passage it relied on at any point in the session. What is the right handling?",
+    "options": [
+      { "key": "A", "text": "Reduce top-k from eight to three so that fewer duplicate passages accumulate over the session." },
+      { "key": "B", "text": "Clear all retrieved passages at the start of every turn and re-retrieve from scratch for whichever question is currently being asked." },
+      { "key": "C", "text": "Keep a per-session set of already-supplied passage identifiers and, on a repeat hit, insert a short reference instead of the passage text." },
+      { "key": "D", "text": "Rerank so that passages already shown in this session are demoted below ones the assistant has not yet seen." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The waste is duplication, not volume, so the fix is to make the second and later appearances of a passage cost almost nothing while keeping it addressable. Tracking supplied identifiers lets the pipeline substitute a reference for text the model already has in the window, which preserves the citation requirement — the assistant can still name the authority in the closing memo — at a fraction of the tokens. Nothing that was ever relied on is removed from reach.",
+      "distractors": {
+        "A": "Lowering top-k cuts recall for every turn in order to reduce redundancy on a few. The landmark authorities would still repeat, just alongside fewer supporting passages, so the session accumulates duplicates more slowly while answering less well throughout.",
+        "B": "A clean slate each turn caps growth but breaks the stated requirement directly: a passage relied on in turn three is gone by turn ten, so the closing memo cannot cite it without a fresh retrieval that may not surface it again.",
+        "D": "Demoting seen passages inverts relevance for the sake of novelty. In legal research the landmark authority is usually the right answer to several questions in a row, and pushing it down the ranking to make room for weaker material degrades every affected turn."
+      },
+      "concept": "Deduplicate retrieved content within a session rather than restricting or resetting retrieval. Track what has already been supplied and pass a reference on repeats: the model keeps access to everything it has seen, the window stops paying for the same text twice, and citation requirements survive intact.",
+      "tip": "A requirement stated as 'must be able to cite anything relied on' rules out every option that discards context. Scan for the constraint before evaluating the efficiency of the candidates."
+    }
+  },
+  {
+    "id": "CPE-C-027",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Distinguishing conversation pruning from compaction",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "In context management, what distinguishes pruning from compaction?",
+    "options": [
+      { "key": "A", "text": "Pruning decisions are made by the model during its turn, whereas compaction is performed by the orchestration layer between turns." },
+      { "key": "B", "text": "Pruning removes selected content outright; compaction replaces a span of content with a shorter representation of it." },
+      { "key": "C", "text": "Pruning applies to retrieved documents in the window, whereas compaction applies to conversation turns." },
+      { "key": "D", "text": "Pruning is lossless because it only removes exact duplicates, whereas compaction is inherently lossy." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The two differ in what remains. Pruning deletes: the tokens go and nothing stands in their place, so anything they carried is gone unless it survives elsewhere. Compaction substitutes: a span is replaced by a summary occupying the same logical position, so the information is degraded rather than absent. That difference drives when each is safe — pruning suits content with no residual value, compaction suits content whose gist still matters.",
+      "distractors": {
+        "A": "Both are normally implemented in the orchestration layer, and compaction typically involves a model call to produce the summary. Who performs the operation is an implementation detail rather than the distinction between them.",
+        "C": "Both techniques apply to any content in the window. Retrieved passages are routinely compacted into extracted findings, and conversation turns are routinely pruned outright when they carry no decision content.",
+        "D": "Pruning is lossy whenever it removes anything other than an exact duplicate, which in practice is most of the time. Framing it as the safe option is how teams end up deleting the identifiers an agent still needs."
+      },
+      "concept": "Pruning and compaction sit on a spectrum of information retention: delete, summarise, or keep verbatim. Choose per content type rather than per policy — tool payloads usually compact well, social turns prune cleanly, and identifiers and standing instructions should generally be left alone.",
+      "tip": "Definitional items in this domain reward precision about mechanism. Ask what physically occupies the tokens afterwards: nothing (pruning) or a shorter stand-in (compaction)."
+    }
+  },
+  {
+    "id": "CPE-C-028",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Shaping a standards assistant around two question classes",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "An engineering consultancy is designing a standards-lookup assistant over roughly 12,000 technical standards documents, refreshed weekly. Most questions are answered by a single clause; about one in six requires comparing requirements across two or three standards. Which THREE statements should shape the design? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "Because some questions span documents, every request should load the full text of all standards the user has asked about earlier in the session." },
+      { "key": "B", "text": "The corpus size and weekly refresh make per-request loading of everything impractical, so retrieval has to be the entry point." },
+      { "key": "C", "text": "Retrieving clauses first and then loading the full text of the two or three standards those clauses came from handles the comparison cases without inflating the common case." },
+      { "key": "D", "text": "Clause-level retrieval alone is sufficient for the comparison cases, because reranking will surface the relevant clauses from each standard together." },
+      { "key": "E", "text": "Routing on question type lets the comparative path spend a larger context budget than the single-clause path." }
+    ],
+    "correct": ["B", "C", "E"],
+    "explanation": {
+      "correct": "Twelve thousand weekly-refreshed documents settle the entry point: retrieval, because neither the volume nor the change rate supports assembling everything per request. From there the two question classes want different budgets, and escalating from clause hits to the full text of the small number of standards involved gives the comparative minority what it needs without charging the majority for it. Routing makes that budget difference explicit rather than leaving one setting to serve both.",
+      "distractors": {
+        "A": "Session-cumulative loading grows without bound and correlates with what the user happened to ask before rather than with what the current question needs. By the tenth question the window is dominated by standards irrelevant to it.",
+        "D": "Reranking optimises the ordering of candidates for a single query, and a comparative question is not one query. Nothing guarantees the top clauses span all the standards being compared, and requirements that only conflict in context are exactly what clause-level snippets hide."
+      },
+      "concept": "When a workload contains distinct question classes with different context needs, route between them rather than sizing one path for the hardest case. A tiered strategy — retrieve narrowly by default, escalate to full-document loading for the minority that needs cross-document reasoning — keeps the common path cheap and the rare path correct.",
+      "tip": "A stem that quantifies a minority class ('about one in six') is telling you to design two paths. Options that force one path to serve both, in either direction, are the ones to reject."
+    }
+  },
+  {
+    "id": "CPE-C-029",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Budgeting for image inputs in a claim triage flow",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An insurer's motor-claim triage assistant receives between eight and thirty damage photographs per claim, alongside the adjuster's notes and the policy schedule. On claims at the upper end, requests are rejected for exceeding the context window. The team is surprised, because the text portion is small. What is the correct explanation and remedy?",
+    "options": [
+      { "key": "A", "text": "The output ceiling is being hit rather than the input one; raise the reply cap so the request has room to complete." },
+      { "key": "B", "text": "Images must be converted to structured text descriptions in a preceding call, and only those descriptions passed on to the assessment step." },
+      { "key": "C", "text": "Photographs should be sent one per call, with the individual assessments merged into a claim-level view afterwards." },
+      { "key": "D", "text": "Images consume context budget in proportion to their dimensions; downscale to the resolution the task needs and select a subset before the call." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Image inputs are tokenised, and the cost rises with pixel dimensions, so thirty full-resolution photographs can dominate a window that the accompanying text barely touches. The remedy works on the two levers that actually drive the number: send images at the smallest resolution that still supports damage assessment, and select the photographs that add information rather than every frame the claimant uploaded. Both are pre-call decisions in the integration layer, which is where budget control belongs.",
+      "distractors": {
+        "A": "The reply cap governs how much the model may generate and has no bearing on whether the request fits. Raising it in this situation makes the request slightly less likely to succeed, not more, because the reply must also fit alongside the input.",
+        "B": "A text-conversion pass costs an extra call per claim and discards the visual detail that damage assessment depends on — panel deformation, paint transfer, the relationship between two impact points. It replaces a budget problem with an accuracy problem.",
+        "C": "One photograph per call loses cross-image reasoning, which is central here: distinguishing one impact from several, or matching damage to the claimant's account, requires seeing the set. It also multiplies calls and adds a merge step that has to reconcile inconsistent per-image verdicts."
+      },
+      "concept": "Non-text inputs draw on the same context budget as text, and for images that budget is driven by resolution and count. Treat both as tunable parameters set by the integration: downscale to task-sufficient resolution and curate the set, rather than passing through whatever the upstream system produced.",
+      "tip": "'The text is small but the request is too big' points at a non-text contributor. Resolution and count are the levers; converting the modality away is almost always the wrong trade."
+    }
+  },
+  {
+    "id": "CPE-C-030",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Re-anchoring the objective in a very long agent run",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A telco's network-remediation agent runs for up to 200 steps against a single ticket. Operators report that on the longest runs it drifts: by around step 150 it is often improving something adjacent to the ticket rather than closing it. By that point the transcript is dominated by tool output from earlier diagnostics. Which intervention targets the cause?",
+    "options": [
+      { "key": "A", "text": "Cap runs at 100 steps and escalate anything unresolved at that point to a human engineer." },
+      { "key": "B", "text": "Move the objective into the system prompt so that it is stated once, authoritatively and unambiguously, at the very top of every request the agent issues." },
+      { "key": "C", "text": "Retain more of the diagnostic tool output, so that the agent has fuller evidence about what the ticket actually involves." },
+      { "key": "D", "text": "Regenerate a short structured plan block restating the ticket and the outstanding acceptance criteria, placed immediately before each model turn." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Drift here is a recall problem with a positional cause: the objective was stated once, at the beginning, and by step 150 it sits behind an enormous volume of diagnostic output. Re-emitting a compact restatement of the ticket and the criteria still outstanding immediately before each turn puts the goal back where the model attends most reliably, and regenerating rather than pinning it means the remaining criteria shrink as work completes, which keeps the agent oriented toward closure rather than toward exploration.",
+      "distractors": {
+        "A": "A step cap contains the damage without addressing why the agent loses the thread, and it converts long-tail tickets — the ones automation was meant to absorb — into human escalations. Useful as a safety limit, not as the remedy for drift.",
+        "B": "The objective is almost certainly already in a leading position, and that is the problem rather than the fix: content at the top of a very long context is exactly what gets crowded out. Stating it once more authoritatively does not change where it sits.",
+        "C": "More tool output makes the surrounding volume larger, which is the condition the drift correlates with. Retention decisions here should be reducing the diagnostic bulk, not expanding it."
+      },
+      "concept": "In long-horizon runs, treat the objective as something to re-establish rather than to declare. A regenerated plan or criteria block placed adjacent to each turn keeps the goal in a high-salience position and encodes progress, which is what keeps a long trajectory converging instead of wandering.",
+      "tip": "Drift that appears only late in long runs is positional, not motivational. Reject options that restate the goal more forcefully in the same place, and look for the one that moves it closer to the point of use."
+    }
+  },
+  {
+    "id": "CPE-C-031",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Content that belongs in the system prompt",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Which content is best placed in the system prompt rather than in a user turn?",
+    "options": [
+      { "key": "A", "text": "Durable role, constraints and output rules that apply identically to every request this application makes." },
+      { "key": "B", "text": "The specific document the user has asked to have analysed on this particular request." },
+      { "key": "C", "text": "The user's most recent instruction, relocated there so that it carries higher priority than earlier ones." },
+      { "key": "D", "text": "Retrieved passages, placed there so the model treats them as authoritative rather than as user-supplied claims." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The system prompt is the right home for whatever is true of every request: who the assistant is, what it may and may not do, and how its output must be shaped. Keeping that content invariant means it can be versioned and tested as a unit, and it forms a stable leading region that every request shares. The test is simple — if the text would differ between two requests, it is data and belongs in turn content.",
+      "distractors": {
+        "B": "A per-request document is the clearest example of turn content. Placing it in the system prompt makes the prompt vary per request, which defeats both the versioning benefit and any prefix shared across users.",
+        "C": "Recency is already conveyed by position in the message list; moving an instruction into the system prompt to boost it blurs the line between application policy and user input, and it makes the application's own rules editable by whatever the user last typed.",
+        "D": "Retrieved content is untrusted by default — it comes from a corpus, sometimes an externally-sourced one. Promoting it into the position reserved for application policy is how retrieved text ends up being read as instruction."
+      },
+      "concept": "Partition context by lifetime and trust: invariant application policy in the system prompt, per-request data in turn content, and retrieved material clearly marked as reference rather than instruction. The question to ask of any block is whether it would be identical on the next request.",
+      "tip": "Two of the wrong answers here are attempts to use placement as a priority or trust signal. Placement conveys lifetime; priority and trust need to be stated explicitly in the instructions."
+    }
+  },
+  {
+    "id": "CPE-C-032",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Choosing the model tier that performs compaction",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A logistics firm's agent compacts three to five times during runs that make hundreds of tool calls. The team is deciding which model tier should perform the compaction step. Post-incident reviews show that poor summaries have repeatedly caused the agent to redo work it had already completed. What is the soundest choice?",
+    "options": [
+      { "key": "A", "text": "Always use the cheapest available tier, since summarising text the model can already see is a straightforward and low-risk task." },
+      { "key": "B", "text": "Use the same tier as the agent's own steps, or a stronger one, because compaction is a low-frequency, high-leverage call." },
+      { "key": "C", "text": "Use the cheapest tier but run compaction twice and keep the longer of the two summaries." },
+      { "key": "D", "text": "Drop the model from the loop entirely and compact by deterministic truncation of the oldest turns." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Compaction runs a handful of times against hundreds of agent steps, so its share of total spend is small while its influence on the run is total — every subsequent step reasons from whatever the summary said. The observed failure is a selection failure, deciding what mattered, which is judgement rather than paraphrase. Spending on the small number of calls that determine the quality of all the others is the right allocation, and it is exactly inverted by defaulting to the cheapest tier everywhere.",
+      "distractors": {
+        "A": "Uniform cost minimisation ignores leverage. Summarising a several-hundred-step trajectory into the state a successor needs is not a simple task, and the stem already reports that treating it as one has produced repeated rework.",
+        "C": "Running twice doubles the cost of the step while adding no signal about which summary is better, and length is a poor proxy for completeness — the longer output may simply be more verbose about the same omissions.",
+        "D": "Deterministic truncation is cheap and predictable, and it is defensible where old content is genuinely worthless. Here it would discard completed work records wholesale, which is the very information whose absence is causing the rework."
+      },
+      "concept": "Assign model tier by leverage per call, not by uniform policy. Steps that are executed rarely but shape everything downstream — planning, compaction, final synthesis — justify a stronger tier even in a system that runs a cheaper one for the bulk of its work.",
+      "tip": "Compute the frequency ratio the stem hands you. Three to five compactions against hundreds of steps means the tier decision there is nearly free, which reframes it as a quality question rather than a cost one."
+    }
+  },
+  {
+    "id": "CPE-C-033",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Holding a latency budget as a voice transcript grows",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A bank's telephone banking assistant works to a hard 900ms budget from the end of caller speech to the start of the spoken reply. Calls average nine turns but can reach forty. Time to first token climbs steadily through a call and breaches the budget past roughly turn 25, because the whole transcript is re-sent each time. Replies must still reflect anything the caller said earlier in the call. What should the team do next?",
+    "options": [
+      { "key": "A", "text": "Drop everything before the last three turns, which bounds the transcript at a size that comfortably fits the budget." },
+      { "key": "B", "text": "Maintain a rolling structured state block — caller intent, accounts referenced, actions taken, outstanding confirmations — updated between turns and sent in place of the older turns." },
+      { "key": "C", "text": "Move the entire call onto a faster capability tier from the first turn onward, accepting a measurable loss of answer quality in exchange for the latency headroom the budget demands." },
+      { "key": "D", "text": "Enable response streaming so the caller begins hearing the reply while the rest is still being generated." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Time to first token scales with input size, so the budget can only be held by bounding what is sent. A compact state block does that while satisfying the constraint the stem attaches: the facts established earlier in the call survive in a fixed-size representation rather than in a growing transcript. The update can be produced between turns, while the caller is speaking, so its cost falls outside the measured window — which is what makes this affordable where an in-line summarisation step would not be.",
+      "distractors": {
+        "A": "A three-turn window bounds the input but discards the caller's earlier statements, which the stem explicitly requires the assistant to honour. On a forty-turn call that means asking a customer to repeat an account they named at turn four.",
+        "C": "A faster tier buys a one-off reduction against a cost that keeps growing, so the budget is breached again a few turns later. It also degrades quality on every turn of every call to solve a problem that only appears on long ones.",
+        "D": "Streaming improves how quickly the full reply completes, not how long the model takes to produce its first token. The measured budget here ends at the start of the reply, which is precisely the part streaming does not accelerate."
+      },
+      "concept": "Under a hard per-turn latency budget, conversation state must be bounded rather than accumulated. Replace the growing transcript with a fixed-size structured state that is updated out-of-band between turns, so the cost of maintaining context is paid where no one is waiting on it.",
+      "tip": "Read exactly which interval the budget covers. A budget that ends at the first token rules out streaming; one that ends at the last token would not."
+    }
+  },
+  {
+    "id": "CPE-C-034",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Why agent notes benefit from a fixed schema",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A public health agency's outbreak-investigation agent keeps running notes across a multi-day investigation. The team is moving from a freeform note file to one with a fixed schema. Which TWO are genuine reasons to make that change? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Named fields can be loaded selectively, so a given step pulls only the sections it needs rather than the whole note file." },
+      { "key": "B", "text": "Structured notes are tokenised more efficiently than prose carrying the same information." },
+      { "key": "C", "text": "A schema prevents the model from writing an incorrect value into a field." },
+      { "key": "D", "text": "Schema'd notes remove the need to re-read the notes after a compaction, because the structure survives summarisation." },
+      { "key": "E", "text": "A required field left unfilled becomes a detectable condition rather than a silent gap in the investigation." }
+    ],
+    "correct": ["A", "E"],
+    "explanation": {
+      "correct": "Structure earns its cost through addressability and checkability. Named fields mean the agent can fetch the exposure timeline without also loading every interview note, which is the difference between notes that relieve the window and notes that are just another large document. A required-field constraint turns an omission into something code can detect and act on — the agent can be told what it still owes, instead of the gap surfacing days later in a report nobody can reconstruct.",
+      "distractors": {
+        "B": "Structured serialisation generally costs more tokens, not fewer: field names, punctuation and nesting are all overhead that prose does not carry. The efficiency gain comes from loading less of the file, not from the file being cheaper per unit of content.",
+        "C": "A schema constrains shape, not truth. The model can write a well-formed date into a correctly named field and still have the date wrong; validation catches type and presence errors, and nothing about structure catches a plausible-but-false value.",
+        "D": "Notes live outside the window, so after compaction the agent has to read them back regardless of their format. Structure makes that re-read cheaper and more selective; it does not make it unnecessary."
+      },
+      "concept": "Externalised agent notes should be treated as a data structure, not as a diary. A schema buys selective loading and machine-checkable completeness — the two properties that let a note file scale across a long investigation without either bloating the window or quietly losing information.",
+      "tip": "Options claiming a token saving from structure are usually wrong: JSON costs more per unit of meaning than prose. The saving comes from reading less of it."
+    }
+  },
+  {
+    "id": "CPE-C-035",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Purpose of counting tokens before dispatching a request",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "Why would a production system count the tokens in an assembled prompt before dispatching it, rather than letting the API reject anything oversized?",
+    "options": [
+      { "key": "A", "text": "Because the token count of a request determines which capability tiers the account is permitted to use for it." },
+      { "key": "B", "text": "Because the provider's count and the caller's own count diverge, and the two have to be reconciled for internal chargeback reporting." },
+      { "key": "C", "text": "So the request can be reshaped or rerouted — context trimmed, work split, a different path chosen — before the user sees a failure." },
+      { "key": "D", "text": "Because a locally computed count is the only way to verify that the prompt template rendered all its variables correctly." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "A rejection is a dead end: it arrives after the round trip, tells the caller only that the request was too large, and leaves a user-visible error to handle. Counting first turns the ceiling into a routing signal, so the system can trim history, escalate to a chunked path, or drop optional context and still answer. It also lets the caller reserve headroom for the reply deliberately, rather than discovering the shortfall as a truncated response.",
+      "distractors": {
+        "A": "Model access is a matter of account entitlement and configuration; a request's size does not gate which tiers may serve it. Size does influence which tier is a sensible choice, but that is a design decision rather than a permission.",
+        "B": "Reconciling counts for chargeback would be an accounting motive, and it would be served just as well by counting after the fact. The reason to count before dispatching is that the result changes what you send.",
+        "D": "Template rendering is verified by inspecting the rendered string or by schema-validating the inputs. A token count is a scalar; it cannot tell you which variable failed to interpolate, and an unrendered placeholder still produces a plausible number."
+      },
+      "concept": "Make context limits a decision point rather than an error path. Counting an assembled prompt before dispatch lets a system degrade gracefully — trimming, splitting or rerouting — and lets it reserve explicit headroom for the response instead of discovering the shortfall at generation time.",
+      "tip": "When an option and an error message describe the same outcome, prefer the one that acts earlier. Pre-flight checks exist so a system can choose, not merely so it can report."
+    }
+  },
+  {
+    "id": "CPE-C-036",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Making a long agent run resumable after a crash",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A manufacturer's quality-investigation agent runs for hours, and its host process is occasionally killed mid-run. Today a restart begins the investigation from scratch. The team wants restarts to resume instead. Which TWO properties must the design have? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "The full transcript must be persisted verbatim, so the resumed run can be handed an identical context to the one it lost." },
+      { "key": "B", "text": "Each state-changing step must be recorded durably outside the transcript before the following step begins." },
+      { "key": "C", "text": "The model must be pinned to a fixed sampling seed so the resumed run reproduces the original trajectory." },
+      { "key": "D", "text": "The resume path must rebuild a working context from the durable record rather than attempting to restore the lost transcript." },
+      { "key": "E", "text": "Compaction must be disabled during long runs so that no state is lost before the next checkpoint is written." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "Resumability needs a write side and a read side. On the write side, state has to reach durable storage before the agent moves on, or a crash loses whatever happened between the last write and the kill. On the read side, the resumed run should reconstruct a fresh working context from that record — findings so far, open questions, next intended step — rather than trying to recreate the exact transcript. The record is the source of truth; the transcript is a derived, disposable artefact.",
+      "distractors": {
+        "A": "Verbatim transcript restoration is both expensive and unnecessary, and on a multi-hour run the restored transcript would arrive near the window ceiling immediately. It also preserves all the noise the run had accumulated, which is the opposite of what a fresh start should carry.",
+        "C": "Sampling determinism would not help even if it were guaranteed, because the run cannot be replayed identically anyway — tool calls hit external systems whose state has moved on since the original execution.",
+        "E": "Disabling compaction guarantees the run hits the ceiling before it finishes, which converts an occasional crash into a certain failure. Compaction and checkpointing are complementary: one manages the window, the other manages durability."
+      },
+      "concept": "Durable external state, not the transcript, is what makes a long agent run recoverable. Write state before advancing, and resume by reconstructing a minimal working context from that record. Treat the message list as a cache of the durable state rather than as the state itself.",
+      "tip": "For recovery items, separate the write guarantee from the read strategy — a design usually needs both, and options offering only transcript restoration are addressing neither."
+    }
+  }
+]

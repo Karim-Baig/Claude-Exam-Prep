@@ -1,0 +1,454 @@
+[
+  {
+    "id": "SDA-C-055",
+    "domain": "Solution Design & Architecture",
+    "topic": "Latency SLO written at the wrong measurement boundary",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A utility's field-service platform gives technicians a job-summary assistant on ruggedised tablets over cellular. The service-side p95, measured at the API gateway, is 1.2 s against a 1.5 s SLO, and the dashboard has been green for months. Technicians report waits of four to six seconds and have started skipping the feature. Client telemetry, newly added, shows a median 1.1 s of cellular round trip and 1.9 s spent parsing and rendering the response on the tablet. What is the correct response?",
+    "options": [
+      { "key": "A", "text": "Optimise the model call further, since the 1.2 s service time is the largest single component the team controls directly." },
+      { "key": "B", "text": "Enable streaming so the tablet can begin painting content before the full response has arrived over the cellular network." },
+      { "key": "C", "text": "Treat the client telemetry as unrepresentative until it has been validated, since the service-side measurement has been stable for months." },
+      { "key": "D", "text": "Re-write the SLO at the boundary the technician experiences and split the budget across transport, service and render." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The dashboard is green because it measures a boundary nobody stands at. Transport and rendering together account for 3.0 s of the roughly 4.2 s a technician waits, so an SLO defined at the gateway can be met indefinitely while the feature becomes unusable — and, worse, it directs every optimisation at the smallest of the three components. Moving the objective to the client boundary makes the render cost visible as a first-class budget line, which is what allows the team to discover that the biggest available win is in the tablet application rather than in anything model-related.",
+      "distractors": {
+        "A": "The model call is the component the team is most comfortable with, not the one that dominates. Halving it would remove 600 ms from a 4,200 ms experience and leave technicians still skipping the feature.",
+        "B": "Streaming would help if the client rendered progressively, but the 1.9 s is spent parsing and laying out a complete payload. Streaming into a client that waits for the last byte changes nothing, and it is a plausible move for the wrong reason.",
+        "C": "The client telemetry explains the discrepancy precisely and matches the user reports. Defending the green dashboard against both is how a measurement gap survives another six months."
+      },
+      "concept": "Define latency objectives at the boundary the user experiences, and decompose the budget across every component between the user and the answer — client render, transport, gateway, retrieval, generation. A service-side SLO is a component budget, not a user commitment, and optimising inside it can leave the real experience untouched.",
+      "tip": "When a stem gives you a green dashboard and unhappy users, add up the numbers the dashboard does not cover. The gap between the two is the item."
+    }
+  },
+  {
+    "id": "SDA-C-056",
+    "domain": "Solution Design & Architecture",
+    "topic": "Cheaper tier costing more once correction cost is counted",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A bicycle manufacturer extracts specifications from supplier datasheets at 40,000 documents a month. Two options have been measured. On the cheaper tier, token cost is $0.00042 per call, 22% of outputs fail schema validation and are retried once, and 6% of the documents that do pass are wrong in ways caught later by a procurement analyst at a measured $1.80 per correction. On the higher tier, token cost is $0.0021 per call, retries are negligible, and 0.8% require analyst correction at the same $1.80. Procurement has asked which is cheaper.",
+    "options": [
+      { "key": "A", "text": "The cheaper tier, since its token cost is roughly five times lower and analyst correction is a fixed overhead of the process on either path." },
+      { "key": "B", "text": "The two are within noise of each other once the retry rate is included, so the decision should be made on latency and throughput instead." },
+      { "key": "C", "text": "The higher tier: cost per document is about $0.109 on the cheaper tier against about $0.017 on the higher tier, because analyst correction dominates token cost." },
+      { "key": "D", "text": "It depends on volume: the cheaper tier wins at low monthly volumes and the higher tier wins once volume is large enough for the correction cost to dominate the total." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Token cost is the smallest term in this model and it is the only one the cheaper tier wins. Including the retry, the cheap path costs 1.22 x $0.00042 = $0.00051 in tokens, plus 0.06 x $1.80 = $0.108 in correction, for about $0.109 per document. The higher tier costs $0.0021 plus 0.008 x $1.80 = $0.0144, for about $0.017. Across 40,000 documents that is roughly $4,340 a month against $660 — the \"expensive\" tier is about six and a half times cheaper. Whenever a human touches the output of a failure, the human's time sets the unit economics and the token line becomes rounding error.",
+      "distractors": {
+        "A": "Correction is not a fixed overhead: it is 6% on one path and 0.8% on the other, a difference of more than seven times, applied to a cost 4,000 times larger than a call. This is the reasoning the item is built to catch.",
+        "B": "The two differ by roughly a factor of six and a half in total cost per document. Retries move the cheap path's token cost by 22% and do not begin to close a gap of that size.",
+        "D": "Both costs are per document and both scale linearly with volume, so the ranking is identical at any volume. Volume changes how much the wrong choice costs, not which choice is wrong."
+      },
+      "concept": "Compare tiers on total cost per successful outcome, including retries, validation failures and the cost of every human touch a failure causes. When failures are corrected by people, error rate multiplied by labour cost normally dwarfs token cost, and the cheapest-per-call option is frequently the most expensive system.",
+      "tip": "If a stem gives you a per-call price and a per-error labour cost, multiply the error rate by the labour cost first. The token figures are almost always the smaller term and are there as the distraction."
+    }
+  },
+  {
+    "id": "SDA-C-057",
+    "domain": "Solution Design & Architecture",
+    "topic": "Behaviour of an unbounded queue under sustained overload",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A worker pool that issues model calls is fed by an unbounded in-memory queue. What does the lack of a bound guarantee once arrival rate exceeds service rate for a sustained period?",
+    "options": [
+      { "key": "A", "text": "Wait time grows without limit while the system reports no errors, so callers time out and abandon requests workers still execute." },
+      { "key": "B", "text": "Throughput degrades gradually and proportionally, giving operators a smooth signal to act on before it gets bad." },
+      { "key": "C", "text": "Requests begin to be served out of order, because an in-memory queue reorders under sustained pressure." },
+      { "key": "D", "text": "Memory exhaustion is the only real consequence, and it can be managed by sizing the worker host generously." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "An unbounded queue converts overload from a visible failure into an invisible one. Nothing is rejected, so error rates stay flat and dashboards look healthy, while the time between enqueue and service grows for as long as the imbalance lasts. The compounding harm is that callers give up first: the request is abandoned upstream but still sits in the queue, so the pool spends its scarce capacity generating answers that no longer have a recipient — which lengthens the queue further. Bounding the queue and rejecting at the boundary makes overload immediate, visible and recoverable.",
+      "distractors": {
+        "B": "Throughput does not degrade at all in this regime; it stays pinned at the service rate. What degrades is latency, and it does so without bound rather than proportionally.",
+        "C": "A FIFO queue preserves order under pressure. Out-of-order service is a property of the scheduler, not a consequence of being unbounded.",
+        "D": "Memory is a real risk but the far more common outcome is a latency collapse long before memory becomes tight. Sizing the host larger buys a longer queue, which is a bigger version of the same problem."
+      },
+      "concept": "Bound every queue. The bound should derive from the deadline the work must meet — anything queued beyond service-rate multiplied by deadline cannot succeed even in the best case, so admitting it wastes capacity. Rejecting early converts silent latency growth into an explicit, actionable signal.",
+      "tip": "Unbounded queues are attractive because they make error rate look good. In capacity questions, treat \"no errors but rising latency\" as the signature of a queue with no limit."
+    }
+  },
+  {
+    "id": "SDA-C-058",
+    "domain": "Solution Design & Architecture",
+    "topic": "Identifying which tier saturates first as traffic grows",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A genealogical records service expects traffic to grow roughly fourfold over the next year as it opens two new markets. Today, at current traffic, the provisioned model throughput allocation runs at 60% utilisation at peak and the retrieval index tier runs at 15% CPU at peak. Model calls average 1.8 s and retrieval averages 90 ms. Which capacity action should be planned first, and why?",
+    "options": [
+      { "key": "A", "text": "Scale the retrieval index tier, because retrieval is invoked on every request and its CPU utilisation will rise in step with traffic growth." },
+      { "key": "B", "text": "Nothing yet: both tiers have headroom today, and latency will degrade visibly well before either one reaches saturation." },
+      { "key": "C", "text": "Plan both together, since a fourfold increase saturates the two tiers at roughly the same point in the growth curve anyway." },
+      { "key": "D", "text": "Plan the model throughput allocation increase: at 60% today it binds at about 1.7 times current traffic, while retrieval at 15% has headroom to about 6.7 times." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The two utilisation figures give two different growth multiples, and the smaller one is the plan. Dividing 100 by 60 puts allocation saturation at about 1.7 times today's traffic, which arrives early in a fourfold growth curve; dividing 100 by 15 puts retrieval saturation at about 6.7 times, beyond the horizon entirely. Allocation increases also carry commercial and lead-time overhead that a compute scale-out does not, so it is the item that must start first even though both will eventually need attention.",
+      "distractors": {
+        "A": "Retrieval is invoked on every request, but it starts from 15% and will reach only about 60% at fourfold traffic. Choosing it inverts the ranking the two utilisation figures give.",
+        "B": "Latency degradation is what saturation causes, not a warning that precedes it. Waiting for the symptom means discovering the constraint at 1.7 times traffic with no lead time to obtain more allocation.",
+        "C": "The tiers saturate at very different points — roughly 1.7 times versus 6.7 times. Treating them as simultaneous produces a plan that spends on retrieval capacity years before it is needed."
+      },
+      "concept": "Project each tier's current peak utilisation forward against the growth forecast and rank the tiers by the growth multiple at which each saturates. The smallest multiple is the binding constraint and sets the planning horizon. Weight the ranking by lead time: capacity that takes a quarter to obtain must be started earlier than capacity you can add in an afternoon.",
+      "tip": "Divide 100 by each utilisation percentage to get the saturation multiple. Whichever tier gives the smallest number is the answer, before you consider anything else about the components."
+    }
+  },
+  {
+    "id": "SDA-C-059",
+    "domain": "Solution Design & Architecture",
+    "topic": "Change cost of per-customer bespoke prompt overrides",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A childcare-centre management SaaS vendor serves 60 enterprise customers. Over three years, 41 of them have acquired at least one free-form prompt override for the incident-report assistant, negotiated during their implementations. A platform-wide behavioural change now requires a specialist to read and manually validate 41 variants, and the last such change took nine weeks. The commercial team will not agree to remove customisation, which is part of how the product is sold. Which TWO changes would most reduce change cost while preserving customisation? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Replace free-form overrides with a bounded set of declared options — tone, jurisdiction, disclaimers, escalation wording — composed into one canonical prompt, so customisation becomes data." },
+      { "key": "B", "text": "Run the shared evaluation suite automatically against every active customer configuration on each platform change, so validation scales with compute rather than specialist hours." },
+      { "key": "C", "text": "Freeze all existing overrides and migrate every customer onto one canonical prompt at their next contract renewal, ending the variant problem." },
+      { "key": "D", "text": "Move each customer's override into a separately deployed instance so a change to one configuration cannot possibly affect another customer." },
+      { "key": "E", "text": "Introduce a per-override charge at renewal, so the commercial incentive discourages new variants from being negotiated during implementations." }
+    ],
+    "correct": ["A", "B"],
+    "explanation": {
+      "correct": "Nine weeks is bought by unbounded variation multiplied by manual verification, and the two keys attack one factor each. Turning free-form text into a bounded option set makes the space of possible configurations finite and enumerable, which is what allows it to be tested exhaustively instead of read by a human. Running the shared suite against every live configuration then converts the remaining validation work into machine time — 41 configurations is nothing to a test harness and a career to a specialist. Together they keep every customer's customisation and remove the reason it is expensive.",
+      "distractors": {
+        "C": "The stem rules this out: customisation is part of the commercial proposition. It also converts a change-cost problem into 41 renegotiations, which is slower and riskier than the problem it solves.",
+        "D": "Sixty deployments multiply operational cost, patching and monitoring, and do nothing about validating a behavioural change — the specialist still has to check 41 variants, now spread across 41 environments.",
+        "E": "Pricing may slow the growth of new overrides but leaves all 41 existing ones and the nine-week cycle exactly as they are. It is a commercial lever aimed at a technical cost."
+      },
+      "concept": "Customisation is affordable when it is bounded and machine-verifiable. Convert free-form per-customer text into a declared, enumerable configuration, then make the test matrix run over every live configuration automatically. Unbounded customisation multiplied by manual validation is what turns a one-day change into a one-quarter change.",
+      "tip": "Check each option against both halves of the stem's constraint: reduce change cost *and* preserve customisation. Options that succeed at one and fail the other are the intended near-misses."
+    }
+  },
+  {
+    "id": "SDA-C-060",
+    "domain": "Solution Design & Architecture",
+    "topic": "Designing accuracy controls when no human reads the output",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A payroll bureau extracts hours, rates and allowance codes from 2.1 million timesheet lines a month submitted as scanned forms and spreadsheets. Extracted values post straight into the payroll engine; no person reads them, and the first sign of an error is a wrong payslip. Adding reviewers at this volume has been ruled out on cost. Errors are individually small but generate statutory correction obligations and union escalations. What should the architecture do?",
+    "options": [
+      { "key": "A", "text": "Move the extraction to the highest-capability tier, since a lower per-line error rate is the most direct way to cut the number of wrong payslips." },
+      { "key": "B", "text": "Add machine-checkable invariants — totals reconciling to gross, rates within contracted bands, hours within rostered limits — so errors surface as exceptions." },
+      { "key": "C", "text": "Score every extraction for confidence and route the low-confidence share to a human review queue, accepting that some reviewer capacity must be found after all." },
+      { "key": "D", "text": "Log every extraction alongside its source image so that any disputed payslip can be reconstructed and corrected in a later pay run." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "When nothing downstream reads the output, the system has no informal error correction — the ambient human sanity check that catches most mistakes in a reviewed process simply does not exist. What replaces it must be deterministic, and payroll is unusually rich in checkable invariants: totals reconcile, rates sit inside a contracted band, hours cannot exceed rostered limits, codes must be valid for the agreement. Each of those turns a class of model error into a hard failure with a defined exception path, and they run at 2.1 million lines a month for negligible cost. The model's error rate then stops being the system's error rate.",
+      "distractors": {
+        "A": "A better tier reduces error rate by some proportion but cannot make it zero, and at 2.1 million lines a month even a very small residual rate produces a large absolute number of wrong payslips. It is a worthwhile change that does not answer the design question.",
+        "C": "This is the right answer when review capacity exists, and the stem removes it explicitly on cost. A confidence threshold that routes work nobody can absorb creates a backlog that delays payroll, which is worse than the errors.",
+        "D": "Reconstructability is necessary for the statutory obligation and should be built, but it is a remedy after the money has moved. It detects nothing at the time of posting and prevents no wrong payslip."
+      },
+      "concept": "When model output feeds an automated system with no human reader, accuracy must be enforced by machine-checkable constraints derived from the domain, not by model quality alone. Look for invariants — arithmetic identities, referential validity, permitted ranges — that convert probabilistic errors into deterministic exceptions. This is what makes unattended automation defensible.",
+      "tip": "\"No person reads them\" plus \"review has been ruled out\" is the stem eliminating the standard human-in-the-loop answer on purpose. The remaining move is a deterministic check, not a better model."
+    }
+  },
+  {
+    "id": "SDA-C-061",
+    "domain": "Solution Design & Architecture",
+    "topic": "What provisioned capacity headroom should be sized from",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An architect must justify how much capacity headroom to hold above forecast peak demand. What should the headroom be sized from?",
+    "options": [
+      { "key": "A", "text": "The measured error of the organisation's past demand forecasts, combined with the lead time needed to obtain more capacity." },
+      { "key": "B", "text": "A flat 20% margin, which is the conventional allowance for infrastructure capacity planning of this kind." },
+      { "key": "C", "text": "The peak-to-average ratio of the workload, since that is the figure describing how variable demand really is." },
+      { "key": "D", "text": "The demand of the single largest customer, so that losing or gaining that account does not require a capacity change." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Headroom exists to cover the distance between what you predicted and what happens, for as long as it takes to react. Both terms are measurable: forecast error can be computed by comparing past forecasts against actuals, and lead time is a property of the procurement or provisioning process. Multiplying them gives a defensible number that shrinks as forecasting improves and as provisioning gets faster — which is the right incentive. A team whose forecasts have been within 10% and can add capacity in a day needs far less headroom than one that is regularly 60% out and waits a quarter.",
+      "distractors": {
+        "B": "A convention is not a justification, and 20% is simultaneously wasteful for a stable workload with fast provisioning and dangerously thin for a volatile one with a long lead time. It is the answer that survives review without surviving contact with an incident.",
+        "C": "Peak-to-average shapes what you provision *to*, since capacity is planned at peak. It says nothing about the uncertainty in the peak forecast, which is what headroom insures against.",
+        "D": "Concentration risk is worth planning for separately, but sizing all headroom to one account overprovisions for a discrete event and still leaves ordinary forecast error uncovered."
+      },
+      "concept": "Headroom = forecast uncertainty x reaction time. Measure your forecast error rather than assuming it, and know your provisioning lead time. When lead time is long, headroom is the only control you have, which is a reason to shorten lead time rather than to hold ever more idle capacity.",
+      "tip": "Any option offering a round conventional percentage in a capacity question is usually the distractor. The exam rewards deriving the number from something the organisation can measure."
+    }
+  },
+  {
+    "id": "SDA-C-062",
+    "domain": "Solution Design & Architecture",
+    "topic": "Build-versus-buy boundary for evaluation and observability tooling",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A stock-photography marketplace has five engineers on its AI team. It needs trace capture across a multi-step pipeline, prompt versioning, a runner for evaluation suites, and per-feature cost reporting. Mature vendor products cover all four. The team lead argues that building in-house avoids a dependency and would take \"about two months\". What is the soundest recommendation?",
+    "options": [
+      { "key": "A", "text": "Build all four in-house, because observability of an AI system is too central to outsource and the team would end up extending a vendor's version anyway." },
+      { "key": "B", "text": "Build the tracing component in-house, where the multi-step pipeline's structure is bespoke, and buy the other three off the shelf." },
+      { "key": "C", "text": "Buy, and treat the vendor's evaluation datasets and rubrics as part of the product, since maintaining them in-house duplicates what the vendor already does well." },
+      { "key": "D", "text": "Buy the tooling as undifferentiated infrastructure, but require that evaluation datasets, rubrics and trace history stay owned in-house and exportable." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The distinction that matters is between the harness and the content. Trace capture, prompt versioning, a suite runner and cost reporting are the same problem at every company and a five-person team building them is spending most of a year on plumbing. The evaluation dataset and its rubrics are the opposite: they encode what \"good\" means for this marketplace, they take years of production experience to accumulate, and they are the thing that makes a future vendor change or model migration survivable. Buying the tool while owning and exporting the data gets the leverage without the lock-in that would actually hurt.",
+      "distractors": {
+        "A": "Five engineers building four infrastructure products means little capacity left for the product the company sells. Centrality is an argument for owning the data and the contracts, not for writing the tooling.",
+        "B": "Bespoke pipeline structure is what tracing standards exist to accommodate, and most vendor tooling ingests custom spans. This carves out the piece with the least differentiation-per-hour of the four.",
+        "C": "This gives away the one asset that is genuinely the marketplace's own. If the evaluation data lives only in the vendor, changing vendor or model means rebuilding the definition of quality from scratch."
+      },
+      "concept": "In build-versus-buy for AI tooling, separate the harness from the content. Buy the harness — tracing, versioning, runners, dashboards. Own the content — evaluation cases, rubrics, labelled failures, trace history — and require export in a documented format. The content is the compounding asset and the only part whose loss is unrecoverable.",
+      "tip": "When a build-versus-buy stem lists tooling components, ask which item would take years to rebuild if you lost it. That one is the thing you own; the rest you buy."
+    }
+  },
+  {
+    "id": "SDA-C-063",
+    "domain": "Solution Design & Architecture",
+    "topic": "Latency architecture for a spoken real-time ordering system",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A quick-service restaurant chain is designing spoken order-taking for its drive-through lanes. The acoustic requirement is that audible speech must begin within 400 ms of the customer finishing an utterance, or customers talk over the system. The response is rendered by a speech synthesiser that can begin speaking as soon as it has the first few words. Menu, price and availability data are per-store and change daily. Which THREE statements about the latency architecture are correct? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "The binding metric is time to first token, not total generation time, because synthesis can begin on the first tokens and continue while the rest is produced." },
+      { "key": "B", "text": "Any retrieval or tool call made after the utterance ends sits inside the 400 ms budget, so menu, price and availability context must be loaded at the start of the conversation." },
+      { "key": "C", "text": "A confidence-based cascade that escalates a turn to a higher tier is incompatible with this budget unless the escalation decision is made before generation starts." },
+      { "key": "D", "text": "Streaming brings no benefit here, because the consumer of the response is a speech synthesiser rather than a human reader watching the text appear." },
+      { "key": "E", "text": "Because each turn produces only a short spoken response, token spend per order is negligible and does not need modelling at estate scale in the business case." }
+    ],
+    "correct": ["A", "B", "C"],
+    "explanation": {
+      "correct": "A real-time speech interface inverts the usual latency analysis. Because synthesis consumes tokens incrementally, the customer's experience is governed by when the first token arrives, not when the last one does — so a longer answer is nearly free and a slow start is fatal. Everything that must happen before that first token is therefore inside the budget: per-turn retrieval, tool calls, and any escalation decision that requires a completed generation to make. That last point is the subtle one, and it rules out the most common cost-control pattern unless the routing decision can be made from the input alone.",
+      "distractors": {
+        "D": "A speech synthesiser is the ideal incremental consumer — it is precisely the case where streaming pays. This inverts the rule that streaming helps only consumers that can act on partial output.",
+        "E": "Short turns multiplied by many turns per order, many orders per lane and many lanes per estate is a large aggregate. Per-unit smallness is never an argument against modelling cost at estate scale."
+      },
+      "concept": "For real-time conversational interfaces, budget against time to first token and treat everything upstream of generation — retrieval, tool calls, routing, guard checks — as consuming that budget directly. Prefetch context at session start, make routing decisions from the input rather than from a completed output, and stream to any consumer that can act incrementally.",
+      "tip": "Identify the consumer first. A speech synthesiser makes time-to-first-token the metric and makes streaming valuable, which flips the usual answers on both."
+    }
+  },
+  {
+    "id": "SDA-C-064",
+    "domain": "Solution Design & Architecture",
+    "topic": "Reporting a high percentile of cost per request",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Why should a cost-per-request dashboard show a high percentile alongside the mean?",
+    "options": [
+      { "key": "A", "text": "Because the mean cannot be reconciled against a provider invoice line, whereas a high percentile reconciles directly." },
+      { "key": "B", "text": "Because percentile cost is far less sensitive to swings in traffic volume than the mean of the same requests." },
+      { "key": "C", "text": "Because the distribution is heavy-tailed: the mean hides what a single oversized input or long agent loop can cost." },
+      { "key": "D", "text": "Because a high percentile is the standard way to express cost commitments in service level objectives." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Per-request cost distributions look like latency distributions: most requests cluster near a modest figure and a small number cost orders of magnitude more, driven by input size, retrieval breadth or the number of turns in a loop. The mean is the right number for forecasting the invoice and the wrong number for understanding exposure, because it cannot tell you what one user with a pathological workload can do to you in an afternoon. The tail figure is what justifies per-request caps, per-tenant budgets and turn limits, and it is what moves first when something regresses.",
+      "distractors": {
+        "A": "The mean multiplied by request count is exactly how spend reconciles to an invoice. This inverts the relationship between the two statistics.",
+        "B": "Both statistics are per-request and therefore both are largely independent of volume. Sensitivity to volume is not what distinguishes them.",
+        "D": "Cost objectives are usually expressed as budgets and unit costs rather than as percentiles. The reason to show a percentile here is about the shape of the distribution, not about convention."
+      },
+      "concept": "Treat cost per request like latency: report the mean for forecasting and a high percentile for exposure. The tail is where limits belong — maximum input tokens, maximum turns, maximum retrieved documents — because those caps convert an unbounded worst case into a known one.",
+      "tip": "Any question contrasting mean and percentile is asking which decision each supports. Mean answers \"what will we spend\"; the tail answers \"what can one request do to us\"."
+    }
+  },
+  {
+    "id": "SDA-C-065",
+    "domain": "Solution Design & Architecture",
+    "topic": "Regional demand modelling before a global capacity commitment",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A satellite communications provider runs a Claude-based network-fault triage assistant, currently deployed in one region serving the Americas. It is about to extend to EMEA and APAC operations centres, which run their own shift patterns. APAC engineers on a pilot are seeing roughly 240 ms of additional transit per call. Finance has asked for a single global capacity number to take to the provider this month. What should the architect do next?",
+    "options": [
+      { "key": "A", "text": "Give finance the sum of the three regions' forecast peaks, which is the safe number and can always be reduced later if it proves generous." },
+      { "key": "B", "text": "Deploy in all three regions immediately, since the APAC transit penalty demonstrates that regional presence is required before any capacity number is committed." },
+      { "key": "C", "text": "Give finance the current single-region figure multiplied by three, since the three operations centres are similarly sized and staffed." },
+      { "key": "D", "text": "Build a per-region demand profile on a common clock, so the three shift-driven peaks can be overlaid and the true global concurrent peak goes to the provider." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Three operations centres on three shift patterns do not peak at the same instant, so the sum of local peaks describes a moment that never occurs. Overlaying the regional profiles on a single clock produces the actual global concurrent maximum, which is the only figure a capacity commitment should be sized to — and it is typically well below the sum and well above any single region. Doing this before the number goes to finance is what stops the organisation either paying for capacity it never uses or committing to a figure it will breach in its first busy week.",
+      "distractors": {
+        "A": "Summing local peaks systematically overstates a globally distributed workload, sometimes by a large multiple. \"Reduce it later\" rarely happens once a commitment is signed, and the overpayment compounds monthly.",
+        "B": "Regional deployment is a latency decision that may well be right, but it is a separate question from how much capacity to commit to, and it does not produce the number finance asked for.",
+        "C": "Multiplying by three assumes both identical volumes and perfectly coincident peaks. It is the sum-of-peaks error with even less information behind it."
+      },
+      "concept": "For a globally distributed workload, model demand per region on a shared clock and take the global concurrent peak, not the sum of regional peaks. Time-zone offset is capacity you already own. Keep the placement decision, which is driven by latency, separate from the sizing decision, which is driven by concurrency.",
+      "tip": "Whenever a stem mentions regions with different working hours, the intended insight is that their peaks do not coincide. Options that add local peaks together are the planted arithmetic error."
+    }
+  },
+  {
+    "id": "SDA-C-066",
+    "domain": "Solution Design & Architecture",
+    "topic": "Retiring a caching layer whose hit rate has decayed",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A meal-kit subscription company built a response cache eighteen months ago, when it achieved a 31% hit rate on its recipe-guidance assistant. Since dietary personalisation was added, the hit rate has fallen to 6%. The cache costs roughly a day of engineering attention per release, has been implicated in two incidents where customers saw guidance that ignored a declared allergy after a recipe was updated, and adds a hop to every request. What should the architect recommend?",
+    "options": [
+      { "key": "A", "text": "Retire the cache: at a 6% hit rate the avoided cost no longer covers the release overhead and correctness risk." },
+      { "key": "B", "text": "Re-tune the cache key on normalised question text to raise the hit rate back toward its original level before deciding anything." },
+      { "key": "C", "text": "Add semantic matching in front of the exact-match layer to recover the hits lost to wording variation between customers." },
+      { "key": "D", "text": "Keep it as it is: a 6% reduction in model calls is still a real saving, and removing live infrastructure carries its own risk." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The workload changed and the layer did not. Personalisation puts a structural ceiling on how often two requests can share a response, so 31% is not recoverable — 6% is roughly what this workload now supports. Against that, the cache costs a day per release indefinitely and has already caused two allergy-related incidents, which for this company is the most expensive category of failure available. Removing it simplifies the request path and eliminates a class of staleness bug, and the honest saving forgone is 6% of call volume. Caching layers should be re-justified whenever the workload's sharing characteristics change.",
+      "distractors": {
+        "B": "Key tuning addresses hits lost to formatting or ordering. It cannot recover hits lost because responses are now genuinely different per customer, and a key that ignores personalisation is what produced the incidents.",
+        "C": "Adding an approximate matching layer to a workload where near-miss answers can contradict a declared allergy increases the exposure that already caused two incidents, in exchange for a few points of hit rate.",
+        "D": "This weighs the saving without weighing the release cost, the extra hop or the incidents. Infrastructure that no longer earns its keep is a liability; the risk of removal is real but bounded and one-off."
+      },
+      "concept": "A caching layer is a bet on a distribution, and distributions change. Re-measure hit rate and the value of an avoided call against the layer's operational and correctness cost on a schedule. Personalisation, freshness requirements and query diversity all lower the ceiling; when they do, retiring the layer is a legitimate and often correct answer.",
+      "tip": "Deleting infrastructure is an available answer and exam candidates under-select it. When a stem itemises ongoing cost and incidents against a small benefit, the arithmetic is being handed to you."
+    }
+  },
+  {
+    "id": "SDA-C-067",
+    "domain": "Solution Design & Architecture",
+    "topic": "Sizing a queue bound from deadline and service rate",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A commodities exchange runs an alert-triage assistant on its market-surveillance desk. Each alert must be triaged within 30 seconds of arrival to be useful to the desk. The service sustains 20 alerts per second. During volatile sessions, arrivals exceed that and the queue grows; today the queue is unbounded and the team's proposal is to alert operators when p95 triage latency exceeds 25 seconds. What should the design do instead?",
+    "options": [
+      { "key": "A", "text": "Keep the unbounded queue but raise the deadline to 60 seconds during declared volatile sessions, so far fewer alerts are counted as late." },
+      { "key": "B", "text": "Alert on p95 triage latency as proposed, but at 15 seconds rather than 25, so operators have more time to react before the desk's deadline is breached." },
+      { "key": "C", "text": "Add worker capacity dynamically whenever p95 latency rises, so the service rate tracks the arrival rate through volatile sessions." },
+      { "key": "D", "text": "Bound the queue at about 600 alerts — 20 per second times the 30-second deadline — reject beyond it and alert on queue depth." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The bound falls straight out of the deadline: an alert queued behind more than 600 others cannot be triaged within 30 seconds even if nothing further arrives, so admitting it guarantees wasted capacity on work that will be useless when it completes. Rejecting at the boundary lets the desk apply its own fallback to the overflow immediately rather than discovering the miss half a minute later. Queue depth is also the right signal: it is a leading indicator that rises while every alert in the system can still make its deadline, whereas latency is lagging by construction — by the time p95 reads 25 seconds, alerts have already been late for some time.",
+      "distractors": {
+        "A": "Moving the deadline changes the measurement, not the desk's actual need. An alert triaged at 55 seconds during a volatile session is exactly when timeliness matters most, and the queue still grows without limit.",
+        "B": "A tighter latency threshold still fires after requests have started being served slowly, and it gives no bound on how bad things get. Lowering a lagging indicator's threshold does not make it a leading one.",
+        "C": "Adding workers helps only if the downstream capacity exists to absorb them; more importantly it leaves the queue unbounded, so a surge that outruns the scaling still produces an unlimited backlog of alerts that will complete after they matter."
+      },
+      "concept": "Size a queue bound from service rate multiplied by deadline: work admitted beyond that point cannot succeed, so admitting it converts capacity into waste. Alert on queue depth rather than latency — depth leads, latency lags — and treat rejection at the boundary as a designed outcome that lets callers act immediately.",
+      "tip": "When a stem gives a deadline and a sustained service rate, multiply them. That product is the queue bound, and its appearance in an option is a strong signal."
+    }
+  },
+  {
+    "id": "SDA-C-068",
+    "domain": "Solution Design & Architecture",
+    "topic": "Default number of model tiers in a new system",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "How many model tiers should a new production system start with, and on what basis should that change?",
+    "options": [
+      { "key": "A", "text": "One, with a second introduced only when a measured cost or latency constraint justifies the added evaluation and migration surface." },
+      { "key": "B", "text": "Two from the outset — a cheap tier and a capable tier — so the escalation path is already in place before it is needed." },
+      { "key": "C", "text": "One per pipeline stage, chosen to match each stage's measured difficulty, since that minimises cost from day one." },
+      { "key": "D", "text": "As many as there are distinct subtasks, so that each subtask runs on the smallest tier that can handle it." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Every additional tier is a permanent tax: its own prompt variant, its own evaluation set, its own migration when a version changes, and its own behaviour to reason about during an incident. Starting with one tier gets the system to production and — more importantly — produces the measurements that would tell you whether a second is worth it. Introduce the second when a specific constraint says so: a cost ceiling you are missing, a latency budget you are breaching, a stage whose volume makes the unit cost material. Tier count should follow evidence, not anticipation.",
+      "distractors": {
+        "B": "Building the escalation path before there is a measured need means designing and evaluating a signal for a problem you may not have. If the single tier meets cost and latency, the second tier is pure maintenance burden.",
+        "C": "Matching every stage to its difficulty sounds like careful engineering but assumes you know each stage's difficulty before running the system. It also maximises the maintenance surface at exactly the point where you know the least.",
+        "D": "This maximises tier count and therefore the migration and evaluation load, in pursuit of a unit-cost optimisation that may be immaterial. Optimise cost where volume makes it matter, not everywhere it is theoretically possible."
+      },
+      "concept": "Treat tier count as a cost with a benefit that must be demonstrated. Start with one, measure cost and latency against their constraints, and add a tier only where a specific constraint is being missed and the saving exceeds the ongoing prompt, evaluation and migration overhead of maintaining a second behaviour.",
+      "tip": "The exam consistently rewards the simplest configuration that meets the stated constraint. When no constraint is stated as being missed, the answer is the one with fewer moving parts."
+    }
+  },
+  {
+    "id": "SDA-C-069",
+    "domain": "Solution Design & Architecture",
+    "topic": "Choosing an operating point under asymmetric error costs",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A medical device manufacturer screens 30,000 customer complaints a month for potentially reportable adverse events. A missed reportable event costs an estimated $2,400 in regulatory remediation; an unnecessary referral costs $18 of specialist review time, and the review team can absorb up to 4,000 referrals a month. Historical audit puts the true reportable rate at 1% of complaints, or about 300 a month. Two operating points have been measured on a held-out set. Threshold 1: 0.12% of items are false negatives, 3% are false positives. Threshold 2: 0.04% false negatives, 11% false positives. Which should be chosen?",
+    "options": [
+      { "key": "A", "text": "Threshold 1, because its total error rate of 3.12% is far below threshold 2's 11.04%, and overall accuracy is the metric the regulator's inspectors will ask about." },
+      { "key": "B", "text": "Neither as measured: a third operating point between the two should be found and measured before committing, since both look extreme." },
+      { "key": "C", "text": "Threshold 2, because expected monthly cost is about $88,200 against $102,600 for threshold 1, and its 3,588 referrals fit inside the 4,000 review capacity." },
+      { "key": "D", "text": "Threshold 1, because threshold 2's 3,588 referrals a month consume most of the review team's monthly capacity and leave no room for volume growth." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "With a cost ratio of more than 130 to 1 between the two error types, the operating point is chosen by expected cost, not by error count. Threshold 1 produces 36 false negatives at $2,400 ($86,400) plus 900 false positives at $18 ($16,200), totalling $102,600. Threshold 2 produces 12 false negatives ($28,800) plus 3,300 false positives ($59,400), totalling $88,200 — about $14,400 a month better, achieved by accepting nearly four times the false positives to eliminate two thirds of the misses. The capacity constraint is the feasibility check that permits it, and it must be run on referrals rather than on false positives alone: at threshold 2 the review team sees the 3,300 false positives plus the 288 true positives it surfaced, 3,588 in all, inside the 4,000 ceiling.",
+      "distractors": {
+        "A": "Overall error rate weights a $2,400 miss identically to an $18 referral. On asymmetric costs it is actively misleading, and it selects the more expensive option here by a wide margin.",
+        "B": "Interpolating is reasonable engineering but the stem gives two measured points and a clear winner; deferring a decision that the available data settles delays a $14,400 monthly improvement in pursuit of a refinement.",
+        "D": "Headroom for growth is a genuine consideration and would matter if volume were rising fast, but it is not a reason to accept 24 more missed reportable events a month. The correct response to a capacity ceiling approaching is to plan capacity, not to lower detection."
+      },
+      "concept": "Select a classification operating point by expected cost, using measured per-error costs for each error type, then test the resulting volume against downstream capacity. Overall accuracy and total error rate are only appropriate when error costs are roughly symmetric, which in regulated screening they almost never are.",
+      "tip": "When a stem supplies two different per-error costs, it is asking for an expected-cost calculation. Compute both totals before reading the options; any option arguing from error rate alone is the trap."
+    }
+  },
+  {
+    "id": "SDA-C-070",
+    "domain": "Solution Design & Architecture",
+    "topic": "Requiring non-functional figures in a design proposal",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A truck-fleet telematics provider is reviewing a proposal to add a second retrieval-and-generation pass to its maintenance-advisory endpoint, to improve answer completeness. The proposing team presents a six-point accuracy improvement measured on a 900-case evaluation set. The endpoint's p95 budget is 1,800 ms and current measured p95 is 1,550 ms. The proposal contains no latency or cost figures. You chair the review. What should you do?",
+    "options": [
+      { "key": "A", "text": "Approve it: a six-point accuracy improvement on a maintenance-advisory endpoint outweighs a latency cost the team can optimise away afterwards." },
+      { "key": "B", "text": "Reject it: a full additional retrieval-and-generation pass cannot possibly fit inside 250 ms of headroom, so the proposal is infeasible exactly as described." },
+      { "key": "C", "text": "Ask for the accuracy gain to be re-measured on a much larger evaluation set before any of the non-functional questions are considered." },
+      { "key": "D", "text": "Send it back for the incremental p95 and cost per request at production concurrency, so the six points can be weighed against the 250 ms of headroom." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "A trade-off cannot be evaluated with one side missing. The accuracy figure is credible and specific; what the review needs is the matching latency and cost figures measured under the conditions the endpoint actually runs in, because a benchmark on an idle machine will understate both. Naming the 250 ms of headroom in the request tells the team what number they have to beat, and naming the conditional variant keeps the good outcome available — a second pass on the low-confidence tail may deliver most of the six points inside the budget, which is a design nobody can propose while the review is arguing about the unconditional version.",
+      "distractors": {
+        "A": "Approving a change that will breach a p95 budget on the promise of later optimisation is how budgets stop meaning anything. The optimisation competes with post-launch work and usually loses.",
+        "B": "Rejecting on a plausible assumption forecloses the conditional variants without testing them. The unconditional version probably does not fit; that is a reason to ask for numbers, not to close the question.",
+        "C": "Nine hundred cases is a reasonable evaluation set and nothing in the stem casts doubt on the measurement. Asking for more of the evidence that already exists avoids the gap rather than closing it."
+      },
+      "concept": "A design proposal that changes the request path must state its incremental latency and incremental cost, measured at production concurrency, alongside its quality gain. Review against the remaining budget, and always ask whether the change can be applied conditionally to the subset that needs it rather than to all traffic.",
+      "tip": "In review scenarios, prefer the option that closes the information gap over the ones that approve or reject on assumption — especially when it also names a conditional variant the proposers have not considered."
+    }
+  },
+  {
+    "id": "SDA-C-071",
+    "domain": "Solution Design & Architecture",
+    "topic": "Capacity and cost of a dual-run migration window",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A national postal operator is replacing a legacy rules-based parcel-exception classifier with a Claude-based one. The migration plan runs both systems over 100% of production traffic for eight weeks, with the legacy system's output continuing to drive operations while the new path's output is recorded for comparison. Which TWO capacity or cost consequences must be planned for explicitly? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "The new path must be provisioned for the full production volume from the first day of the window, even though it drives none of the operational decisions during it." },
+      { "key": "B", "text": "The workload's total cost is elevated for the whole eight weeks and belongs in the migration budget as a time-boxed line rather than steady-state run cost." },
+      { "key": "C", "text": "Provisioning for the new path can ramp gradually in line with the rollout percentage, since operational traffic transfers to it progressively over the window." },
+      { "key": "D", "text": "The new path's latency need not be measured during the window, because no operational decision waits on its output during the comparison." },
+      { "key": "E", "text": "The two paths can share a single throughput allocation without an increase, because their peaks are offset by the time each takes to process a parcel." }
+    ],
+    "correct": ["A", "B"],
+    "explanation": {
+      "correct": "A dual run over 100% of traffic is a full-volume deployment that happens to have no consumer, and both keys follow from taking that literally. Capacity must be there from day one — there is no ramp, because the new path sees every parcel from the first hour. And the elevated spend is a known, bounded cost of the migration itself, which is a materially different conversation with finance than a permanent increase in run cost: it has an end date, a purpose and a figure that can be stated in advance rather than explained afterwards.",
+      "distractors": {
+        "C": "Ramping applies to a progressive cutover where operational traffic moves gradually. Here the new path processes everything from the start; only the consumption of its output changes at the end.",
+        "D": "Latency measured during the window is the only production-scale latency data that will exist before cutover. Discarding it means the cutover happens with no evidence the new path meets its budget under real load.",
+        "E": "The two paths process the same parcels in the same window, so their demand is simultaneous by construction. There is no offset to exploit."
+      },
+      "concept": "Plan a dual-run migration as a full-volume deployment from day one: provision capacity for 100% of traffic at the start, budget the elevated spend as a time-boxed migration cost with a stated end date, and use the window to collect the latency and cost evidence the cutover decision will need.",
+      "tip": "The word to notice is \"100% of production traffic\". It removes every ramp-based and offset-based option, which is usually two of the five."
+    }
+  },
+  {
+    "id": "SDA-C-072",
+    "domain": "Solution Design & Architecture",
+    "topic": "Throughput cost of duplicating context across parallel sections",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A news aggregator split its daily-briefing generation from one call into five concurrent section calls joined by a short assembly step, cutting p95 by about 60%. Each section call carries the same 8,000 tokens of shared source material plus roughly 400 tokens of section-specific instruction, and returns about 400 tokens; the original single call was 8,000 in and 2,000 out. Since the change, the provisioned throughput allocation now saturates at roughly 23% of the traffic it previously supported. What should the team do?",
+    "options": [
+      { "key": "A", "text": "Give each section only the slice of source material it needs rather than all 8,000 tokens, which recovers most of the lost capacity." },
+      { "key": "B", "text": "Revert to the single call, since a 60% latency improvement does not justify a fourfold reduction in the traffic the allocation supports." },
+      { "key": "C", "text": "Move the five section calls to a cheaper tier, which restores the allocation headroom the fan-out consumed without touching latency." },
+      { "key": "D", "text": "Request an allocation increase sized to the new consumption, since the fan-out is a deliberate design choice and the extra tokens are the price of the latency gain." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The fan-out took each request from 10,000 tokens to about 44,000 — five copies of 8,400 in, plus 2,000 out — roughly 4.4 times, which is exactly the 23% of previous traffic the allocation now supports. The duplication, not the parallelism, is what cost the capacity: the latency gain came from splitting the *output*, while the token growth came from replicating the *input*. Sending each section only its relevant source material separates the two, keeping the shorter per-call generation that produced the 60% improvement while removing most of the four-fold input inflation.",
+      "distractors": {
+        "B": "Reverting throws away a large, real latency gain to fix a problem caused by an implementation detail rather than by the approach. The fan-out is sound; sending every section the whole corpus is not.",
+        "C": "Tier choice changes cost per token, not token count. A throughput allocation is consumed by tokens, so a cheaper tier leaves consumption — and therefore the saturation point — exactly where it is.",
+        "D": "Buying capacity to carry four copies of the same source material funds the waste permanently. It is the right conversation once consumption is efficient, and premature while 30,000 tokens per request are avoidable."
+      },
+      "concept": "Parallel sectioning buys latency by splitting generation and costs throughput by duplicating input. Keep the two separate: give each branch only the context it needs. Throughput allocations are denominated in tokens, so any design that multiplies input per request divides the traffic the same allocation can carry.",
+      "tip": "When a latency optimisation shows up as a capacity regression, look for duplicated input across branches. Compute tokens per request before and after — the ratio usually matches the capacity loss exactly."
+    }
+  }
+]

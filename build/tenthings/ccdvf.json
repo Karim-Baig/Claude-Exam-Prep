@@ -1,0 +1,478 @@
+{
+  "Exam Essentials": [
+    {
+      "title": "Foundations, but from inside the code",
+      "desc": "CCDV-F is the Developer track. It does not ask whether a design is sound in principle — it asks what your client does when `stop_reason` comes back `max_tokens`, what shape a tool result takes, and which errors are worth retrying. Almost every item resolves to something you would type.",
+      "note": "When two options are both defensible, pick the one naming a concrete mechanism — a field, an event, a status code, a retry rule. Strategy-flavoured options are usually the distractor on this paper."
+    },
+    {
+      "title": "A third of the paper is API mechanics",
+      "desc": "Applications & Integration alone is 33% — request and response shape, streaming, retries, batch, deployment. Model Selection & Optimization adds 17% and Agents & Workflows 15%. Claude Code and Evaluation are single-digit slices. Scoring follows the programme's scaled 100–1000 frame with 720 to pass; confirm the item count and time on the current exam guide.",
+      "note": "Revise by weight, not by interest. Half the exam sits in the two API-shaped domains, and those are the ones where a wrong answer is unambiguously wrong rather than merely less good."
+    },
+    {
+      "title": "Your API recall may be out of date",
+      "desc": "Several surfaces developers learned by heart have changed. Assistant prefill is rejected on current models. Sampling parameters such as `temperature` are deprecated in favour of an effort setting. Explicit thinking budgets have given way to adaptive reasoning. Structured output is now a first-class request feature rather than a tool-schema trick.",
+      "note": "An option that reads like the way you first learned to do something is a deliberate trap. When a technique feels like a clever workaround, check whether the platform has since made it native."
+    },
+    {
+      "title": "Read the code block before the options",
+      "desc": "Many stems embed a request body, a response fragment, or a few lines of loop logic. The defect is usually visible in it: a system-role element sitting at `messages[0]`, a missing `tool_result`, a retry with a fixed sleep, a cache breakpoint placed after the volatile part.",
+      "note": "Find the defect in the code first, then look for the option that names it. Reading the options first makes every one of them look plausible, because each describes something that is true in general."
+    },
+    {
+      "title": "Exact names are frequently the answer",
+      "desc": "Recall items turn on precise strings: the `stop_reason` values, the streaming event sequence, the three required request fields, the three fields of a tool definition, `tool_use_id`. Distractor sets are built from plausible inventions that sit one letter or one concept away.",
+      "note": "If several options contain a field name you have never seen in a response you actually inspected, that is your elimination. Trust the names you have typed over the names that sound right."
+    },
+    {
+      "title": "The model proposes, your code authorises",
+      "desc": "Claude can request a tool call, name a channel, or emit a SQL string. None of that is a decision. Validation, permission checks and control of side effects belong in the tool implementation or the surrounding service, where they execute every time regardless of what the prompt happens to say.",
+      "note": "An option that solves a safety or correctness problem by adding a sentence to the system prompt is wrong whenever a deterministic check is available. This one rule decides a large number of items."
+    },
+    {
+      "title": "Statelessness explains half the surprises",
+      "desc": "The Messages API keeps nothing between calls. Conversation continuity, branching, edit-and-regenerate, agent loop history, rising cost across a long session and collapsing cache hit rates all follow from the fact that you resend everything, every time.",
+      "note": "When a stem describes something growing, drifting or getting more expensive across turns, ask what is being resent on each call. That is frequently the entire answer."
+    },
+    {
+      "title": "Find the binding constraint",
+      "desc": "Scenario stems name the thing that actually pins the design: a latency budget, a fixed monthly volume, an offline job with no deadline, a downstream parser that cannot tolerate prose. Several options will describe good practice; one responds to that constraint.",
+      "note": "If you can only reject an option by saying it is generally less good, you probably have the wrong one. A real elimination sounds like \"that does not survive a retry\" or \"that breaks the 300 ms budget\"."
+    },
+    {
+      "title": "Fix the cause, not the symptom",
+      "desc": "A stubborn parse-failure rate is not fixed by a retry wrapper. Wrong tool selection is not fixed by a bigger model. A ballooning context is not fixed by a larger window. The exam consistently rewards the change that removes a failure mode over the one that absorbs it.",
+      "note": "Retry, catch, truncate and upgrade are symptom options. Schema constraint, better tool descriptions, result shaping and breakpoint placement are cause options. Sort the list that way before choosing."
+    },
+    {
+      "title": "The smallest mechanism that meets the requirement",
+      "desc": "One call before a loop. A workflow before an agent. Better tool descriptions before more tools. A cheaper tier where an eval shows it holds. Added machinery has to answer a requirement that is actually stated in the stem.",
+      "note": "The most elaborate option is a distractor more often than it is the key. Ask which sentence of the stem the extra complexity serves; if you cannot point at one, it is not the answer."
+    }
+  ],
+
+  "Applications & Integration": [
+    {
+      "title": "The Messages API is stateless",
+      "desc": "There is no session and no server-side thread. Every request carries the full array of prior `user` and `assistant` turns, and the model sees only what you sent this time. Continuity, branching and edit-and-regenerate are features of your storage layer, not of the API.",
+      "note": "A stem asking where conversation state lives, or how a user edits an earlier message and regenerates from that point, is testing exactly this. Any option implying the API remembers a thread is wrong."
+    },
+    {
+      "title": "What a request must actually contain",
+      "desc": "A call to the messages endpoint requires `model`, `max_tokens` and `messages`. Roles inside `messages` are `user` and `assistant`. Instructions that govern the whole conversation go in the top-level `system` parameter — a system-role element placed first in `messages` is a validation error, not a persona trick.",
+      "note": "The classic stem shows a persona set as `messages[0]` and asks why the request fails. Know too that `max_tokens` is required rather than optional, and that it caps output, not the context window."
+    },
+    {
+      "title": "The response is an array of typed blocks",
+      "desc": "`content` is a list, and each element has a type: text, a tool-use request, or on reasoning models a thinking block. One response may hold several. Code that reaches straight for the first element's text breaks the first time the model reasons before answering or asks for a tool.",
+      "note": "Iterate and filter by `type`. Any option treating the response as a single string is wrong, and this is the hidden cause behind several \"it worked in testing\" scenarios."
+    },
+    {
+      "title": "`stop_reason` is your control flow",
+      "desc": "It says why generation halted: the turn finished, the output cap was reached, a stop sequence fired, the model wants a tool executed, it refused, or the window overflowed mid-generation. The set is documented as extensible, so a client needs a default branch for values it has never seen.",
+      "note": "Output ending mid-sentence means the token cap, not a model failure. Detect refusals from the field rather than by string-matching the text, and never assume the enum is closed."
+    },
+    {
+      "title": "Streaming is an event protocol, not a string",
+      "desc": "Requesting a stream gives you server-sent events with a defined lifecycle: a message start, content blocks opening, deltas, blocks closing, a message-level delta, and a final stop. Every block event carries an index, and tool arguments arrive as partial JSON fragments you must concatenate before parsing.",
+      "note": "The final `stop_reason` and cumulative output token count arrive on the message-level delta, not the last event. Accumulate per index, or interleaved thinking and text will corrupt your buffer."
+    },
+    {
+      "title": "Retry the transient, fix the rest",
+      "desc": "Rate limiting, overload and server-side errors are worth retrying. Malformed requests, bad credentials and permission failures will fail identically forever, and retrying them burns quota while hiding the defect. Errors return a typed body carrying a category and a request identifier.",
+      "note": "A wrapper that retries every failure five times is a stock wrong answer — it turns a bug into a slow bug. The right answer's signature is a retry policy keyed on error class."
+    },
+    {
+      "title": "Back off with jitter, and read the headers",
+      "desc": "Limits are counted on more than one dimension — request rate and token throughput separately — so you can have request headroom and still be throttled. Responses carry rate-limit headers, and a throttled response carries a wait hint. Exponential backoff with randomised jitter stops synchronised clients rebuilding the spike.",
+      "note": "Every worker sleeping the same fixed interval is the canonical broken retry. Ignoring the server's own wait hint in favour of your own schedule is the second one, and staying under the limit beats discovering it."
+    },
+    {
+      "title": "Idempotency is yours to build",
+      "desc": "A request that times out may still have been processed, and a retried tool call can charge a card twice. There is no idempotency key handed to you for this at the Messages API level — deduplication belongs in your gateway or the tool implementation, keyed on a value the caller supplies.",
+      "note": "When a stem has a user charged twice after a network timeout, the missing element is a deduplication key, not a longer timeout or a smarter retry policy."
+    },
+    {
+      "title": "Batch for work nobody is waiting on",
+      "desc": "The batch endpoint accepts a set of requests, processes them asynchronously and returns results as a file. It is materially cheaper and higher throughput, and unusable for anything interactive. Each request carries an identifier you choose, because results are not returned in submission order.",
+      "note": "\"Reviewed the next morning\" or \"no deadline pressure\" flags batch eligibility. A finished batch is not a successful batch — individual requests can fail or expire and must be checked one by one."
+    },
+    {
+      "title": "The platform choice is about boundaries",
+      "desc": "The same models are served by Anthropic directly and through the major cloud providers. The model is not different. What differs is authentication, region and data residency, billing and commitment, network isolation, and which peripheral APIs and input formats are available at all.",
+      "note": "Existing cloud spend, VPC-only networking or a residency rule steers you to the hosted route. Expect a port to change auth and client setup, and to restrict some non-core features rather than none."
+    }
+  ],
+
+  "Model Selection & Optimization": [
+    {
+      "title": "Tokens are not characters",
+      "desc": "The model bills, limits and reasons in tokens — sub-word pieces produced by a tokenizer. English prose tokenizes efficiently; other languages, source code, JSON and long identifiers do not. A characters-divided-by-four estimate under-counts exactly the payloads most likely to overflow the window.",
+      "note": "Use the token-counting endpoint before committing to an expensive call rather than estimating. Any option resting on a characters-per-token heuristic is the wrong one, and tokenizers differ between model generations."
+    },
+    {
+      "title": "The window bounds the whole exchange",
+      "desc": "The context window is not an input budget with a separate allowance for the reply. Prompt, history, tool definitions, tool results and everything generated — including reasoning tokens — count against the same ceiling. `max_tokens` is a further cap on output, not an extension of the window.",
+      "note": "Input alone exceeding the limit is a request error; input plus a generous `max_tokens` is accepted and can instead stop part-way through generating. Two different failures, two different fixes."
+    },
+    {
+      "title": "Tiers are assigned per step",
+      "desc": "Haiku, Sonnet and Opus trade cost and latency against reasoning depth. The decision is per subtask rather than per system: classification, routing, extraction and filtering rarely need the strongest tier, while the one step where judgement determines the outcome usually does.",
+      "note": "A pipeline running the strongest model for parsing intent as well as for writing the reply is a cost scenario with an obvious fix. Split the steps before changing anything else."
+    },
+    {
+      "title": "Reasoning depth is a dial with a price",
+      "desc": "Current models decide how much to think adaptively, steered by an effort setting rather than an explicit token budget. Deeper reasoning helps genuinely hard multi-step work and does nothing for extraction or reformatting, and the reasoning tokens are billed as output and counted against the window.",
+      "note": "Currency note: the older pattern of setting an explicit thinking budget is rejected on current models. An option that sets one — especially one larger than `max_tokens` — is checking whether you noticed."
+    },
+    {
+      "title": "Model IDs are pinned snapshots",
+      "desc": "Current identifiers carry no date suffix and no floating alias; each names a fixed set of weights. Pinning buys stability of behaviour, not bit-identical output, because serving infrastructure still changes underneath you. Models are eventually retired, so a pin is a deadline as much as a guarantee.",
+      "note": "Appending a date, or expecting a latest-style alias, is a stale habit the exam tests. Migration means running your eval suite against both, not swapping the string and watching the error rate."
+    },
+    {
+      "title": "Model and prompt are runtime configuration",
+      "desc": "Hard-coding a model identifier or a prompt as a string literal makes every change a deployment. Treating them as configuration lets you switch tiers during an incident, run two prompt variants side by side, and vary tone or policy per tenant without forking the codebase.",
+      "note": "A stem about switching model during an incident without redeploying, or A/B testing two system prompts, wants externalised configuration plus a per-request record of which variant actually ran."
+    },
+    {
+      "title": "Output tokens are the expensive half",
+      "desc": "Generated tokens are priced above input tokens, and they drive latency too, because the model produces them one at a time. A verbose format, a restated question, or an unrequested explanation costs you on both axes simultaneously.",
+      "note": "For a report generator the highest-leverage change is a tighter output specification, not a cheaper tier. For latency, shortening the output beats almost anything else available to you."
+    },
+    {
+      "title": "Cache the stable prefix",
+      "desc": "Prompt caching marks the end of a reusable prefix so repeated calls skip reprocessing it. The cacheable region runs tool definitions, then system, then messages, and the prefix must be byte-identical to hit. Anything volatile — a timestamp, a user id, a per-tenant preamble — must sit after the breakpoint.",
+      "note": "The classic broken setup puts the changing part first and pays for a cache write on every call. Shared content goes before the breakpoint, tenant-specific content after it."
+    },
+    {
+      "title": "Prove the cache from `usage`",
+      "desc": "The usage object reports cache creation tokens and cache read tokens separately from plain input. Writes cost a premium over ordinary input and reads cost a fraction of it, so a workload that writes constantly and reads rarely is more expensive than not caching at all.",
+      "note": "High creation with near-zero reads means the prefix changes between calls or traffic is too sparse to reuse it. The three input fields are mutually exclusive — sum them for true input volume."
+    },
+    {
+      "title": "Route cheap first, escalate on evidence",
+      "desc": "A cascade sends everything to a fast tier and promotes only the cases that need more. It works only if you have a signal for when to escalate and an eval showing the cheap tier is adequate on the cases it keeps. Without both, you have added latency and quietly shipped worse answers.",
+      "note": "The element the exam looks for is a measurable escalation trigger. Without one, a cascade is just a cheaper model with extra steps and an unmeasured accuracy loss."
+    }
+  ],
+
+  "Agents & Workflows": [
+    {
+      "title": "The agent loop is a `while` around one call",
+      "desc": "Send messages and tools. If the response requests tools, execute them, append the assistant turn and a user turn carrying the results, and call again. Repeat until the model stops asking. Whether you hand-write the loop or use an SDK, that cycle is the entire mechanism.",
+      "note": "The loop ends when the response no longer requests a tool, not when a text block appears. An agent that answers and then abandons the task has an exit condition firing on text."
+    },
+    {
+      "title": "Workflow or agent: who writes the control flow",
+      "desc": "In a workflow you decide the order of steps and the model fills each one in. In an agent the model decides what to do next and when to stop. Autonomy buys adaptability and costs determinism, predictable spend, and straightforward testing.",
+      "note": "A stem whose steps can be enumerated in advance — extract, then validate, then write — describes a workflow however agentic the wording. Regulated and high-volume work pushes the same way."
+    },
+    {
+      "title": "The workflow patterns worth knowing cold",
+      "desc": "Prompt chaining runs ordered steps with checks between them. Routing classifies the input and dispatches it to a specialised handler. Parallelisation either splits different subtasks across calls, which is sectioning, or runs the same task repeatedly and aggregates, which is voting.",
+      "note": "Sectioning is for independent parts of one job; voting is for confidence on a single judgement. A stem worried about missing a rare unsafe case is describing voting."
+    },
+    {
+      "title": "Orchestrator-workers is still a workflow",
+      "desc": "A lead model reads the input, decides at runtime how to break it up, dispatches subtasks, and synthesises the results. The decomposition is dynamic, but the control structure is code you wrote, which is why the standard taxonomy classifies it as a workflow rather than an agent.",
+      "note": "The distinguishing question is whether the split is fixed at design time, which is parallelisation, or decided per input. Contradictory syntheses usually mean workers returned prose instead of a shared structure."
+    },
+    {
+      "title": "Evaluator-optimiser needs a bound",
+      "desc": "One call produces a draft, a second scores it against explicit criteria, the first revises. It pays off where the quality criteria can be written down and iteration measurably helps — code that must pass tests, writing against a rubric. It needs a maximum iteration count and a stopping rule.",
+      "note": "An unbounded critique loop is a cost incident waiting to happen. If a stem describes generate-check-fix with no exit condition, the missing element is the bound, not a better critic."
+    },
+    {
+      "title": "Every `tool_use` needs a `tool_result`",
+      "desc": "If one assistant turn requests three tools, the next user message must carry three result blocks, each matching a `tool_use_id`. Results go in a user turn; there is no tool role. A missing or mismatched identifier is a request error, not a partial success you can ignore.",
+      "note": "Integrations that work with one tool and fail intermittently with several are almost always returning a single result for a multi-tool turn. Execute in parallel if you like, but return them together."
+    },
+    {
+      "title": "Tool failures are results, not exceptions",
+      "desc": "When a tool throws, times out, or is refused, the model needs to hear about it in a result block flagged as an error, with enough detail to choose differently. Swallowing the exception or crashing the loop denies the model the one thing that would let it recover.",
+      "note": "The right answer describes an error returned to the model. A permission denial in particular should be reported plainly, so the agent stops retrying and hands off instead of looping."
+    },
+    {
+      "title": "Loop guards and a spend ceiling",
+      "desc": "Because the full history is resent on every iteration, a long run costs more per step as it goes. Bound it with a maximum iteration count, a token or currency budget tracked across the whole task, and detection of repeated near-identical calls that indicate no progress is being made.",
+      "note": "A tail of runs hitting the iteration cap is a symptom, not a limit to raise. Look at what the agent keeps retrying — often a tool whose empty result is indistinguishable from a failure."
+    },
+    {
+      "title": "Verbose tool results fill the window",
+      "desc": "A tool returning tens of thousands of tokens of raw JSON will exhaust the context in a handful of calls. Return a summary plus a handle the agent can use to fetch detail, paginate large sets, and let the loop drop or compress old results once they have been acted on.",
+      "note": "The fix belongs in the tool and the loop, not the prompt. Any option that asks the model to ignore parts of a huge result treats a context problem as an instruction problem."
+    },
+    {
+      "title": "Long runs need durable state",
+      "desc": "A crash forty tool calls into a task should not restart from zero, and a task spanning days cannot live in a conversation array held in memory. Persist the accumulated messages plus a structured record of what has been completed, so the loop can resume and a human can read where it reached.",
+      "note": "Preferences that must survive a gap of days belong in storage the agent reads at the start of a session, not in a context window. Cross-session memory is infrastructure you build."
+    }
+  ],
+
+  "Prompt & Context Engineering": [
+    {
+      "title": "`system` versus the user turn",
+      "desc": "The top-level `system` parameter carries what is true for the whole conversation: role, rules, the output contract, tone. The user turn carries this request's data and question. Mixing them buries the instruction inside a growing history where it competes with everything sent since.",
+      "note": "Anything restated every turn belongs in `system`. A rule that \"sometimes gets ignored\" late in a long chat is often sitting in an early user message, buried under the turns that followed it."
+    },
+    {
+      "title": "Delimit the parts of a long prompt",
+      "desc": "When a prompt mixes instructions, reference documents, examples and the user's question, the model needs to tell them apart. XML-style tags name each region so your instructions can point at it: analyse what is inside the document tags, apply the rules in the rules tags, answer the question in the query tags.",
+      "note": "Tagging is the fix when the model treats reference material as the question, or an example as data. It also makes the prompt assemblable in code, which prose formatting never is."
+    },
+    {
+      "title": "Few-shot examples teach shape",
+      "desc": "A handful of well-chosen examples fixes format, casing, boundary behaviour and how to handle awkward inputs more reliably than another paragraph of description. Coverage matters more than count: include the edge cases and the ambiguous ones, not five variations of the easy one.",
+      "note": "Inconsistent label casing, or stray explanation wrapped around a classification, is an examples problem rather than an instruction problem. Examples sit before the actual input and consume context on every call."
+    },
+    {
+      "title": "Reasoning belongs in the prompt, not the answer",
+      "desc": "Asking for stepwise reasoning improves accuracy on multi-step work — analysis, arithmetic, layered constraints — and does nothing for lookup or reformatting. Reasoning that leaks into the user-facing response breaks parsers and confuses readers, so it needs somewhere of its own to go.",
+      "note": "The clean remedy is reasoning emitted into a named region and the answer into another, then extract the answer region. Instructing the model to think without showing it is unreliable."
+    },
+    {
+      "title": "Prefill is legacy",
+      "desc": "Seeding the opening characters of the assistant's reply used to be the standard trick for forcing JSON and skipping preamble. Current models reject it. The problem it solved is now solved properly — by constraining the output format at the request level, or by defining the shape as a schema.",
+      "note": "Currency note worth carrying into the exam: an option recommending an assistant-turn prefill to force a JSON opening is dated and wrong, not merely suboptimal."
+    },
+    {
+      "title": "Context engineering is curation",
+      "desc": "Prompt engineering is how you word the instruction. Context engineering is deciding what occupies the window at all: which documents, how much history, which tool results, in what order, and what gets dropped. On long-running systems it is the larger lever by a wide margin.",
+      "note": "\"It fits in the window\" is not a reason to include something. When a stem reports quality degrading as a system scales rather than as a prompt changes, this is the domain being tested."
+    },
+    {
+      "title": "Long contexts rot, and position matters",
+      "desc": "As a window fills, attention spreads and material buried in the middle competes with everything around it. The documented term for the resulting degradation is context rot. An instruction stated once at the start of a very long context is the first thing to lose its force.",
+      "note": "An agent violating a constraint set sixty turns ago has not forgotten a rule; the rule has been diluted. Restating critical constraints close to the task is the mechanism-level fix."
+    },
+    {
+      "title": "Compaction preserves decisions, not transcript",
+      "desc": "When a conversation outgrows the window you replace older turns with a summary. What the summary keeps is the decision record: constraints agreed, facts established, work completed, threads still open. What it discards is the play-by-play of how any of it was reached.",
+      "note": "The risk to manage is silently dropping a constraint. A stem where an agent summarises every ten turns and later breaks an earlier rule is pointing at what the summary template omits."
+    },
+    {
+      "title": "Retrieved passages need labels",
+      "desc": "Injected context should arrive delimited, with a source identifier on each passage, and an instruction saying what to do when the passages do not contain the answer. Without identifiers the model cannot cite and you cannot verify; without the escape clause it fills the gap from prior knowledge.",
+      "note": "A traceability requirement is a retrieval-formatting requirement. If a stem demands every answer be traceable to a source document, look for the option carrying identifiers through into the output."
+    },
+    {
+      "title": "Structured output is a guarantee or a request",
+      "desc": "Asking for JSON in prose is a steer, and you will occasionally get a markdown fence or a friendly opening sentence. Constraining the output to a schema at the request level, or marking a tool definition strict, changes the decoding itself so non-conforming text cannot be produced.",
+      "note": "When a pipeline has a small but stubborn parse-failure rate, the answer is the decoding-level guarantee — not a more emphatic instruction, and not a regex that strips fences."
+    }
+  ],
+
+  "Tools & MCP": [
+    {
+      "title": "A tool is three fields",
+      "desc": "Each entry in `tools` has a `name`, a `description`, and an `input_schema` that is a JSON Schema whose root type is object. The name is restricted to a limited character set and a maximum length. That triple is everything the model has to decide with.",
+      "note": "Recall items here are exact: the schema root must be an object, and the name character set excludes spaces and dots. There is no separate returns or examples field in the definition."
+    },
+    {
+      "title": "Descriptions are the interface",
+      "desc": "The model picks a tool by reading its name and description, not by inspecting your implementation. Two tools described as \"search documents\" and \"look up records\" are indistinguishable. A good description says what the tool is for, when to prefer it over its neighbour, and what it returns.",
+      "note": "Wrong-tool selection is a description defect first and a model-capability problem almost never. The fix is disambiguation and consolidation of near-duplicates, not a stronger model or a longer system prompt."
+    },
+    {
+      "title": "Constrain the schema, not the prose",
+      "desc": "A parameter typed as a bare string invites three date formats and four spellings of a status. Enumerations, formats and sensible use of the required list move the constraint into the schema, where it is enforced at decode time rather than into a sentence the model may or may not honour.",
+      "note": "Over-marking fields as required forces the model to invent values for things it does not know. Under-constraining a string means you validate at runtime instead, after the call is already paid for."
+    },
+    {
+      "title": "`tool_choice` and parallel calls",
+      "desc": "`tool_choice` controls whether the model may call a tool, must call one, must call a specific named one, or must not call any. A separate switch forbids more than one tool call in a single turn. Left automatic, the model may return several tool-use blocks at once.",
+      "note": "Forcing a named tool is how you get a guaranteed extraction; forbidding tools is how you get a plain summary of results already gathered. Suppressing parallel calls is the answer when execution order matters."
+    },
+    {
+      "title": "Tool definitions are billed context",
+      "desc": "The whole `tools` array is serialised into every request and charged as input tokens, on top of an overhead the platform adds for tool use at all. Forty tools is not free optionality — it is a permanent tax on every call and a harder selection problem for the model.",
+      "note": "An agent given every tool \"so it can handle anything\" degrades in both cost and accuracy. Consolidating overlapping tools and grouping an API's operations behind fewer, better-described entry points is the expected answer."
+    },
+    {
+      "title": "Shape the result for the model",
+      "desc": "A tool result is context, not a database response. Two hundred rows should come back as the fields that matter, an explicit total, and a reference for fetching the rest. Include what was searched for as well as what was found, so the model can tell \"no matches\" from \"wrong query\".",
+      "note": "A truncated raw dump is worse than a summary, because the model cannot tell it was truncated. Pagination handles the volume; a stated total handles the model's judgement about whether to look further."
+    },
+    {
+      "title": "Empty, failed and denied are three answers",
+      "desc": "A query that matched nothing succeeded. A tool that timed out did not. A permission refusal is neither. Each needs a distinct structured result the model can act on — retry, ask the user, try another route, or stop — rather than an empty array standing in for all three.",
+      "note": "Collapsing them is what drives an agent to call the same tool with slightly varied arguments forever. A structured error envelope naming the category and whether it is retryable is the pattern."
+    },
+    {
+      "title": "Tool arguments are untrusted input",
+      "desc": "Values inside a `tool_use` block are model-generated text, possibly shaped by content the model read earlier in the conversation. Validate them at the tool boundary as you would a request arriving from the internet: type, range, allowed values, and parameterised queries rather than strings concatenated into SQL or a shell.",
+      "note": "Destructive tools need their safeguards in the implementation — scoping, a confirmation step, a dry-run mode, a cap on rows affected. A prompt instruction to be careful is not one of them."
+    },
+    {
+      "title": "MCP is a protocol, not a library",
+      "desc": "Model Context Protocol standardises how a client and a server exchange capability, over JSON-RPC. A server exposes three primitives: tools the model may invoke, resources the client can attach as context, and prompts the user can trigger. Transports are local standard I/O and streamable HTTP.",
+      "note": "Conflating the primitives produces a server where everything is a tool and the context budget disappears. Read-only reference data the application already knows it needs is a resource, not a tool."
+    },
+    {
+      "title": "Build a server when the integration outlives the client",
+      "desc": "A tool written directly into your agent is the shorter path. A server earns its cost when the same integration must serve several clients — your agent, an editor, a desktop app — or be owned and versioned by another team. A remote deployment additionally has to serve many users at once.",
+      "note": "One consumer is not a reason to build a server. A centrally deployed one must handle per-user identity and credentials, which a local standard-I/O server running as one person never has to consider."
+    }
+  ],
+
+  "Security & Safety": [
+    {
+      "title": "The model is not a security boundary",
+      "desc": "Instructions in a prompt are advisory. A persuasive input, a novel phrasing, or simply a very long conversation can move the model off them, and no amount of wording makes that false. Anything that must hold has to be enforced in code that runs regardless of what the model decided.",
+      "note": "This decides more items in this domain than any other idea. Where one option enforces something in the prompt and another enforces the same thing in the tool or the service, the code wins."
+    },
+    {
+      "title": "Indirect prompt injection",
+      "desc": "Direct injection is a user typing an attack. Indirect injection hides instructions inside content the system fetches and trusts — a wiki page anyone can edit, a web page being summarised, an incoming email, a tool result. The model cannot reliably distinguish retrieved data from your instructions.",
+      "note": "Any system that reads content it did not author and also holds a tool that acts is exposed. A stem describing hidden text inside a fetched document is naming this class, not a jailbreak."
+    },
+    {
+      "title": "Untrusted content is data, and must look like it",
+      "desc": "Retrieved and user-supplied text belongs in a `user` message, inside a delimiter that labels it as material to be processed, with the instruction stated outside it. Putting it in the system prompt is the worst case, because it inherits the authority of your own rules.",
+      "note": "The safest construction the exam looks for is tagged content in a user turn plus an explicit statement that anything inside the tags is data to analyse and never a command to follow."
+    },
+    {
+      "title": "Separate the trust domains",
+      "desc": "Reading untrusted content, holding sensitive access, and having a channel that sends data outward are each survivable alone. Together in one agent they form an exfiltration path. The architectural answer is to split them so the component reading the internet cannot reach the database or the outbound channel.",
+      "note": "A summariser that can also send replies, or a browsing agent holding a database tool, is the shape to recognise. Splitting privileges across components beats any amount of input filtering."
+    },
+    {
+      "title": "Model output is untrusted input",
+      "desc": "Whatever Claude produces becomes input to something else: a SQL driver, a shell, a browser, a template engine. It carries no guarantee of safety and may be relaying an attacker's payload from earlier in the pipeline. Escape, parameterise and validate it exactly as you would input from a user.",
+      "note": "A model asked to write a query from natural language is a SQL injection question in new clothes. Parameterised statements and a read-only role, not a prompt rule about avoiding dangerous queries."
+    },
+    {
+      "title": "Guardrails sit on both sides",
+      "desc": "Input checks screen for injection, prohibited requests and personal data before the call. Output checks look for policy violations, leaked data, unsupported claims, and structures the downstream system cannot accept. Which class of failure you catch depends entirely on which side you placed the check.",
+      "note": "Streaming raw output to a client forecloses output screening. If a stem requires content to be checked before anyone sees it, streaming straight to the user is the wrong option."
+    },
+    {
+      "title": "Authorise against the authenticated session",
+      "desc": "When an assistant can query records, the rule that a user sees only their own belongs in the data layer, bound to the session that made the request. Filtering on a user id the model placed in the tool arguments is not access control — the model becomes a route to whatever the service account can reach.",
+      "note": "The confused-deputy shape: the model is not malicious, it is acting with more privilege than the requester holds. Multi-tenant retrieval carries the same requirement at the index level."
+    },
+    {
+      "title": "The key lives on the server",
+      "desc": "An API key shipped inside a mobile app or a browser bundle is published, whatever obfuscation surrounds it. Calls go through a backend you control, which is also the only place per-user authentication, quotas, spend caps and abuse rate-limiting can exist. Separate keys per team and environment keep attribution and blast radius sane.",
+      "note": "If a key is exposed, revoke it before anything else, then issue a replacement, then audit what it could have been used for. Cleaning the git history first is the tempting wrong order."
+    },
+    {
+      "title": "Redact before you log, log enough to debug",
+      "desc": "Request and response logs are exactly where personal data accumulates unnoticed. Strip or tokenise identifiers, secrets and payment details on the way in. The competing requirement is real though: you still need prompt version, model, parameters, token counts and the request identifier to investigate anything.",
+      "note": "The answer is rarely to stop logging. It is redaction plus retention limits plus access control on the log store, keeping the metadata that makes an incident diagnosable at all."
+    },
+    {
+      "title": "Hooks turn a rule into a guarantee",
+      "desc": "A hook is a handler bound to a lifecycle event in Claude Code and the Agent SDK. A pre-tool-use hook runs before the tool does and can block it; a post-tool-use hook runs afterwards and can inspect or react. Because it is code on an event, it fires every time regardless of the model's judgement.",
+      "note": "The signature stem is a rule that is \"usually followed but sometimes missed\". Deterministic enforcement is the answer, and blocking writes to a protected path is the canonical example."
+    }
+  ],
+
+  "Claude Code": [
+    {
+      "title": "`CLAUDE.md` loads itself",
+      "desc": "A memory file in the project root enters context automatically at the start of every session, without anyone asking for it. It is where a repository's durable facts belong: how to build and test, what the directories mean, naming conventions, and the things that must never be done.",
+      "note": "The test for any line in it is whether it must be true in every session. Task-specific detail belongs in the conversation, where it costs context once instead of forever."
+    },
+    {
+      "title": "Four memory scopes, all loaded",
+      "desc": "Instructions arrive from an organisation-managed policy file, your personal user-level file, the project file committed to the repository, and an untracked local file for your own notes on that project. They combine from broadest to most specific rather than one replacing another.",
+      "note": "Two developers getting different behaviour in the same repository almost always differ in their user-level or local file. Team standards go in the committed project file; personal preferences must not."
+    },
+    {
+      "title": "Files persist, conversation does not",
+      "desc": "An instruction typed in chat lasts as long as the session, and may not survive a compaction that never restated it. The same instruction in a memory file is present at the start of every session for everyone on the team, and changes to it arrive as a reviewable diff.",
+      "note": "\"From now on, always…\" is a request to edit a file. Any option meeting a durability requirement with a conversational instruction is wrong, however well phrased the instruction is."
+    },
+    {
+      "title": "An oversized memory file is a bug",
+      "desc": "Everything in a memory file occupies context in every session and competes with the actual task for attention. A file that has grown into exhaustive documentation costs tokens continuously and dilutes the instructions that matter, so rules get followed less reliably rather than more.",
+      "note": "The symptom is written-down rules being intermittently ignored. Cut whatever is reference material rather than instruction, reference large documents instead of inlining them, and split the rest."
+    },
+    {
+      "title": "Split instructions with `.claude/rules/`",
+      "desc": "Rather than one growing file, guidance can live as separate rule files that declare which paths they apply to. Front-end conventions load when front-end files are in play; the deployment policy loads when that directory is touched. Memory in subdirectories is picked up when work reaches them.",
+      "note": "Path scoping is how a large repository avoids loading every team's conventions into every session. It is the structural answer when a single instruction file has outgrown its usefulness."
+    },
+    {
+      "title": "Settings override; memory concatenates",
+      "desc": "`.claude/settings.json` holds permissions, hooks and environment configuration, and it resolves by precedence: an organisation-managed file wins, then command-line arguments, then your untracked local project settings, then the committed project settings, then your user-level file. Memory files behave the opposite way — they all load together.",
+      "note": "The distinction is directly testable. Something a security team must impose on every developer goes in the managed layer, which local settings cannot lower or opt out of."
+    },
+    {
+      "title": "Allow, ask and deny",
+      "desc": "Permission rules match a tool and an argument pattern — a command family, a path glob — and decide whether an operation runs silently, prompts first, or is refused outright. Sensible allows remove friction on frequent reversible work; the deny list is what holds when everything else looks reasonable in the moment.",
+      "note": "\"Never auto-approve edits to environment files\" is a deny rule in settings, not a sentence in `CLAUDE.md`. Aim for autonomy on the reversible and confirmation on everything else."
+    },
+    {
+      "title": "Subagents get their own window",
+      "desc": "A subagent runs with a separate context window, its own system prompt and its own tool permissions, and hands only its conclusion back to the parent. A codebase search that would return thousands of lines costs the main session a paragraph rather than the entire transcript.",
+      "note": "The argument is context hygiene at least as much as parallelism. Right for wide searches, audits and investigations whose intermediate output is large and whose answer is small."
+    },
+    {
+      "title": "Skills, commands and hooks are different tools",
+      "desc": "A skill is a named reusable instruction set stored in the project — a release procedure, a review checklist — invoked so the same sequence runs the same way for everyone. Older flat command files serve the same purpose and surface the same way; skills are the current form.",
+      "note": "A skill is guidance Claude follows when invoked. A hook is code the harness runs on an event whether or not Claude cooperates. Choose by whether the requirement is consistency or a guarantee."
+    },
+    {
+      "title": "Compaction, automatic and deliberate",
+      "desc": "As a session nears the context limit it compacts: stale tool output is cleared first, then earlier turns are summarised, and work continues. You can also trigger it yourself and name what the summary must preserve, which is a better move before a long task than in the middle of one.",
+      "note": "The wrong answer to a filling context is abandoning the session and re-explaining everything. Compact with a stated focus, or push the noisy work into a subagent before it lands in the main thread."
+    }
+  ],
+
+  "Evaluation, Testing & Debugging": [
+    {
+      "title": "Isolate the layer before you tune",
+      "desc": "Wrong answers have at least three sources: the integration sent the wrong thing, retrieval supplied the wrong material, or the model handled correct input badly. Reproduce the exact request outside the application and inspect what actually went over the wire before touching the prompt.",
+      "note": "For a retrieval-backed answer, first check whether the correct passage was in the context at all. If it was not, no prompt change fixes it and the generation metrics are measuring the wrong half."
+    },
+    {
+      "title": "Check `stop_reason` first",
+      "desc": "When output looks wrong, one field explains a large share of cases before any deeper investigation: truncation at the token cap, a stop sequence firing early, a refusal, or a pause waiting on a tool you never executed. It costs nothing to check and it redirects the whole diagnosis.",
+      "note": "Answers ending mid-sentence and reports that the model \"got lazy\" are usually the token cap. A rising refusal rate is a prompt or input-distribution change, not an outage."
+    },
+    {
+      "title": "Log enough to replay",
+      "desc": "An intermittent failure three days old is diagnosable only from what you stored: the full request, the raw unparsed response, the prompt and model versions, tool calls with their arguments and results, and the provider's request identifier — all tied together by one correlation id.",
+      "note": "Logging only the parsed object is the specific gap that makes structured-output failures unfixable. The provider's request identifier is what a support ticket needs to trace one particular call."
+    },
+    {
+      "title": "Evals assert properties, not strings",
+      "desc": "Generation is not deterministic, so an exact-match assertion on prose is a flaky test. Assert what must be true: schema validity, required fields present, claims grounded in the supplied source, no forbidden content, length within bounds, or a graded score against a written rubric.",
+      "note": "Any option proposing exact string comparison of generated text is wrong. For subjective criteria, a model grader needs a rubric and a check against human labels before its scores mean anything."
+    },
+    {
+      "title": "Ten favourite examples is not an eval set",
+      "desc": "A prompt that improves on a handful of hand-picked cases has demonstrated only that it improved on those cases. A real set carries the production input distribution — the messy inputs, the ambiguous ones, the ones you currently fail — plus a held-out portion the tuning loop never sees.",
+      "note": "Mine live traffic and escalations for cases. A set containing only examples you already pass produces a number that cannot move and therefore cannot warn you about anything."
+    },
+    {
+      "title": "Evals belong in CI",
+      "desc": "Prompts, tool schemas, model identifiers and retrieval settings are all deployable artefacts and all of them can regress silently. Running the suite on every change and blocking a merge that falls below threshold makes quality something the pipeline enforces rather than something a person remembers to check.",
+      "note": "Running evals only before a major release lets a regression sit in the branch for weeks. The stronger answer usually pairs the CI gate with a staged rollout and a fast prompt rollback."
+    },
+    {
+      "title": "Mock the model in unit tests",
+      "desc": "Calling the live API from unit tests makes them slow, costly and non-deterministic, so a failure tells you nothing about your code. Mock the client and assert on request construction, response parsing, retry behaviour and error handling. Generation quality is what the eval suite exists for.",
+      "note": "The distinction the exam wants: unit tests verify your integration, evals verify the model's output. Options that conflate the two, in either direction, are wrong."
+    },
+    {
+      "title": "Judge the path, not just the answer",
+      "desc": "An agent can reach the right result through twelve tool calls where three would do, or by a route that happened to work this time. Trajectory evaluation inspects the sequence — which tools, with which arguments, how many iterations, at what cost — alongside whether the final output was correct.",
+      "note": "A high task-success rate with unhappy users or unpredictable spend is the signature. Outcome-only evaluation is the gap; cost and iteration count per task are the metrics that expose it."
+    },
+    {
+      "title": "Schema-valid is not correct",
+      "desc": "Constrained decoding guarantees the shape of an output, not the truth of it. A response can cite a document identifier that was never retrieved, put a plausible number in a required field, or report a value it had no way of knowing. Validate against the source, not only against the schema.",
+      "note": "Separating \"the field is genuinely absent from the document\" from \"the model did not find it\" needs an explicit representation for each — a nullable value plus a not-found or confidence marker."
+    },
+    {
+      "title": "Watch a quality signal, not just errors",
+      "desc": "A prompt change can raise complaints while latency and error rates stay flat, because nothing failed — the output simply got worse. Production monitoring needs a proxy for quality: user corrections, escalations, thumbs-down, parse-failure rate, refusal rate, and cost per completed task.",
+      "note": "Cost per successful task is the honest metric; cost per call hides a system that is cheap and retries four times. Sampling live output through the eval grader catches decay before users report it."
+    }
+  ]
+}

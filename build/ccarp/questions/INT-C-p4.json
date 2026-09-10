@@ -1,0 +1,454 @@
+[
+  {
+    "id": "INT-C-055",
+    "domain": "Integration",
+    "topic": "Handling a stream that fails after partial delivery",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A publishing platform streams long manuscript critiques to editors. About one stream in two hundred terminates with a mid-stream error after most of the text has been delivered. The product team wants editors to keep whatever arrived. The engineering lead points out that the critique's final section carries the overall recommendation, and that stored critiques are later quoted back to authors as the platform's assessment.",
+    "options": [
+      { "key": "A", "text": "Resend the request and append the new response to the text that already arrived, so the editor sees one continuous critique." },
+      { "key": "B", "text": "Persist what arrived as the critique and show a note in the editor's interface saying the stream ended early." },
+      { "key": "C", "text": "Treat a mid-stream failure as a failed request and retry within budget; show the partial only as labelled non-final text." },
+      { "key": "D", "text": "Disable streaming for critiques so that any failure surfaces before an editor has seen a single line of text." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The stem makes the stored critique an artefact quoted to authors, and the missing section is the recommendation — so a truncated critique is not a slightly worse critique, it is a materially different one. A broken stream is a failed request that happens to have delivered bytes, so it gets the same treatment as any other failure: bounded retry. Keeping the partial visible but explicitly non-final and out of the store preserves the editor's sense of progress without letting an incomplete assessment become the record.",
+      "distractors": {
+        "A": "A fresh generation is not a continuation of the first: it has no knowledge of where the earlier text stopped, so the seam produces repetition or contradiction. Presenting two independent samples as one continuous document is worse than showing a gap.",
+        "B": "This is exactly the outcome the lead warned about. A stored critique missing its recommendation reads as complete to everyone downstream, and one in two hundred at volume is a steady trickle of authoritative-looking incomplete assessments.",
+        "D": "The failure is in the request, not in the transport; a non-streamed call fails at the same rate and still needs a retry policy. It also gives up incremental delivery on every critique to change how a rare failure is presented."
+      },
+      "concept": "A stream that breaks after delivering bytes is a failed request, not a partial success. Retry it under the normal budget, and keep partial output out of anything durable — records, resume context, evaluation sets — unless it is explicitly marked incomplete. Streams offer no resume, so stitching a second generation onto a first is never continuation.",
+      "tip": "Note what the stem says happens to the output afterwards. 'Stored and quoted' converts a display question into a records-integrity question, and rules out every option that persists a fragment."
+    }
+  },
+  {
+    "id": "INT-C-056",
+    "domain": "Integration",
+    "topic": "Matching a mechanism to a heavy invariant prefix",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A workload sends the same 20,000-token instruction and reference block on every call, followed by a short varying query, at a continuous high rate throughout the day. Which mechanism most directly reduces what that shared block costs to process?",
+    "options": [
+      { "key": "A", "text": "Prompt caching, with a cache breakpoint placed at the end of the shared 20,000-token reference block." },
+      { "key": "B", "text": "Streaming, so the shared block is processed while the response is being delivered." },
+      { "key": "C", "text": "The Batch API, so the shared block is submitted once and applied across the whole batch." },
+      { "key": "D", "text": "A larger output allowance, so fewer calls are needed to obtain a complete answer." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The workload has the three properties caching needs: a large invariant prefix, a variable part that comes after it, and enough continuous traffic for an entry to be read many times per write. A breakpoint at the end of the shared block turns 20,000 tokens of repeated processing into a reuse on almost every call. Nothing else on offer touches the repeated prefix, which is where essentially all of the cost sits.",
+      "distractors": {
+        "B": "Streaming changes when output bytes reach the caller. The prefix is still processed in full on every request, so the cost of the shared block is unchanged.",
+        "C": "Batch does not deduplicate shared content across requests; each request is still processed with its own full prefix. Batch is a latency-for-economics trade on the whole job, and this workload is continuous and interactive.",
+        "D": "The allowance governs output length. The stem describes a cost driven by repeated input, and larger responses would add to the bill rather than reduce it."
+      },
+      "concept": "Match the lever to where the cost actually is. Repeated invariant input calls for prompt caching; deferrable bulk work calls for batch; a waiting human on a long output calls for streaming; excessive generation calls for a smaller allowance or a tighter instruction.",
+      "tip": "Items of this shape are testing whether you can name which mechanism touches which part of a request. Locate the cost first — input, output, or waiting — then pick the lever that acts on it."
+    }
+  },
+  {
+    "id": "INT-C-057",
+    "domain": "Integration",
+    "topic": "Cache lifetime against a bursty arrival pattern",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An accounting firm runs a reconciliation assistant with a 30,000-token rules prefix. Usage is extremely uneven: a dozen requests an hour across the three days around each month-end, and often several hours between requests for the rest of the month. After enabling caching, month-end costs fell noticeably while mid-month costs rose. The team is puzzled, since as they put it, 'it is the same prompt either way'.",
+    "options": [
+      { "key": "A", "text": "The prefix exceeds the size that can be held during quiet periods, so caching is silently skipped whenever volume is low." },
+      { "key": "B", "text": "Mid-month requests are served from a different capacity pool in which the cached entry is not visible to them." },
+      { "key": "C", "text": "The rules prefix is edited between closes, so mid-month requests carry content that no longer matches the cached entry." },
+      { "key": "D", "text": "Entries lapse after a period without use, so month-end traffic keeps one alive while mid-month gaps force a write." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The pattern tracks arrival rate exactly, which is the signature of a lifetime effect rather than a content one. Cached entries do not persist indefinitely; they expire after a period without use and their life is extended each time they are read. Month-end traffic arrives often enough to keep the entry continuously alive, so nearly every request is a read. Mid-month, the gaps between requests exceed the entry's life, so each request finds nothing to match, pays a write, and is gone before the next one arrives — which costs more than not caching at all.",
+      "distractors": {
+        "A": "Cacheability does not depend on how busy the account is. If size were the obstacle, month-end would not be seeing a benefit on the identical prefix.",
+        "B": "There is no client-visible pool routing that would make an entry appear and disappear on a monthly rhythm. This explanation predicts a random pattern, not one that follows the firm's calendar.",
+        "C": "Worth ruling out, and easy to check from version history — but an editing schedule would not produce costs that track the gap between requests. The stem's own description of arrival rates is the better-fitting explanation."
+      },
+      "concept": "Prompt caching pays only when the interval between requests against a prefix is shorter than an entry's life. Bursty or sparse workloads can be net worse off, because a write costs more than an ordinary read. Evaluate caching against the arrival-rate distribution, not against average volume.",
+      "tip": "When caching helps in one period and hurts in another with the same prompt, the variable is time between requests. Look for the phrase describing how often calls arrive — it is the whole item."
+    }
+  },
+  {
+    "id": "INT-C-058",
+    "domain": "Integration",
+    "topic": "Responsibilities of a gateway that proxies streams",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A platform team is building a gateway that proxies streamed Claude responses to browser clients and also writes an interaction record used for evaluation and audit. Which THREE responsibilities belong to that gateway? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "Forward events onward without buffering them, so incremental delivery survives the extra network hop." },
+      { "key": "B", "text": "Assemble the deltas and write one interaction record carrying the final text, the stop reason and the token usage." },
+      { "key": "C", "text": "Hold the response until generation completes before forwarding, so browser clients receive events in a guaranteed order." },
+      { "key": "D", "text": "Propagate a browser disconnect back upstream as a cancellation of the in-flight generation request." },
+      { "key": "E", "text": "Write each delta as its own record, so the evaluation store retains maximum fidelity about the response." }
+    ],
+    "correct": ["A", "B", "D"],
+    "explanation": {
+      "correct": "A gateway in a streaming path has to be transparent in one direction and authoritative in the other. Transparency means forwarding events as they arrive — a buffering hop silently undoes streaming for every client behind it — and passing a downstream disconnect back upstream so abandoned generations stop rather than running to completion at the platform's expense. Being authoritative means the gateway is the natural place to assemble the fragments into the single logical interaction that evaluation and audit consumers actually need, complete with the stop reason and usage that only arrive at the end.",
+      "distractors": {
+        "C": "Events already arrive in order over one connection; ordering is not the problem being solved. Holding the response converts a stream into a single delivery, which is the exact defect a streaming gateway must avoid.",
+        "E": "Delta-level records multiply storage by the token count and produce a store that no evaluation harness can read without reassembling everything first. Fidelity about the interaction lives in the assembled message plus its stop reason and usage."
+      },
+      "concept": "An intermediary in a streaming path must preserve two end-to-end properties — incremental delivery and cancellation — while translating the wire protocol into the logical unit that downstream systems consume. Log the assembled message, not the transport fragments, and remember that the terminating events carry the metadata worth recording.",
+      "tip": "Split the options by direction: what must flow through untouched, and what must be reconstructed for storage. Anything that buffers the flow or stores raw fragments is on the wrong side of that split."
+    }
+  },
+  {
+    "id": "INT-C-059",
+    "domain": "Integration",
+    "topic": "Cost attribution from reported usage rather than estimates",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An internal platform charges eleven teams for their Claude usage. It estimates each team's cost by counting the tokens in the request it assembled and applying a rate card. Finance reports that the sum of internal charges has drifted several percent from the actual invoice for three months running, always in the same direction, and the drift widened after prompt caching was rolled out to two of the teams.",
+    "options": [
+      { "key": "A", "text": "Recalibrate the internal rate card against the invoice each month so that the eleven teams' totals reconcile." },
+      { "key": "B", "text": "Attribute from the usage reported on each response, including its cache read and write split, keyed by correlation id." },
+      { "key": "C", "text": "Charge teams by request count instead of tokens, since token estimates cannot be made reliable enough for chargeback." },
+      { "key": "D", "text": "Count tokens with the dedicated counting endpoint before sending, so the estimate matches exactly what the model receives." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The estimate is built from the input the platform assembled, so it cannot see output tokens or the split between cached reads and cache writes — which is precisely why the drift widened when caching arrived for two teams. The response already reports what was actually consumed on every dimension. Attributing from that, keyed by correlation identifier, makes each team's charge match reality, and it also makes the cache breakdown visible to the teams who can act on it.",
+      "distractors": {
+        "A": "Scaling a rate card makes the total reconcile while leaving every individual team's share wrong, and wrong in different directions — the two caching teams are mis-estimated differently from the rest. It hides the defect inside a fudge factor.",
+        "C": "Request count ignores the largest source of variation between these workloads and removes the only signal a team can optimise against. It replaces an inaccurate measure with an unrelated one.",
+        "D": "Pre-flight counting is accurate for input and is the right tool for admission control, but it says nothing about output tokens or cache behaviour, which is where this drift originates. It would improve one term in a calculation whose other terms are missing."
+      },
+      "concept": "Attribute cost from reported usage, never from an estimate of what you sent. Response usage covers input, output and the cache read and write split; a client-side count covers input only. Tie the record to a correlation identifier so cost can be aggregated by team, feature and request path.",
+      "tip": "When the stem says the drift is always in the same direction, it is telling you a term is missing rather than noisy. Ask which components of the bill the current method cannot see."
+    }
+  },
+  {
+    "id": "INT-C-060",
+    "domain": "Integration",
+    "topic": "Branching a conversation after an edited earlier turn",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A design-software vendor's assistant lets a user go back, edit a question they asked five turns ago, and regenerate from there. The implementation edits the stored message in place, keeps the six turns that followed, and resends the whole transcript. Users report the assistant now contradicts itself and refers to answers that no longer make sense. Cost per regeneration has also jumped noticeably.",
+    "options": [
+      { "key": "A", "text": "Fork at the edited turn: discard everything after it, regenerate forward, and keep the original as a stored branch." },
+      { "key": "B", "text": "Keep the following turns but prepend a note to the transcript explaining that the earlier question was revised by the user." },
+      { "key": "C", "text": "Regenerate only the reply that immediately followed the edited turn, leaving the five later turns untouched." },
+      { "key": "D", "text": "Disallow editing of earlier turns and require the user to ask the corrected question as a new turn instead." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Every turn after the edit was produced conditioned on the original question, so keeping them leaves the transcript internally inconsistent — which is exactly the contradictions users are reporting. A conversation is a causal chain, and editing a link invalidates everything downstream of it. Forking discards the invalidated tail, regenerates from a coherent state, and preserves the original as a separate branch so nothing the user saw is lost. It also explains the cost: the current design was replaying six now-irrelevant turns on top of a prefix that diverges at the edit anyway.",
+      "distractors": {
+        "B": "The contradictory content is still in the context the model reads and still in the record the user sees. A note asks the model and the reader to mentally discount material that should not be there.",
+        "C": "The turns after that reply were conditioned on it as well, so regenerating one link leaves the remaining five inconsistent with the new answer. This narrows the corruption without removing it.",
+        "D": "Removing the feature is a product regression rather than a fix, and it does nothing for conversations already stored in an inconsistent state. The capability is sound; only the state transition is wrong."
+      },
+      "concept": "Treat a conversation as an append-only causal chain. Editing any turn invalidates every turn after it, so the correct state transition is a fork: truncate at the edit, regenerate forward, and keep the prior branch as a version. This also keeps the cached prefix meaningful, since divergence starts at the edit point either way.",
+      "tip": "'Refers to answers that no longer make sense' is a causality symptom, not a prompting one. Whenever a stem describes retroactive edits to history, the answer involves discarding what came after."
+    }
+  },
+  {
+    "id": "INT-C-061",
+    "domain": "Integration",
+    "topic": "Tripping a circuit breaker during sustained overload",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A parcel carrier's address-normalisation service calls Claude synchronously and has a well-tested rules-based fallback. For the past four minutes the dependency has returned overload errors. The retry helper backs off correctly with jitter, but every worker thread is now asleep inside a backoff wait, the inbound queue is growing, and health checks are beginning to fail — so the carrier is minutes away from losing a service that could be running on its fallback right now. What should be done next?",
+    "options": [
+      { "key": "A", "text": "Increase the worker thread pool so healthy requests are not blocked behind the threads asleep in backoff." },
+      { "key": "B", "text": "Shorten the backoff intervals so threads are released sooner and reach the rules-based fallback faster." },
+      { "key": "C", "text": "Reduce the retry budget to a single attempt so failures surface faster, keeping the call path otherwise unchanged." },
+      { "key": "D", "text": "Trip a circuit breaker: fail fast to the rules-based fallback, and probe periodically with a single request." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Four minutes of sustained overload is no longer a transient blip, and retry is the wrong response to a dependency that is down: it holds threads, grows the queue, and adds load to something already struggling. A breaker changes the question from 'how do we keep trying' to 'stop trying and use the alternative'. New requests get the fallback immediately, threads are freed, the queue drains, health checks recover, and a single periodic probe restores normal operation as soon as the dependency does — without a thundering reconnection from the whole fleet.",
+      "distractors": {
+        "A": "More threads means more threads asleep in backoff. The resource under pressure is not concurrency, it is the fact that every request is waiting on a dependency that is not answering.",
+        "B": "Shortening backoff during an overload increases the request rate against a saturated dependency, which is the behaviour that prolongs incidents. It also keeps every request on the failing path rather than moving it to the fallback.",
+        "C": "This is a real improvement over the current budget and still leaves each request attempting the dead dependency, paying connection and response time before falling back. Under load that residual cost is what keeps the queue growing."
+      },
+      "concept": "Retry handles transient failure; a circuit breaker handles sustained failure. Once errors persist beyond a threshold, stop calling the dependency, serve the fallback, and probe with a single request before closing. Without a breaker, correct backoff still converts a dependency outage into an outage of your own service.",
+      "tip": "'All threads asleep in backoff' is the signature of retry applied to a sustained failure. When a stem also mentions a working fallback, it has already told you the answer is to stop calling and switch."
+    }
+  },
+  {
+    "id": "INT-C-062",
+    "domain": "Integration",
+    "topic": "Per-tenant fairness against a shared account allowance",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A B2B analytics vendor serves 60 customers through one organisation account. Yesterday one customer's overnight backfill consumed the account's throughput for 90 minutes and the other 59 saw rejections and stalled interactive dashboards. The vendor's contracts promise interactive availability to every customer and say nothing about relative priority. Customers are distributed across many time zones, so there is no shared quiet window.",
+    "options": [
+      { "key": "A", "text": "Give every customer's interactive traffic a dedicated worker pool so it is never queued behind another customer's backfill." },
+      { "key": "B", "text": "Enforce per-tenant admission quotas on the shared allowance, with a bounded overflow pool and backfills in a lower class." },
+      { "key": "C", "text": "Detect the offending tenant during an incident and pause that customer's traffic manually until dashboards recover." },
+      { "key": "D", "text": "Ask all 60 customers to schedule backfills outside their local business hours and monitor for compliance." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The scarce resource is one account-level allowance, so fairness has to be allocated at the point where that allowance is consumed. Per-tenant quotas guarantee each customer a floor that no other customer's job can take, which is what turns the contractual promise into something enforceable. The bounded overflow pool keeps utilisation high when tenants are idle without letting one job absorb everything, and putting backfills in a lower-priority class encodes the distinction the incident revealed: bulk work should yield to interactive work.",
+      "distractors": {
+        "A": "Worker pools allocate the vendor's own compute, not the upstream allowance. Sixty isolated pools all issuing requests still contend for one ceiling, and every pool sees the same rejections.",
+        "C": "Manual intervention needs a human to notice, diagnose and act while dashboards are already down, and it scales with incident frequency rather than preventing recurrence. It is an incident response, not a control.",
+        "D": "This depends on 60 customers cooperating with no enforcement, and the stem removes the premise anyway — with customers spread across time zones there is no window that is quiet for everyone."
+      },
+      "concept": "When many tenants share one upstream allowance, isolation must be enforced at admission to that allowance: per-tenant quotas for a guaranteed floor, a bounded shared pool for efficiency, and workload classes so bulk work yields to interactive work. Local concurrency controls cannot allocate a resource they do not own.",
+      "tip": "Ask where the contended resource actually lives. If it is upstream of your process, every answer about local pools, threads or instances is addressing the wrong layer."
+    }
+  },
+  {
+    "id": "INT-C-063",
+    "domain": "Integration",
+    "topic": "True statements about prompt-caching economics",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "Which TWO statements about the economics of prompt caching are correct? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Caching reduces the cost of the generated output as well as the cost of processing the cached prefix." },
+      { "key": "B", "text": "Writing an entry costs more than processing the same content as input, so reads must repay the write." },
+      { "key": "C", "text": "Caching reduces the number of tokens the cached prefix occupies in the model's context window." },
+      { "key": "D", "text": "The saving scales with both the size of the invariant prefix and the ratio of reads to writes against it." },
+      { "key": "E", "text": "Enabling caching cannot make a workload more expensive than leaving the feature switched off." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "Caching is an investment with a payback period. Establishing an entry costs more than simply processing that content once, and each subsequent read costs far less, so the position is only favourable once enough reads accumulate against a write. That is also why the size of the invariant prefix and the read-to-write ratio are the two variables that determine the size of the win: a large prefix read many times is the ideal case, and either factor collapsing takes the benefit with it.",
+      "distractors": {
+        "A": "Caching acts on input processing only. Generated tokens are produced fresh on every request and are unaffected, which is why caching does little for workloads dominated by long outputs.",
+        "C": "Cost and window occupancy are separate accounts. A cached prefix is cheaper to process and occupies exactly as much of the window as it did before, so caching never buys context headroom.",
+        "E": "This is precisely the case that catches teams out. Fragmented prompt variants, sparse traffic, or a volatile value inside the prefix produce writes that are never repaid, and the workload ends up costing more than it did with caching off."
+      },
+      "concept": "Model caching as write cost plus read cost times reads, against the uncached baseline. It pays when the invariant prefix is large and the read-to-write ratio is high; it loses when traffic is fragmented across variants, sparse relative to entry lifetime, or when volatile content sits inside the prefix.",
+      "tip": "The 'cannot be more expensive' option is the one to watch. Any mechanism with an up-front cost can lose money at low utilisation, and caching is no exception."
+    }
+  },
+  {
+    "id": "INT-C-064",
+    "domain": "Integration",
+    "topic": "Budgeting cost per conversation rather than per request",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A telco's support-deflection assistant carries an internal target for cost per resolved conversation. The team monitors mean input tokens per request, which is stable and comfortably inside target. Finance reports that cost per conversation is close to double the target on conversations running past eight turns; those are about 15% of traffic but account for a much larger share of total spend. The assistant replays the full transcript on every turn.",
+    "options": [
+      { "key": "A", "text": "Reduce mean input tokens per request further by shortening the system prompt and its worked examples." },
+      { "key": "B", "text": "Cap conversations at eight turns and hand the customer to a human support agent at that point." },
+      { "key": "C", "text": "Budget per conversation rather than per request, and trim or summarise older turns past a threshold." },
+      { "key": "D", "text": "Track the p99 of cost per request instead of the mean and use that as the team's planning figure." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Replaying the transcript means turn eight sends roughly eight turns of history, so cumulative input across a conversation grows with the square of its length while the per-request mean — dominated by the 85% of conversations that are short — stays flat and reassuring. The unit of account is simply wrong: the target is per conversation, so the budget must be enforced per conversation. Once it is, the remedy follows naturally, because trimming or summarising older turns past a threshold is what bends the quadratic back toward linear.",
+      "distractors": {
+        "A": "The system prompt is a fixed component that is already inside target, and shortening it helps short and long conversations equally. It cannot touch the growth term that produces the overrun.",
+        "B": "A hard cap controls spend by abandoning the deflection at the point where it is most needed, pushing the conversation to an agent who costs far more than the tokens saved. It optimises the wrong total.",
+        "D": "A better statistic on the wrong unit is still the wrong unit. Tracking the request-level tail would make the problem visible without changing anything about how the cost accumulates."
+      },
+      "concept": "For multi-turn systems, measure and budget on the unit the business cares about — the conversation, the case, the task — not the request. Replayed history makes cumulative cost superlinear in turn count, so a healthy per-request mean is entirely consistent with a badly overrunning per-task cost.",
+      "tip": "When a stem gives you a per-request metric that looks fine and a per-outcome metric that does not, the item is about the unit of measurement. Look for the option that changes what is being counted."
+    }
+  },
+  {
+    "id": "INT-C-065",
+    "domain": "Integration",
+    "topic": "What makes an operation idempotent",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In a pipeline that may retry, what makes an operation idempotent?",
+    "options": [
+      { "key": "A", "text": "It produces the same output for the same input on every execution." },
+      { "key": "B", "text": "It can be executed concurrently by several workers without locking." },
+      { "key": "C", "text": "It completes within a bounded time, so a retry is never required." },
+      { "key": "D", "text": "Performing it more than once has the same effect as performing it once." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Idempotence is a property of effect, not of output. An operation qualifies when a replay leaves the system in the state it would have reached from a single execution — a second identical write collapses into the first, a second refund with the same key posts nothing. That is precisely what makes at-least-once delivery safe, which is why every retrying pipeline needs it somewhere in the path.",
+      "distractors": {
+        "A": "This is determinism, and the two are routinely confused. A generation call is non-deterministic yet perfectly idempotent because it changes no state; a write that appends a row is deterministic and not idempotent at all.",
+        "B": "Concurrency safety is a separate property. An operation can be idempotent while still requiring serialisation, and a lock-free operation can happily duplicate its effect on every replay.",
+        "C": "Bounded execution time reduces the chance of an ambiguous outcome without eliminating retries, which also arise from restarts, redelivery and manual reissue. It describes latency, not replay safety."
+      },
+      "concept": "Idempotence concerns effect on state under repetition. Read-only calls are idempotent by construction; state-changing calls become idempotent only when a caller-supplied key lets the receiver recognise and collapse a replay. Determinism is neither necessary nor sufficient for it.",
+      "tip": "The determinism option is the standard trap on this topic, and it matters more with a probabilistic model in the path. Anchor on the word 'effect' and it resolves immediately."
+    }
+  },
+  {
+    "id": "INT-C-066",
+    "domain": "Integration",
+    "topic": "Recording a generation cancelled mid-stream",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "After a change that cancels the upstream request whenever a reader disconnects, a research tool now produces a steady stream of partial generations. The team must decide what to record. Stored conversations are used for three things: resuming a session later, sampling quality, and supplying candidate cases to the evaluation set.",
+    "options": [
+      { "key": "A", "text": "Persist the partial flagged as incomplete with its cancellation reason, and keep it out of resume and sampling." },
+      { "key": "B", "text": "Persist the partial as the assistant's turn, since it is genuinely what the model produced before the request ended." },
+      { "key": "C", "text": "Discard cancelled generations entirely, since a partial answer carries no analytical or evaluation value." },
+      { "key": "D", "text": "Persist the partial and re-run the request offline to completion, so the stored record always holds a finished answer." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Each of the three consumers needs something different, and one flag serves all of them. Marking the record incomplete keeps a truncated answer out of resume context, where it would otherwise be replayed as the assistant's settled position. It keeps fragments out of quality sampling and evaluation, where they would be scored as if they were answers. And retaining the text with the cancellation reason preserves the abandonment signal, which is the most useful thing this data says about the product.",
+      "distractors": {
+        "B": "An unmarked partial is indistinguishable from a complete reply to every downstream consumer, so the session resumes on a truncated answer and the evaluation set silently fills with fragments. The content is real; recording it without its status is what causes the harm.",
+        "C": "Cancellations tell you where readers give up, which is exactly the signal worth keeping. Deleting them removes the evidence for the change that produced them.",
+        "D": "Completing the answer offline records something the user never saw, so the transcript stops being an account of the interaction, and it pays for output that was cancelled precisely because nobody wanted it."
+      },
+      "concept": "Partial output is data with a status, not data to be silently promoted or thrown away. Record it with an explicit completion state and reason, and make every consumer — resume context, evaluation sampling, audit — filter on that state. Completeness must be a queryable field, never an assumption.",
+      "tip": "When a stem lists several consumers of one store, the answer usually satisfies all of them with metadata rather than picking a winner among them."
+    }
+  },
+  {
+    "id": "INT-C-067",
+    "domain": "Integration",
+    "topic": "Cold-prefix requests dominating a p99 latency SLO",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A pharmacy chain's clinical-check assistant sends a 25,000-token invariant prefix behind a cache breakpoint. Its p50 time-to-first-token is 350ms and the team is pleased with it. The SLO signed with the business is on p99, which sits at 4.1 seconds. Investigation shows the slow requests are those arriving after a quiet period, when the prefix must be written rather than read. Traffic is spiky: busy weekday mornings, sparse evenings and weekends.",
+    "options": [
+      { "key": "A", "text": "Report the p50 to the business, since the median reflects what the overwhelming majority of requests actually experience." },
+      { "key": "B", "text": "Add a further cache breakpoint so more of the 25,000-token prefix is covered when a request arrives cold." },
+      { "key": "C", "text": "Treat the cold-prefix path as the one the SLO measures: shrink the prefix so a miss is affordable, and warm it if cheap." },
+      { "key": "D", "text": "Renegotiate the agreed p99 SLO up to 4.5 seconds so the current measured behaviour is compliant." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "A p99 SLO is a commitment about the worst experiences, and here those are structurally identifiable rather than random: they are the requests that must write the prefix. That reframes the problem, because optimising the warm path cannot move a percentile that is entirely populated by cold ones. The cold request has to become affordable, which means reducing the work it cannot avoid. Warming is the alternative lever and is a genuine trade rather than a free win — synthetic traffic through sparse evenings and weekends has a real cost that must be weighed against the latency it purchases.",
+      "distractors": {
+        "A": "The business agreed a p99, and substituting a median is a reporting failure rather than an engineering answer. It also conceals a real effect: the users hitting 4.1 seconds are disproportionately the first ones each morning.",
+        "B": "On a cold request there is nothing cached to read, so no arrangement of breakpoints helps. Additional markers change what is reused on warm requests, which are already meeting the target comfortably.",
+        "D": "Renegotiating the commitment before attempting the fix spends credibility on a problem with available remedies, and it sets the SLO at the current failure level rather than at what the business needs."
+      },
+      "concept": "Caching creates a bimodal latency distribution, so the percentile an SLO targets determines which mode you must engineer. Warm-path optimisation moves the median; only reducing cold-path work, or ensuring requests are rarely cold, moves the tail. Warming is a cost decision, not a default.",
+      "tip": "When p50 and p99 diverge sharply and the stem explains why, resist any option that improves the good path. Identify which population fills the percentile named in the SLO and act on that one."
+    }
+  },
+  {
+    "id": "INT-C-068",
+    "domain": "Integration",
+    "topic": "Reducing the tokens a request occupies in the window",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A team must reduce the number of tokens each request occupies in the model's context window, because long conversations in their product are approaching the limit and beginning to fail. Which TWO changes achieve that? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Trim or summarise the oldest turns so they are no longer replayed in full on every request." },
+      { "key": "B", "text": "Enable prompt caching on the invariant prefix so that it does not have to be reprocessed on each request." },
+      { "key": "C", "text": "Move rarely-consulted reference material out of the request and load it only when a query needs it." },
+      { "key": "D", "text": "Stream the response incrementally rather than returning the whole thing in a single body." },
+      { "key": "E", "text": "Raise the output allowance so that long answers in this product are never truncated." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "Window occupancy is determined solely by how much content the request carries, so only changes that remove content help. Trimming or summarising old turns attacks the term that grows — replayed history — which is why the failures appear on long conversations specifically. Moving rarely-needed reference material to just-in-time loading removes a fixed block from every request, buying headroom for the history to grow into. Both reduce what the model is asked to read.",
+      "distractors": {
+        "B": "Caching changes how a prefix is processed and billed, not whether the model must read it. A cached prefix occupies exactly the same window as an uncached one, which is why caching never resolves a context-limit problem.",
+        "D": "Streaming affects delivery of the output and has no bearing on how much input the request carries. The same content is sent either way.",
+        "E": "The reservation for output shares the window with the input, so raising the allowance consumes more of the budget rather than less. It moves the failure closer, not further away."
+      },
+      "concept": "Window occupancy, cost and latency are three separate accounts, and a change can improve one while leaving the others untouched. Only removing content reduces occupancy: trim history, summarise, load reference material just in time, and reduce the reserved output allowance. Caching and transport choices credit the other accounts.",
+      "tip": "The caching option is the reliable trap in any window-budget item. Ask whether the model still has to read the tokens — if it does, they still count."
+    }
+  },
+  {
+    "id": "INT-C-069",
+    "domain": "Integration",
+    "topic": "What the Batch API principally trades away",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Compared with the realtime endpoint, what does the Batch API principally trade away?",
+    "options": [
+      { "key": "A", "text": "The ability to use tools or to request structured output inside a batched request." },
+      { "key": "B", "text": "Predictable per-request latency, in exchange for better throughput and unit economics on bulk work." },
+      { "key": "C", "text": "Visibility of per-request token usage, since accounting is reported only for the whole job." },
+      { "key": "D", "text": "Access to the higher-capability model tiers, which remain available only on the realtime path." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The batch trade is latency for economics and throughput. Requests are submitted asynchronously and collected when the job completes, so no individual result has a predictable arrival time — which is exactly why the path suits backfills, offline classification and eval sweeps, and rules itself out wherever a caller is waiting. Everything else about how a request is expressed and accounted for stays essentially familiar.",
+      "distractors": {
+        "A": "The way a request is composed does not change with the transport, so this would be a capability restriction rather than a latency trade. Believing it leads teams to rewrite prompts unnecessarily before batching.",
+        "C": "Losing per-request accounting would make chargeback and cost analysis impossible for the largest workloads an organisation runs, which is the opposite of what bulk processing needs.",
+        "D": "Tier availability is not what distinguishes the paths. Assuming a capability gap leads to the wrong architecture, with teams keeping expensive work on the interactive path for no reason."
+      },
+      "concept": "Batch is a scheduling decision, not a capability decision. It exchanges per-request latency predictability for throughput and better economics on high volumes of independent requests. Reach for it when nobody is waiting, and rule it out the moment a synchronous caller appears anywhere in the path.",
+      "tip": "For 'what does X trade away' items, name the single axis the mechanism moves. Batch moves latency; distractors that invent capability restrictions are usually wrong."
+    }
+  },
+  {
+    "id": "INT-C-070",
+    "domain": "Integration",
+    "topic": "Which content belongs ahead of the first breakpoint",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "An architect is laying out a request for maximum cache reuse. It contains: a tool list that is identical for all callers, invariant system instructions, a large reference corpus identical for all callers, the caller's current question, and a timestamp rendered per request. Which THREE should sit ahead of the first cache breakpoint? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "The tool list, which is identical for every caller." },
+      { "key": "B", "text": "The invariant system instructions and refusal rules." },
+      { "key": "C", "text": "The caller's current question, exactly as typed this turn." },
+      { "key": "D", "text": "The timestamp that is rendered fresh on each request." },
+      { "key": "E", "text": "The large reference corpus, identical for all callers." }
+    ],
+    "correct": ["A", "B", "E"],
+    "explanation": {
+      "correct": "The test for the cached span is simple: is this content byte-identical across the requests you want to share an entry? The tool list, the system instructions and the reference corpus all qualify, and the corpus in particular is where nearly all the benefit lies because it is both large and invariant. Ordering them ahead of the marker in that structural sequence gives every caller the same prefix, so the entry is read continuously rather than rewritten.",
+      "distractors": {
+        "C": "The question is unique to each request, so including it in the cached span means the prefix differs on every call. Nothing before the marker could ever match, and every request would pay a write it never recovers.",
+        "D": "A per-request timestamp is the smallest and most destructive thing that can be placed inside a prefix: a handful of tokens invalidates everything ahead of the marker, so the cost of the mistake is proportional to the prefix size rather than to the change."
+      },
+      "concept": "Everything before a breakpoint must be invariant across the requests intended to share the entry. Order by stability — tools, system instructions, large shared corpora, then the breakpoint, then per-request content. Cost is driven by the size of the span you invalidate, not by the size of the change that invalidates it.",
+      "tip": "Sort the listed items by 'does this differ between two callers or two seconds apart?' before reading the question again. Everything that differs goes after the marker, however small it is."
+    }
+  },
+  {
+    "id": "INT-C-071",
+    "domain": "Integration",
+    "topic": "Streaming for a machine consumer that needs a whole document",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A logistics integrator enabled streaming across every Claude endpoint 'for consistency'. One endpoint is consumed by a downstream service that parses the complete JSON response and cannot act on anything partial. There is no human in that path, no requirement to cancel, and the calls complete in around two seconds. The consumer now carries delta-accumulation logic, and two production defects have already been traced to it.",
+    "options": [
+      { "key": "A", "text": "Move the delta-accumulation logic into a shared library so the defect class is fixed once for every consumer." },
+      { "key": "B", "text": "Keep streaming and enforce an inter-event timeout, since the defects most likely stem from stalled-stream handling." },
+      { "key": "C", "text": "Keep streaming but lower the output allowance so each JSON response arrives in fewer, larger deltas." },
+      { "key": "D", "text": "Turn streaming off for this endpoint: with no waiting human and a two-second call, it only adds failure surface." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Streaming buys perceived latency, early cancellation and progress visibility on long calls. The stem removes all three: no human, no cancellation need, and a two-second duration where liveness detection is worth little. What remains is reassembly code in a consumer that immediately discards the incremental property by waiting for the whole document anyway — pure added surface, and the defect count is the evidence. Uniformity is a reasonable instinct that has been applied to the wrong axis here.",
+      "distractors": {
+        "A": "A shared library reduces the chance of writing the bug twice without removing the need for the code at all. It industrialises complexity that this endpoint has no reason to carry.",
+        "B": "An inter-event timeout is a good practice on long streams, and on a two-second call it addresses a marginal risk while leaving the accumulation logic — the actual source of both defects — exactly where it is.",
+        "C": "A smaller allowance would truncate legitimate responses to reduce event count, trading correctness for a property that brings the consumer no benefit even when it works."
+      },
+      "concept": "Choose streaming per endpoint from its consumer, not as a house style. It earns its complexity when a human is waiting, when early cancellation matters, or when a long call needs a liveness signal. For a short machine-to-machine call whose consumer needs the whole document, it is added failure surface.",
+      "tip": "When a stem carefully negates each of a mechanism's benefits — no human, no cancellation, short call — it is telling you the mechanism has no justification left. Consistency is not a benefit."
+    }
+  },
+  {
+    "id": "INT-C-072",
+    "domain": "Integration",
+    "topic": "Non-deterministic serialisation breaking prefix reuse",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "An agritech platform's yield-advice assistant saw its cache hit rate fall from around 90% to roughly 15% after a refactor, with no change to the system prompt or the reference corpus. Latency and cost have both regressed. Reviewing the diff, the team finds that tool definitions are assembled at request time from a registry, and the refactor replaced an explicit ordered list with iteration over a hash map. What should the team do next?",
+    "options": [
+      { "key": "A", "text": "Move the tool definitions to sit after the cache breakpoint so their ordering no longer affects the cached prefix." },
+      { "key": "B", "text": "Serialise the tool list with a fixed explicit order and stable fields, and test that the prefix is byte-identical across runs." },
+      { "key": "C", "text": "Reduce the number of registered tools so there are fewer orderings the assembler can produce from the registry." },
+      { "key": "D", "text": "Add a cache breakpoint immediately after the tool list so that it is cached separately from the system prompt." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Prefix matching is on exact bytes, so a tool list whose order varies between processes produces a different prefix on most requests even though the semantic content is identical — which is precisely a hit rate collapsing to near the chance of two runs agreeing. Restoring a deterministic serialisation restores the prefix. The test matters as much as the fix: prefix stability is an invariant that nothing in the type system or the unit tests protects, so without an explicit assertion the next refactor reintroduces it silently.",
+      "distractors": {
+        "A": "Tool definitions occupy a fixed structural position ahead of the system content, so they cannot be relocated behind the message-level breakpoint. Even if they could, an unstable serialisation would still vary the request.",
+        "C": "A hash-ordered list of three tools is still unstably ordered. This reduces the number of permutations without making any two requests agree, while giving up capability for nothing.",
+        "D": "An extra breakpoint changes where the cached span ends, not whether its bytes are stable. Every request would still assemble a different tool list and still write a fresh entry."
+      },
+      "concept": "Prefix reuse depends on byte-stable serialisation of everything ahead of the breakpoint, which makes it a property of your assembly code rather than of your prompt. Order collections explicitly, fix field ordering, and assert prefix stability in tests — unordered iteration is the most common way a refactor silently destroys a cache.",
+      "tip": "'Hit rate fell after a refactor with no prompt change' means the bytes moved even though the content did not. Look for anything assembled from a set, map or dictionary in the request-building path."
+    }
+  }
+]

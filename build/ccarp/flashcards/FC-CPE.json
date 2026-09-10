@@ -1,0 +1,182 @@
+[
+  {
+    "id": "FC-CPE-001",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Choosing a tier per subtask rather than per system",
+    "difficulty": "easy",
+    "front": "Your pipeline classifies, retrieves, synthesises, and formats. Why is \"we standardised on Opus\" the wrong shape of answer?",
+    "back": "Tier is a per-step decision. Classification and formatting are usually cheap, high-volume and latency-sensitive, and well within Haiku's reach; synthesis over conflicting sources may genuinely need Opus. Mixing tiers inside one system spends capability where it changes the outcome and buys speed everywhere else.",
+    "hook": "When a stem describes a multi-step pipeline and offers one model for the whole thing, the mixed-tier option is usually right — provided each step has its own eval."
+  },
+  {
+    "id": "FC-CPE-002",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Evidence required before downgrading a production step",
+    "difficulty": "medium",
+    "front": "What evidence actually justifies downgrading a production step from a higher-capability tier to a cheaper one?",
+    "back": "A task-specific eval showing the cheaper tier clears the same threshold on the same held-out set; a shadow or canary run on live traffic confirming it; and a quality gate plus rollback wired up before the switch. Cost saving is the motive, but the eval is the permission.",
+    "hook": "Downgrade stems test sequencing: gate first, switch second. Any option that switches then monitors, or that reasons from published benchmark rankings, is the trap."
+  },
+  {
+    "id": "FC-CPE-003",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "When an extended thinking budget pays for itself",
+    "difficulty": "medium",
+    "front": "On which kinds of task does spending an extended thinking budget pay for itself, and where is it purely added latency and cost?",
+    "back": "It pays where there are genuine intermediate steps: multi-constraint analysis, planning, debugging, mathematics, ambiguity that must be resolved before answering, self-correction. It does not pay on extraction, classification, formatting, or grounded lookup, where the answer is already present in the input and reasoning only adds tokens and time.",
+    "hook": "Extended-thinking stems usually bury a latency budget. Match the reasoning budget to whether the task has intermediate steps at all, not to how important the task feels."
+  },
+  {
+    "id": "FC-CPE-004",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Extended thinking versus prompted chain-of-thought",
+    "difficulty": "hard",
+    "front": "How does extended thinking differ from writing \"think step by step\" into the prompt, and should you stack both?",
+    "back": "Prompted chain-of-thought emits reasoning as ordinary output tokens inside the response you then have to parse around. Extended thinking is a separate budgeted reasoning phase preceding the answer. Layering a heavy CoT scaffold on top duplicates the work and can push reasoning into the output you meant to consume — pick one mechanism per call.",
+    "hook": "Watch for a team that enabled extended thinking and kept a verbose CoT scaffold, then complains about latency or messy output. The fix simplifies the prompt, not the budget."
+  },
+  {
+    "id": "FC-CPE-005",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Model version pinning and planned migration",
+    "difficulty": "medium",
+    "front": "Why does pinning a specific model version matter far more for a regulated workload than for an internal prototype?",
+    "back": "Pinning makes behaviour attributable: your eval scores belong to a known configuration and a past decision can be explained. Migration then becomes a deliberate event — score the new version on the same eval set, diff the behaviour, canary it, record the decision — rather than an undated shift nobody can reconstruct.",
+    "hook": "A reproduce-any-decision-for-N-years requirement implies pinning plus logging the model and prompt version alongside each request, not merely logging the output."
+  },
+  {
+    "id": "FC-CPE-006",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Public benchmarks versus a task-specific eval",
+    "difficulty": "hard",
+    "front": "A model-selection paper leans entirely on published benchmark scores. Why is that weak evidence for your decision?",
+    "back": "Benchmarks measure aggregate performance on generic tasks that are not your task, your prompt, your corpus, or your tolerance for a specific failure mode. Rankings can invert on a narrow domain workload. Use benchmarks only to shortlist candidates, then decide on a small eval built from your own representative traffic.",
+    "hook": "Any option that settles a model-selection question by citing a benchmark ranking is wrong. The right one runs the shortlisted candidates against an internal eval set."
+  },
+  {
+    "id": "FC-CPE-007",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "System prompt versus turn placement",
+    "difficulty": "easy",
+    "front": "For a high-volume production call, what belongs in the system prompt and what belongs in the user turn?",
+    "back": "Stable, request-invariant material goes in the system prompt: role, task definition, rules, output contract, fixed examples. Per-request material goes in the turn: the document, the query, the retrieved context. Keeping the stable block first and byte-identical across requests is also what makes it reusable rather than re-sent work.",
+    "hook": "Stems where per-request data has drifted into the system prompt are telling you the boundary is wrong, and usually that caching efficiency or maintainability is the consequence tested."
+  },
+  {
+    "id": "FC-CPE-008",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "XML-style delimiters in long prompts",
+    "difficulty": "medium",
+    "front": "Why do XML-style tags around prompt sections buy more reliability than plain paragraph headings in a long prompt?",
+    "back": "They give unambiguous boundaries between instructions, context, examples and data, so retrieved content is less likely to be read as instruction, and so a later part of the prompt can reference a section by name. They also make the prompt programmatically assemblable and diffable across versions.",
+    "hook": "The setup is a long prompt where instructions and pasted content blur. Delimiters also serve as a partial — not sufficient — defence against instruction-shaped text inside retrieved data."
+  },
+  {
+    "id": "FC-CPE-009",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Choosing few-shot example count and coverage",
+    "difficulty": "medium",
+    "front": "You have room for either three or thirty few-shot examples. What should actually decide the number?",
+    "back": "Coverage of the decision boundary, not volume. A handful spanning the distinct output shapes and the genuinely confusable edge cases beats many near-duplicates of the easy case. Add examples while the eval improves and stop at the plateau, because each one spends context and latency on every single call.",
+    "hook": "Few-shot stems reward reasoning about which cases are covered. Options prescribing a fixed count with no reference to eval movement or edge coverage are wrong."
+  },
+  {
+    "id": "FC-CPE-010",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "What assistant prefill can and cannot do",
+    "difficulty": "easy",
+    "front": "What does seeding the start of the assistant turn actually buy you, and what can it not fix?",
+    "back": "A prefill constrains the shape of what follows: forcing a JSON object open, suppressing a conversational preamble, locking a format. It steers form, not correctness — it will not turn a wrong answer right, and an over-aggressive prefill can force the model into a structure the content does not fit.",
+    "hook": "Prefill is offered as the cheap fix for chatty preambles and stray code fences. It is the right answer for format drift and never for an accuracy problem."
+  },
+  {
+    "id": "FC-CPE-011",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Enforcing output structure rather than requesting it",
+    "difficulty": "medium",
+    "front": "Your JSON parse fails on roughly one response in fifty. Do you prompt harder or change the mechanism?",
+    "back": "Change the mechanism. Tool- or schema-based structured output makes the format a constraint of the call rather than an instruction the model may drift from, which removes most parse failures outright. Keep validation and a repair path anyway, and log rejects — but do not answer a structural problem with stronger wording.",
+    "hook": "A stated malformed-output rate is the tell. The right answer moves format from instruction to enforcement; \"add emphatic formatting instructions\" is the distractor."
+  },
+  {
+    "id": "FC-CPE-012",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Resolving instruction conflicts across prompt layers",
+    "difficulty": "hard",
+    "front": "A system prompt, a retrieved policy document, and the user's message each imply a different tone. How do you make the resolution predictable?",
+    "back": "State the precedence explicitly in the system prompt — which source wins, and what to do when they disagree — instead of assuming it is inferred. Mark retrieved material as data rather than instruction. An unstated conflict resolves differently across requests, which surfaces in production as flakiness rather than as a design gap.",
+    "hook": "Intermittent, unreproducible behaviour differences between near-identical requests often trace to an unresolved instruction conflict, not to sampling temperature."
+  },
+  {
+    "id": "FC-CPE-013",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Converting prohibitions into positive instructions",
+    "difficulty": "easy",
+    "front": "Why does \"do not mention pricing\" underperform \"if asked about pricing, direct the user to the pricing page\"?",
+    "back": "A prohibition names the unwanted behaviour without supplying a replacement, so the model has to invent one, and it keeps the forbidden topic salient. A positive instruction gives a concrete action for that situation and is directly checkable in an eval. Rewrite each prohibition as the behaviour you want instead.",
+    "hook": "Prompt-debugging stems stuffed with \"never\" and \"do not\" clauses. The improvement rewrites them as actions to take, not more emphasis on the prohibition."
+  },
+  {
+    "id": "FC-CPE-014",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Prompts as versioned, gated artefacts",
+    "difficulty": "medium",
+    "front": "What does treating prompts as versioned code actually require, and what breaks in a team that does not?",
+    "back": "Prompts in source control with review, a version identifier logged on every request, an eval suite in CI that gates changes, and a rollback path. Without it a one-word edit ships untested, quality moves for reasons nobody can attribute, and you cannot say which prompt produced a decision now under investigation.",
+    "hook": "Stems where output quality changed and nobody can explain when or why, or where a change cannot be rolled back, are prompt-version-control questions."
+  },
+  {
+    "id": "FC-CPE-015",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Context window as a budget, not a target",
+    "difficulty": "easy",
+    "front": "The context window holds 200K tokens. Why is filling it the wrong default posture?",
+    "back": "It is a ceiling, not a target. Every added token costs latency and money on every call, and dilutes the signal: irrelevant material competes for attention with the material that matters. Budget context deliberately — each section should earn its place — rather than including everything that might conceivably help.",
+    "hook": "\"The window is large, so include everything\" is a distractor in both cost and accuracy stems. More context is a trade, never a free upgrade."
+  },
+  {
+    "id": "FC-CPE-016",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Context rot and silent long-input degradation",
+    "difficulty": "hard",
+    "front": "What is context rot, and why does it make a long-input failure unusually hard to diagnose?",
+    "back": "Retrieval and instruction-following degrade as input length grows, and unevenly — material buried in the middle of a very long input is used less reliably than material near the edges. Nothing raises an error; the model just misses or under-weights something. It reads as a prompt-quality problem, so teams add more text and worsen it.",
+    "hook": "Long-input stems where accuracy quietly falls as documents are appended: the answer reduces or restructures context. Strengthening the instruction is the wrong lever."
+  },
+  {
+    "id": "FC-CPE-017",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "What must survive compaction in a long-running agent",
+    "difficulty": "medium",
+    "front": "You are designing compaction for a long-running agent. What has to survive the summary, and what can safely be dropped?",
+    "back": "Preserve the goal, decisions taken and explicitly rejected, active constraints, open questions, identifiers needed to re-fetch data, and unresolved errors. Drop verbatim tool output, superseded intermediate reasoning, and anything already written to durable storage. Compaction is lossy by design; the danger is losing a constraint or a completed step.",
+    "hook": "Agent stems where the model redoes finished work or breaches a constraint agreed earlier in a long run are compaction-design questions, not model-capability ones."
+  },
+  {
+    "id": "FC-CPE-018",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Just-in-time context loading",
+    "difficulty": "medium",
+    "front": "What does just-in-time context loading change about how you hand data to the model?",
+    "back": "You pass identifiers and a way to fetch — file paths, record IDs, query tools — rather than pre-loading payloads, and the model pulls only what the task turns out to need. The window stays small on the common path, and whatever does arrive is relevant because something asked for it.",
+    "hook": "Contrast with pre-loading everything at turn one. The trade is extra round trips and latency against a smaller, higher-signal window; the stem's latency budget decides it."
+  },
+  {
+    "id": "FC-CPE-019",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Long-context stuffing versus retrieval",
+    "difficulty": "hard",
+    "front": "A 400-page manual now fits comfortably inside the context window. Is there still a case for keeping retrieval?",
+    "back": "Usually yes. Fitting is not the same as attending: accuracy degrades over very long inputs, and you pay the full input cost and latency on every call for content mostly irrelevant to that request. Retrieval also yields provenance for citation and audit. Reserve long context for whole-document reasoning where the whole document matters.",
+    "hook": "\"It fits in the window now, so drop the index\" is a classic trap premise. Ask what each request needs, what it costs per call, and whether provenance is required."
+  },
+  {
+    "id": "FC-CPE-020",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Subagent isolation as a context strategy",
+    "difficulty": "medium",
+    "front": "In what sense is spawning a subagent a context-engineering decision rather than only a task-decomposition one?",
+    "back": "The subagent works in its own window, so a noisy exploration — dozens of file reads, long search results, failed attempts — consumes that window and returns only a conclusion to the parent. The parent's context stays clean and on-task. The price is duplicated setup tokens and detail the parent may later wish it had.",
+    "hook": "Multi-agent stems framed around context reward naming isolation as the benefit and summarisation loss plus coordination token overhead as the cost you accept for it."
+  }
+]

@@ -1,0 +1,724 @@
+[
+  {
+    "id": "GSR-A-019",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Constrained extraction as a quarantine for fetched web content",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A recruitment platform's screening assistant fetches each candidate's portfolio URL, reads the page, and writes an assessment note into the applicant tracking system for recruiters to read. The page content is entirely candidate-controlled. Security has raised that a candidate could shape their page to manipulate the note written about them. The team must keep the feature. What is the right structure?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Keep the raw page text in the assistant's context but bracket it with a warning, repeated after the passage, that the content is candidate-supplied and must never be treated as instruction."
+      },
+      {
+        "key": "B",
+        "text": "Fetch only URLs on domains the candidate has verified by email and that present a valid certificate, so the origin of the content is confirmed before the assistant is permitted to read it."
+      },
+      {
+        "key": "C",
+        "text": "Feed the fetched page to a constrained extraction call that returns only a fixed schema of factual fields, validate the result against that schema, and let the assessment step see only the validated structure."
+      },
+      {
+        "key": "D",
+        "text": "Run the fetched page through the same HTML sanitiser the product uses when rendering assistant output to recruiters, so the page is neutralised by a control the team has already built and tested."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Untrusted text is dangerous in proportion to how much of the downstream reasoning it can reach. Forcing it through a narrow extraction whose output is a validated schema means the only thing that survives the boundary is a set of typed fields — technologies listed, years claimed, links present. Persuasive prose cannot ride through a string enum. The assessment step then reasons over structure it can trust, and any attempt to influence the note has to fit inside a field the schema permits.",
+      "distractors": {
+        "A": "A warning shares a channel with the payload and is a probabilistic mitigation. It is worth including in the extraction call, but it does not stop page prose from reaching the step that writes the recruiter-visible judgement.",
+        "B": "Domain verification confirms who controls the page — and the answer is the candidate, who is the party with an incentive to manipulate the note. Provenance is not trustworthiness here.",
+        "D": "HTML sanitisation removes markup that could execute in a browser. It leaves the natural-language content, which is the entire attack surface for this feature, completely intact."
+      },
+      "concept": "When untrusted content must be read but not obeyed, narrow the channel it exits through. A constrained extraction step that emits only a validated schema converts free text into data with a bounded shape, so the influence available to an attacker is limited to the values a field can hold.",
+      "tip": "Ask what the untrusted content can still say once it passes the control. If the answer is 'anything, but with a caveat attached', the control is advisory. If the answer is 'one of six enum values', it is structural."
+    }
+  },
+  {
+    "id": "GSR-A-020",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Quarantined reader and privileged planner separation",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A hospital group's referral intake handles about 2,000 external referral letters a day, arriving as emailed PDFs from practices outside its control. An agent reads each letter and books an appointment in the scheduling system, which it can write to directly. Clinical governance will not accept a design where letter content can steer a booking, and the volume rules out human confirmation of every extracted field, by a clinician or by anyone else. How should the components be arranged?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Give the planning agent the raw letter text but restrict its tool set to create and amend operations on the scheduling system only, so the worst case is a mis-booked appointment."
+      },
+      {
+        "key": "B",
+        "text": "Send the letter to two different models in parallel and proceed only when their extractions agree, treating any disagreement as a signal that the document may have been tampered with."
+      },
+      {
+        "key": "C",
+        "text": "Have the agent present every extracted field to the intake clerk for confirmation before the booking call is made, so a human always stands between the letter and the scheduling system whatever the letter contains."
+      },
+      {
+        "key": "D",
+        "text": "Route the letter to a reader model that has no tools and returns only typed values, and have the privileged planner work from those values as opaque variables without ever receiving the letter text."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Separating the component that reads untrusted content from the component that holds authority means the letter never sits in the same context as the ability to act. The reader is toolless, so nothing in the letter can cause an action; it emits typed values. The planner holds the scheduling capability but sees only those values, so there is no prose for an injected instruction to occupy. Governance gets a structural argument — letter content cannot reach the decision surface — rather than a probabilistic one, and no clinician time is consumed.",
+      "distractors": {
+        "A": "Narrowing the tool set limits the damage but concedes the property governance asked for: letter content still steers a booking, which for a referral is a clinical event and not a trivial one.",
+        "B": "Agreement between two models says the extraction is stable, not that it is faithful to the referrer's intent. Both readers see the same influencing text and will typically agree on the manipulated reading.",
+        "C": "The stem rules this out on volume, and per-field confirmation at 2,000 letters a day produces rubber-stamping, which is worse than no control because it manufactures a record of review that did not happen."
+      },
+      "concept": "The strongest indirect-injection defence is architectural: the component that ingests untrusted content holds no privilege, and the component that holds privilege never ingests untrusted content. Values cross between them as typed data, not as text. This bounds the attack to whatever a schema field can express.",
+      "tip": "When a stem says a governance body will not accept a probabilistic argument, discard every option whose safety depends on the model behaving well and look for the one that separates reading from acting."
+    }
+  },
+  {
+    "id": "GSR-A-021",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Treating third-party MCP tool definitions as untrusted input",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A publishing group connects its editorial agent to a third-party MCP server for digital asset management, alongside its own internal MCP servers for the CMS and the rights database. During review, an architect notes that the third-party server supplies its tool names, descriptions and JSON schemas at connection time, that these strings are placed into the model's context, and that the vendor can change them in any release. What control addresses this exposure?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Snapshot the server's tool manifest — names, descriptions and schemas — into version control at review time, diff it on every connection, and refuse any tool whose definition changed without re-approval."
+      },
+      {
+        "key": "B",
+        "text": "Instruct the agent in its system prompt that tool names, descriptions and parameter docs are metadata only, and that any instruction-like text found within them must be disregarded."
+      },
+      {
+        "key": "C",
+        "text": "Connect to the third-party server over stdio rather than HTTP, so the manifest travels over a local transport that cannot be intercepted or modified in flight by a network attacker."
+      },
+      {
+        "key": "D",
+        "text": "Expose only the third-party server's read-only tools, on the basis that a tool which cannot mutate state cannot cause harm however its description is worded or whenever the vendor chooses to change it between releases."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Tool definitions are model-visible text supplied by a party outside the trust boundary, and they arrive through a channel most teams never review after the initial integration. Pinning the manifest turns a silent, vendor-controlled change into a build-time diff a human approves — the same discipline applied to a dependency lock file. It is deterministic, it produces an audit trail of exactly which definitions were in force when, and it works regardless of what the changed text says.",
+      "distractors": {
+        "B": "This asks the model to police text that is already inside its own instruction context. It is worth having, but a prompt cannot be the review gate for content that changes without anyone noticing.",
+        "C": "Transport choice addresses interception and network exposure, not what a legitimately connected server chooses to put in its own manifest. A malicious or compromised definition arrives just as intact over stdio.",
+        "D": "A read-only tool's description still occupies the model's context and can influence how the agent uses the CMS and rights tools it does have. Restricting the vendor's tools does not restrict the reach of the vendor's text."
+      },
+      "concept": "Everything an external server contributes to the model's context — tool names, descriptions, parameter docs, resource content — is untrusted input under version control by someone else. Pin it, diff it, approve changes explicitly, and scope third-party servers with their own credentials so a definition change cannot silently widen reach.",
+      "tip": "The clue is 'the vendor can change them in any release'. Any control that reasons about the current text misses the point; the exposure is the unreviewed change, so the answer is a change-detection gate."
+    }
+  },
+  {
+    "id": "GSR-A-022",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Independent intent check before a proposed action executes",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A claims assistant at a motor insurer reads adjuster notes and third-party repair-shop reports, then proposes actions: request further evidence, approve a settlement below a threshold, or escalate. Repair-shop reports are supplied by external garages. The team wants a detection layer that catches the case where the proposed action does not match what the claim handler actually asked for. What should they build?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Add a follow-up turn in the same conversation asking the assistant to re-read the shop report, its own proposed action and the handler's request, then confirm the three are consistent."
+      },
+      {
+        "key": "B",
+        "text": "Embed a unique canary string in the system prompt and block any response in which that canary appears, on the basis that a turn which has been redirected will usually surface the instructions it was originally given."
+      },
+      {
+        "key": "C",
+        "text": "Log every proposed action and raise an alert whenever the rate of settlement approvals rises above the rolling baseline for that handler's team, so a manipulated pattern surfaces within the day."
+      },
+      {
+        "key": "D",
+        "text": "Run a separate check that receives only the handler's original request and the proposed action — not the notes or the shop report — and must judge the action to be within what was asked before it executes."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The check works because of what it is denied. Withholding the garage report from the checker means the influencing content cannot influence the check, so a proposed settlement that only makes sense given planted text has nothing to justify it and fails. Comparing stated intent to proposed action is also a narrow, cheap judgement — far easier to make reliable than open-ended harm classification — and it runs before execution rather than after.",
+      "distractors": {
+        "A": "Self-review inside the same context inherits the same influenced state. If the content persuaded the first pass, it is still present to persuade the second, and the model will typically reaffirm its plan.",
+        "B": "A canary detects disclosure of the system prompt, which is a different failure with a different consequence. It fires on what the response contains and says nothing about whether the action the agent proposes matches what the claim handler asked for.",
+        "C": "Rate alerting is a lagging aggregate signal. It might eventually surface a campaign, but it lets individual mismatched settlements through and gives the handler nothing at decision time."
+      },
+      "concept": "A guard that must resist influence should be denied the influencing input. Give the checker the trusted intent and the proposed effect, nothing else, and have it answer a narrow question. Isolation of inputs, not model capability, is what makes an independent check independent.",
+      "tip": "In options describing a verification step, look at what the verifier is given. If it receives the untrusted content too, it is not a second opinion — it is the same opinion twice."
+    }
+  },
+  {
+    "id": "GSR-A-023",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Why indirect injection is structurally harder than direct",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Compared with direct prompt injection, what makes indirect injection through retrieved documents structurally harder to defend against?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Retrieved text is tokenised differently from user-authored text, which makes it materially harder for a classifier to score the retrieved portion accurately."
+      },
+      {
+        "key": "B",
+        "text": "The payload arrives through a channel the system itself chose to fetch and trust, so there is no user-supplied message to screen and the content can have been planted long before any request."
+      },
+      {
+        "key": "C",
+        "text": "Indirect injection only affects agents with tool access, because the payload needs a tool call to have any effect, and tool-calling paths cannot be sandboxed the way generation can."
+      },
+      {
+        "key": "D",
+        "text": "Direct injection is reliably prevented by model training, so the indirect variant is now the only one that still reaches production systems and therefore the only one worth designing controls against."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Input guardrails sit on the user's message, and in an indirect attack the user's message is genuinely benign. The hostile text enters through retrieval or a tool result — a path the system created and implicitly trusts — and it may have been placed in the corpus weeks earlier by someone with no connection to the request that triggers it. That decoupling of plant time from trigger time, plus the absence of anything suspicious to screen at the front door, is what makes the class hard.",
+      "distractors": {
+        "A": "Tokenisation is identical regardless of where the text came from, so a classifier processes a retrieved passage exactly as it processes a typed message. Nothing about retrieval changes the mechanics of scoring the text.",
+        "C": "Indirect injection also affects systems with no tools at all, where it corrupts summaries, assessments and answers. Tool-calling paths can be sandboxed and scoped, and doing so is a central defence.",
+        "D": "Training reduces susceptibility to both variants and eliminates neither, so direct injection remains a live concern that production systems still screen for at the user boundary. The premise that one variant has been solved is what makes this wrong."
+      },
+      "concept": "Classify an injection risk by which channel carries the payload. Direct injection is screened at the user boundary; indirect injection has no such boundary and must be handled by provenance marking, quarantined reading, and enforcing authorisation outside the model.",
+      "tip": "The one-line version worth carrying into the exam: in indirect injection the attacker and the requester are different people, and only the requester's text is available to screen."
+    }
+  },
+  {
+    "id": "GSR-A-024",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Why an LLM redaction pre-pass may remove no exposure",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A university admissions office scores 40,000 free-text personal statements. Policy requires that direct identifiers and volunteered health disclosures be removed before the text reaches the scoring model. An engineer proposes an extra Claude call that redacts the statement, whose output is then passed to the scoring call. The privacy officer rejects the design. What is the substantive problem, and what should replace it?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Nothing is fundamentally wrong with the design; it is acceptable provided the redaction call runs on the cheaper Haiku tier, which keeps the additional cost proportionate at forty thousand statements."
+      },
+      {
+        "key": "B",
+        "text": "The problem is that the pipeline now makes two calls per statement, doubling both latency and spend; route the redaction pass through batch processing so the extra work happens off the critical path."
+      },
+      {
+        "key": "C",
+        "text": "The redaction call transmits the unredacted statement across exactly the boundary the control exists to protect, so it removes no exposure; run detection inside the trust boundary with a dedicated detector instead."
+      },
+      {
+        "key": "D",
+        "text": "The problem is that a generative redactor can invent replacement text that is not in the original; set temperature to zero and pin the model version so every statement redacts identically on re-run."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The control's purpose is to keep identifiers from crossing a boundary, and the proposed redactor crosses it with the full text to do its job. The order of the calls does not matter; the raw statement leaves anyway. Detection therefore has to run where the data already is. Deterministic detectors handle structured identifiers well inside that boundary, and a model-based pass — if used at all — is reserved for judgement-heavy categories such as volunteered health disclosures, and only where it can run without exporting the raw text.",
+      "distractors": {
+        "A": "Tier selection changes the cost of the exposure rather than its existence. The unredacted statement leaves the boundary either way, and a cheaper model reading it does not make the transfer any less of a transfer.",
+        "B": "This diagnoses an efficiency problem. Cost and latency are real at 40,000 statements, but they are not why the privacy officer objected.",
+        "D": "Determinism is a genuine concern for generative redaction and lower temperature helps consistency, but a perfectly deterministic redactor still requires the raw text to be sent first."
+      },
+      "concept": "A privacy control must sit inside the boundary it protects. Before adopting any pre-processing step, trace where the raw data physically goes to make the step work — if that path crosses the same boundary as the thing you were guarding, the step is decoration.",
+      "tip": "Watch for controls that require the sensitive data to travel in order to protect the sensitive data. The same trap appears with cloud-hosted scanners, external classifiers, and third-party moderation of confidential text."
+    }
+  },
+  {
+    "id": "GSR-A-025",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Safely executing agent-proposed operations on infrastructure",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A developer-tools company builds an operations agent that proposes remediation steps and hands them to a runner that executes them on infrastructure hosts. Today the agent emits free-form shell command strings and the runner executes them. Which two changes make execution defensible? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Escape shell metacharacters in the generated command string before handing it to the shell, so that no unexpected token can change how the command is parsed at execution time."
+      },
+      {
+        "key": "B",
+        "text": "Replace free-form command generation with a fixed catalogue of parameterised operations that the agent selects by name, with every argument validated against a declared schema and value range."
+      },
+      {
+        "key": "C",
+        "text": "Require the agent to emit a plain-language explanation of each command that the on-call engineer must read and acknowledge before execution proceeds on the host."
+      },
+      {
+        "key": "D",
+        "text": "Execute in an ephemeral container that holds no ambient credentials and denies outbound network traffic by default, so an operation that slips past validation cannot reach production systems."
+      },
+      {
+        "key": "E",
+        "text": "Require commands to be emitted as JSON objects rather than raw strings, so the runner can parse them reliably before execution."
+      }
+    ],
+    "correct": [
+      "B",
+      "D"
+    ],
+    "explanation": {
+      "correct": "The two controls that matter operate at different levels. A catalogue of parameterised operations removes the class of problem at the source: the agent chooses among operations someone reviewed, and the arguments are validated data rather than executable text. Containment then assumes that layer will eventually be wrong — an execution environment with no credentials and no egress bounds what a mistaken or manipulated operation can actually touch. Prevention plus containment, neither depending on the model's output being well-behaved.",
+      "distractors": {
+        "A": "Escaping defends against injection into a command; here the whole command is model-generated, so a perfectly escaped destructive command executes perfectly. It solves a different problem.",
+        "C": "Explanation-then-approval fails twice: the explanation comes from the same process that produced the command, and at operational volume the reading becomes a formality. It manufactures the appearance of review.",
+        "E": "A JSON envelope makes parsing reliable. It says nothing about whether the operation inside it is one the system should ever perform."
+      },
+      "concept": "For anything the model's output will cause to execute, prefer selection from a reviewed catalogue over generation of executable text, and validate arguments as data. Then place execution somewhere with no credentials and no network reach, so the validation layer failing is survivable rather than terminal.",
+      "tip": "Separate options into 'makes bad output less likely', 'makes bad output syntactically tidy', and 'makes bad output harmless'. Sound multi-select sets pick from the first and third groups."
+    }
+  },
+  {
+    "id": "GSR-A-026",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Sandbox lifecycle and cross-tenant blast radius",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A multi-tenant analytics SaaS lets an assistant generate and run data transformations against each customer's uploaded datasets. Execution happens in a sandbox. Which sandbox lifecycle design best limits blast radius between customers?",
+    "options": [
+      {
+        "key": "A",
+        "text": "A warm pool of long-lived sandboxes shared across all tenants, with working files deleted between runs to remove any residue."
+      },
+      {
+        "key": "B",
+        "text": "A fresh, ephemeral sandbox per execution, destroyed afterwards, with no state shared across runs or tenants."
+      },
+      {
+        "key": "C",
+        "text": "One sandbox per tenant, kept warm for the whole of that tenant's session and shared by all of that tenant's analysts and scheduled jobs."
+      },
+      {
+        "key": "D",
+        "text": "A single shared sandbox with a separate directory per tenant and operating-system file permissions separating one tenant's working area from another's."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "A per-execution sandbox that is destroyed afterwards makes cross-contamination structurally impossible rather than dependent on cleanup working. There is no residue for a later run to find, no shared process, and a compromise is bounded to a single execution of a single tenant's data. In a multi-tenant product this is the difference between an incident affecting one run and an incident that has to be disclosed to every customer.",
+      "distractors": {
+        "A": "Deleting working files is a cleanup step that must be correct every time, and it leaves process state, memory, environment variables and installed packages behind. A shared pool means one escape reaches other tenants.",
+        "C": "This removes cross-tenant reach but keeps state across runs and across that tenant's users, so one user's execution can affect a colleague's, and residue persists for the session's length.",
+        "D": "Filesystem permissions inside one shared environment put all tenants behind a single, frequently misconfigured control, with no isolation of process or network."
+      },
+      "concept": "Isolation strength follows the lifecycle: per-execution and ephemeral beats per-tenant and warm, which beats shared with permissions. Match the boundary to the unit you would have to disclose in an incident — if that unit is the customer, isolation cannot be coarser than the customer.",
+      "tip": "Rank sandbox options by what persists after a run. Anything relying on cleanup rather than destruction is weaker, however thorough the cleanup sounds."
+    }
+  },
+  {
+    "id": "GSR-A-027",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Constraining model-generated SQL before execution",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A public-sector open-data portal offers a natural-language query feature over published statistical views; its whole value proposition is arbitrary ad-hoc analytical queries, so a fixed set of canned reports would not serve the use case. The assistant generates SQL, which the application currently screens with a regular expression rejecting `DROP`, `DELETE` and `UPDATE`, then executes using the portal's application database credential. What should replace this?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Extend the deny-list to cover more dangerous keywords, and add detection for stacked statements, comment markers and the other constructs historically used to slip past keyword screening, leaving the existing execution path unchanged."
+      },
+      {
+        "key": "B",
+        "text": "Have the assistant emit a structured query description that the application compiles into SQL, so that no model-generated SQL is ever executed against the database at all."
+      },
+      {
+        "key": "C",
+        "text": "Execute the generated SQL unchanged but log every statement and have a data analyst review a 5% sample each morning, so misuse against the published views is detected within a working day."
+      },
+      {
+        "key": "D",
+        "text": "Parse the generated SQL into a syntax tree, allowlist the constructs and objects it may reference, and execute it under a read-only role scoped to the published views with a statement timeout and a row cap."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Two independent layers, both compatible with arbitrary analytics. Parsing to a tree and allowlisting means you decide what the query is permitted to be rather than guessing at what it must not contain, which is the only direction that terminates. Executing under a narrow read-only role scoped to published views means a query that somehow passes validation still cannot reach anything unpublished or change anything. The timeout and row cap close the remaining availability and bulk-extraction concerns.",
+      "distractors": {
+        "A": "Deny-lists on a language as expressive as SQL are an endless catch-up game, and the current one already leaves the portal's full application credential in play regardless of what the query does.",
+        "B": "This is the right answer for a product with a bounded question space, but the stem states the value is arbitrary ad-hoc analysis. A compiler over a fixed description language cannot express that without becoming a SQL dialect of its own.",
+        "C": "Sampled after-the-fact review is a detective control on an execution path with write-capable credentials. It finds the incident; it does not prevent it."
+      },
+      "concept": "For generated code destined for an interpreter, allowlist the permitted constructs rather than deny-list the dangerous ones, and back it with an execution identity that is scoped to exactly the objects and operations the feature needs. Validation and least-privilege execution are separate layers and you want both.",
+      "tip": "A stem that names the application's own credential is telling you the privilege scope is part of the answer. Options that only change validation leave half the finding open."
+    }
+  },
+  {
+    "id": "GSR-A-028",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Responding to a guardrail false-positive spike after release",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A health insurer's member chat deployed a retuned input classifier at 22:00. By 07:00 the deflection-to-human rate has tripled and the contact centre is saturated; hold times are past their published service commitment. Sampling ten blocked messages shows ordinary questions about claim status and prescription coverage. The safety team believes the new threshold is responsible but has not proven it. What should happen next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Disable the input guardrail entirely until the analysis is complete, since the service ran without it for months before this release and recorded no incident in that period."
+      },
+      {
+        "key": "B",
+        "text": "Leave the threshold in place and surge contact-centre capacity with overtime and overflow agents while the safety team gathers a statistically adequate sample of blocked messages."
+      },
+      {
+        "key": "C",
+        "text": "Revert the threshold to its previous value — a configuration change that restores known behaviour within minutes — then analyse a sample of the newly blocked messages against both the old and new verdicts."
+      },
+      {
+        "key": "D",
+        "text": "Relabel the newly blocked messages as benign, retrain the classifier on the corrected set, and redeploy once evaluation on the labelled holdout shows the regression has been eliminated and hold times can recover."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "One variable changed nine hours ago and the symptom is exactly what that change would cause. Reverting a threshold is a configuration action, fast and reversible, and it restores a state whose behaviour is already characterised — while keeping the guardrail itself in force. Doing the comparison afterwards, with both classifiers' verdicts on the same messages, produces the evidence needed to retune properly. Restore first, prove second, is the right order when the restore is this cheap.",
+      "distractors": {
+        "A": "This over-corrects by removing coverage rather than returning to the last known-good configuration. Previously running without the guardrail is a description of past risk acceptance, not a reason to reintroduce it under pressure.",
+        "B": "Buying capacity to absorb a self-inflicted regression keeps members past the published commitment while an unnecessary investigation runs. The sample already points clearly enough to justify a reversible action.",
+        "D": "Retraining and redeploying is the eventual fix, but it takes far longer than the incident allows and locks in labels produced hastily at 07:00 during an active saturation event."
+      },
+      "concept": "When a single recent change correlates with a production regression and the change is reversible by configuration, revert before you diagnose. Preserve the guardrail's coverage by returning to the prior setting rather than switching the control off, and use the blocked traffic you captured as the dataset for the real fix.",
+      "tip": "Next-step incident items reward the cheapest reversible action that restores service without removing a control. Options that either remove the control or require new model work are usually both wrong for the same reason."
+    }
+  },
+  {
+    "id": "GSR-A-029",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Data minimisation in a document and image extraction pipeline",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A motor insurer extracts repair line items from claim packs using vision input. Each pack is a scanned PDF containing the repair invoice, the policyholder's correspondence, bank details for the payout, and damage photographs. Only the invoice line items are needed for the extraction task. Which two measures genuinely reduce the personal data reaching the model? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Downscale every page image to the lowest resolution at which extraction still succeeds, since fewer pixels means less personal data transmitted."
+      },
+      {
+        "key": "B",
+        "text": "Mask the regions of the invoice that the task does not use — the correspondence address block and the bank detail panel — before the image is sent."
+      },
+      {
+        "key": "C",
+        "text": "Instruct the model in the prompt to attend only to the line-item table and disregard all other content on the page."
+      },
+      {
+        "key": "D",
+        "text": "Select only the invoice pages using a deterministic page classifier and send those, rather than submitting the whole claim pack."
+      },
+      {
+        "key": "E",
+        "text": "Retain the submitted images for 90 days so extraction can be re-run if the claim is later disputed."
+      }
+    ],
+    "correct": [
+      "B",
+      "D"
+    ],
+    "explanation": {
+      "correct": "Both measures change what physically crosses the boundary. Masking removes the bank panel and address block from the pixels themselves, so those values cannot be read, logged or inferred no matter what happens downstream. Page selection removes whole categories of content — correspondence, photographs of people and property — that the task never needed. Together they take the pack from 'everything we hold about this claim' to 'the line items we are extracting', which is what a minimisation requirement actually asks for.",
+      "distractors": {
+        "A": "Resolution and sensitivity are different axes. At any resolution where extraction still works, an account number remains legible; the transfer is smaller but the personal data is the same.",
+        "C": "Instructing the model to disregard content does not stop that content being transmitted, held in the request, or captured in logs and traces. Attention is not a boundary.",
+        "E": "Retention is a separate decision that increases exposure rather than reducing it, and it has no bearing on what reaches the model during extraction."
+      },
+      "concept": "Minimisation is measured at the boundary crossing, in the units the data actually travels in — fields, pages, image regions. Techniques that shrink, compress or instruct do not reduce the sensitive content; techniques that omit or obscure it do.",
+      "tip": "For any candidate minimisation control, ask whether the sensitive value is still recoverable from what you sent. If yes, it did not minimise anything, however much smaller the payload became."
+    }
+  },
+  {
+    "id": "GSR-A-030",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Guardrail coverage gaps from encoded or non-English input",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A travel company's assistant serves customers in thirty languages. Its input guardrail was trained and tuned on English. Abuse analysis finds attempts that the input classifier scores as benign — some arriving in languages with little representation in the classifier's training data, some arriving in an encoded form — while the model still understands them and, in a small number of cases, responded inappropriately. The team must close the coverage gap without a language-by-language build-out. Which change most reliably closes it?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Score the model's response with an output guardrail operating in the language the response is produced in, whatever form the request took."
+      },
+      {
+        "key": "B",
+        "text": "Add a decoding pre-pass that reverses every encoding the team can enumerate and re-scores the decoded text with the same English-tuned classifier."
+      },
+      {
+        "key": "C",
+        "text": "Reject any message the language detector does not identify as one of the thirty supported languages, so that unscored input never reaches the model at all."
+      },
+      {
+        "key": "D",
+        "text": "Commission a separately tuned classifier for each of the thirty supported languages, so guardrail coverage matches the product's full language footprint rather than only its largest markets."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The input side has an enumeration problem: you must anticipate every representation an adversary might use, and the set is open. The output side does not, because whatever the request looked like, the response is produced as ordinary text in a language you can score, and the harm you care about is in the response. Moving the reliable gate to the output closes the whole class at once and is the layer that scales as the product adds languages, with input scoring retained as the cheap first pass and abuse-telemetry source.",
+      "distractors": {
+        "B": "Useful and worth adding, but it is bounded by what the team thought to enumerate. Anything outside that list passes, and the list has to keep growing forever.",
+        "C": "The product serves thirty languages and detection is unreliable on short or mixed-language messages, so this blocks paying customers while an adversary simply writes in a supported language.",
+        "D": "Thirty tuned classifiers is exactly the language-by-language build-out the stem excludes, and it still leaves encoded input and languages added later uncovered."
+      },
+      "concept": "When an input-side control depends on enumerating adversary representations, its coverage is bounded by imagination. Place the reliable gate where the content is normalised by the system itself — the generated output — and treat input classification as a cheap filter and telemetry source rather than the boundary.",
+      "tip": "Ask which side of the model has an open-ended input space and which has a normalised one. Coverage arguments almost always favour the normalised side."
+    }
+  },
+  {
+    "id": "GSR-A-031",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Just-in-time tool exposure to bound reachable surface",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A field-service company's technician assistant carries 40 tools spanning parts ordering, warranty claims, scheduling, customer records and equipment telemetry. Any given job uses three or four of them. A review notes that a manipulated turn can currently reach all 40, and that the tool block also consumes a large share of the context budget. What is the strongest change?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Have a deterministic router classify the incoming job into a workflow and expose only that workflow's tool subset for the turn, so the reachable surface is bounded in code."
+      },
+      {
+        "key": "B",
+        "text": "Keep all 40 tools available and describe the current job phase in the system prompt, listing the tools appropriate to that phase, so the assistant selects only from them."
+      },
+      {
+        "key": "C",
+        "text": "Consolidate the 40 tools into 12 more general tools, each taking a mode parameter that selects the specific operation, which also shrinks the tool block considerably."
+      },
+      {
+        "key": "D",
+        "text": "Keep all 40 tools available but require an explicit confirmation step before any of them executes, so that no tool call reaches a downstream system without a technician having agreed to it in the field."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Bounding the surface in code means a manipulated turn inside a parts-ordering workflow cannot reach customer records at all, because those tools were never presented and the tool layer will not accept them. The routing decision is made from trusted signals — job type, technician role — before untrusted content enters. It also recovers the context budget, so the two findings in the review are addressed by one change rather than traded against each other.",
+      "distractors": {
+        "B": "Describing the phase leaves every tool reachable and asks the model to police itself, which is precisely the assumption the review questioned. It also leaves the context cost untouched.",
+        "C": "Consolidation reduces the tool count but increases each tool's power; a single tool with a mode parameter can do everything the twelve originals could, so the reachable capability set is unchanged and authorisation becomes harder to express per operation.",
+        "D": "Universal confirmation on every action a technician takes degrades into reflex approval within a shift, particularly on a handheld device in the field. It also leaves all 40 tool definitions in context, so the budget finding is untouched."
+      },
+      "concept": "Tool exposure is an authorisation surface. Resolve which tools exist for a turn from trusted context before the model sees untrusted input, and keep the presented set to what the current task needs. Fewer but broader tools is not the same as less capability — count what is reachable, not what is listed.",
+      "tip": "When a stem pairs a security finding with a context-budget finding, look for the option that resolves both. That coincidence is usually the author pointing at the answer."
+    }
+  },
+  {
+    "id": "GSR-A-032",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Risk-tiering approvals to defeat rubber-stamping",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A software company's IT service-desk agent can reset passwords, install approved software, grant group membership and provision cloud roles. Every action currently routes to a human approver. Telemetry shows 98% of approvals are granted within eight seconds of arriving, and a spot check finds approvers rarely open the detail view. The security lead wants the approval control to mean something again. What should change?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Keep universal approval and address the behaviour with approver training, a target minimum review time, and dashboards showing per-approver decision latency and detail-view open rate against that target."
+      },
+      {
+        "key": "B",
+        "text": "Remove approvals altogether and rely on comprehensive post-hoc audit logging plus a fast rollback capability for every action type, since a control nobody reads provides no assurance anyway and costs real time."
+      },
+      {
+        "key": "C",
+        "text": "Tier actions by reversibility and privilege impact: auto-execute reversible low-impact actions with logging, and route only privilege-granting or irreversible ones to approval with the parameters shown."
+      },
+      {
+        "key": "D",
+        "text": "Route each approval to the requesting user's line manager instead of the shared service-desk queue, so the approver knows the requester's role, cost centre and current project."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Eight-second approvals at 98% are not a discipline problem; they are what any human does when asked to review a high-volume stream of mostly-harmless items. Cutting the volume so that only privilege-granting and irreversible actions reach a human restores enough attention per item for the review to be real, and showing the concrete parameters and resulting change gives the approver something decidable rather than a request to confirm. Low-impact reversible actions lose nothing meaningful by moving to logged auto-execution.",
+      "distractors": {
+        "A": "Training and dashboards push against a rate the design created. The approver is not failing; the queue is unreviewable at that volume, and latency targets will produce faster clicking rather than closer reading.",
+        "B": "Rollback is not available in any useful sense for a privilege grant — the credential may already have been used, and the window is what matters. Removing approval on the highest-impact tier is the opposite of what the finding calls for.",
+        "D": "Changing who approves does not change how many approvals arrive or how decidable each one is. Managers face the same undifferentiated stream with less operational context."
+      },
+      "concept": "Human-in-the-loop is a scarce resource, and its value per item falls as volume rises. Spend it only where an action is irreversible or privilege-expanding, make the remainder auto-execute with strong logging, and present each retained approval with the specific parameters and the effect so the decision is possible in the time available.",
+      "tip": "Approval statistics in a stem — high volumes, near-total approval rates, very low decision times — are the author telling you the control is theatre. The answer reduces what is escalated, not how the escalation is staffed."
+    }
+  },
+  {
+    "id": "GSR-A-033",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Recognising confused-deputy exposure in an agent design",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "You are reviewing an agent design for a fleet-leasing business ahead of a security sign-off. Which three characteristics indicate a confused-deputy exposure? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "The agent issues several tool calls in parallel within a turn, so multiple privileged operations against downstream systems are in flight at the same moment."
+      },
+      {
+        "key": "B",
+        "text": "The agent authenticates to downstream systems with a shared service identity whose permissions are the union of all users' permissions."
+      },
+      {
+        "key": "C",
+        "text": "The identity the tool layer authorises against is taken from a field in the model's tool-call arguments rather than derived from the authenticated session."
+      },
+      {
+        "key": "D",
+        "text": "Tool results are returned to the model as JSON documents rather than as prose summaries written by an intermediate formatting step before the model reads them."
+      },
+      {
+        "key": "E",
+        "text": "Content the agent retrieves from external sources can determine which record a privileged tool operates on, with no independent check against the user's request."
+      }
+    ],
+    "correct": [
+      "B",
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "A confused deputy is a privileged component induced to act on behalf of someone who lacks that privilege. A union-of-all-users service identity supplies the excess privilege. Taking the acting identity from model-generated arguments means the thing being influenced also chooses whose authority is used. Letting external content select the target record means an outside party supplies the operand for a privileged operation. Each is sufficient on its own; together they are the full pattern.",
+      "distractors": {
+        "A": "Parallel tool calls are a concurrency and idempotency consideration: they change ordering guarantees, retry semantics and how partial failures are handled. None of that touches the question of whose authority a call is exercised under.",
+        "D": "The serialisation format of tool results affects parsing reliability, token cost and how easily the model distinguishes fields. It is a legitimate design choice and it has no bearing on the privilege question being screened for here."
+      },
+      "concept": "Screen any agent design for three things: does the component hold more authority than its caller, is the acting identity derived from a trusted channel, and can untrusted input choose the target of a privileged operation. A yes to any of these is a confused-deputy finding regardless of how well the prompt is written.",
+      "tip": "Distractors in privilege items are often real engineering concerns from a different category — concurrency, serialisation, performance. Sort each option by which property it touches before judging it."
+    }
+  },
+  {
+    "id": "GSR-A-034",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Purpose of a destination allowlist for agent-generated URLs",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An agent's responses may contain links and images, and its tools can make outbound HTTP requests. Why enforce a destination allowlist on both?",
+    "options": [
+      {
+        "key": "A",
+        "text": "It lowers response latency by avoiding DNS resolution for hosts the system has not previously seen and cached, which matters on long agent runs."
+      },
+      {
+        "key": "B",
+        "text": "It ensures the agent attributes each claim to the correct source when it cites material, because only allowlisted hosts can appear in the citations it produces."
+      },
+      {
+        "key": "C",
+        "text": "It guarantees that every URL the agent produces resolves to a live page rather than a broken link, so users are never sent to a destination that no longer exists."
+      },
+      {
+        "key": "D",
+        "text": "It prevents attacker-influenced content from turning a link, an image load or a fetch into a channel that carries context data to a destination the operator never chose."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "A URL is a request the system or the user's browser will make, and its path and query string are places data can be placed. Where any part of the context is influenced by untrusted input, an unconstrained destination is an outbound channel. Constraining destinations to hosts the operator selected means content can still be wrong or misleading, but it cannot become a transport. Applying it to both rendered links and tool fetches closes the browser-side and server-side variants of the same channel.",
+      "distractors": {
+        "A": "Allowlists are enforced as a policy check on the destination, not as a caching or name-resolution optimisation. Any latency effect is incidental, and the mechanism performing the check adds work rather than removing it.",
+        "B": "Citation accuracy is a grounding and prompting concern, addressed by giving the model source identifiers and asking it to attribute claims. An allowlist constrains where a request may go, not whether an attribution is correct.",
+        "C": "A host being permitted says nothing about whether a particular path on it exists or still resolves. Broken links are unaffected by the control, and dead destinations are a content-freshness problem rather than a security one."
+      },
+      "concept": "Treat every model-influenced destination — rendered link, image source, webhook target, tool fetch URL — as a potential exfiltration channel and constrain it to an operator-chosen set. This is the control that survives when content sanitisation and injection detection do not.",
+      "tip": "Exfiltration questions turn on where data can go, not on what the text says. If an option talks about link quality or citation and another talks about destinations, the destination one is the security answer."
+    }
+  },
+  {
+    "id": "GSR-A-035",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Severity tiers mapped to differentiated guardrail actions",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An online marketplace's seller-support assistant currently makes a single block-or-allow decision across all its content categories. Product and safety agree that some categories warrant a hard block, some are better served by a safe response pointing to a support resource, and some should reach a human specialist. How should the guardrail be restructured?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Apply the action required by the most severe category uniformly across every category, so that nothing is ever under-handled and the policy remains simple to state and to audit."
+      },
+      {
+        "key": "B",
+        "text": "Map each category to a severity tier with an action per tier: hard block, safe response with a resource, or route to a human specialist."
+      },
+      {
+        "key": "C",
+        "text": "Keep the binary block-or-allow decision and lower the single threshold so borderline seller messages fall on the block side rather than reaching the assistant."
+      },
+      {
+        "key": "D",
+        "text": "Let the assistant decide the appropriate action in-prompt, based on the category it identifies in the request, so that policy and generation stay in one place and a change needs only a single edit."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Categories differ in both harm and in what the seller needs next, so collapsing them into one decision produces the wrong response in most cases — either a blunt refusal where help was available, or a pass-through where a specialist was needed. A tier-to-action map makes the policy explicit and reviewable, lets each tier's threshold be tuned against its own cost of error, and gives the product a defined behaviour to build for each outcome.",
+      "distractors": {
+        "A": "Applying the strictest action everywhere maximises false positives on the categories that needed a gentler response, and sellers blocked from routine support questions will route around the assistant entirely.",
+        "C": "A lower threshold on a binary decision only moves where the single line falls. It cannot produce three different behaviours, which is what the stem requires.",
+        "D": "Putting the action decision in the prompt makes the enforcement behaviour a property of generation, so it cannot be audited, versioned or tuned independently of the model."
+      },
+      "concept": "A guardrail's output should be a category and a score, and a separate policy layer should map those to actions. Keeping classification and policy apart lets you retune thresholds without changing behaviour contracts, and lets one category's action change without touching the classifier.",
+      "tip": "When a stem lists three distinct desired outcomes, any option that produces two outcomes is disqualified on arithmetic before you assess it on merit."
+    }
+  },
+  {
+    "id": "GSR-A-036",
+    "domain": "Governance, Safety & Risk Management",
+    "topic": "Measuring whether a guardrail is working in production",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An airline's service assistant has run an input and output guardrail stack for six months. The safety lead can currently report only the daily block count and wants a measurement approach that would actually reveal degradation. Which two practices provide that? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Track the absolute number of blocked requests per day as the primary health metric for the guardrail stack, alerting whenever it moves outside its usual range."
+      },
+      {
+        "key": "B",
+        "text": "Maintain a labelled holdout of adversarial and benign cases, re-run it on every guardrail change, and report false-negative and false-positive rates separately."
+      },
+      {
+        "key": "C",
+        "text": "Track the mean classifier confidence score across all classified requests and alert whenever that mean shifts away from its established baseline over a rolling week."
+      },
+      {
+        "key": "D",
+        "text": "Sample allowed traffic for periodic human review, so false negatives — which generate no signal of their own — are estimated rather than assumed to be zero."
+      },
+      {
+        "key": "E",
+        "text": "Track the proportion of requests routed to the higher-capability model tier as a proxy for how often difficult content is arriving at the assistant."
+      }
+    ],
+    "correct": [
+      "B",
+      "D"
+    ],
+    "explanation": {
+      "correct": "A labelled holdout gives a controlled, comparable measurement across changes, and separating the two error rates is essential because they have different costs and move in opposite directions when a threshold shifts. Sampled review of allowed traffic covers the blind spot no counter can: a request that passed produces no artefact saying it should not have. Together they give a defensible estimate of both error types, which is what 'is the guardrail working' actually means.",
+      "distractors": {
+        "A": "Block count moves with traffic volume, seasonality and product changes. A fall could mean fewer attacks or a broken classifier, and nothing in the metric distinguishes them.",
+        "C": "Mean confidence across all traffic is dominated by the overwhelming majority of easy benign requests, so it is insensitive to exactly the tail behaviour that matters.",
+        "E": "Tier routing reflects task complexity and the cost policy the team configured, and it moves whenever either changes. It carries no information about whether harmful content is arriving or whether the guardrails are catching it."
+      },
+      "concept": "Guardrail health is a two-error-rate problem, and only one of those errors leaves evidence in production. Measure false positives from blocked traffic and appeals, estimate false negatives by sampling what you allowed, and hold both against a labelled set that does not change when traffic does.",
+      "tip": "Any metric derived only from what the guardrail blocked can measure at most half its performance. Look for the option that samples the traffic that passed."
+    }
+  }
+]

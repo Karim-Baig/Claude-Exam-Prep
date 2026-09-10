@@ -1,0 +1,456 @@
+[
+  {
+    "id": "ETO-D-001",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Judge score rising while the customer outcome falls",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A mobile network operator spent six weeks tuning its tier-1 support assistant against an LLM-judge rubric scoring accuracy, completeness and tone on a five-point scale. The mean judge score rose from 3.9 to 4.4, and every weekly iteration was accepted on that basis. Over the same six weeks CSAT on assisted chats fell four points and the fastest-growing complaint tag became 'didn't get to the point'. The prompt has been rolled back and CSAT has recovered. Before the team attempts the next quality push, what must change?",
+    "options": [
+      { "key": "A", "text": "Increase the number of cases scored per iteration so that a movement of half a point in the mean is comfortably outside the suite's noise band before anyone treats it as a gain." },
+      { "key": "B", "text": "Add an adversarial and jailbreak suite to the acceptance criteria, so that a tuning run chasing completeness cannot quietly trade away safety behaviour at the same time." },
+      { "key": "C", "text": "Establish that the rubric's dimensions track the outcome the operator is judged on, by hand-labelling a sample of chats for resolution and re-weighting or removing dimensions that do not move with it." },
+      { "key": "D", "text": "Replace model-graded scoring with exact-match comparison against reference answers written by senior agents, so iteration is measured against a fixed target rather than another model's preference." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Six weeks of iteration accepted every change that raised the rubric mean, so what the team optimised was the rubric. A rubric that weights completeness rewards longer, more hedged answers, which is precisely what the complaint tag describes. Nothing in the process ever tested whether rubric movement predicts the outcome the operator is measured on. The repair is construct validity: label a sample of real chats for resolution, check which dimensions actually correlate with it, and drop or reweight those that do not. Until that link is demonstrated, a higher score licenses no claim about the service.",
+      "distractors": {
+        "A": "Precision is not the problem. The score moved half a point in a consistent direction over six weeks while CSAT moved consistently the other way; more cases per iteration would only measure the wrong thing more accurately.",
+        "B": "A safety suite is worth having, but the harm here was not a safety failure. Adding an orthogonal gate leaves the tuning loop still pointed at a metric that has been shown to diverge from the outcome the business tracks.",
+        "D": "Exact match cannot grade a conversational answer with many acceptable forms, so this would either fail everything or force reference answers so loose they grade nothing. It also does not address whether the target itself corresponds to resolution."
+      },
+      "concept": "A metric earns the right to be an optimisation target only through demonstrated correspondence with the outcome it stands in for. When a score and the outcome move in opposite directions over a sustained period, suspect the score's validity before suspecting noise, and re-establish the link on labelled data.",
+      "tip": "The tell is duration and direction: two series moving consistently opposite for six weeks is a validity problem, not a sampling problem. Sample-size answers are the reflex distractor whenever a stem shows a metric behaving oddly."
+    }
+  },
+  {
+    "id": "ETO-D-002",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Cost cut validated by a metric blind to omissions",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A motor insurer summarises claim files for adjusters. To reduce spend the team moved the summariser to a cheaper model tier and trimmed the prompt. Monthly model spend fell by about a third, and the 200-item golden set, graded by similarity to reference summaries, was unchanged within its interval. Eleven weeks later the claims audit team reports that the rate at which adjuster decisions are overturned on internal appeal has risen by half; sampled appeals show the same pattern, in which a prior-damage note or a policy endorsement present in the file is absent from the summary. Which finding best explains why the validation passed a change that harmed the downstream decision?",
+    "options": [
+      { "key": "A", "text": "Similarity to a reference summary barely moves when one decision-relevant sentence is dropped from a long passage, so the metric could not register the failure adjusters experience." },
+      { "key": "B", "text": "The 200-item golden set was too small to resolve a change of this magnitude, so the flat result was an underpowered null being read as evidence of no harm." },
+      { "key": "C", "text": "The change bundled a tier downgrade with a prompt trim, so the flat result could not be attributed to either component and should never have been accepted." },
+      { "key": "D", "text": "Similarity scoring should have been replaced by a model judge, which detects quality differences between two fluent summaries that overlap-based metrics are known to miss." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The failure mode is omission of a single fact inside an otherwise faithful summary. A similarity score aggregates over the whole passage, so removing one clause out of many moves it by an amount indistinguishable from paraphrase. That insensitivity is structural: it holds at any sample size. What the adjusters rely on is recall of specific decision-relevant fields, so the validation needed a field-level check that those items appear, scored on the same files before and after the change. The team measured resemblance and inferred sufficiency, and those are different properties.",
+      "distractors": {
+        "B": "Power is the wrong diagnosis. The metric does not move much when the failure occurs, so a larger sample estimates an unchanged quantity more precisely rather than revealing the harm. Underpowering matters when the metric is sensitive but noisy; here it is insensitive.",
+        "C": "Bundling is a genuine attribution defect and worth fixing, but it explains why the team could not say which half caused a problem, not why the measurement showed no problem at all. Separating the two changes would have produced two equally flat results.",
+        "D": "A judge asked for overall summary quality will also score a fluent summary highly when a fact is missing, unless the rubric names the facts to look for. The fix is a specified recall check, not a change of grader technology."
+      },
+      "concept": "Choose the metric from the failure modes the downstream consumer cares about, not from the artefact's surface. Whole-output similarity and general quality scores are insensitive to the loss of a small number of high-stakes items; only an explicit recall check over required elements can see that class of regression.",
+      "tip": "When a stem tells you the harm is 'something present in the source is absent from the output', the answer almost always involves a recall or grounding check, and answers about sample size or grader technology are decoys."
+    }
+  },
+  {
+    "id": "ETO-D-003",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Separating an input-distribution shift from a model regression",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A freight brokerage monitors the embedding distribution of inbound carrier emails against a fixed reference window. A population-stability alert fires on Monday and stays elevated all week. The model version is pinned and unchanged, the prompt registry shows no deploy in three weeks, and both sampled quality scores and the field-extraction error rate are flat. Operations confirms that a large new customer began sending load tenders on a different template on Friday evening. What is the correct response?",
+    "options": [
+      { "key": "A", "text": "Rebuild the drift detector's reference distribution from the current week's traffic, so the monitor returns to baseline and stops reporting a condition that both the sampled quality scores and the extraction error rate currently contradict." },
+      { "key": "B", "text": "Treat the alert as a change in the input population rather than in system behaviour: extend the eval set and per-segment quality reporting to cover the new template, and keep the alert open as a coverage signal until they do." },
+      { "key": "C", "text": "Roll back to the previous prompt version, because a drift alert that persists for a week with no other explanation points to the most recent change to the request path." },
+      { "key": "D", "text": "Suppress the input-drift monitor for this pipeline, since sampled quality scoring measures the outcome directly and a leading indicator that disagrees with it adds only noise." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Everything in the stem locates the change on the input side: the system is byte-identical, the shift began the evening a new sender started, and outcome metrics are so far unaffected. That is covariate shift, and the right reaction is not to the model but to the measurement estimate. The eval set and the quality sample were drawn from a population that no longer matches production, so today's flat quality figure is an average over a mix the suite does not represent. Extend coverage to the new template and report that segment separately before concluding that quality held.",
+      "distractors": {
+        "A": "Re-baselining removes the signal before it has been acted on. The detector is doing its job, and resetting it means the next shift will be measured against a reference that already contains an uncharacterised segment.",
+        "C": "There is nothing to roll back to. The prompt registry shows no deploy in three weeks and the model is pinned, so a rollback changes a component that cannot be responsible and costs the team the time it needs to extend coverage.",
+        "D": "The quality sample is exactly the thing the drift alert calls into question, because that sample was drawn before the population changed. Suppressing a leading indicator on the authority of a lagging one inverts the value of having both."
+      },
+      "concept": "An input-drift alert is a statement about representativeness, not about correctness. It tells you that your eval set, your quality sample and your monitoring baselines may no longer describe production. The first response is to re-establish coverage of the new population, not to change the system.",
+      "tip": "Check what the stem holds fixed. When the model is pinned, the prompt is unchanged and only the traffic moved, every option that modifies the system is wrong by construction."
+    }
+  },
+  {
+    "id": "ETO-D-004",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Measurements that would have exposed a compression regression",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "An industrial equipment manufacturer generates field-service reports from technician notes plus retrieved excerpts of service manuals. A cost programme removed the few-shot examples and compressed the retrieved excerpts; token spend per report fell by 40% and the aggregate eval score was unchanged. Two months later the warranty team finds that reports increasingly cite superseded part numbers, which invalidates the warranty claims built from them. (Choose TWO.) Which two measurements, in place at the time of the change, would have exposed the regression before the warranty team found it?",
+    "options": [
+      { "key": "A", "text": "A per-report token count and cost dashboard with an alert when either moves outside its expected band, giving early visibility of the change's effect." },
+      { "key": "B", "text": "A field-level check of every cited part number against the current-versus-superseded status the parts master holds for it, scored as a pass rate on the same report set before and after the change." },
+      { "key": "C", "text": "A grounding check confirming that each part number cited in the report appears in the excerpt the report was generated from, run on the compressed and uncompressed pipelines over identical inputs." },
+      { "key": "D", "text": "A latency breakdown by pipeline stage, to confirm that compression moved time out of generation without pushing it into the retrieval and ranking stages, and that the p95 for report production stayed inside the field team's budget." },
+      { "key": "E", "text": "An increase in the judge model's sampling temperature, so that near-identical reports receive a wider spread of scores and small differences become visible." }
+    ],
+    "correct": ["B", "C"],
+    "explanation": {
+      "correct": "Both keyed measurements target the specific property that broke. Checking cited part numbers against the master's status flag is a deterministic field-level test that fails the moment a superseded code appears. Note what the check has to look up: mere existence in the master would pass, because a superseded number is still a valid entry — it is the current-versus-superseded status that carries the signal, and reading it is cheap enough to run on the whole set. The grounding check attacks the mechanism directly: compressing an excerpt can drop the current part number and leave an older one, so verifying that every cited code is present in the context that produced it, on identical inputs through both pipelines, isolates the compression as the cause. An aggregate quality score averages this away because most of each report is unaffected.",
+      "distractors": {
+        "A": "Cost and token dashboards confirm the saving landed. They measure the intended effect of the change, and would have looked healthy throughout the two months while the warranty defect accumulated.",
+        "D": "Stage latency tells you where time goes. Nothing in a latency profile distinguishes a report citing a current part number from one citing a superseded code, so this control would have passed cleanly.",
+        "E": "Raising a judge's temperature adds variance, not signal. Wider score spread on the same outputs makes small real differences harder to detect, and it degrades the reproducibility of the scoring run."
+      },
+      "concept": "A cost optimisation must be gated on a measurement of the property it is most likely to damage, chosen in advance from the mechanism of the change. Removing context can only harm output that depended on that context, so the gate belongs on grounding and field-level correctness, not on the aggregate score.",
+      "tip": "In multi-select, count the options that answer the question asked. Two of these measure the change itself rather than its harm, which makes them true statements about the system and still wrong answers here."
+    }
+  },
+  {
+    "id": "ETO-D-005",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Preserving incident evidence before an irreversible rollback",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "At 09:10 a rail operator's crew-rostering assistant begins producing rosters that violate a minimum-rest rule. The on-call engineer has already flipped the feature flag routing all requests to the deterministic legacy roster builder, so no further bad rosters reach dispatchers. The assistant is a multi-step agent whose full trajectories go to a trace store with seven-day retention. The runtime prompt, tool definitions and model parameters are served from a config service that keeps only the current revision. The engineer's next action is to roll the config service back to yesterday's revision. What must happen before that rollback?",
+    "options": [
+      { "key": "A", "text": "Raise the trace store's retention from seven days to ninety, so that no trajectory relevant to the investigation ages out while the postmortem is being written." },
+      { "key": "B", "text": "Export the current revision in full — prompt text, tool definitions, model id and parameters — together with the trajectory ids for the affected window, so the failing configuration can be reconstructed after it is overwritten." },
+      { "key": "C", "text": "Run the full regression suite against the live configuration to confirm that it reproduces the rest-rule violation, so that the fault is established and documented against the running system before any component of it is changed." },
+      { "key": "D", "text": "Notify the safety regulator, because a rest-rule breach is a reportable event and the notification must be filed before remediation alters the system's state." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "User impact is already contained by the feature flag, so nothing about the next action is time-critical for safety. What is time-critical is that the config service holds only the current revision: the moment it is rolled back, the exact prompt, tool definitions and parameters that produced the violation cease to exist anywhere. Trajectories alone will not reconstruct the fault, because they record what the agent did, not the configuration that made it do so. Exporting the revision and pinning the trajectory ids costs minutes and is the only step the rollback makes impossible afterwards.",
+      "distractors": {
+        "A": "Retention is worth extending, but it protects trajectories that are already safe for seven days and does nothing for the config revision that is about to be destroyed. It can be done after the rollback with no loss.",
+        "C": "The suite run is the investigation, not a precondition for it. It takes far longer than the export, and once the configuration is preserved the same reproduction can be performed offline against the exported revision at any time.",
+        "D": "Regulatory notification will very likely be required and belongs in the incident timeline, but no reporting regime requires it to precede containment or evidence capture, and sequencing it first delays the one irreversible step."
+      },
+      "concept": "Order incident actions by reversibility. Once impact is contained, the next action is to capture any state that the intended remediation will destroy — configuration revisions, in-memory routing state, unversioned artefacts — because everything else can still be done afterwards.",
+      "tip": "Read the stem for the component with no history. 'Keeps only the current revision' is the whole question; a system that keeps versions would make this item trivial."
+    }
+  },
+  {
+    "id": "ETO-D-006",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Using one judge score as both target and release gate",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A team uses a single LLM-judge score both as the target it iterates prompts against and as the criterion its release gate enforces. What is the principal risk?",
+    "options": [
+      { "key": "A", "text": "Judge scores are not comparable across grader model versions, so the gate's threshold has to be re-derived from scratch after every grader upgrade or the trend breaks." },
+      { "key": "B", "text": "Model-graded scores carry more run-to-run variance than deterministic checks, so a gate defined on them will produce intermittent false failures that erode trust in the pipeline." },
+      { "key": "C", "text": "Iteration selects for whatever the judge happens to reward, so the score keeps climbing while the quality it stands for does not, and the gate loses the ability to refuse the change." },
+      { "key": "D", "text": "Position bias inflates the score of whichever candidate the judge sees second, so improvements measured in a pairwise setup will not survive a switch to absolute scoring." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "A gate is only useful if it can fail a change. When the same score is the thing being optimised, every accepted iteration is by construction one that moved that score, including iterations that found an idiosyncrasy of the grader rather than a genuine improvement. Over many rounds the measured quantity and the intended quality separate, and the gate — computed from the same number — approves the drift it caused. The structural fix is separation: iterate on one set and gate on a held-out set or a different measurement the iteration loop never sees.",
+      "distractors": {
+        "A": "Grader version comparability is a real operational hazard and forces re-baselining, but it applies equally whether the score gates releases, guides iteration, or both. It is not a consequence of using one score for two purposes.",
+        "B": "Variance is a property of model-graded scoring in general and is handled with repeats, fixed decoding settings and intervals. It would still be present in a design that kept the target and the gate separate.",
+        "D": "Position bias is a defect of pairwise judging protocols and is mitigated by randomising or averaging over order. It says nothing about the feedback loop created when the gate and the optimisation target are the same number."
+      },
+      "concept": "Any measure used as an optimisation target degrades as a measure. Keep at least one evaluation surface that no iteration has been allowed to touch, and treat gate metrics as spent once a team has been tuning against them.",
+      "tip": "Recall items often surround the key with statements that are individually true. Answer the question actually asked — here, the risk created by the dual use, not risks of judges in general."
+    }
+  },
+  {
+    "id": "ETO-D-007",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Output cap cut invisible to a short-answer eval corpus",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A benefits agency generates plain-language explanations of entitlement decisions. To cut cost the team lowered the maximum output token cap. Spend fell, and the 300-case eval suite, whose reference answers average about 180 words, showed no change on any metric. Two weeks later caseworkers report that explanations for households with several concurrent claims 'stop in the middle of a sentence'. Which control would have caught this before release, and why?",
+    "options": [
+      { "key": "A", "text": "A canary at 5% of traffic gated on the aggregate judge score, because the affected explanations would have pulled the cohort's mean below the gate's threshold during the ramp." },
+      { "key": "B", "text": "A latency guardrail on the generation stage, because capping output tokens changes how long generation runs and the change should have surfaced as a shift in the latency profile." },
+      { "key": "C", "text": "A judge rubric criterion for fluency, because an explanation cut off mid-sentence reads as disfluent and would score below the threshold on that dimension." },
+      { "key": "D", "text": "Monitoring of the output-length distribution and the reason each generation stopped, because the eval corpus's short answers never approach the new cap that long multi-claim cases exceed." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The eval suite cannot see this failure at all: its answers average 180 words, so no case in it comes near the new cap and every case passes regardless of where the cap sits. The defect only exists in the tail of the output-length distribution, which means the control has to be defined on that distribution rather than on scores. Tracking how long outputs are and why generation stopped turns an invisible property into an observable one, and it would have shown a population of generations terminating at the limit the day the cap changed.",
+      "distractors": {
+        "A": "A canary would expose the same blind spot in a smaller sample. Multi-claim households are a minority of traffic, so their truncated answers move an aggregate cohort mean by a fraction of a point while every gate stays green.",
+        "B": "The direction is wrong and the inference is weak. A lower cap shortens the affected generations, and normal variation in answer length swamps that effect; latency percentiles would not distinguish a shorter answer from a truncated one.",
+        "C": "A fluency criterion could score truncation harshly, but only on a case that actually truncates. No case in this suite does, so the criterion never fires. Adding rubric dimensions cannot compensate for a corpus that lacks the failing population."
+      },
+      "concept": "An eval set constrains what you can detect, and a change that only bites in a distributional tail will pass a suite whose cases do not reach that tail. Pair any change to a hard limit with monitoring of the distribution the limit acts on, plus termination reasons.",
+      "tip": "When a cost lever is a hard cap — output tokens, context, step count, timeout — ask which production cases sit near it and whether the eval corpus contains any. Usually it does not, because eval cases are curated to be tidy."
+    }
+  },
+  {
+    "id": "ETO-D-008",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Quality dip explained by a throttling fallback path",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A food-delivery marketplace runs an order-issue resolver. At 18:40 the rolling quality score, a model-graded audit of sampled resolutions, drops from 0.88 to 0.71 and stays down through the dinner peak, recovering at 21:30. No deploy occurred. The gateway is configured to fall back to a smaller model when requests to the primary are throttled, throttling counts were elevated across the same window, and every request logs the model id that actually served it. Which analysis will most directly confirm or eliminate the fallback path as the cause?",
+    "options": [
+      { "key": "A", "text": "Split the audit sample by the model id that served each request and compare the score within each path across the window and against the preceding days." },
+      { "key": "B", "text": "Replay the affected requests against the primary model now that throttling has cleared, and compare the new responses with what was originally served." },
+      { "key": "C", "text": "Re-score the same audit sample with a second judge configuration, to rule out grader instability during the window before pursuing a serving explanation." },
+      { "key": "D", "text": "Compare the dinner-peak score against the same peak on each of the previous seven days, to establish whether a drop at this hour is a recurring seasonal pattern." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The aggregate score during the window is a mixture over two serving paths, and the stem hands you the field that unmixes it. If each path's score is stable across the window and only the share of traffic on the small model changed, the dip is entirely a composition effect and the fallback is confirmed. If both paths dropped, something else is happening and the fallback is eliminated. No other analysis distinguishes those two outcomes, because every alternative works on the blended number or introduces a new comparison rather than decomposing the one you have.",
+      "distractors": {
+        "B": "Replay changes two things at once: the model and the moment. A better response now is consistent with the fallback theory, with load-related differences, and with ordinary sampling variation, so the result cannot separate them.",
+        "C": "Grader instability is worth excluding in general, but nothing here points to it: the judge configuration did not change and the dip aligns with an independently observed throttling window. This is a second-order check, not the direct test.",
+        "D": "A seasonal comparison establishes whether the pattern recurs, which is useful context. It does not attribute the drop to a mechanism, and if throttling happens every dinner peak the pattern will look seasonal while still being caused by the fallback."
+      },
+      "concept": "Any metric aggregated over a heterogeneous serving path is a mixture. When a fallback, a router or a canary can change the mix, log the component that served each request and make the metric decomposable by it; otherwise you cannot tell a quality change from a composition change.",
+      "tip": "When a stem mentions in passing that a field is logged, that field is usually the answer. Note also that no deploy occurred, which removes every code-change explanation before you start."
+    }
+  },
+  {
+    "id": "ETO-D-009",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Choosing per-request fields that make regressions attributable",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A broadcaster's archive-tagging service has twice been unable to attribute a quality change after the fact, because the request log records only the input, the output and a timestamp. Storage review will approve exactly three additional per-request fields. (Choose THREE.) Which three fields carry attribution value for a future quality investigation?",
+    "options": [
+      { "key": "A", "text": "The model id and version string as reported by the API for that specific request." },
+      { "key": "B", "text": "A version tag for the resolved prompt template together with a hash of the variable values injected into it." },
+      { "key": "C", "text": "The identifier of the retrieval index snapshot the request read from." },
+      { "key": "D", "text": "The character length of the response body, so that shifts in verbosity can be tracked over time without parsing stored outputs." },
+      { "key": "E", "text": "The judge score of the nearest matching case in the golden set, attached at request time as a quality expectation for that input." }
+    ],
+    "correct": ["A", "B", "C"],
+    "explanation": {
+      "correct": "Attribution means being able to answer 'what was different about the requests that went wrong'. The three keyed fields name the three things that can change underneath an unchanged codebase: which model actually served the call, which prompt text and substituted values were used, and which corpus state the retrieval read. With those, a later investigation can partition traffic by each dimension and test them independently. Without them, the team is left inferring configuration from deploy timestamps, which is exactly the inference that failed twice already.",
+      "distractors": {
+        "D": "Response length is derivable from the stored output at any time, so logging it buys convenience rather than information. Spending one of three scarce fields on a value you already have is a poor trade against configuration provenance.",
+        "E": "This attaches a score belonging to a different input, which is not a measurement of this request and would be treated as one. It also creates a dependency on the golden set at serving time for no investigative benefit."
+      },
+      "concept": "Log the identity of every component that can vary independently of a code deploy: model version, resolved prompt and its inputs, and the data snapshot read. Derived values can be recomputed later; configuration that was live at the moment of the request cannot.",
+      "tip": "The constraint 'exactly three fields' is doing real work. Rank candidates by whether the value is recoverable after the fact, and discard anything you could recompute from what is already stored."
+    }
+  },
+  {
+    "id": "ETO-D-010",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Tolerance creep from gating against the previous release",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An e-commerce retailer ships small prompt refinements to its product-description generator most weeks. Each release is gated on a comparison against the immediately preceding release over a 500-item suite, requiring no regression worse than one point; the suite is resampled from production traffic each quarter and graders are blind to which release produced which output. Fourteen consecutive releases have passed. A merchandising manager pulls descriptions from a year ago and from today, and a blind hand-grading of 100 pairs shows a large preference for the year-old set. Which flaw in the gate allowed this?",
+    "options": [
+      { "key": "A", "text": "Each release was compared only against its immediate predecessor, so a loss just inside tolerance could repeat week after week and accumulate without any single comparison ever failing." },
+      { "key": "B", "text": "The gate used a fixed threshold rather than a confidence interval, so releases whose measured difference fell inside the suite's noise band were recorded as passes rather than as indeterminate results." },
+      { "key": "C", "text": "Automated grading and human preference measure different constructs, so agreement between the gate and the manager's hand-grading was never a reasonable expectation in the first place." },
+      { "key": "D", "text": "Fourteen releases against the same style of suite fitted the prompts to the suite's cases, so the measured scores stopped generalising to production descriptions some releases ago." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "A relative gate only ever asks whether this week is materially worse than last week. With a one-point tolerance, a series of losses of nine tenths of a point each is a series of passes, and after fourteen of them the distance from where the system started is enormous while every individual check was honest. The missing control is an absolute anchor: a fixed reference version, retained and re-run alongside the incumbent, so that cumulative drift from a known-good baseline is visible even when consecutive releases are indistinguishable.",
+      "distractors": {
+        "B": "Interval-based gating is better practice and would catch some marginal passes, but it does not address direction. A run of small losses that are individually within noise still accumulates, and a wider band arguably lets more of them through.",
+        "C": "The stem forecloses this: the hand-grading was blind and produced a clear preference, and the gate's own graders operate on the same outputs. If the two constructs were unrelated the gate would have no value at all.",
+        "D": "Fitting to a reused suite is a real hazard, but the suite is resampled from production every quarter, and overfitting would show as inflated scores rather than as fourteen consecutive results reported as no change."
+      },
+      "concept": "Gate every release against a fixed anchor as well as its predecessor. Chained relative comparisons make tolerance a per-release budget that can be spent repeatedly in the same direction, and the resulting drift is invisible to the process that permitted it.",
+      "tip": "Count the releases. When a stem emphasises a long run of passes and a tolerance band, the arithmetic of repeated tolerance-sized losses is the point, and the year-old comparison is the evidence."
+    }
+  },
+  {
+    "id": "ETO-D-011",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Model saving overwhelmed by downstream escalation cost",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A retail bank's chat assistant handles 100,000 conversations a month. Before the change, model spend was $0.12 per conversation and 60% of conversations were resolved without a human agent; each escalation costs the contact centre $6.00. The team moved to a cheaper model tier: model spend fell to $0.05 per conversation and the resolved-without-agent rate fell to 52%. The offline eval suite showed a one-point drop, inside the gate's tolerance, so the change shipped. (Choose TWO.) Which two statements follow from these figures?",
+    "options": [
+      { "key": "A", "text": "Monthly model spend falls by $7,000 while the total monthly cost of the channel rises by $41,000." },
+      { "key": "B", "text": "Total channel cost falls by $7,000 a month, since escalation handling is funded from the contact centre's budget rather than the platform's." },
+      { "key": "C", "text": "The gate's tolerance is correctly calibrated for this system, because a one-point drop on the eval suite corresponds to roughly a one-point drop in the resolution rate." },
+      { "key": "D", "text": "The change adds 8,000 escalations a month, costing $48,000, which exceeds the entire model spend under either configuration." },
+      { "key": "E", "text": "Break-even would require the cheaper tier to hold the resolution rate within about three points of the original, which the observed eight-point fall only narrowly misses." }
+    ],
+    "correct": ["A", "D"],
+    "explanation": {
+      "correct": "Before: model spend is 100,000 x $0.12 = $12,000 and 40,000 escalations cost $240,000, for $252,000. After: model spend is $5,000 and 48,000 escalations cost $288,000, for $293,000. So the line item the team optimised fell by $7,000 while the channel got $41,000 more expensive, and the 8,000 extra escalations alone cost $48,000 — four times the model spend the whole programme was aimed at. The economics of this system live in the escalation rate, and the model bill is small enough that no plausible saving on it can outweigh a resolution-rate loss.",
+      "distractors": {
+        "B": "Whose budget absorbs a cost does not change whether the organisation pays it. This framing is also arithmetically wrong: escalation spend rises by $48,000, so the channel total increases even though the platform's own line falls.",
+        "C": "The two figures are not on the same scale and the stem shows them diverging: a one-point eval movement accompanied an eight-point fall in resolution. That is the defect in the gate, not evidence that it is calibrated.",
+        "E": "The saving is $0.07 per conversation, or $7,000 a month, and each point of resolution rate is 1,000 conversations at $6.00, or $6,000. Break-even is therefore about 1.2 points, not three, so the observed fall misses it by a wide margin."
+      },
+      "concept": "Optimise the cost of the outcome, not the cost of the call. When a human fallback is far more expensive than inference, the quality-to-cost conversion is steep and a gate expressed in eval points must be translated into the operational rate it implies before it can be trusted.",
+      "tip": "Do the arithmetic before reading the options. Two of these are computable in under a minute, and the trap option supplies a break-even number that is plausible until you divide the saving by the per-point cost."
+    }
+  },
+  {
+    "id": "ETO-D-012",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "A uniform score drop pointing at the measurement pipeline",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An energy retailer audits 500 sampled customer emails a day with an LLM judge and tracks a rolling quality score. Overnight the score falls from 0.90 to 0.84 and stays there. The drop appears in every customer segment, every channel and every prompt variant at close to the same magnitude. No application deploy or corpus refresh occurred, the serving-path log shows the pinned primary model served every request in the window, and inbound volume is normal. The judging service resolves its grader from a floating alias. What is the first hypothesis to test, and how?",
+    "options": [
+      { "key": "A", "text": "A change in the input population: check whether an upstream system began routing a different mix of email types into the pipeline overnight, which would move the blended score without any component of the system behaving differently." },
+      { "key": "B", "text": "A genuine broad regression: begin rolling back the most recent application release and watch whether the score recovers over the following audit windows." },
+      { "key": "C", "text": "A change in the measurement itself: re-score an archived sample of pre-drop outputs through today's judging service and compare with the scores those same outputs originally received." },
+      { "key": "D", "text": "A silent capacity-driven fallback: check whether some share of requests was quietly served by a different model tier during the overnight window." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "A step change that lands on every segment, channel and prompt variant at the same magnitude is the signature of something common to all of them, and the only component the stem leaves floating is the grader. Re-scoring archived outputs is the decisive test because the outputs are fixed: any difference between their original and current scores is attributable to the judging service alone. It is also cheap and reversible. Confirming this first prevents the far more expensive mistake of investigating, or rolling back, a system that never changed.",
+      "distractors": {
+        "A": "A mix shift moves the aggregate by changing segment weights, so segment-level scores would stay roughly put while the blend moved. Here every segment fell by the same amount, which a composition change cannot produce.",
+        "B": "The stem states no application deploy occurred, so there is nothing recent to roll back. Rolling back an unrelated release during an unexplained drop adds a second uncontrolled change to an investigation that has not yet identified the first.",
+        "D": "This is a good hypothesis in general and worth testing when serving is opaque, but here the per-request serving-path log already shows the pinned primary model handled everything in the window, which eliminates it without further work."
+      },
+      "concept": "Before investigating the system, verify the instrument. Uniform, simultaneous movement across otherwise independent slices points to a shared dependency — grader model, rubric version, parser or aggregation code — and archived outputs give you a fixed reference that makes the test conclusive.",
+      "tip": "'Every segment fell by the same amount' is a structural clue, not colour. Real regressions are almost always uneven, because they act through mechanisms that touch some traffic more than others."
+    }
+  },
+  {
+    "id": "ETO-D-013",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Feedback-rate spike caused by an instrumentation change",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A budgeting app shows a generated spending insight with thumbs-up and thumbs-down controls, and the team tracks thumbs-down rate as its main quality proxy. In the week of a mobile release the rate doubles. The model, the prompt and the data pipeline are unchanged, and the weekly hand-graded audit of 100 insights is flat. The mobile release moved the feedback control out of a collapsed menu and onto the insight card itself. (Choose TWO.) Which two conclusions are supported by this evidence?",
+    "options": [
+      { "key": "A", "text": "The unchanged audit proves that no user-visible quality change occurred, since 100 hand-graded items is ample to detect an effect large enough to double a feedback rate." },
+      { "key": "B", "text": "The proxy is not comparable across the release boundary, because moving the control changes which users see it and how likely they are to use it." },
+      { "key": "C", "text": "Explicit feedback should be retired in favour of a model-graded score computed on every response, because volunteered signals are too unreliable to be worth collecting." },
+      { "key": "D", "text": "The count of thumbs-down events can rise purely through greater exposure of the control, with no change in the underlying distribution of user opinion." },
+      { "key": "E", "text": "Because the model did not change, the increase must originate in another part of the mobile release, such as a rendering defect in how insights are displayed." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "The release changed the measurement apparatus, not the thing measured. Surfacing a control raises response rate and also changes who responds, so pre- and post-release rates are estimates of different quantities and cannot be differenced. That covers both keyed statements: comparability is broken, and a higher event count is fully consistent with an unchanged opinion distribution among users. The right move is to treat the release as a break in the series, re-baseline the proxy, and rely on the channel-independent audit for continuity across the boundary.",
+      "distractors": {
+        "A": "The audit is useful corroboration but it does not prove anything of the kind. A hundred items gives a coarse estimate, the audit and the feedback control measure different constructs, and 'proves no change occurred' is stronger than any sample of that size supports.",
+        "C": "This over-generalises from one confounded week. Volunteered feedback is biased but informative, particularly for surfacing failure themes, and a model-graded score on every response has its own costs and blind spots rather than being a strict replacement.",
+        "E": "Nothing in the evidence points to a rendering defect, and the release contains an explanation that fully accounts for the movement. Concluding a defect exists because one candidate cause was eliminated skips the candidate the stem hands you."
+      },
+      "concept": "A behavioural proxy measures the instrument as much as the system. Any change to placement, wording, prompting or eligibility of a feedback control breaks the series, so record instrumentation changes on the metric's timeline and re-baseline rather than differencing across them.",
+      "tip": "Two options here are unsupported by over-claiming rather than by being obviously false. Under time pressure, scan multi-select options for words like 'proves' and 'must', which usually mark a conclusion the evidence does not reach."
+    }
+  },
+  {
+    "id": "ETO-D-014",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Proxies for an outcome that is not directly observable",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A hospital group drafts discharge summaries with Claude; a clinician reviews, edits and signs each one before it goes to the receiving practice. The quality the medical director cares about — whether a draft ever leaves the receiving clinician with a wrong understanding of the patient — is not recorded anywhere and cannot be observed at scale. The team must choose proxies it can compute over all drafts. (Choose TWO.) Which two proxies carry evidence about that construct?",
+    "options": [
+      { "key": "A", "text": "The median elapsed time between draft generation and clinician signature, tracked per department and per grade of signing clinician." },
+      { "key": "B", "text": "The mean judge score for readability and structure of the draft, computed on every summary against a fixed rubric maintained by the clinical documentation team and reported to the medical director each month alongside volume." },
+      { "key": "C", "text": "A recurring audit that checks each draft against the source record for a fixed list of must-carry facts, reported as recall over that list." },
+      { "key": "D", "text": "The proportion of drafts signed with no edit at all, read as the clinician's agreement with the draft exactly as it was generated." },
+      { "key": "E", "text": "The rate at which the signing clinician's edits change clinical content — medication, dose, diagnosis, follow-up — rather than wording, obtained by classifying the diff between draft and signed version." }
+    ],
+    "correct": ["C", "E"],
+    "explanation": {
+      "correct": "Neither keyed proxy observes the construct directly; both are causally upstream of it in a way the others are not. A clinically material edit is a case where the draft said something the reviewer judged wrong and corrected, which is a directly countable near-miss for the harm in question, and classifying diffs by whether they touch clinical content separates that from wording changes. Fact recall against the source record measures omission, the other route to a wrong understanding. Together they cover the two mechanisms — wrong content and missing content — with measurements available on every draft.",
+      "distractors": {
+        "B": "Readability and structure describe how the summary reads, not whether it is right. A clear, well-organised summary with the wrong medication dose scores well on this rubric, which makes it a poor stand-in for the harm being managed.",
+        "D": "Sign-without-edit is the classic confounded proxy. It rises with clinician trust, time pressure and interface friction as much as with draft quality, and the drafts most likely to mislead are exactly the plausible ones that get waved through.",
+        "A": "Time to signature responds to workload, shift patterns and queueing far more than to draft content. It is worth watching operationally, but it carries almost no information about whether a draft was accurate."
+      },
+      "concept": "When the outcome cannot be observed, decompose it into the mechanisms that produce it and measure each one where it is observable. Prefer proxies that count corrective actions or verifiable properties of the artefact over proxies that count agreement, which is confounded by the reviewer's incentives.",
+      "tip": "Ask of each candidate proxy: what else moves it? A proxy with an obvious alternative driver — trust, workload, interface placement — is a monitoring signal at best, never a measure of the construct."
+    }
+  },
+  {
+    "id": "ETO-D-015",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "What each kind of drift implies for existing labels",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "Under covariate shift the distribution of inputs changes; under concept drift the correct output for an unchanged input changes. What does each imply for an existing labelled golden set?",
+    "options": [
+      { "key": "A", "text": "Covariate shift invalidates the labels, because they were assigned under a different input distribution; concept drift changes only the mix, so stratified reweighting of the existing set is sufficient." },
+      { "key": "B", "text": "Covariate shift leaves existing labels valid but makes the set unrepresentative, so resample inputs; concept drift invalidates the labels themselves, so the affected items must be re-adjudicated." },
+      { "key": "C", "text": "Both require relabelling from scratch, because in either case the mapping the set encodes no longer matches the mapping production is being asked to reproduce." },
+      { "key": "D", "text": "Neither affects the golden set, whose purpose is to be a fixed baseline; both are handled by adding a separate rolling sample drawn from current production traffic." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The distinction is which part of the pair changed. Covariate shift moves the inputs while the rule mapping input to correct output holds, so every existing label is still right — the set is simply drawn from the wrong population and needs new inputs sampled from the current one. Concept drift changes the rule, typically because a policy, price list, regulation or product definition changed, so items whose correct answer has moved are now actively wrong and will penalise a system for being current. Those items must be re-adjudicated, not merely reweighted.",
+      "distractors": {
+        "A": "This inverts both halves. Labels survive an input-distribution change because the labelling rule is unchanged, and reweighting cannot repair an item whose recorded answer is no longer the correct one.",
+        "C": "Relabelling everything is expensive and unnecessary under covariate shift, where the existing items remain correctly labelled. It also fails to distinguish the two conditions, which have different detection signals and different costs.",
+        "D": "A golden set is a fixed baseline only for as long as it remains a valid one. A rolling production sample is a useful addition, but it does not repair a baseline containing items whose reference answers have become wrong."
+      },
+      "concept": "Diagnose drift by asking whether the inputs moved or the answer key moved. Input movement is a sampling problem solved by re-collection; answer movement is a labelling problem solved by re-adjudication, and treating one as the other either wastes annotation budget or leaves a corrupted baseline in place.",
+      "tip": "The words to hold onto are 'representative' versus 'correct'. Covariate shift attacks representativeness; concept drift attacks correctness, and only the second makes your stored labels wrong."
+    }
+  },
+  {
+    "id": "ETO-D-016",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Measuring error attributable to a semantic cache",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "An airline placed a semantic cache in front of its disruption-rebooking assistant: a query whose embedding is close enough to a stored one is answered from the stored response. The hit rate reached 41% and model spend fell accordingly. Quality is measured by an offline suite of anonymised, generic queries, which is unchanged. Customer relations forwarded three cases where a passenger was told about a rebooking option belonging to a different itinerary; as an immediate mitigation the cache has already been disabled for itinerary-specific queries. What should the team do next?",
+    "options": [
+      { "key": "A", "text": "Raise the similarity threshold across the board until the hit rate falls to a level the team is comfortable with, trading part of the saving for a wider margin of safety." },
+      { "key": "B", "text": "Add the three reported cases to the offline suite as regression items and re-run it, so the suite fails if the same confusion is reintroduced later." },
+      { "key": "C", "text": "Sample live cache hits from the remaining traffic, compute the uncached answer for each on a shadow path, and measure how often the served answer differs materially from it." },
+      { "key": "D", "text": "Replace the embedding model with a higher-dimensional one so that queries differing only in itinerary details are less likely to fall within the match radius." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The dangerous cases are already mitigated, so the next task is to size the residual problem, and the team currently has no measurement of it: the offline suite is generic and anonymised, which is exactly the population where a semantic cache cannot go wrong. Comparing what was served against what the model would have produced for that same query gives a direct, quantified cache-attributable error rate on the traffic still being cached. That number is what decides whether the cache stays, how the threshold should be set, and which query classes must be excluded.",
+      "distractors": {
+        "A": "Turning the threshold up without a measurement trades a known saving for an unknown reduction in risk. The team cannot say what error rate remains at any threshold, so it cannot tell whether the new setting is cautious, reckless or merely expensive.",
+        "B": "Three items in a generic suite are worth keeping, but a suite of anonymised queries has no passenger-specific context, so it cannot exercise the mechanism that produced the failure. It would give false assurance while the real exposure stays unmeasured.",
+        "D": "Changing the embedding model alters every match decision in the system and still leaves the same unanswered question, because the team would once again have no measurement of how often a hit returns the wrong answer."
+      },
+      "concept": "Any cache that returns an approximate match introduces an error rate that must be measured on the traffic it actually serves, by comparing served answers with freshly computed ones on a sample of hits. Offline suites built from generic inputs are structurally unable to detect cross-context reuse.",
+      "tip": "When a stem says the immediate mitigation is done, the next step is almost never another mitigation. Look for the option that produces the number the team needs to make the real decision."
+    }
+  },
+  {
+    "id": "ETO-D-017",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Decomposing a cost-per-task rise into its factors",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A legal services firm's contract-review agent shows cost per reviewed contract up 3.1 times over five weeks. Contract volume, model tier and commercial terms are unchanged, and both final-answer accuracy and p95 latency are flat. The finance partner wants the mechanism identified before the next billing cycle, and the plausible mechanisms are longer inputs per step, more steps per contract, and reduced reuse of the cached prompt prefix. Which analysis distinguishes them?",
+    "options": [
+      { "key": "A", "text": "Split total spend into model spend, retrieval infrastructure and orchestration compute, identify which line item grew over the five weeks, and reconcile the result against the invoice the finance partner will receive." },
+      { "key": "B", "text": "Split cost per contract into steps per contract, input tokens per step separated into cache-read and freshly processed, and output tokens per step, then compare each factor with its value five weeks ago." },
+      { "key": "C", "text": "Split cost by client segment and contract type, to find which cohort is pulling the average upwards." },
+      { "key": "D", "text": "Split cost by hour of day, to see whether the increase coincides with the overnight bulk-review window rather than interactive use." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Cost per contract is a product of factors, and the three candidate mechanisms each live in a different factor: input length shows up in tokens per step, agent looping shows up in steps per contract, and lost prefix reuse shows up as a shift from cache-read to freshly processed input tokens at constant token counts. Comparing each factor against its value five weeks ago identifies the mechanism directly and rules out the others in the same pass. The other splits partition the same total by who or when, which locates affected traffic but leaves all three mechanisms alive.",
+      "distractors": {
+        "A": "This is the right decomposition for a bill whose growth might sit outside inference, but the stem already restricts the candidates to three token-level mechanisms, all of which fall inside the same line item.",
+        "C": "Cohort analysis answers 'who', which is useful for scoping impact and for spotting a single pathological client. It cannot separate more steps from longer steps, because both mechanisms appear in every cohort that grew.",
+        "D": "Time-of-day slicing is a reasonable reflex when load patterns are suspected, but a change in when cost is incurred says nothing about which factor of the per-contract product moved."
+      },
+      "concept": "Express cost per unit of work as an explicit product of countable factors — steps, tokens per step, cached versus fresh input, output tokens — and monitor the factors, not just the product. A change in the product is uninterpretable; a change in one factor names its own mechanism.",
+      "tip": "Notice that accuracy and latency are flat. That combination rules out most quality explanations and points the investigation at the accounting decomposition rather than at the model's behaviour."
+    }
+  },
+  {
+    "id": "ETO-D-018",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "First check when an alert coincides with a scheduled job",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An education platform's grading assistant trips its quality alert twenty minutes after the nightly reindex of the rubric corpus completed. The release log shows no model, prompt or code change in the past four days. What is the first step?",
+    "options": [
+      { "key": "A", "text": "Raise the alert threshold, since a single alert immediately following a routine scheduled job is most likely noise from the sampling window." },
+      { "key": "B", "text": "Roll the model back to the previously pinned version and watch whether the alert clears over the next few sampling windows." },
+      { "key": "C", "text": "Open a full postmortem and schedule an expansion of the eval set for the rubric categories that scored lowest in the alerting window." },
+      { "key": "D", "text": "Check what the reindex changed, by replaying a set of requests against the old and new index and comparing the retrieved rubric passages." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "One thing changed in the window and the release log rules out everything else, so the investigation starts there. Replaying the same requests against both index states isolates the reindex from every other variable and answers the question directly: either the retrieved passages differ in a way that explains the scores, or they do not and the reindex is eliminated. This is fast, reversible and produces evidence, which is what the first step of a triage should do.",
+      "distractors": {
+        "A": "Changing a threshold in response to its first meaningful firing removes the signal rather than the fault. The alert has correlated with a real event in the change timeline, which is the opposite of the noise case.",
+        "B": "The model is not implicated: the release log shows no change to it, and a rollback introduces a second variable into a window that currently has exactly one.",
+        "C": "A postmortem and eval expansion are reasonable follow-ups once the cause is known. Starting with them consumes days while an unexplained quality drop continues to affect grading."
+      },
+      "concept": "Triage begins with the change timeline. Scheduled jobs — reindexing, corpus refreshes, credential rotation, data loads — are changes even though they do not appear in a release log, and correlating an alert with them costs minutes and eliminates most hypotheses.",
+      "tip": "'No code change' does not mean nothing changed. Data and index state move on their own schedules, and stems that mention a completed scheduled job immediately before an alert are pointing at it."
+    }
+  }
+]

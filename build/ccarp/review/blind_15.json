@@ -1,0 +1,679 @@
+{
+ "batch": "blind_15",
+ "count": 60,
+ "answer_file": "build/ccarp/review/answers_15.json",
+ "items": [
+  {
+   "id": "INT-A-014",
+   "choose": 1,
+   "question": "A grocery retailer's RAG evaluation reports context recall 0.62, context precision 0.88, and faithfulness 0.95 on its supplier-contract assistant. What does this combination indicate?",
+   "options": {
+    "A": "Retrieved context is mostly relevant and the model stays inside it, but much of the required evidence never reaches it; fix retrieval and chunking.",
+    "B": "The generator is fabricating supplier terms the retrieved passages do not support, so the priority is a groundedness gate on every output sentence.",
+    "C": "Too much irrelevant material is reaching the model, so the priority is a cross-encoder reranker that trims the candidate list to the top five passages.",
+    "D": "The evaluation set is malformed, because context recall cannot legitimately fall below context precision in any well-formed retrieval evaluation."
+   }
+  },
+  {
+   "id": "INT-A-015",
+   "choose": 1,
+   "question": "A maritime logistics operator runs hybrid retrieval over vessel-certification and port-regulation documents, combining the two branches with a fixed formula: `0.7 x cosine + 0.3 x bm25_score`. Relevance is erratic across queries — for some, lexical matching plainly dominates the final ranking; for others it has almost no influence. Retrieval quality was stable when each branch was evaluated alone. What is happening, and what is the right correction?",
+   "options": {
+    "A": "Cosine similarity is the wrong dense metric for this embedding model; switching the dense branch to dot product will bring the two score ranges into alignment.",
+    "B": "The weights are mis-tuned; sweep alpha from 0 to 1 in 0.05 steps against the labelled evaluation set and ship the global value that maximises nDCG@10.",
+    "C": "Run the branches in sequence — take BM25's top 200 as the candidate pool and order that shortlist by cosine alone, so no blended score is ever computed.",
+    "D": "BM25 scores are unbounded and query-dependent while cosine is bounded, so a fixed blend re-weights itself per query; fuse on rank, or normalise each list per query."
+   }
+  },
+  {
+   "id": "INT-A-016",
+   "choose": 1,
+   "question": "A hospital network's clinical-policy assistant serves 14 departments from one index. Overnight, answer quality collapses for cardiology only; every other department is unaffected. The nightly ingestion job reported success with no errors. The one recent change is that cardiology migrated its policy documents to a new authoring template last week. What should the on-call engineer do first?",
+   "options": {
+    "A": "Roll the embedding model back to the previously pinned version, since a change of model is by far the most common cause of a sudden and broad shift in retrieval quality.",
+    "B": "Compare indexed chunk counts and last-indexed timestamps per cardiology document against the source system before altering any retrieval parameter.",
+    "C": "Trigger a full rebuild of the index to clear any corruption introduced by the overnight run.",
+    "D": "Raise top-k and enable the reranker for cardiology queries to compensate while the cause is investigated."
+   }
+  },
+  {
+   "id": "INT-A-017",
+   "choose": 1,
+   "question": "In an HNSW vector index already built and serving traffic, which change trades query latency for higher recall without rebuilding the index?",
+   "options": {
+    "A": "Increasing `ef_construction`, the candidate list size used while inserting nodes.",
+    "B": "Increasing `M`, the number of bidirectional links retained per node.",
+    "C": "Increasing `ef_search`, the size of the candidate list explored during a query.",
+    "D": "Reducing the number of index segments the query fans out across."
+   }
+  },
+  {
+   "id": "INT-A-018",
+   "choose": 1,
+   "question": "A food-safety regulator is indexing inspection standards in which the operative content is large tables — maximum residue limits per contaminant per commodity, running to hundreds of rows. Recursive character-based chunking currently splits these tables mid-row and strips them of their header rows, so retrieved fragments are numerically meaningless. The team has three weeks before a committed pilot and no budget to procure a document-understanding product. What should they do?",
+   "options": {
+    "A": "Detect table regions during parsing and emit each table as its own chunk with a serialised header, splitting oversized tables by row group and repeating the header in every part.",
+    "B": "Raise the global chunk size to accommodate the largest table in the corpus, guaranteeing that no table is ever split.",
+    "C": "Keep character-based chunking but raise overlap to 50%, so that some chunk is likely to contain both the header and the relevant rows.",
+    "D": "Stop retrieving text for these documents and instead render each page as an image, passing whole pages to the model at query time so that it can read the tables directly off the page."
+   }
+  },
+  {
+   "id": "INT-A-019",
+   "choose": 1,
+   "question": "A telehealth provider indexes transcripts of clinician-patient consultations so clinicians can ask questions such as \"what has this patient previously said about medication adherence?\". The current pipeline uses fixed 500-token windows, which cut across speaker turns; retrieved fragments frequently attribute the patient's words to the clinician or vice versa. What is the right chunking design?",
+   "options": {
+    "A": "Index one chunk per complete consultation, so that no conversational context can ever be severed.",
+    "B": "Group consecutive speaker turns into topically coherent windows, keep the speaker label and relative timestamp inside the chunk text, and carry consultation id, date, and clinician as metadata.",
+    "C": "Keep the 500-token windows but raise overlap to 30%, so any severed turn also appears intact in a neighbouring chunk.",
+    "D": "Chunk at the level of individual utterances for maximum retrieval precision, reconstructing the surrounding dialogue from the transcript store when the answer is generated so no context is permanently lost."
+   }
+  },
+  {
+   "id": "INT-A-020",
+   "choose": 1,
+   "question": "An e-commerce marketplace runs semantic product search over 60 million listings in one graph-based ANN index. Most queries carry a conjunctive pre-filter — seller, category, ships-to region, in stock — that matches well under 0.1% of the corpus. Unfiltered queries are fast and accurate; heavily filtered ones either time out or return an obviously incomplete set. What is happening, and what is the right correction?",
+   "options": {
+    "A": "Switch to post-filtering: run an unfiltered search at a large k and discard the non-matching results afterwards, which keeps the traversal on the densely populated part of the graph.",
+    "B": "Replace the embedding model, since the failure shows its vectors do not separate listings within a single category well enough.",
+    "C": "Add read replicas and raise query concurrency so the additional traversal work is spread out and the latency spike disappears.",
+    "D": "Selective predicates make the traversal visit far more nodes before finding enough matching neighbours; partition along the dominant filter dimension so the predicate routes."
+   }
+  },
+  {
+   "id": "INT-A-021",
+   "choose": 1,
+   "question": "A patent law firm is building prior-art search over 8 million chunks of claims and specifications. Client confidentiality means embeddings must be computed on hardware the firm controls, so no hosted embedding endpoint is permitted. Associates have already produced 600 labelled query-to-passage pairs from real prior-art searches. A partner asks which embedding model to use. What is the correct selection process?",
+   "options": {
+    "A": "Shortlist by hard constraints — self-hostable licence, memory at 8 million vectors, sequence length — then rank the shortlist by recall@k on the firm's 600 labelled pairs.",
+    "B": "Adopt whichever model currently tops the public MTEB retrieval leaderboard, since that average aggregates results over dozens of tasks and many domains of text.",
+    "C": "Choose the model with the largest output dimensionality available, because more dimensions retain more of the signal in dense, highly technical claim language.",
+    "D": "Fine-tune an embedding model on the firm's own corpus before running any comparison at all, since general-purpose models cannot represent patent claim language adequately."
+   }
+  },
+  {
+   "id": "INT-A-022",
+   "choose": 1,
+   "question": "A pipeline embeds documents using an embedding model's document-side instruction prefix but embeds user queries with no prefix at all. What is the consequence?",
+   "options": {
+    "A": "No effect: the prefix is a corpus-authoring convention that the tokeniser strips before encoding, so it never reaches the vector computation.",
+    "B": "The two sides end up with different dimensionality, so the index rejects the query vector and the call fails loudly with a shape mismatch.",
+    "C": "For a model trained with asymmetric instructions, query and document vectors land in offset regions of the space, so ranking degrades while every call still succeeds.",
+    "D": "Only exact-match behaviour is affected; semantic similarity is unchanged, because a constant prefix contributes a constant offset that cancels out under cosine similarity."
+   }
+  },
+  {
+   "id": "INT-A-023",
+   "choose": 2,
+   "question": "A university research-administration assistant answers grant-compliance questions for 900 principal investigators. Adding a cross-encoder reranker raised nDCG@10 on the retrieval evaluation set from 0.61 to 0.79, but subject-matter reviewers scored end-to-end answer correctness at 71% before the change and 72% after. Which TWO explanations are consistent with that result? (Choose TWO.)",
+   "options": {
+    "A": "Cross-encoder rerankers reduce the number of passages forwarded to the generator, so answers lose the supporting detail that the wider, unranked candidate set had previously provided them.",
+    "B": "Relevance scores produced by a cross-encoder are not comparable between queries, which prevents nDCG from being computed reliably.",
+    "C": "In most queries the answer passage was already inside the set handed to the generator, so promoting it to a better position changes little about what the model can see.",
+    "D": "Reranking adds latency to each request, and the reduced time available lowers the quality of the generated answer.",
+    "E": "In a substantial share of queries the required evidence is absent from the first-stage candidate list altogether, and reranking cannot introduce candidates that were never retrieved."
+   }
+  },
+  {
+   "id": "INT-A-024",
+   "choose": 1,
+   "question": "An airline indexes operations manuals in English, French, and Japanese and runs hybrid retrieval. The lexical branch performs well on English and French queries and contributes almost nothing on Japanese ones, while the dense branch performs comparably across all three languages. What is the most likely cause?",
+   "options": {
+    "A": "The dense branch is masking the problem; disabling it for Japanese queries would let the lexical scores dominate and recover the matches.",
+    "B": "The lexical index is tokenising on whitespace, which does not segment Japanese into terms, so the Japanese content needs a morphological analyser at both index and query time.",
+    "C": "Inverse-document-frequency weighting is undefined for non-Latin scripts and must be replaced with raw term frequency for the Japanese portion of the corpus, which is why that branch contributes nothing.",
+    "D": "Japanese queries should be machine-translated into English before reaching the lexical branch, since the index is majority English."
+   }
+  },
+  {
+   "id": "INT-A-025",
+   "choose": 1,
+   "question": "A mining group indexes forty years of exploration reports written in dense specialist geology prose. The users are commercial analysts, not geologists, and they ask short, plain-language questions such as \"where have we seen the same kind of alteration around a porphyry before?\". Retrieval is weak, and inspection shows the query vectors sit far from every relevant report because the questions share almost no vocabulary or register with the documents. Which change targets the actual cause?",
+   "options": {
+    "A": "Add a BM25 branch, since lexical matching is more robust than dense embeddings whenever the query vocabulary and the document vocabulary diverge as sharply as they do between these analysts and these reports.",
+    "B": "Raise top-k substantially and let a reranker recover the relevant reports from the wider candidate pool.",
+    "C": "Re-chunk the reports into smaller units so each chunk covers a narrower topic and therefore matches a short query more closely.",
+    "D": "Have a model draft a hypothetical passage that would answer the question, embed that draft, and fuse its results with those of the raw query so a misdirected draft cannot dominate."
+   }
+  },
+  {
+   "id": "INT-A-026",
+   "choose": 2,
+   "question": "An investment research firm's analyst assistant is asked questions such as \"which of our portfolio companies disclosed a going-concern warning and also has debt maturing before 2027?\". Going-concern language lives in narrative filings in the vector index; maturity schedules live in a governed portfolio database. Single-shot dense retrieval on the whole question returns filings that mention either idea and rarely both. Which TWO changes address the structure of the problem? (Choose TWO.)",
+   "options": {
+    "A": "Increase top-k so that passages covering both facts are more likely to co-occur in the candidate set.",
+    "B": "Decompose the question into sub-questions, retrieve independently for each, and assemble the combined evidence before generation.",
+    "C": "Embed the question as a single vector, since a sufficiently strong dense representation captures conjunctive constraints across the separate clauses of a question.",
+    "D": "Route the structured half of the question — debt maturity dates — to the portfolio database and keep only the narrative half in vector retrieval.",
+    "E": "Add a reranker trained on conjunctive queries so that passages satisfying both conditions rank first."
+   }
+  },
+  {
+   "id": "INT-A-027",
+   "choose": 1,
+   "question": "A rail operator's engineering-standards assistant has been live for eight months with no retrieval evaluation of any kind. There are 400,000 logged queries, no relevance labels, and three subject-matter experts who can each spare roughly a day a month. The team needs an evaluation set it can regress against on every release. How should it be built?",
+   "options": {
+    "A": "Have a model generate a question from each of 5,000 randomly sampled chunks and treat the source chunk as the single relevant passage for that question.",
+    "B": "Label the 100 most frequent queries from the head of the log, since they account for the bulk of traffic and give the best return on three expert-days a month.",
+    "C": "Cluster the query log by intent, sample across clusters including rare and zero-result queries, have experts mark relevant passages, then freeze the set.",
+    "D": "Derive relevance labels from the click-through and dwell-time signals the interface already logs, treating any citation opened for over ten seconds as relevant."
+   }
+  },
+  {
+   "id": "INT-A-028",
+   "choose": 1,
+   "question": "A RAG system hands the top eight retrieved chunks to the generator on every request. Which first-stage retrieval metric should govern tuning of the retriever, and why?",
+   "options": {
+    "A": "Recall@8: the first stage's job is to get the needed evidence into the set handed on, and ordering inside the eight is absorbed downstream.",
+    "B": "Mean reciprocal rank, because the position of the first relevant chunk determines how much of the answer the model can ground.",
+    "C": "Precision@1, because the top-ranked chunk sits nearest the instruction in the assembled prompt and anchors the model's reading of the question.",
+    "D": "nDCG over the full ranked list, because it is the only one of these metrics that accounts for graded rather than binary relevance judgements."
+   }
+  },
+  {
+   "id": "INT-A-029",
+   "choose": 1,
+   "question": "A commodities trading desk requires that a published research note be retrievable by the analyst assistant within sixty seconds of publication. The current pipeline is a job that runs every fifteen minutes and re-scans the entire research corpus, re-parsing and re-embedding anything whose hash has changed. Volume is roughly 200 new notes a day against a corpus of 1.4 million documents. What should the architect change?",
+   "options": {
+    "A": "Reduce the batch interval from fifteen minutes to sixty seconds, since the pipeline already works correctly and only its cadence needs to change.",
+    "B": "Bypass the index for recent material by querying the research content system directly with keyword search and merging those results into every answer.",
+    "C": "Trigger embed-and-upsert from the publish event itself so a note enters the index within seconds, and retain the periodic job as a reconciliation and backfill pass rather than the primary path.",
+    "D": "Keep the fifteen-minute batch but place the most recently published notes directly in the system prompt, so they are available to every query regardless of what state the index happens to be in."
+   }
+  },
+  {
+   "id": "INT-A-030",
+   "choose": 3,
+   "question": "A legal-technology SaaS serves 600 law-firm tenants from shared retrieval infrastructure with a correctly enforced server-side tenant pre-filter on the vector search. A security review is asked to identify remaining cross-tenant disclosure channels. Which THREE of the following are genuine leakage channels that require a control, rather than non-issues? (Choose THREE.)",
+   "options": {
+    "A": "A cached query-result layer keyed on the query string alone, so the same question from two tenants returns the first tenant's passages.",
+    "B": "A shared cross-encoder reranker instance scoring passages from many different tenants inside the same stateless inference process running on shared hardware.",
+    "C": "Corpus-level term statistics for the lexical branch computed across all tenants, exposing document-frequency information about other tenants' holdings.",
+    "D": "A single frozen embedding model used to vectorise the documents belonging to every tenant on the platform.",
+    "E": "Few-shot examples baked into the production system prompt that were lifted from a real customer's documents during development."
+   }
+  },
+  {
+   "id": "INT-A-031",
+   "choose": 1,
+   "question": "In contextual retrieval, what is changed relative to a conventional chunking pipeline?",
+   "options": {
+    "A": "Each chunk gains a metadata field holding a summary of its parent document, which the vector search then applies as an additional filter.",
+    "B": "A summary of the parent document is prepended to each retrieved chunk after retrieval, immediately before the generation call.",
+    "C": "The embedding model is fine-tuned with a contrastive objective so that chunks from the same source document cluster tightly together.",
+    "D": "A short model-written passage situating the chunk in its source document is prepended before the chunk is embedded and lexically indexed."
+   }
+  },
+  {
+   "id": "INT-A-032",
+   "choose": 1,
+   "question": "An automotive manufacturer's service-documentation index has grown to 120 million chunks and no longer fits in memory across its search cluster; nodes are now paging and p95 latency has tripled. Finance has declined a proportional increase in cluster size. Retrieval quality is currently good and there is an established evaluation set. What is the appropriate response?",
+   "options": {
+    "A": "Quantise the resident vectors to shrink memory and rescore a small top candidate set against full-precision vectors, validating the recall loss on the evaluation set.",
+    "B": "Truncate every vector to its first 256 dimensions, which preserves most of the signal because embedding models order their output dimensions by descending importance as a matter of course.",
+    "C": "Remove older documents from the index until it fits, since retrieval quality on recent service material is what technicians actually notice.",
+    "D": "Move to exact brute-force search over vectors held on disk, trading latency for memory and eliminating approximation error altogether."
+   }
+  },
+  {
+   "id": "INT-A-033",
+   "choose": 1,
+   "question": "A central government procurement body indexes 40,000 supplier contracts. Most are built from the same standard clause library, so thousands of contracts contain textually near-identical clauses. Officers asking \"what are the termination-for-convenience terms with Supplier X?\" receive a top-8 consisting almost entirely of the same standard clause drawn from eight different contracts, while the negotiated amendment specific to Supplier X — which is what changes the answer — is pushed out. The tenant filter and reranker are both working as designed. What should be changed?",
+   "options": {
+    "A": "Deduplicate at index time by hashing chunk text and keeping a single copy of each standard clause across the whole corpus.",
+    "B": "Apply a diversity constraint after reranking — maximal marginal relevance or a per-document cap — so the top-8 spans distinct contracts.",
+    "C": "Raise top-k from 8 to 40 and let the reranker order them, so the supplier-specific amendment appears somewhere in the larger set.",
+    "D": "Impose a minimum similarity threshold and discard everything below it, which removes the weaker duplicate copies from the result set."
+   }
+  },
+  {
+   "id": "INT-A-034",
+   "choose": 1,
+   "question": "An agritech company's agronomy assistant scores recall@10 of 0.93 on its retrieval evaluation set, which has been maintained since the pilot. Field agronomists nevertheless report that the assistant \"cannot find anything useful\" and usage has fallen for three consecutive months. The evaluation runs green on every release. What should the team do next?",
+   "options": {
+    "A": "Increase candidate depth and add a reranker, since production traffic is evidently harder than the evaluation set the team has been maintaining.",
+    "B": "Rebuild the evaluation set from scratch using model-generated questions across the whole corpus, giving broader coverage than the current one.",
+    "C": "Cluster recent production queries, weighted toward zero-result and poorly rated sessions, and compare that distribution to the evaluation set.",
+    "D": "Add thumbs-up and thumbs-down controls to the interface and wait a quarter for enough labelled sessions to accumulate before changing anything."
+   }
+  },
+  {
+   "id": "INT-A-035",
+   "choose": 1,
+   "question": "A postal logistics operator enables hybrid retrieval on its dispatch-support assistant. Retrieval quality improves on the evaluation set. In production, p50 retrieval latency rises from 90 ms to 105 ms, but p99 rises from 240 ms to 1,900 ms. Search-tier CPU utilisation is under 40% and unchanged. What should the engineer do first?",
+   "options": {
+    "A": "Instrument the dense branch, the lexical branch, and the fusion step separately, since a fan-out's tail is set by whichever branch is slowest.",
+    "B": "Roll the hybrid change back behind its feature flag to restore the 240 ms p99, then revisit the design in the next planning cycle.",
+    "C": "Add a global retrieval timeout that returns whichever branch has completed, so the p99 is bounded by construction regardless of query shape.",
+    "D": "Scale out the search tier, since the added lexical branch has roughly doubled the total retrieval workload the cluster must absorb."
+   }
+  },
+  {
+   "id": "INT-A-036",
+   "choose": 2,
+   "question": "A pension administrator must be able to show its regulator, for any figure quoted to a member, which source document the figure came from and which version of that document was in force on the date of the enquiry. The team is specifying what to attach to each chunk at index time. Which TWO attributes are required to satisfy that obligation? (Choose TWO.)",
+   "options": {
+    "A": "A copy of the full parent document text held inside every chunk, so that a citation can always be rendered without a second lookup against the content store.",
+    "B": "A model-generated plain-language summary of the chunk, used as the citation text shown to the member.",
+    "C": "A stable source-document identifier together with the document version, carried through retrieval into the citation attached to the answer.",
+    "D": "The document's effective-from and effective-to dates, so retrieval can be restricted to the version that was in force on the enquiry date.",
+    "E": "The similarity score the chunk achieved on the most recent evaluation run, stored alongside it."
+   }
+  },
+  {
+   "id": "INT-A-037",
+   "choose": 1,
+   "question": "A national water utility is building an internal assistant over four very different corpora: engineering standards as long structured PDFs, field-crew chat logs, asset-management records that are mostly short structured notes, and training slide decks. The platform team proposes a single global chunking policy of 800 tokens with 10% overlap across all four \"so the pipeline stays consistent\". What should the architect recommend instead?",
+   "options": {
+    "A": "Keep the single 800-token policy and raise top-k, so the source types that chunk badly still get enough representation in the candidate set.",
+    "B": "Build four separate indexes, one per source type, each with its own chunker, then query all four in parallel and merge the results by raw similarity score.",
+    "C": "Chunk per source type — sections for standards, turn windows for chat, whole-record for asset notes — into one index carrying a source-type field.",
+    "D": "Normalise every source into one common markdown representation at ingest, and then apply the single 800-token chunking policy to the converted text throughout."
+   }
+  },
+  {
+   "id": "INT-A-038",
+   "choose": 1,
+   "question": "Why should an ingest pipeline assert chunk length against the embedding model's maximum sequence length rather than relying on the embedding call to surface the problem?",
+   "options": {
+    "A": "Because the call would otherwise return a vector of reduced dimensionality that the index rejects at write time.",
+    "B": "Because the common outcome is silent truncation: a vector is produced from the leading portion only, so the tail of the chunk becomes unretrievable.",
+    "C": "Because oversized inputs are split and mean-pooled by the model, which changes the resulting vector's scale and breaks cosine comparability with the rest of the index.",
+    "D": "Because the ingest job will retry the oversized chunk indefinitely, stalling the whole pipeline behind a single document."
+   }
+  },
+  {
+   "id": "INT-A-039",
+   "choose": 1,
+   "question": "An environmental regulator indexes rules that exist at federal level and, for some topics, at state level. Where a state rule exists it supersedes the federal one; where it does not, the federal rule governs. The assistant currently filters on `jurisdiction = <requesting state>`, so it returns nothing for topics covered only federally. Removing the filter returns other states' rules, which are actively misleading. What is the correct design?",
+   "options": {
+    "A": "Filter on set membership over the requesting state and federal together, then apply a deterministic precedence step to the results that prefers the state rule where both are present.",
+    "B": "Remove the jurisdiction filter and place \"you are answering for <state>\" in the system prompt, so the model selects the applicable rule from among everything that was retrieved for that question.",
+    "C": "Run the state-filtered query first and, only when it returns no results, re-run the query with the federal filter.",
+    "D": "Keep the unfiltered query and boost state-jurisdiction documents in the ranking function so they outrank federal ones whenever both match."
+   }
+  },
+  {
+   "id": "INT-A-040",
+   "choose": 2,
+   "question": "A contract research organisation is adopting contextual retrieval across its study documentation: before embedding, a model writes a short passage situating each chunk within its parent document, and that passage is prepended to the chunk. The programme lead asks what this commits the team to operationally. Which TWO consequences must be planned for? (Choose TWO.)",
+   "options": {
+    "A": "The added context makes dense retrieval sufficient on its own, so the existing lexical branch can be retired and its maintenance cost recovered.",
+    "B": "Because the context derives from the whole parent document, any edit to that document invalidates the context of every chunk in it, not only the changed ones.",
+    "C": "Chunk overlap becomes unnecessary, because the situating passage spans the boundary between adjacent chunks.",
+    "D": "Changing the augmenting model version forces a full index rebuild, because vectors produced before and after the change occupy different embedding spaces.",
+    "E": "The situating passage is model-generated and can assert what the chunk does not support, so citations should return the original chunk text."
+   }
+  },
+  {
+   "id": "INT-A-041",
+   "choose": 1,
+   "question": "A humanitarian NGO indexes field reports written by country teams in French, Spanish, Arabic, and English. Analysts at headquarters query in English and must find relevant reports irrespective of the language they were written in, and must be able to quote the original text in a briefing note. Roughly 60% of the corpus is non-English. What retrieval design fits?",
+   "options": {
+    "A": "Machine-translate every report into English at ingest and index only the English translation, which makes the corpus uniform and lets a strong English-only embedding model be used.",
+    "B": "Build one index per language and translate each analyst query into all four languages, querying every index and merging the results.",
+    "C": "Keep a monolingual English embedding model and rely on the lexical branch to bridge languages through proper nouns, place names, and organisation acronyms.",
+    "D": "Use a multilingual embedding model that places translation-equivalent text close together, keep one index over the original text, and validate it on cross-lingual pairs."
+   }
+  },
+  {
+   "id": "INT-A-042",
+   "choose": 1,
+   "question": "A vector store reports a recall of 0.98 for its current index configuration, while the team's RAG evaluation reports recall@10 of 0.64. Both figures are correct. What is each measuring?",
+   "options": {
+    "A": "They measure the same quantity at different cut-offs, so the gap means the evaluation is using a larger k than the store benchmarked.",
+    "B": "The store's figure is taken before metadata filtering and the evaluation's after, so the whole of the gap is explained by filters removing results that would otherwise have been eligible.",
+    "C": "The store's figure is the fraction of true nearest neighbours the approximate search returns; the evaluation's is the fraction of queries whose evidence is in the top ten.",
+    "D": "The store's figure is a precision measurement reported under a misleading name, so only the evaluation number is a recall measurement."
+   }
+  },
+  {
+   "id": "INT-A-043",
+   "choose": 1,
+   "question": "A broadcast-rights organisation serves about 2,000 retrieval calls a minute at peak against a 400 ms p95 budget for the retrieval stage. The ML lead proposes retiring the cross-encoder reranker and instead sending the 30 candidates to a mid-tier model in a single listwise prompt that returns a ranking, arguing it is more accurate and removes a component the team must maintain. Offline, the listwise ranking does score better. What should the architect decide?",
+   "options": {
+    "A": "Adopt listwise reranking for all traffic but cut the candidate list from 30 to 8 so the call fits inside the latency budget.",
+    "B": "Keep the cross-encoder in the hot path and use listwise reranking off it — to label training and evaluation data, and for a low-volume high-value query class.",
+    "C": "Adopt listwise reranking and cache the returned rankings by query string, so repeated queries avoid the model call.",
+    "D": "Run both and use the cross-encoder's score confidence to decide, on a per-query basis, which of the two rerankers should be invoked for that particular request."
+   }
+  },
+  {
+   "id": "INT-A-044",
+   "choose": 1,
+   "question": "A veterinary pharmaceutical company enables automatic synonym and acronym expansion on queries to its product-information assistant. On the evaluation set, recall@10 rises from 0.71 to 0.84. Within two weeks, technical-support staff report noticeably more off-topic results, and the model-graded answer-correctness score has fallen by four points. What should the team do next?",
+   "options": {
+    "A": "Revert the expansion, since end-to-end answer correctness is the metric that ultimately matters here, and it has moved in the wrong direction since the change went live two weeks ago.",
+    "B": "Add a reranker after expansion to suppress the newly introduced irrelevant results before they reach the generator.",
+    "C": "Reduce top-k so that fewer of the expanded matches reach the generator.",
+    "D": "Break the evaluation down by query class, reporting precision alongside recall, to identify which expansions are injecting the noise before deciding what to change."
+   }
+  },
+  {
+   "id": "INT-A-045",
+   "choose": 1,
+   "question": "A national library's ingest pipeline was down for three days. Around 500,000 documents are now missing from the index or stale, and a full backfill at current throughput takes nine days. Reader-facing search remains live and is heavily used, and the source repository is shared with the reading-room systems. How should the backfill be run?",
+   "options": {
+    "A": "Order the backlog by observed demand — the collections appearing most in recent and zero-result queries — and publish a per-collection freshness indicator.",
+    "B": "Process the backlog strictly in chronological order of document change, since that is the only ordering that guarantees the index converges correctly.",
+    "C": "Suspend reader search behind a maintenance page until the backfill completes, so no reader is ever served results from a partially rebuilt index.",
+    "D": "Raise ingest parallelism until the backfill completes in under a day, accepting the temporary additional load on the source repository and the embedding capacity."
+   }
+  },
+  {
+   "id": "INT-A-046",
+   "choose": 1,
+   "question": "In a retrieval pipeline, what distinguishes query rewriting from query expansion?",
+   "options": {
+    "A": "Rewriting is applied before embedding, while expansion is applied after retrieval, at the point where the returned result set is being re-scored.",
+    "B": "Rewriting is performed by a model and expansion by a rule-based thesaurus; the two are otherwise equivalent in what they do to retrieval.",
+    "C": "Rewriting replaces the user's text with one better-formed query, while expansion adds terms or query variants to widen the candidate pool.",
+    "D": "Rewriting affects only the dense branch of a hybrid retriever, because it changes the embedded text, while expansion affects only the lexical branch."
+   }
+  },
+  {
+   "id": "INT-A-047",
+   "choose": 1,
+   "question": "A hotel group's retrieval team reports that swapping rerankers raised recall@10 from 0.775 to 0.800 on its 40-query evaluation set — 31 of 40 queries to 32 of 40 — and asks to ship the change. The new reranker costs roughly 30% more per query. What should the architect say?",
+   "options": {
+    "A": "Ship it: a recall improvement on the agreed evaluation set is the criterion the team committed to, and a 30% unit-cost rise is modest at this volume.",
+    "B": "Re-run the evaluation ten times and take the mean, since retrieval carries run-to-run variance that a single execution cannot capture reliably.",
+    "C": "Change the headline metric to nDCG@10, which is more sensitive to ordering and will show the improvement more clearly at this sample size.",
+    "D": "Treat it as inconclusive: the difference is one query, so compare the two paired on the same queries, report what flipped each way, and enlarge the set."
+   }
+  },
+  {
+   "id": "INT-A-048",
+   "choose": 2,
+   "question": "A streaming-video company's help-centre assistant searches 4,000 short, heavily edited FAQ articles written in deliberately plain language. Users ask paraphrased natural-language questions. An engineer proposes adding a BM25 branch because \"hybrid is best practice\". Which TWO observations would justify declining? (Choose TWO.)",
+   "options": {
+    "A": "Query-log analysis shows almost no queries contain rare literal tokens — no error codes, account identifiers, or model numbers — so there is little for lexical scoring to exploit.",
+    "B": "BM25 cannot be applied to corpora smaller than about ten thousand documents, because document-frequency statistics are too unstable to rank on at that scale and shift as articles are added.",
+    "C": "Hybrid retrieval always pushes latency beyond what a consumer-facing product can tolerate, because two branches must complete before fusion.",
+    "D": "A shadow run of the hybrid configuration against the evaluation set leaves recall@10 unchanged within its confidence interval, while adding a second index to build, refresh, and monitor.",
+    "E": "The dense embedding model was fine-tuned on this corpus, which makes lexical matching mathematically redundant."
+   }
+  },
+  {
+   "id": "INT-A-049",
+   "choose": 3,
+   "question": "A logistics-software vendor is changing its chunking strategy from 1,000-token fixed windows to structure-aware sections averaging 350 tokens. The embedding model, vector store, and reranker are all unchanged. Which THREE things must be redone before the change can be judged safe? (Choose THREE.)",
+   "options": {
+    "A": "Re-select the embedding model, because one that performed well on 1,000-token inputs will not encode inputs of around 350 tokens correctly without first being re-tuned for the shorter length.",
+    "B": "Re-embed the entire corpus, since every chunk boundary has moved and the existing vectors correspond to text spans that no longer exist.",
+    "C": "Re-map the gold relevance labels onto the new chunk identifiers, since the labels point at chunks that no longer exist and recall figures would otherwise be uninterpretable.",
+    "D": "Rebuild the lexical analyser configuration, because corpus term statistics shift whenever the chunk boundaries in the index are moved.",
+    "E": "Re-tune how many chunks are passed to the generator, because the text volume behind each chunk has fallen by roughly two thirds."
+   }
+  },
+  {
+   "id": "INT-A-050",
+   "choose": 1,
+   "question": "A medical-device manufacturer runs a complaint-handling assistant over its technical documentation. An internal audit finds the assistant answers confidently on topics the corpus does not cover, because top-k always returns k chunks and the model synthesises from whatever it is given. The quality regulator's expectation is that the system must not present an answer it cannot support. What is the right control?",
+   "options": {
+    "A": "Instruct the model in the system prompt to reply \"I don't know\" whenever the retrieved passages do not support an answer.",
+    "B": "Calibrate a reranker-score threshold on an evaluation set that includes unanswerable queries, abstain below it, and monitor the abstention rate.",
+    "C": "Lower top-k to three, so fewer weak passages reach the model and there is less material from which to construct an unsupported answer.",
+    "D": "Add a post-generation entailment check that rejects any answer whose claims are not supported by the passages that were retrieved for it."
+   }
+  },
+  {
+   "id": "INT-A-051",
+   "choose": 2,
+   "question": "A field-service SaaS serves 900 tenants from one vector index. A single tenant holds about 40% of all vectors and issues roughly 55% of query volume in sharp bursts during its dispatch windows; during those bursts, other tenants' p95 retrieval latency doubles. Correctness isolation — a server-side tenant pre-filter derived from the session — is already sound and must stay that way. Which TWO changes restore performance isolation? (Choose TWO.)",
+   "options": {
+    "A": "Drop the tenant pre-filter for the largest tenant, since it holds most of the index anyway and the predicate costs traversal effort on every one of its queries.",
+    "B": "Cache retrieval results globally, keyed on the query text, so the largest tenant's repeated queries become cheap for everyone.",
+    "C": "Move the largest tenants onto dedicated shards or namespaces while keeping the long tail of small tenants pooled.",
+    "D": "Apply per-tenant concurrency limits and query budgets at the retrieval gateway so a single tenant's burst cannot consume the shared capacity.",
+    "E": "Rebuild the shared index nightly so the largest tenant's vectors are laid out contiguously and its queries touch fewer pages."
+   }
+  },
+  {
+   "id": "INT-A-052",
+   "choose": 1,
+   "question": "A retrieval pipeline expands each query with the most distinctive terms drawn from its own top five initial results, then re-runs the search. What is the characteristic failure mode of this technique?",
+   "options": {
+    "A": "When the initial results are off-topic, the expansion terms come from the wrong topic and the second search is pulled further away.",
+    "B": "It cannot be combined with a lexical branch, because the expansion terms are derived from dense retrieval results.",
+    "C": "It reduces recall, because adding terms makes the query more specific and therefore matches a smaller number of documents in the index.",
+    "D": "It requires human relevance labels at query time, which production systems cannot supply."
+   }
+  },
+  {
+   "id": "INT-A-053",
+   "choose": 1,
+   "question": "Why do production RAG pipelines commonly store each chunk's character or byte span within its source document?",
+   "options": {
+    "A": "Because the vector store requires a positional key on each record in order to maintain ordering among chunks that came from the same document.",
+    "B": "Because the ANN index uses the span to place chunks that originate in the same source document near one another within the graph structure it builds.",
+    "C": "Because similarity scores are normalised by the chunk's offset in the document, to stop early sections systematically outranking later ones.",
+    "D": "Because it lets an answer cite the exact location in the original, and lets the pipeline re-verify that text against the current source."
+   }
+  },
+  {
+   "id": "INT-A-054",
+   "choose": 1,
+   "question": "At a defence engineering firm, a programme manager reports that the assistant summarised material from a controlled programme she is not cleared for, and cited it. The retrieval filter uses `clearance` and `programme` fields copied from the document management system at index time. Investigation shows the document's access list was tightened four months ago, after the document was indexed, and the index still holds the older, broader values. What should the incident lead do next?",
+   "options": {
+    "A": "Launch a full reindex so that every document's access metadata is refreshed from the document management system that owns it.",
+    "B": "Remove the affected document from the index and add an alert that fires when a document's access list changes in future.",
+    "C": "Fail closed: authorise each candidate against the authoritative access-control source at query time rather than the indexed copy.",
+    "D": "Add a post-generation check that strips from the answer any citation the requesting user is not entitled to see."
+   }
+  },
+  {
+   "id": "INT-A-055",
+   "choose": 1,
+   "question": "In reciprocal rank fusion, each document's fused score is the sum across branches of 1 / (k + rank). What does the constant k control?",
+   "options": {
+    "A": "How many candidates each branch is permitted to contribute into the fusion step for any single query.",
+    "B": "How steeply a document's contribution falls off with position — a larger value flattens the curve, a smaller one lets the head dominate.",
+    "C": "The scale factor that brings the two branches' raw scores onto a common range before their contributions are summed together into one figure.",
+    "D": "The number of branches being fused, which keeps the fused score bounded above by one."
+   }
+  },
+  {
+   "id": "INT-A-056",
+   "choose": 1,
+   "question": "A team normalises every document and query vector to unit length, then switches the index's distance metric from cosine to inner product. What is the effect on ranking?",
+   "options": {
+    "A": "Ranking changes, because inner product favours longer vectors and unit normalisation at ingest compensates for only part of that bias.",
+    "B": "Ranking changes for metadata-filtered queries only, since normalisation is applied at ingest and the filter is evaluated after the metric.",
+    "C": "Ranking is unchanged but recall falls, because inner-product indexes cannot use the same graph structure as cosine indexes.",
+    "D": "Ranking is unchanged: for unit-length vectors cosine and inner product are the same quantity, and both order results identically."
+   }
+  },
+  {
+   "id": "INT-A-057",
+   "choose": 1,
+   "question": "A regulated deployment must be able to explain, two years after the fact, why a particular answer was produced. Beyond the prompt sent and the response returned, what must be captured at answer time?",
+   "options": {
+    "A": "The query as issued to the retriever after rewriting, the identifiers and versions of the chunks returned, and the versions of every model and index build.",
+    "B": "The similarity score of each retrieved chunk, which is sufficient to reconstruct the ranking at any later date.",
+    "C": "A copy of the full source documents involved, so that the retrieval can be re-executed against exactly the same text at any later date the regulator chooses to ask about.",
+    "D": "The user's session identifier and a timestamp, from which the pipeline can re-derive everything else on demand."
+   }
+  },
+  {
+   "id": "INT-A-058",
+   "choose": 1,
+   "question": "A pipeline retrieves N first-stage candidates, reranks them with a cross-encoder, and passes a fixed six chunks to the generator. Raising N from 50 to 200 therefore leaves generator input cost unchanged. What does still scale with N?",
+   "options": {
+    "A": "Nothing material: vector search is sublinear in corpus size and the reranker processes the whole candidate list within a single batched forward pass regardless of its length.",
+    "B": "Only resident index memory, because a longer candidate list must be held in memory for the duration of the query.",
+    "C": "First-stage retrieval work and, dominantly, reranker inference — one query-passage forward pass per candidate — so rerank latency and spend grow roughly linearly with N.",
+    "D": "Embedding cost, since the query has to be re-embedded once for each batch of candidates scored."
+   }
+  },
+  {
+   "id": "INT-A-059",
+   "choose": 1,
+   "question": "How does a learned sparse retriever differ operationally from BM25?",
+   "options": {
+    "A": "It produces dense vectors rather than term weights, so it needs an approximate nearest-neighbour index and cannot reuse the inverted index.",
+    "B": "It needs no index at all, because the model scores every document directly against the query at request time, on GPU rather than a search cluster.",
+    "C": "It is trained continuously on production click data, so its term weights adapt to the query distribution with no reindex of the corpus.",
+    "D": "Its term weights come from a neural model, so a model must run over every document at index time and every query at request time, unlike BM25."
+   }
+  },
+  {
+   "id": "INT-A-060",
+   "choose": 1,
+   "question": "In RAG evaluation, why can context precision be computed with only the retrieved passages in hand, while context recall generally cannot?",
+   "options": {
+    "A": "Because recall is evaluated at a larger cut-off than precision, and cut-offs beyond k require a second retrieval pass over the whole index.",
+    "B": "Because precision's denominator is the retrieved set, whereas recall's denominator is the evidence the question requires, which has to be annotated.",
+    "C": "Because a model-based judge can score relevance but not similarity, and recall is defined over similarity between retrieved and reference passages.",
+    "D": "Because context recall measures how much of the retrieved context the generator used, so it cannot be computed until after generation."
+   }
+  },
+  {
+   "id": "INT-A-061",
+   "choose": 1,
+   "question": "When building a retrieval evaluation set, what is a hard negative and why include them?",
+   "options": {
+    "A": "A passage topically close to the query that does not contain the required evidence; including them stops a retriever scoring well by finding the right neighbourhood.",
+    "B": "A query for which the corpus contains no correct answer at all, included to test whether the system abstains rather than inventing one.",
+    "C": "A near-duplicate of a relevant passage taken from a different document, included to test whether the returned result set is properly deduplicated before it is shown to the user.",
+    "D": "A passage belonging to a different tenant, included to confirm that the isolation filter is enforced."
+   }
+  },
+  {
+   "id": "INT-A-062",
+   "choose": 1,
+   "question": "An ingest pipeline exposes the timestamp of its last successful run as its freshness signal. Why is that weak, and what should be measured instead?",
+   "options": {
+    "A": "It is weak because clocks drift between the pipeline host and the index; the index's own commit timestamp should be used instead.",
+    "B": "It is weak because concurrent runs can overlap and interleave; the number of runs completed per hour should be tracked instead.",
+    "C": "It is weak because a run finishing says nothing about changes being picked up; measure the age of the oldest unreflected source change.",
+    "D": "It is weak because it is reported per pipeline rather than per document; the total number of documents present in the index should be tracked instead."
+   }
+  },
+  {
+   "id": "INT-A-063",
+   "choose": 1,
+   "question": "What does storing a content hash per chunk buy an incremental index pipeline?",
+   "options": {
+    "A": "It lets the vector index detect and merge duplicate vectors automatically at the point where they are written into the store, which saves both space and query time.",
+    "B": "Re-ingest can skip embedding for chunks whose text is unchanged, since the hash compares what the source now produces with what the index holds.",
+    "C": "It removes the need for separate chunk identifiers, since the hash is itself a unique and stable key for each chunk.",
+    "D": "It allows similarity search to fall back to exact text matching whenever the vector search returns no results at all."
+   }
+  },
+  {
+   "id": "INT-A-064",
+   "choose": 1,
+   "question": "A specialty chemicals distributor runs dense-only retrieval over 3 million chunks of safety data sheets and application notes, and has accumulated 15,000 reviewed query-to-passage relevance judgements. Recall@20 is 0.88 but recall@5 is 0.61, so the right passage is usually found and often ranked poorly. The data science team proposes fine-tuning the embedding model on the 15,000 pairs. The platform team is three engineers and there is no model-training infrastructure today. What should the architect recommend first?",
+   "options": {
+    "A": "Fine-tune the embedding model as proposed: 15,000 in-domain pairs is a substantial training set, and improving the base representation lifts every downstream stage at once rather than patching one of them.",
+    "B": "Neither — raise the number of chunks passed to the generator from five to twenty, which captures the recall the retriever already achieves without changing any component.",
+    "C": "Fine-tune the embedding model and add a reranker together, so the two improvements can be evaluated as a single release rather than sequentially.",
+    "D": "Add a cross-encoder reranker over the top 20 candidates and use the 15,000 judgements to evaluate and, if needed, tune it — reserving fine-tuning for later if the reranker's ceiling is reached."
+   }
+  },
+  {
+   "id": "INT-A-065",
+   "choose": 1,
+   "question": "A rail signalling manufacturer indexes installation and commissioning manuals in which a large share of the operative content is wiring diagrams, state charts, and annotated photographs. Text extraction returns only figure captions, so engineers searching for \"the interlocking wiring for a three-aspect signal\" retrieve prose that references the diagram but never the diagram itself. Retrieval must return something the engineer can open. What should the pipeline do at ingest?",
+   "options": {
+    "A": "Generate a text description of each figure at ingest, index it as a chunk carrying the figure's identifier and location, and return the figure with it.",
+    "B": "Store the figures as binary attachments on the parent document's chunks, so that they travel with any prose chunk retrieved from the same document.",
+    "C": "Embed the figure images directly with a CLIP-style multimodal embedding model and search engineers' text queries against the image vectors alone.",
+    "D": "Rely on the captions, but weight caption text more heavily in the lexical branch so figures rank above the prose that references them."
+   }
+  },
+  {
+   "id": "INT-A-066",
+   "choose": 2,
+   "question": "A clinical trials sponsor is selecting a vector store for an assistant used by study teams. Two requirements are non-negotiable: inspectors may ask, up to seven years later, what the system retrieved for a given answer, and no study team may ever be able to search another study's documents. Latency and corpus size are unremarkable. Which TWO store capabilities are genuinely required by those two requirements? (Choose TWO.)",
+   "options": {
+    "A": "Immutable, restorable index snapshots with a retention period long enough to reconstruct the index state as it stood on any past answer date.",
+    "B": "GPU-accelerated approximate search, so recall can be raised without paying a latency penalty.",
+    "C": "Support for several distance metrics, so each study team can select the one that suits its corpus.",
+    "D": "Server-enforced partitions with per-partition access control, so one study's vectors cannot be searched from a session scoped to another study.",
+    "E": "Embedding generation inside the store itself, so that the sponsor does not have to operate and maintain a separate embedding service alongside it."
+   }
+  },
+  {
+   "id": "INT-A-067",
+   "choose": 1,
+   "question": "A port authority indexes operational procedures written by staff who use heavy in-house abbreviation — \"STS\" for ship-to-shore crane, \"RTG\" for rubber-tyred gantry, \"VBS\" for vehicle booking system. Newer staff and hauliers query using the full terms and retrieve nothing; experienced staff query with the abbreviations and do fine. A curated glossary of about 300 such expansions already exists and is maintained by the operations team. What is the most effective use of it?",
+   "options": {
+    "A": "Replace every abbreviation in the source text with its expansion at ingest, so the indexed corpus uses consistent full terminology throughout.",
+    "B": "Instruct the model in the system prompt to treat the glossary terms as equivalent when reading retrieved passages.",
+    "C": "At ingest, append the glossary expansions for the abbreviations a chunk contains to its indexed text, leaving the original wording intact.",
+    "D": "Expand the user's query with the glossary at request time, issuing both the abbreviated and the full form to the retriever."
+   }
+  },
+  {
+   "id": "INT-A-068",
+   "choose": 2,
+   "question": "An online travel agency adds a model-based query-rewriting stage in front of retrieval for its customer-service assistant. The architect is documenting what the team must handle. Which TWO statements are correct about this stage in production? (Choose TWO.)",
+   "options": {
+    "A": "Rewriting removes the need to retain conversation history downstream, because the rewritten query is already fully self-contained.",
+    "B": "The rewrite must be produced by the same model that generates the answer, so that both stages share one interpretation of the question.",
+    "C": "A rewrite can silently drop a constraint present in the original — a travel date, a fare class — so retrieval should run on both forms and fuse.",
+    "D": "Rewriting guarantees a precision improvement, because a rewritten query is always more specific than the raw one.",
+    "E": "The stage is an extra dependency in the synchronous path and must degrade to the raw query on error rather than failing the request."
+   }
+  },
+  {
+   "id": "INT-A-069",
+   "choose": 1,
+   "question": "A home-improvement retailer's hybrid retrieval pipeline reranks the dense candidate list and the lexical candidate list separately with a cross-encoder, then fuses the two reranked orderings by rank. What is wrong with this arrangement?",
+   "options": {
+    "A": "Nothing is wrong structurally, but the two reranker calls should be batched into one request so the cross-encoder is loaded once per query.",
+    "B": "The candidate lists should be fused first and the merged, deduplicated set reranked once, so every candidate is scored on one comparable scale.",
+    "C": "The reranker should run before retrieval, scoring the query against the index's cluster centroids so that only promising regions are searched.",
+    "D": "The reranker should run after generation, scoring the produced answer against the retrieved passages to catch unsupported claims."
+   }
+  },
+  {
+   "id": "INT-A-070",
+   "choose": 2,
+   "question": "A stock-photography marketplace enables hybrid retrieval. Both branches are reported as healthy by their own dashboards, yet the fused result set is byte-for-byte identical to the dense-only result set for every query in a 500-query sample. Which TWO causes are consistent with that observation? (Choose TWO.)",
+   "options": {
+    "A": "Reciprocal rank fusion reproduces the dense ordering whenever both branches happen to return exactly the same number of candidates for a given query.",
+    "B": "The lexical branch's contribution is weighted so low that it can never alter the top-k ordering produced by the dense branch.",
+    "C": "The dense scores are normalised and the lexical scores are not, which makes the fusion mathematically undefined.",
+    "D": "The lexical branch is querying a field that was never populated at index time, so it returns no candidates and fusion degenerates to the dense list.",
+    "E": "The reranker runs after fusion and necessarily restores the dense ordering."
+   }
+  },
+  {
+   "id": "INT-A-071",
+   "choose": 1,
+   "question": "A city transit authority's operations assistant loses retrieval quality across all topics over about ten days. Nothing was deployed to the retrieval service, but a routine dependency upgrade nine days ago changed the embedding client library's default pooling behaviour, so documents ingested since then are embedded differently from the rest of the corpus. Ingest is continuous, roughly 4,000 documents a day, against a corpus of 9 million. What should the engineer do next?",
+   "options": {
+    "A": "Restore the index from the last snapshot taken before the upgrade, accepting the loss of everything that has been ingested during the nine days since that snapshot was written.",
+    "B": "Re-embed the entire corpus under the new library behaviour, so that the whole index is at least internally consistent.",
+    "C": "Downgrade the library and let the ongoing nightly refresh gradually bring the affected documents back into line over the coming weeks.",
+    "D": "Halt ingest, pin the library to the previous pooling behaviour, re-embed only the documents ingested since the upgrade, and add a deploy-time probe check."
+   }
+  },
+  {
+   "id": "INT-A-072",
+   "choose": 3,
+   "question": "A developer-tools company is indexing its own 4-million-line monorepo so engineers can ask questions in prose — \"where do we validate webhook signatures?\" — and get back the relevant code. The first attempt used 512-token windows over raw files and performed poorly. Which THREE chunking and indexing decisions are appropriate for this corpus? (Choose THREE.)",
+   "options": {
+    "A": "Split on syntactic boundaries — function or class — rather than on token counts, so each retrieved unit is a coherent piece of logic.",
+    "B": "Strip comments and docstrings before embedding, since they are not executable and dilute the code signal the embedding should carry.",
+    "C": "Prepend the file path and enclosing symbol names to each chunk before embedding, since bare identifiers repeat across a monorepo.",
+    "D": "Keep a fixed 512-token window but raise overlap to 50%, which ensures that no function is ever split across a chunk boundary.",
+    "E": "Index each unit twice — once as source and once as a generated natural-language description — so prose questions can match."
+   }
+  },
+  {
+   "id": "INT-B-001",
+   "choose": 1,
+   "question": "Two tools in a production agent are schema-correct and their handlers work, but Claude frequently answers from its own knowledge instead of calling either one. Which part of the tool definition is the primary lever?",
+   "options": {
+    "A": "The tool `name`, lengthened so it names the domain object the tool acts on.",
+    "B": "The `description`, rewritten to state the conditions under which the tool must be called.",
+    "C": "The `input_schema`, with more properties moved into `required` so the call is unambiguous.",
+    "D": "`max_tokens`, raised so there is room for the model to emit a `tool_use` block."
+   }
+  }
+ ]
+}

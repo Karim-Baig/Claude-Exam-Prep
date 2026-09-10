@@ -1,0 +1,453 @@
+[
+  {
+    "id": "SCL-B-001",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Which service term can be a contractual SLA",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "For a Claude-based service sold to an internal business unit, which term can reasonably be written as a contractual SLA — objectively measurable from telemetry, without adjudication — rather than an internal SLO or a best-effort aspiration?",
+    "options": [
+      { "key": "A", "text": "Response latency below a stated percentile threshold, measured over a monthly window." },
+      { "key": "B", "text": "Factual correctness of every generated summary judged against the source documents it cites." },
+      { "key": "C", "text": "Byte-identical responses whenever an identical request is replayed through the same endpoint." },
+      { "key": "D", "text": "A stated maximum rate of unsafe outputs, applied and enforced on each individual request." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "A contractual term needs a definition that a machine can evaluate without a human deciding what counts. Latency at a percentile over a defined window is exactly that: the clock reading is unambiguous, the population is defined, and neither party has to argue about the result. Everything about a probabilistic system that people actually care about — correctness, safety, faithfulness — requires adjudication, which is why those belong in a sampled quality programme with an agreed review method, not in a per-request enforcement clause.",
+      "distractors": {
+        "B": "Correctness has no telemetry signal. Deciding whether a summary is faithful requires a reviewer and a rubric, so an SLA written this way becomes a dispute about who judges. It belongs in a sampled quality review with agreed graders and an agreed sample size.",
+        "C": "Repeated identical requests are not guaranteed to yield identical bytes even at low temperature, and a commitment framed this way would be breached by routine infrastructure or model-version change. Reproducibility is delivered by storing the request and response, not by promising regeneration.",
+        "D": "A rate is a property of a population, not of one request. Applying it per request makes the clause unmeasurable — a single request either was or was not unsafe, and that judgement itself needs adjudication."
+      },
+      "concept": "SLA terms must be objectively measurable from telemetry over a defined population and window. Attributes of a probabilistic system that require human judgement belong in a sampled quality programme with agreed graders, sample sizes and remediation triggers — not in per-request contractual language.",
+      "tip": "Ask of any proposed SLA term: could a script decide compliance with no human in the loop? If not, it is an SLO or a quality programme, and saying so early avoids an unwinnable dispute later."
+    }
+  },
+  {
+    "id": "SCL-B-002",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Reframing a 100% accuracy demand as a two-sided error budget",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A health insurer's claims operations director will sign off on a Claude-based prior-authorisation triage assistant only if the contract states 100% accuracy on clinical-criteria matching. The system auto-approves cases meeting explicit criteria and routes roughly 30% to a nurse reviewer. A false auto-approval releases payment for care that does not meet criteria; an unnecessary escalation costs nurse time. How should the architect respond?",
+    "options": [
+      { "key": "A", "text": "Replace it with a two-sided error budget: a tight cap on false auto-approvals, a looser tolerance on over-escalation, plus the sampling method and disable trigger." },
+      { "key": "B", "text": "Accept the 100% figure in the contract, on the basis that the nurse reviewer's sign-off on every escalated case makes the whole end-to-end process accurate." },
+      { "key": "C", "text": "Set the router to escalate every case to a nurse, so no case is auto-approved and the automated decision path can be certified as making no errors." },
+      { "key": "D", "text": "Contract to the point accuracy observed on the 300-case pilot set, writing it into the service schedule as the guaranteed level for all future traffic." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "No classifier — model or human — reaches 100%, so the demand cannot be met by any implementation and accepting it guarantees a breach. What makes the reframe defensible here is that the stem states the two error directions have unequal consequences: money leaves the business on a false auto-approval, while over-escalation only spends nurse minutes. That asymmetry is exactly what an error budget expresses. Naming the measurement method and the disable trigger converts an unachievable promise into an operable control the director can hold the team to.",
+      "distractors": {
+        "B": "Only about 30% of cases reach a nurse, so 70% are never reviewed; the review layer cannot make the whole process error-free. It also assumes human reviewers are themselves perfect, which no audit of a manual process has ever shown.",
+        "C": "This satisfies the wording by eliminating the automation, which deletes the entire benefit case. It also does not achieve zero error, since nurse decisions carry their own error rate — it only moves the errors somewhere no one is measuring.",
+        "D": "A point estimate from one pilot sample becomes a breach the first time traffic drifts, and it treats both error directions as equally costly. Contracting to a measured number without an interval, a population definition and a direction weighting is a false-precision trap."
+      },
+      "concept": "When a stakeholder asks for perfect accuracy, do not negotiate the number down — change the shape of the commitment. Express it as an error budget weighted by the consequence of each error direction, with a stated measurement method and a stated action when the budget is exhausted.",
+      "tip": "A stem that spells out what each error direction costs is telling you the answer is asymmetric. Any option that treats accuracy as one scalar is ignoring the fact the stem went out of its way to give you."
+    }
+  },
+  {
+    "id": "SCL-B-003",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Reproducibility commitment under sampling non-determinism",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A broadcaster's editorial tooling team runs a Claude-based headline-variant generator at temperature 0. Legal asks for a written statement that, given the same article, the system will always produce the same headline set, so a published headline can be reproduced during a regulatory complaint investigation up to two years later. What should the architect commit to instead?",
+    "options": [
+      { "key": "A", "text": "Confirm the statement as written and cite temperature 0 to legal, since greedy decoding always selects the highest-probability token." },
+      { "key": "B", "text": "Pin the model to a fixed dated snapshot in the API call, which removes the remaining sources of variation and makes the sampling path fully deterministic." },
+      { "key": "C", "text": "Put a response cache in front of the call keyed on the article hash, so a repeat of the same article returns the stored variant set instead of a fresh generation." },
+      { "key": "D", "text": "Commit to producing an immutable stored record of the request, the returned variants and the model and prompt versions, rather than to regenerating the output." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The requirement is evidentiary: two years later, someone must show what the system produced for a specific article. Low temperature narrows sampling variation but does not make regeneration a guarantee, and over a two-year horizon the model version, the prompt and the surrounding retrieval will all have moved. Reproducing a decision from a stored artefact is achievable and auditable; reproducing it by re-running the system is not. Committing to the artefact also gives legal something better than a match — the actual input that was used.",
+      "distractors": {
+        "A": "Temperature 0 biases strongly toward the highest-probability token but is not a contractual guarantee of identical bytes across time, infrastructure and model revisions. Writing it into a legal statement converts an engineering approximation into a promise the team cannot keep.",
+        "C": "A cache is a latency and cost optimisation with an eviction policy, not an evidentiary store. Entries expire, the cache is not versioned against the prompt that produced them, and it holds nothing for an article processed once two years ago.",
+        "B": "Version pinning removes one source of variation and is worth doing, but it does not make the whole path deterministic, and snapshots are eventually retired — so the commitment expires at exactly the point a complaint is most likely to be investigated."
+      },
+      "concept": "Reproducibility for audit is satisfied by durable capture of inputs, outputs and versions, not by promising deterministic regeneration. When a requirement is stated as 'the same answer every time', translate it into 'we can show what the answer was, and what produced it'.",
+      "tip": "Note the time horizon. Any stem that measures reproducibility in years is ruling out regeneration, because nothing in the stack — model, prompt, index — stays fixed that long."
+    }
+  },
+  {
+    "id": "SCL-B-004",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "What an ADR Consequences section must contain",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A logistics operator is standardising architecture decision records for its Claude-based freight-exception triage service. Reviewers keep rejecting ADRs whose Consequences section lists only the benefits of the chosen option. What must that section add beyond the benefits for the record to do its job?",
+    "options": [
+      { "key": "A", "text": "The eval scores and latency measurements that justified the choice, so the record is backed by evidence." },
+      { "key": "B", "text": "The recurring work the decision adds, the options it forecloses, and the conditions that should trigger a revisit." },
+      { "key": "C", "text": "A likelihood-and-impact risk rating for the decision, agreed with the operational risk function and reviewed each quarter." },
+      { "key": "D", "text": "The alternatives that were rejected, each recorded with the cost or capability reason it lost on." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The value of an ADR is realised months later, when someone asks whether the decision still holds. That question can only be answered if the record says what the decision costs on an ongoing basis and what would invalidate it. A consequences section that lists benefits is a sales document; one that names the new maintenance burden, the doors now closed, and the trigger conditions for reopening is a decision record. This is also what makes ADRs usable as evidence that trade-offs were understood, not just that a choice was made.",
+      "distractors": {
+        "A": "Measured evidence belongs with the decision drivers or context that motivated the choice. Useful, but it explains why the decision was made rather than what living with it will cost, which is the gap the reviewers are flagging.",
+        "C": "A risk rating is a governance artefact and may well be required elsewhere, but a single severity score compresses away the specific obligations and foreclosed options that a future reader needs in order to re-evaluate the decision.",
+        "D": "Rejected alternatives are a genuine and important ADR element, but they sit in the considered-options section. Putting them under Consequences does not supply the forward-looking cost and revisit conditions that are missing."
+      },
+      "concept": "An ADR's Consequences section is forward-looking and deliberately includes the negative: recurring cost, capability now foreclosed, and the observable conditions that should trigger a revisit. Without those, the record cannot support the decision being re-examined later.",
+      "tip": "Distinguish the ADR sections by tense. Context is past, Decision is present, Consequences is future. An option describing something already known at decision time belongs in a different section."
+    }
+  },
+  {
+    "id": "SCL-B-005",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Recording a reversed decision in an accepted ADR",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A team reverses an architectural decision that was recorded in an ADR already marked accepted. What is the conventional way to record the reversal?",
+    "options": [
+      { "key": "A", "text": "Edit the original ADR in place so its Decision section describes the decision now in force." },
+      { "key": "B", "text": "Write a new ADR for the new decision and mark the original superseded, leaving its text unchanged." },
+      { "key": "C", "text": "Delete the original ADR and renumber the sequence so the record holds only decisions in force." },
+      { "key": "D", "text": "Append the reversal to the original ADR's Consequences section as a dated follow-on note." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "ADRs are an append-only history, not a description of the current state. Their purpose is to let a reader reconstruct what was believed and decided at a point in time, which is destroyed the moment records are edited to match the present. Superseding preserves both the original reasoning and the reason it stopped applying, and the link between the two is itself the most informative part of the record — it shows what changed in the world, not just what changed in the architecture.",
+      "distractors": {
+        "A": "In-place editing loses the original reasoning and the fact that a reversal occurred. A reader six months later cannot tell whether the current text was the first decision or the third, which removes the main reason for keeping ADRs at all.",
+        "C": "Deletion and renumbering breaks every inbound reference and erases the history. It also removes the evidence that alternatives were considered, which is exactly what an auditor or a new team member is looking for.",
+        "D": "Consequences describes what living with the original decision entails, not what replaced it. Burying a reversal there leaves the ADR's status still reading accepted, so tooling and readers will treat a dead decision as current."
+      },
+      "concept": "ADR status is a lifecycle: proposed, accepted, superseded, deprecated. Records are immutable once accepted; change is expressed by adding a new record and updating the status link, never by rewriting history.",
+      "tip": "Any option that mutates or removes an accepted record is wrong on an ADR question. The whole artefact exists to be a time series of reasoning."
+    }
+  },
+  {
+    "id": "SCL-B-006",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Recurring TCO lines omitted by an API-spend-only business case",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A national tax authority's programme board approved a Claude-based taxpayer-correspondence drafting service on a business case whose entire cost line was projected per-token API spend. Twelve months on, the actual annual run cost is materially higher than the case predicted. Which TWO of the following are recurring annual costs of owning this system that an API-spend-only case structurally omits? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Human review of drafted correspondence before it is issued, staffed in proportion to volume." },
+      { "key": "B", "text": "Re-labelling the evaluation set as correspondence templates and tax policy change." },
+      { "key": "C", "text": "The integration work connecting the service to the existing case-management system." },
+      { "key": "D", "text": "The per-token input and output charges for the drafting call, at the contracted tier rate." },
+      { "key": "E", "text": "Purchase and refresh of GPU capacity to serve the model in the authority's own data centre." }
+    ],
+    "correct": ["A", "B"],
+    "explanation": {
+      "correct": "The two costs that both recur every year and sit outside the API line are the humans checking output and the labour keeping the eval set honest. Review staffing scales with volume rather than amortising, so it grows exactly as the business case's benefit grows. Eval maintenance is the one most consistently forgotten: every template revision and policy change invalidates part of the golden set, and an eval set nobody re-labels quietly stops detecting regressions. Together these routinely exceed token spend for a correspondence workload.",
+      "distractors": {
+        "C": "Integration is a real omission from a token-only case, but it is a one-off build cost rather than a recurring annual line, so it does not explain a run cost that is persistently higher year after year.",
+        "D": "Token charges are the one cost the original case did include. It is the line the board was shown, so by definition it cannot be part of what the case omitted.",
+        "E": "Serving capacity is not a cost the authority bears when consuming a hosted API. This line only appears in a self-hosted open-weights comparison, which is not the deployment described."
+      },
+      "concept": "Total cost of ownership for an LLM system is dominated by the lines that scale with volume or with change: human review, eval-set maintenance, monitoring, and re-validation at each model migration. Token spend is often the smallest recurring line in a governed workflow.",
+      "tip": "Multi-select TCO items usually hide one distractor that is a real cost but one-off, and one that is already inside the stated baseline. Filter on both 'recurring' and 'omitted' before counting."
+    }
+  },
+  {
+    "id": "SCL-B-007",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Converting hours-saved productivity claims into a defensible benefit",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A grocery retailer's shared-services lead presents a Claude-based supplier-invoice query assistant with an annual benefit of just under £317,000, derived as 40 accounts-payable clerks × 1.5 hours saved per day × 220 working days × £24 per hour fully loaded. No headcount reduction is planned and invoice volume is flat. The finance business partner asks where the £317,000 will appear in next year's budget. What is the right correction to the narrative?",
+    "options": [
+      { "key": "A", "text": "Keep the £317,000 in the benefits table and attach a ±20% range to the hours-saved input, so the estimation uncertainty is visible to finance." },
+      { "key": "B", "text": "Recompute at a marginal rather than fully loaded hourly rate, producing a smaller figure the finance business partner is more likely to accept." },
+      { "key": "C", "text": "Reclassify it as released capacity, quoting as cash only what finance commits to convert: absorbed growth, retired contractor spend, or lower establishment." },
+      { "key": "D", "text": "Withdraw the productivity benefit and rebuild the case on invoice-error reduction and duplicate-payment recovery, which land directly in the profit and loss." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The arithmetic is fine; the category is wrong. Time released from people who remain on the payroll does not reduce spend, and the business partner's question exposes that directly. The honest structure separates the operational benefit — capacity released — from the financial benefit, which exists only where someone commits to a conversion mechanism. Naming the mechanism turns an unfalsifiable claim into a testable one, and it protects the architect when a post-implementation review asks why the saving never showed up.",
+      "distractors": {
+        "A": "An uncertainty range on the hours input makes a soft-savings number more precise about the wrong thing. The dispute is not whether 1.5 hours is the right estimate; it is whether saved hours become money at all under a flat-volume, flat-headcount plan.",
+        "B": "A lower rate produces a smaller number in the same invalid category. Conservatism is not the fix — a conservative estimate of a benefit that never reaches the budget is still a benefit that never reaches the budget.",
+        "D": "Abandoning a real operational benefit overcorrects. Released capacity is worth stating; the problem is presenting it as cash. Rebuilding the case on a different benefit also discards the evidence the team actually gathered."
+      },
+      "concept": "Separate hard benefits (cash that leaves the cost base) from soft benefits (capacity released). Soft benefits convert to hard only through a named mechanism with an owner: absorbed growth, contractor spend retired, or establishment reduced. State the mechanism or do not state the cash.",
+      "tip": "When a stem tells you headcount and volume are both flat, it has already answered the question — no hours-saved calculation can produce budget movement without a stated conversion."
+    }
+  },
+  {
+    "id": "SCL-B-008",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Answering a fine-tune challenge with error-analysis evidence",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A law firm's innovation partner asks why the team is 'spending on retrieval plumbing instead of just fine-tuning Claude on our forty years of matter files'. Error analysis of 400 production queries shows the dominant failure is that answers cite superseded versions of the firm's precedent clauses; when the current clause is placed in context, the model applies it correctly. What is the strongest argument against fine-tuning here?",
+    "options": [
+      { "key": "A", "text": "Fine-tuning would freeze the corpus as it stood at training time, superseded clauses included, so the failure persists and re-indexing cannot fix it." },
+      { "key": "B", "text": "Fine-tuning is unsuitable for open-ended generation; it applies to classification and extraction, while drafting is steered by prompting alone." },
+      { "key": "C", "text": "Fine-tuning is the technically correct fix here, but building a supervised set from forty years of matter files makes the labelling effort unaffordable." },
+      { "key": "D", "text": "Fine-tuning cannot be used where outputs must carry citations back to the underlying matter files, since weights hold no document identifiers to cite." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The error analysis has already localised the failure, and it is not in the model's language or legal reasoning — the stem says that when the right clause is present, the output is right. The failure is in selecting the current version of a document, which is a retrieval and metadata problem. Weight-encoded knowledge is a snapshot: fine-tuning would freeze the superseded clauses inside the model, remove the ability to fix a bad answer by correcting the index, and leave the firm with no cheap remediation path when a precedent changes next month.",
+      "distractors": {
+        "B": "This is simply false; fine-tuning is applied to generation tasks routinely. Winning the argument on an incorrect premise is worse than losing it, because the partner will hear the correction from someone else later.",
+        "C": "This concedes that fine-tuning is the right fix and reduces the objection to budget, which invites the partner to fund it. The evidence in the stem says the fix would not work regardless of what it cost.",
+        "D": "Citation is an architectural property of how sources are supplied and rendered, not something fine-tuning forecloses. The objection misidentifies the constraint and would not survive scrutiny from anyone who has built a grounded system."
+      },
+      "concept": "Answer a 'why not fine-tune' challenge from error analysis, not from principle. Fine-tuning changes behaviour, format and style; it does not keep facts current. When failures trace to retrieving the wrong or stale source, the fix belongs in retrieval and freshness metadata.",
+      "tip": "The giveaway sentence is 'when the correct content is in context, the model gets it right'. That single clause rules out every training-side intervention and points at retrieval."
+    }
+  },
+  {
+    "id": "SCL-B-009",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Communicating an eval regression before customer impact appears",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A telco's care-automation team runs a Claude-based billing-dispute resolver on 40% of eligible traffic. Overnight, the regression suite's refund-eligibility slice drops from 0.91 to 0.84; the cause is traced within the hour to a supplier changing the format of an upstream tariff feed. Customer complaint volumes are unchanged, but the team knows complaint data lags by several days. The steering committee meets in three hours. What is the best next step?",
+    "options": [
+      { "key": "A", "text": "Report it to the committee as a live customer-impacting incident and recommend disabling the resolver entirely until the supplier restores the old feed format." },
+      { "key": "B", "text": "Hold reporting until the complaint dashboard confirms real-world impact, since one eval slice may not reflect the production traffic mix." },
+      { "key": "C", "text": "Route the refund-eligibility slice to human review now, then give the committee the measured drop, the upstream cause, and when customer impact will be visible." },
+      { "key": "D", "text": "Re-baseline the regression suite against the new tariff-feed format so the suite reflects current upstream reality, and report the slice as passing." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Two facts in the stem drive this. The cause is already known and confined to one slice, so containment can be surgical rather than a full shutdown. And complaint data lags, so the absence of complaints is not evidence of absence of harm — waiting for it would mean choosing to be uninformed while exposure continues. Containing first and then reporting with the cause, the containment and the honest limits of current evidence is what calibrated communication looks like: it states what is known, what is not, and when the gap closes.",
+      "distractors": {
+        "A": "The remedy is disproportionate to a localised, understood regression, and describing unconfirmed impact as a live customer incident is miscalibrated in the other direction. Overstating once costs the team credibility the next time it needs the committee to act quickly.",
+        "B": "This treats a lagging indicator as a gate. The team already holds a leading signal with a known mechanism; deferring on the grounds that complaints have not risen is the reasoning that turns a contained regression into an incident with a paper trail showing it was known.",
+        "D": "Re-baselining to the new feed makes the number green while the behaviour is still wrong. It destroys the only evidence of the regression and converts a technical problem into a governance one — the suite now certifies degraded behaviour as correct."
+      },
+      "concept": "Contain, then communicate with calibration. A report should carry the measurement, the mechanism, the containment already applied, and an explicit statement of what is not yet known plus when it will be. Never suppress a leading indicator because a lagging one is quiet, and never re-baseline a suite to clear a regression.",
+      "tip": "When a stem tells you a data source lags, it is warning you against the 'no complaints, no problem' option. And any option that moves the baseline rather than fixing the behaviour is a governance failure, not a pragmatic shortcut."
+    }
+  },
+  {
+    "id": "SCL-B-010",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "False precision in a small-sample accuracy comparison",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An agri-food processor's quality team ran a 45-case eval of a Claude-based non-conformance report classifier: 41 correct. On the same 45 cases the incumbent rule engine scored 40 correct. The programme lead wants the board slide to read '91.11% accuracy versus the incumbent's 88.89%'. What is the substantive problem with presenting it this way?",
+    "options": [
+      { "key": "A", "text": "Two decimal places assert a resolution finer than one case is worth, and the whole gap is a single case, which this sample cannot separate from noise." },
+      { "key": "B", "text": "Nothing is wrong — both figures come from the same 45 cases, so the comparison is paired and the difference can be reported as real." },
+      { "key": "C", "text": "The incumbent's score should be dropped, because comparing a deterministic rule engine against a probabilistic model on accuracy alone is not meaningful." },
+      { "key": "D", "text": "Accuracy should be replaced by a model-graded rubric score on the same cases, the appropriate metric for a non-conformance classification task." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "On 45 cases each item is worth about 2.2 percentage points, so quoting hundredths implies a measurement resolution twenty times finer than the instrument provides. Worse, the headline difference between the two systems is one case flipping — well inside what resampling would move. A board reading those two numbers will conclude the new system is better; the data does not support that conclusion, only that it is not worse. The honest slide gives rounded figures with an interval and states that the systems are indistinguishable at this sample size.",
+      "distractors": {
+        "B": "Pairing removes between-sample variation and is the right design, but it does not manufacture statistical power. A paired comparison decided by one case out of 45 is still a comparison the sample cannot resolve.",
+        "C": "Comparing a rule engine and a model on the same task and the same cases is exactly the right benchmark, and the incumbent's score is the only reference the board has. Removing it would leave a number with nothing to anchor it.",
+        "D": "Switching the metric addresses a different question. There may be reasons to prefer a rubric here, but a rubric score on 45 cases carries the same sample-size limitation, so it does not touch the defect being asked about."
+      },
+      "concept": "Report precision no finer than the sample supports, and never let a headline comparison rest on a difference smaller than the resolution of one observation. State the interval, or state that the options are indistinguishable — both are more useful to a decision-maker than a spurious decimal.",
+      "tip": "Divide 100 by the eval size to get the value of one case. If the reported gap is smaller than a couple of those units, the item is testing false precision, whatever else the options talk about."
+    }
+  },
+  {
+    "id": "SCL-B-011",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Reframing token metrics as unit economics for a CFO",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An airline's digital lead must brief the CFO on whether to fund the next tranche of a Claude-based disruption re-accommodation assistant. Engineering has supplied: 4,200 input and 600 output tokens per turn, 3.1 turns per conversation, on the mid capability tier, plus the fallback rate to a contact-centre agent. How should the cost story be framed?",
+    "options": [
+      { "key": "A", "text": "Total platform spend for the last quarter charged to the digital cost centre, set against the same quarter last year, so the trend is visible." },
+      { "key": "B", "text": "The token volumes and turn counts alongside the contracted per-token rate, letting finance derive the totals themselves from the underlying drivers." },
+      { "key": "C", "text": "Cost per passenger successfully re-accommodated, inference plus the fallback conversations, against the current contact-centre cost per passenger." },
+      { "key": "D", "text": "A comparison of the airline's total AI spend against published estimates of what comparable full-service carriers spend on AI programmes." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The CFO is deciding whether to buy more of something, which requires a unit and a comparator. Cost per successfully re-accommodated passenger supplies both, and including the fallback conversations is what makes it honest: passengers who bounce to an agent cost the inference and the agent handling, so a figure counting only successful automated turns understates the true unit cost and would be exposed at the first reconciliation. Against the existing contact-centre unit cost, the CFO can price the next tranche directly.",
+      "distractors": {
+        "A": "A quarterly total with no denominator cannot distinguish a system that got more expensive from one that handled more volume. It answers 'how much are we spending' when the decision needs 'what does one outcome cost'.",
+        "B": "Handing over drivers and a rate pushes the modelling work onto finance and leaves the fallback cost out of the frame entirely. It also keeps the conversation in tokens, a unit that maps to nothing on the airline's P&L.",
+        "D": "External spend benchmarks anchor on other companies' cost structures and traffic mixes, not on this airline's economics. Peer comparison can justify a budget envelope but cannot tell the CFO whether this tranche returns more than it costs."
+      },
+      "concept": "Executive cost framing needs a business unit and a comparator, not engineering units. Convert to cost per completed outcome, include the cost of the failure path in the numerator, and set it against the incumbent's cost for the same outcome.",
+      "tip": "If an option leaves the answer denominated in tokens, requests or total spend, it is speaking the wrong language for the audience named in the stem. Look for the one denominated in the business's own unit of work."
+    }
+  },
+  {
+    "id": "SCL-B-012",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "What makes a risk statement calibrated rather than hedged",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "In risk communication, what distinguishes a calibrated statement from one that is merely hedged?",
+    "options": [
+      { "key": "A", "text": "It avoids technical vocabulary so that a non-specialist audience can act on it without translation." },
+      { "key": "B", "text": "It attributes the judgement to the risk function rather than asserting the speaker's own view." },
+      { "key": "C", "text": "It expresses the exposure in monetary terms, since that is the only unit an executive committee can compare across risks." },
+      { "key": "D", "text": "It carries a stated likelihood or range, the evidence the estimate rests on, and what would move it." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Hedging protects the speaker; calibration informs the listener. The three things that make a statement calibrated are a quantified or bounded confidence, a named basis for it, and an explicit description of the evidence that would revise it. That last part is what makes calibration falsifiable — it commits the speaker in advance to a condition under which they will change their mind. 'It should be fine' has none of these; 'roughly one in twenty on 600 sampled cases, and the pilot's traffic mix would change that' has all three.",
+      "distractors": {
+        "A": "Plain language is good practice and orthogonal to calibration. A statement can be entirely jargon-free and still be uncalibrated — 'we're confident it'll work' is perfectly accessible and conveys no information about uncertainty.",
+        "C": "Monetising an exposure helps prioritisation, but a monetary figure quoted without a likelihood or an evidence base is a point estimate that can be badly wrong. Currency is a unit, not a calibration.",
+        "B": "Deferring to another function relocates accountability rather than reducing uncertainty. It also removes the person with the most technical context from the estimate, which usually makes the estimate worse."
+      },
+      "concept": "A calibrated statement has three parts: a quantified confidence or range, the evidence base that produced it, and the observation that would change it. Vagueness is not humility — an unfalsifiable statement gives a decision-maker nothing to act on.",
+      "tip": "Test any risk sentence by asking what evidence would prove it wrong. If nothing could, it is hedging. This works as a filter on options in this domain as reliably as it works in a real steering committee."
+    }
+  },
+  {
+    "id": "SCL-B-013",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Conditions that make an end-to-end latency SLO measurable",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A grid operator is negotiating an internal SLO for a Claude-based outage-notification drafting service used by control-room staff. The request path is: retrieval from the asset database, a guardrail classifier, the model call streamed to the operator's screen, and an output validator. Product proposes 'p95 under 3 seconds'. Which THREE conditions must the SLO definition state before that target is measurable and defensible? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "Whether the three seconds runs to first token on the operator's screen or to the fully validated final draft." },
+      { "key": "B", "text": "The measurement window and the request population the percentile covers, including whether retries and fallbacks are counted." },
+      { "key": "C", "text": "What counts as a served request when the guardrail blocks the draft or the output validator rejects it." },
+      { "key": "D", "text": "The temperature and top-p settings used for the drafting call, since sampling parameters govern token-by-token latency variance." },
+      { "key": "E", "text": "A per-request cost ceiling, so the latency target cannot be met simply by moving every call to a higher capability tier." }
+    ],
+    "correct": ["A", "B", "C"],
+    "explanation": {
+      "correct": "A percentile target is meaningless until three things are pinned down. Because the response streams, 'done' is ambiguous — first token and validated output can differ by seconds, and the operator experiences one while the downstream system depends on the other. A percentile also has no value without a stated window and population; whether a retried request counts once or twice can move p95 substantially. And a path with a guardrail and a validator produces terminated requests, so the definition must say whether a blocked draft is a fast success, a failure, or excluded. Leave any of these open and both parties will compute different numbers from the same telemetry.",
+      "distractors": {
+        "D": "Sampling parameters influence output content, not meaningfully the latency distribution, and in any case they are an implementation choice rather than part of an SLO definition. Freezing them in the SLO would also block routine prompt and configuration tuning.",
+        "E": "A cost ceiling is a legitimate constraint to negotiate, but it is a separate objective. It does not affect whether the latency figure can be computed unambiguously, which is what the stem asks about."
+      },
+      "concept": "An SLO is a definition before it is a number: measurement point, measurement window, request population, and the treatment of errors, retries and terminated requests. Streaming, guardrails and validators each create an ambiguity that must be resolved in writing.",
+      "tip": "Whenever a stem mentions streaming plus a downstream validator, the measurement-point ambiguity is almost certainly one of the keys. Guardrails in the path signal the second: what happens to blocked requests."
+    }
+  },
+  {
+    "id": "SCL-B-014",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Answering a leaderboard-based challenge to switch models",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A pharmaceutical company's data-science director circulates a public leaderboard showing a competing vendor's model ahead on a general reasoning benchmark, and asks why the team has not switched its pharmacovigilance case-narrative summariser. The team maintains an eval set of 800 adjudicated adverse-event narratives scored against a clinical rubric, plus format and latency requirements from the safety database. What should the architect propose?",
+    "options": [
+      { "key": "A", "text": "Run the challenger on the existing 800-case eval and the format and latency requirements, and price the switch cost alongside any measured gain." },
+      { "key": "B", "text": "Explain that public reasoning leaderboards are contaminated by training-set leakage and should therefore play no part in any model-selection decision." },
+      { "key": "C", "text": "Move a canary slice of live narrative traffic to the challenger immediately, since the benchmark gap is sufficient evidence to justify a controlled trial." },
+      { "key": "D", "text": "Explain that the summariser's prompts and rubric are tuned to the incumbent, so the pipeline cannot be ported without a full rewrite." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The team already owns the only instrument that answers the director's question — 800 adjudicated narratives with a rubric that encodes what good means in this regulated setting. A general reasoning benchmark measures a different task distribution and cannot predict rank order on that rubric, so the leaderboard is an untested hypothesis, not a finding. Running the challenger through the existing harness converts the argument into evidence in days, and pairing the result with the switch cost keeps the decision economic rather than reputational: a small measured gain may not repay re-validating a pharmacovigilance pipeline.",
+      "distractors": {
+        "B": "Contamination is a genuine concern, but the categorical framing is both overstated and unhelpful — it dismisses the director rather than answering him, and it leaves no method on the table for deciding the question either way.",
+        "C": "A canary is the right instrument at the wrong point. Offline evaluation against an existing adjudicated set is cheaper, faster and safer than putting a regulated safety workload behind an unmeasured model, however small the slice.",
+        "D": "Prompts being tuned to one model is real friction and belongs in the switch cost, but presenting it as a blocker is defeatist and invites the accusation of lock-in. It also asserts an impossibility the team has not tested."
+      },
+      "concept": "Task-specific evaluation on your own adjudicated data outranks any public benchmark for a model-selection decision. Answer a leaderboard challenge by running the challenger through the harness you already own, and always state the switch cost next to the measured delta.",
+      "tip": "When a stem hands you an existing eval set with a domain rubric, it is telling you the deciding instrument already exists. The right answer uses it rather than arguing about the benchmark's validity."
+    }
+  },
+  {
+    "id": "SCL-B-015",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Reporting tail latency against a hard downstream timeout",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A mobile games publisher runs a Claude-based refund-request triage step. The support platform aborts a triage call at 8 seconds and shows the player a generic apology. The monthly report to the executive sponsor states 'average triage latency 2.4 seconds', and the sponsor concludes performance is fine. Last month 3.1% of calls exceeded the 8-second cut-off. What should the report show instead?",
+    "options": [
+      { "key": "A", "text": "The median instead of the mean, since the latency distribution is right-skewed and the median is the more robust central estimate." },
+      { "key": "B", "text": "The proportion of calls exceeding the 8-second cut-off, with the high percentiles reported against that threshold." },
+      { "key": "C", "text": "The mean with a standard deviation, so the sponsor can see the spread around the central value as well as the average itself." },
+      { "key": "D", "text": "Nothing different in the report; instead raise the support platform's abort timeout to 15 seconds so the 3.1% of calls complete." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "There is a hard threshold in the system with a visible player-facing consequence attached to crossing it, and no central-tendency statistic can see that threshold. Three per cent of players getting an apology screen is the fact the sponsor needs; a 2.4-second average actively conceals it. Reporting exceedance against the specific number the platform enforces aligns the metric with the failure the business cares about, and makes the reporting line move when engineering improves the tail rather than when it improves the easy middle of the distribution.",
+      "distractors": {
+        "A": "The median is more robust than the mean and still tells you nothing about the tail — under a skewed distribution it can fall while the proportion of timeouts rises. Swapping one central statistic for another does not surface a threshold breach.",
+        "C": "A standard deviation describes spread under an assumption of rough symmetry that latency distributions violate. It gives the sponsor a number that is hard to interpret and still does not answer how many players saw the apology screen.",
+        "D": "Moving the timeout changes the system to make the metric look better and transfers the cost to players, who now wait almost twice as long before the same apology. It also leaves the reporting defect — a metric blind to the tail — completely unaddressed."
+      },
+      "concept": "Report the statistic that matches the consequence. Where a hard timeout or threshold produces a visible failure, the reporting metric is exceedance against that threshold plus high percentiles — never a mean or median, which are structurally blind to the tail that is causing harm.",
+      "tip": "A stem that names a specific cut-off and a specific user-visible consequence has told you the metric. Any option that reports a central-tendency figure is answering a question the stem already ruled out."
+    }
+  },
+  {
+    "id": "SCL-B-016",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Correcting a payback calculation that omits retained run costs",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A contract manufacturer codes engineering change notices with a 6-person team costing £468,000 a year fully loaded. A proposed Claude-based classifier has a one-off build cost of £190,000; annual API and platform cost of £50,400; two reviewers retained at £78,000 each; and eval-set maintenance of 0.2 FTE of an ML engineer costed at £110,000, so £22,000 a year. The sponsor's slide subtracts only the API and platform line from the baseline and reports payback in about 5.5 months. Which correction and corrected payback should the architect present?",
+    "options": [
+      { "key": "A", "text": "None is needed: the retained reviewers are already inside the £468,000 baseline, so they do not reduce the saving claimed." },
+      { "key": "B", "text": "Net annual saving is £395,600 once eval-set maintenance is added to the platform line, giving payback of about 5.8 months." },
+      { "key": "C", "text": "Net annual saving is £261,600 once the two retained reviewers' salaries are counted, giving payback of about 8.7 months." },
+      { "key": "D", "text": "Net annual saving is £239,600 with retained reviewers and eval maintenance counted, giving payback of about 9.5 months." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Four of the six roles go, saving £312,000; against that sit £50,400 of platform cost and £22,000 of eval maintenance, leaving £239,600 a year. Dividing the £190,000 build by that gives 0.79 years, about 9.5 months. The sponsor's error is treating the whole £468,000 as released while two reviewers are still being paid, and omitting the eval labour entirely — the line most often missing from an AI business case, because it has no invoice attached and shows up as someone's diverted time.",
+      "distractors": {
+        "A": "The retained salaries are inside the baseline, which is precisely why the baseline cannot be claimed as a saving in full. Subtracting only the API line from £468,000 implies all six roles disappear, which contradicts the stated design.",
+        "B": "This fixes the smaller omission and leaves the larger one. Adding eval maintenance while still assuming all six roles are released overstates the saving by £156,000 a year and understates payback by nearly four months.",
+        "C": "This corrects the headcount assumption but drops the eval maintenance line. It is closer, and it is the answer a reviewer arrives at by scanning for salaries only — internal labour costed as a fraction of an FTE is exactly what that scan misses."
+      },
+      "concept": "A payback figure is only as good as the run-cost side. Count every cost that persists after go-live: retained human review, platform, monitoring, and the internal labour keeping evals current. Costs carried as fractions of an FTE are the most frequently omitted because no invoice makes them visible.",
+      "tip": "On a cost-correction item, do the arithmetic for each option rather than picking the one that sounds most conservative. Two distractors here are internally consistent partial corrections, and only working the numbers separates them."
+    }
+  },
+  {
+    "id": "SCL-B-017",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Purpose of recording rejected options in an ADR",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Why does an architecture decision record document the options that were rejected, and not only the option chosen?",
+    "options": [
+      { "key": "A", "text": "Because governance frameworks require at least three options to be documented for every architecture decision." },
+      { "key": "B", "text": "Because rejected options become the enhancement backlog once the chosen option has been delivered." },
+      { "key": "C", "text": "So a later reader can see what was already evaluated, why it lost, and whether the reason still holds." },
+      { "key": "D", "text": "Because the rejected options serve as the rollback plan if the chosen option fails in production." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Most of the cost of a poorly kept decision record is paid later, when a new joiner or a new stakeholder proposes something the team already considered and discarded. Recording the rejected options with their reasons stops that ground being re-litigated for free, and — more valuably — lets a reader check whether the reason still applies. An option rejected on a cost basis that has since changed is a decision worth reopening; an option rejected on a regulatory basis usually is not. Without the reasons, neither judgement is possible.",
+      "distractors": {
+        "A": "No such universal rule exists, and a fixed minimum count would produce padding rather than insight. Teams routinely write valuable ADRs comparing two genuine options; the value is in the reasoning, not the arithmetic.",
+        "B": "Rejected options were rejected. Treating them as a backlog inverts the record's meaning and would push the team toward implementing things it deliberately decided against.",
+        "D": "A rollback plan restores the previous state, which is usually the status quo rather than one of the alternatives assessed. Conflating the two would leave a team trying to build a rejected design under incident conditions."
+      },
+      "concept": "An ADR records rejected options with the reason each lost so that future readers can test whether the reason is still true. Decisions age through their premises; recording the premises is what makes a decision revisable rather than merely reversible.",
+      "tip": "For ADR purpose questions, choose the option framed around a future reader's needs. Records exist for the people who were not in the room, and the option written from their point of view is nearly always the key."
+    }
+  },
+  {
+    "id": "SCL-B-018",
+    "domain": "Stakeholder Communication & Lifecycle Management",
+    "topic": "Retracting an overconfident statement after a control was stood down",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "Six weeks ago an architect told a retail bank's steering committee that its Claude-based mortgage document checker 'will not miss a missing payslip — we've tested it'. A production audit of 1,200 cases has now found 14 misses, 3 of which reached an underwriter decision. On the strength of the original statement, the operations director instructed branch staff to stop double-checking the payslip field. The next committee is in nine days. What is the best next step?",
+    "options": [
+      { "key": "A", "text": "Raise it at the next committee in nine days with the audit results and a corrective plan, so the correction reaches the committee with a solution attached." },
+      { "key": "B", "text": "Reinstate the branch double-check with the operations director today, then send the committee a written correction before the meeting giving the measured miss rate." },
+      { "key": "C", "text": "Amend the earlier minute to record the statement as 'a very low miss rate is expected', then brief the committee verbally when it next meets." },
+      { "key": "D", "text": "Commission a larger audit first, so the miss rate can be reported with a defensible confidence interval rather than from 1,200 cases alone." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "A manual control was removed because of the original statement, so every day of delay is unmitigated exposure on live mortgage files — the timing is set by that exposure, not by the meeting calendar. Restoring the compensating control is the fastest available risk reduction and requires no engineering. The written correction then has to precede the meeting because the committee is currently operating on a claim the architect knows to be false, and three cases have already reached an underwriter. Correcting in writing also creates the record that the bank's own model-risk process will look for.",
+      "distractors": {
+        "A": "Waiting nine days is a choice to leave the double-check stood down while knowing the basis for standing it down was wrong. Attaching a plan is good practice, but it does not justify holding a material correction to fit a meeting cycle.",
+        "C": "Rewriting the minute to soften what was said is falsification of the record, and it would be found. It also leaves the operational decision that flowed from the statement untouched, which is the part actually causing harm.",
+        "D": "1,200 cases with 14 misses is already sufficient to know the original claim was wrong, which is the only finding that needs communicating now. Buying precision while a control stays disabled optimises the report at the expense of the exposure."
+      },
+      "concept": "When a stakeholder has taken an irreversible or risk-bearing action on the strength of a statement you now know to be wrong, correction is urgent rather than scheduled. Restore the compensating control first, correct in writing second, and let the improvement plan follow at its own pace.",
+      "tip": "Look for the sentence describing what someone did because of the claim. That dependency, not the size of the error, is what sets the urgency and eliminates every wait-for-the-meeting option."
+    }
+  }
+]

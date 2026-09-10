@@ -1,0 +1,724 @@
+[
+  {
+    "id": "CPE-A-055",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "How a reasoning budget reshapes a step's latency profile",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A step that previously streamed its answer immediately is switched to use an extended-thinking budget. How does its latency profile change from the caller's point of view?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Time to the first answer token grows, because the model reasons before the answer begins."
+      },
+      {
+        "key": "B",
+        "text": "Total latency is unchanged, because reasoning is produced in parallel with the answer tokens."
+      },
+      {
+        "key": "C",
+        "text": "Time to the first answer token is unchanged, and only the total duration of the response grows."
+      },
+      {
+        "key": "D",
+        "text": "Latency becomes constant across inputs, since the reasoning budget fixes the amount of work performed."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Reasoning is generated before the answer, which means the delay lands in the part of the latency profile users feel most: the wait before anything useful appears. For an interface that previously started streaming almost immediately, that is a qualitative change, not just a longer total — a progress indicator that used to fill within a fraction of a second now sits empty. Any UX that depended on early streaming has to be reworked alongside the change, which is why enabling a reasoning budget on a user-facing step is a product decision as much as a configuration one.",
+      "distractors": {
+        "B": "Reasoning is generated sequentially, not concurrently with the answer. The tokens have to be produced before the answer's first token exists, so total duration necessarily grows.",
+        "C": "This describes the change teams hope for, and it is the wrong way round. The additional time is spent up front, so the first answer token is precisely what is delayed.",
+        "D": "The budget is a ceiling, not a quota that is always spent. How much reasoning a given input provokes varies, so latency stays input-dependent — and the variance typically widens rather than collapsing."
+      },
+      "concept": "A reasoning budget shifts latency to the front of the response, delaying time to first answer token rather than merely extending the tail. Streaming user interfaces feel this disproportionately, so evaluate a reasoning budget against perceived latency, not just total duration.",
+      "tip": "When a stem mentions that a step currently streams, the item is almost certainly about time to first token rather than total latency. They are different metrics and reasoning budgets affect them differently."
+    }
+  },
+  {
+    "id": "CPE-A-056",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Emitting edits instead of whole documents under an output cap",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A water utility maintains around 9,000 device configuration documents averaging 30,000 tokens each. A regulatory change amends a clause that appears in every one of them. The current pipeline sends each document and asks for the full revised version: 40% of responses truncate, and engineers reviewing the change must diff a whole regenerated document against the original to see what actually moved. What is the right redesign?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Split each document at clause boundaries, request a full rewrite of each section, and concatenate the sections into one document."
+      },
+      {
+        "key": "B",
+        "text": "Move to a higher capability tier so the full revised document, all 30,000 tokens of it, fits within the response allowance."
+      },
+      {
+        "key": "C",
+        "text": "Have the model emit a structured list of targeted edits the application applies to the original, so response length scales with the change."
+      },
+      {
+        "key": "D",
+        "text": "Pre-filter to the documents the amended clause actually touches and keep the existing full-rewrite approach for that subset."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Both symptoms come from making output length proportional to document length when the actual work is a small, localised amendment. Emitting edits decouples the two: the response now scales with the size of the change, so truncation stops being a function of document size, and the review artefact becomes the list of intended edits rather than a regenerated document that has to be diffed. It also shrinks the blast radius — an edit that fails to apply is visible and isolated, whereas a regenerated document silently carries whatever else the model altered in passing.",
+      "distractors": {
+        "A": "Section-wise rewriting fixes truncation but keeps output proportional to the document, so cost stays high and every section still has to be diffed. It also multiplies the number of places where unintended changes can be introduced.",
+        "B": "Tier does not change the fundamental relationship between a 30,000-token document and the allowance for a single response, and the review burden is untouched. This buys capability to solve a shape problem.",
+        "D": "The stem states the amended clause appears in every document, so there is nothing to filter out. Even if there were, the filtered documents would still truncate at the same rate."
+      },
+      "concept": "When a task modifies a document rather than authoring one, have the model emit the modification, not the result. Output length then tracks the size of the change, which removes the length ceiling as a constraint and makes the change reviewable and auditable in its own right.",
+      "tip": "Truncation plus an expensive review step is a signature. It says the response is carrying content that did not change, and the fix is to stop asking for it."
+    }
+  },
+  {
+    "id": "CPE-A-057",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "What a perfect score on a small smoke test supports",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A team reports that a candidate tier scored 100% on their 40-item smoke test. What may legitimately be concluded?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The tier is suitable for production on this task and the change can proceed to release."
+      },
+      {
+        "key": "B",
+        "text": "Very little: a set this small with no failures gives almost no resolution on the true error rate."
+      },
+      {
+        "key": "C",
+        "text": "The tier is at least as accurate as the incumbent, since the incumbent has never scored 100%."
+      },
+      {
+        "key": "D",
+        "text": "The smoke test is too easy to be informative and should be replaced with a harder set."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Zero failures in forty attempts is consistent with a wide range of true error rates, including ones that would be unacceptable in production. A smoke test is designed to catch gross breakage — a wrong output shape, an unusable response — and it does that job well and cheaply. It is not designed to estimate an error rate, and reading it as if it were is how teams ship a tier change on evidence that could not have detected the problem they later find. The honest statement is that nothing broke, not that the tier is accurate.",
+      "distractors": {
+        "A": "A suitability claim needs a representative eval sized to resolve the error rate that matters, plus the slices that carry the most consequence. Forty passing items support none of that.",
+        "C": "A comparative claim requires the incumbent to have been measured on the same set. Even then, forty items with no failures on either side would not distinguish them.",
+        "D": "Passing a smoke test is what a smoke test is meant to do most of the time. Its value is catching the occasions when something is grossly broken, so a clean run is not evidence the test is worthless."
+      },
+      "concept": "Match the instrument to the claim. Smoke tests detect gross breakage; error-rate claims need a representative eval sized to the rate you care about. A clean small-sample run is the absence of evidence, not evidence of quality.",
+      "tip": "Whenever a stem quotes a perfect score, look at the denominator first. Small denominators with no failures are the most over-interpreted number in this whole domain."
+    }
+  },
+  {
+    "id": "CPE-A-058",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Tier selection for an inline safety screen",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A dating platform screens every outbound first message for harassment before it is delivered, at about 40 million messages a day. Product has allowed 150ms of p95 latency for the screen inside the send path. The screen currently runs on a mid tier and measures 480ms p95. Trust and safety will not accept a drop in recall on the categories that trigger account action. What should the architect do?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Keep the mid tier in place and renegotiate the screening budget from 150ms to 500ms with the product team."
+      },
+      {
+        "key": "B",
+        "text": "Move the screen off the send path and review messages after delivery instead."
+      },
+      {
+        "key": "C",
+        "text": "Move the screen to the highest capability tier to maximise recall, on the basis that harassment screening is safety-critical."
+      },
+      {
+        "key": "D",
+        "text": "Run the fastest tier inline against the 150ms budget and route only the borderline scoring band to the higher tier."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The screen has two hard constraints pulling in opposite directions, and a two-band design satisfies both. The fast tier handles the overwhelming majority of messages inside the budget, and the borderline band — where recall is actually won or lost — is escalated to a tier with the capability to judge it, at a latency cost paid on a small fraction of 40 million rather than on all of it. The recall commitment survives because the escalation covers exactly the cases the fast tier is uncertain about; the budget survives because certainty is cheap and only doubt is expensive.",
+      "distractors": {
+        "A": "The budget is a product constraint about how long a send can appear to hang, and more than tripling it changes the experience of sending a message for every user. It also leaves the whole volume on a tier chosen without reference to either constraint.",
+        "B": "Post-delivery review means the harassing message was delivered. That is a categorically different control, and it fails the purpose of an inline screen no matter how good the model behind it is.",
+        "C": "Maximising recall by moving every message to the slowest tier makes the latency problem worse, not better, at 40 million messages a day. Safety-critical framing justifies protecting recall; it does not justify ignoring the budget the screen must run inside."
+      },
+      "concept": "When a latency budget and a recall commitment conflict, band the traffic by model confidence rather than choosing one constraint over the other. Spend capability and time on the uncertain minority and keep the confident majority on the fast path.",
+      "tip": "Inline safety screens almost always resolve to a confidence-banded design. Options that pick either the strictest quality or the tightest latency wholesale are there to see whether you notice both constraints are binding."
+    }
+  },
+  {
+    "id": "CPE-A-059",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Conditions that argue against splitting tiers across a pipeline",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A regional newspaper group runs a five-step editorial pipeline on one tier. An engineer proposes splitting it across three tiers to cut cost. Which TWO conditions argue for keeping a single tier instead? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "The pipeline's steps have visibly different difficulty profiles, with headline generation far simpler than the legal-risk read on each story."
+      },
+      {
+        "key": "B",
+        "text": "The steps run sequentially rather than in parallel, with each step's output passed straight to the next as soon as it has been produced."
+      },
+      {
+        "key": "C",
+        "text": "Each step would need separately tuned prompts and its own eval gate per tier, and one engineer maintains the whole pipeline."
+      },
+      {
+        "key": "D",
+        "text": "The projected saving is small relative to total run cost, because the steps eligible for a cheaper tier are a minority of the tokens processed."
+      },
+      {
+        "key": "E",
+        "text": "The pipeline already meets its accuracy and latency targets, with measured headroom against both on the current tier."
+      }
+    ],
+    "correct": [
+      "C",
+      "D"
+    ],
+    "explanation": {
+      "correct": "Tier splitting is not free: every additional tier in a pipeline is another prompt to tune, another eval gate to maintain, and another thing that has to be re-validated at every model migration. With one engineer owning five steps, that ongoing cost is real and recurring. The second condition is the return side — if the steps that could move down consume a minority of the tokens, the saving is bounded by that minority regardless of how much cheaper the tier is. Small return plus real maintenance cost is the case for leaving a working pipeline alone.",
+      "distractors": {
+        "A": "Differing difficulty profiles is the strongest argument for splitting, not against it. It is precisely the condition under which per-step tiering pays.",
+        "B": "Execution order is irrelevant to tier assignment. Sequential steps can each run on whatever tier suits them; parallelism affects wall-clock time, not which model each step should use.",
+        "E": "Meeting targets tells you there is headroom, which if anything makes a cost-reducing split more attractive. It is a reason the split is safe to attempt, not a reason to avoid it."
+      },
+      "concept": "Per-subtask tiering pays when difficulty varies and the cheap-eligible steps carry meaningful volume. Weigh it against the recurring cost of maintaining more prompts, more eval gates and more migration surface — especially on small teams.",
+      "tip": "Cost-optimisation items are rarely one-sided. Look for the option naming where the saving actually comes from, and the option naming who maintains the result — those are usually the pair."
+    }
+  },
+  {
+    "id": "CPE-A-060",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Prompt properties that become load-bearing on a cheaper tier",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "The same prompt is moved from a higher-capability tier to a cheaper one. Which prompt properties typically become load-bearing that were not before?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Explicitness of the required output format, and the number and quality of worked examples."
+      },
+      {
+        "key": "B",
+        "text": "The politeness and register of the instructions."
+      },
+      {
+        "key": "C",
+        "text": "Whether the prompt names the model tier it was written for."
+      },
+      {
+        "key": "D",
+        "text": "The overall length of the system prompt, which must be shortened when moving to a cheaper tier."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "A stronger model absorbs a certain amount of underspecification — it infers the intended output shape and generalises from one thin example. A cheaper tier has less of that slack, so the things the prompt left implicit start to matter. In practice the two that bite first are format specification, where loose wording produces inconsistent structure, and examples, where a weaker model needs more of them and needs them chosen to cover the cases it actually gets wrong. This is why a downgrade is a prompt-engineering exercise as much as a configuration change, and why a downgrade eval on the unmodified prompt understates what the cheaper tier can do.",
+      "distractors": {
+        "B": "Register affects the tone of the response, not the reliability of the task, and it does not become more consequential on a cheaper tier. This is a persistent folk belief with no bearing on the downgrade.",
+        "C": "Naming a tier inside a prompt does nothing; the model is not selecting behaviour based on being told which tier it is. It is a distractor that sounds procedural.",
+        "D": "There is no general rule that cheaper tiers need shorter prompts. If anything the opposite often holds, since the specification the stronger tier could infer now has to be written down."
+      },
+      "concept": "Capability substitutes for specification. When you move down a tier, expect the implicit parts of the prompt — output format, example coverage, edge-case handling — to become the binding constraint, and re-tune before concluding the cheaper tier cannot do the job.",
+      "tip": "A downgrade eval run on an untouched prompt measures the worst case for the cheaper tier. If a stem says the prompt was carried over unchanged, that detail matters."
+    }
+  },
+  {
+    "id": "CPE-A-061",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Paired-image comparison for a contestable decision",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A property management firm photographs rental units at move-in and move-out. A model must identify damage that is new at move-out, because those findings drive deposit deductions that tenants can and do formally challenge. Rooms are photographed from roughly, but not exactly, the same positions on each visit. What is the right design?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Send only the move-out images and ask the model to identify damage, since new damage is visually apparent to a trained reviewer."
+      },
+      {
+        "key": "B",
+        "text": "Send all images from both visits in one unlabelled batch and let the model infer which visit each image belongs to."
+      },
+      {
+        "key": "C",
+        "text": "Classify each image independently for damage and take the set difference between the move-in and move-out label sets for each room."
+      },
+      {
+        "key": "D",
+        "text": "Send the matched before-and-after pair in one labelled request, requiring a cited visual difference for each claimed item."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The finding that matters is comparative — new damage, not damage — so the model must see both states together and know which is which. Explicit labelling removes the inference the stem shows is unnecessary and error-prone, and pairing the images in one request lets the model reason about the same surface across two visits despite the imperfect camera positions. Requiring a cited visual difference for each claimed item is the part that survives a challenge: a deduction backed by a stated observation about a specific area can be reviewed by a human, while an unexplained damage label cannot be defended when a tenant disputes it.",
+      "distractors": {
+        "A": "Cannot distinguish new damage from pre-existing damage, which is the entire question. It would systematically over-claim against tenants who inherited a scuffed unit, in exactly the direction that generates disputes.",
+        "B": "Asking the model to work out which visit each image belongs to introduces an inference step whose failures silently invert the comparison — pre-existing damage read as new. The visit is metadata the firm already holds.",
+        "C": "Independent classification then set-difference loses the pairing that makes the comparison meaningful. Coarse labels miss changes in severity or extent, and a label appearing at move-out but not move-in may reflect angle or lighting rather than new damage."
+      },
+      "concept": "For comparative visual judgements, present the images together with their roles explicitly labelled, and require the model to cite the observed difference. Independent classification followed by a diff discards the alignment the comparison depends on and produces findings that cannot be defended.",
+      "tip": "When a stem says the output is formally challengeable, look for the option that makes the reasoning citable. Accuracy alone does not survive a dispute process; stated evidence does."
+    }
+  },
+  {
+    "id": "CPE-A-062",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "A reasoning-budget gain inside the eval's resolution",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A sports analytics firm turns match event feeds into scouting notes. An engineer reports that enabling extended thinking raised accuracy from 86.5% to 88.0% on the team's 200-item eval and wants to ship it. Measured cost per note rose 3.4x and p95 latency went from 2.1s to 7.8s. Scouts consume the notes the morning after a match. What should the architect say?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Ship it: a 1.5-point accuracy gain on a scouting task is worth 3.4x the cost, and the latency is irrelevant for overnight consumption."
+      },
+      {
+        "key": "B",
+        "text": "Three extra correct items out of 200 sits inside what this eval can resolve; expand it or repeat the trial before calling it real."
+      },
+      {
+        "key": "C",
+        "text": "Reject extended thinking for this step: a gain of three items proves the task does not benefit from deliberate reasoning."
+      },
+      {
+        "key": "D",
+        "text": "Ship it with a smaller reasoning budget, so the 3.4x cost increase is scaled back in proportion to the 1.5-point gain."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Convert the percentage back into items: 1.5 points of 200 is three answers. A three-item difference on a 200-item set is comfortably within the run-to-run variation a sampled model produces, so the reported gain may not exist at all — and the firm is being asked to pay 3.4x per note for it indefinitely. The latency is genuinely a non-issue given overnight consumption, which is why the whole weight of the decision rests on whether the accuracy difference is real. Either enlarge the eval until it can resolve a difference this size, or repeat the comparison and look at the spread.",
+      "distractors": {
+        "A": "Accepts a 1.5-point figure as a fact when the sample cannot support it. The latency reasoning is sound and the accuracy reasoning is not, which is what makes this the tempting option.",
+        "C": "Overreads in the other direction. An unresolvable measurement is not evidence of no benefit; the eval simply cannot see a difference of this size, and a larger one might show a real gain worth having.",
+        "D": "Reduces the budget on the basis of an effect nobody has established, and there is no reason to expect a smaller budget to preserve a proportional share of an unmeasured gain. It ships a change and a guess together."
+      },
+      "concept": "Convert percentage differences into item counts before judging them. A gain measured in single-digit items on a small eval cannot support a permanent cost increase; enlarge the eval or repeat the trial until the difference is resolvable.",
+      "tip": "Multiply the percentage by the sample size. When the answer is a handful of items, the item is about statistical resolution, and both 'ship it' and 'reject it outright' are wrong for the same reason."
+    }
+  },
+  {
+    "id": "CPE-A-063",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "First check when cost per request rises without a deploy",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A step's measured cost per request rises noticeably with no code deploy and no change in input size. What should be checked first?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Whether the model behind a floating alias changed, or a shared client turned on a default reasoning budget."
+      },
+      {
+        "key": "B",
+        "text": "Whether the provider changed its published pricing for the tier this step calls since the last billing period."
+      },
+      {
+        "key": "C",
+        "text": "Whether the retrieval index has grown since the cost was last measured, adding more passages to every query."
+      },
+      {
+        "key": "D",
+        "text": "Whether the account's requests-per-minute limit was lowered, forcing extra retries before each successful call."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Two things can change the cost of a request without anyone deploying application code: the model serving it, if the request names a floating alias, and shared configuration that alters how much the model generates — a reasoning budget enabled in a common client library being the most common example. Both are external to the service's own repository, which is exactly why they are invisible in the change log the team looks at first. Checking them costs minutes and explains most cases of this shape.",
+      "distractors": {
+        "B": "Possible in principle but rare, announced in advance, and it would move every workload at once rather than one step. It is worth ruling out, but it is not where a diagnosis starts.",
+        "C": "Index growth raises cost by increasing retrieved context, which increases input size — a change the stem has already excluded.",
+        "D": "Throughput limits govern how many requests can be made in a period, not what an individual request costs. A reduced limit produces rejections and queueing, not a higher unit cost."
+      },
+      "concept": "Cost changes with no code change point outside the repository: a moving model alias or a shared configuration default. Pin the model and audit shared client defaults per step so both classes of change become visible before they show up on an invoice.",
+      "tip": "The phrase 'no code deploy' is doing the work in this stem. It narrows the search to inputs the team does not version, which is a short list."
+    }
+  },
+  {
+    "id": "CPE-A-064",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Output-length risk in variable-length list extraction",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A customs brokerage extracts line items from commercial invoices into a JSON array. Most invoices carry 5 to 40 lines, but a long tail runs past 900 lines, and those are the shipments with the highest duty exposure. Truncated responses currently produce unparseable JSON and the whole extraction is lost. Which TWO design responses address the output-length risk without changing what is delivered? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Set a maximum array length in the prompt, instructing the model to stop after that many line items so the response never overruns its allowance."
+      },
+      {
+        "key": "B",
+        "text": "Detect the line count before the call and, above a threshold, split the invoice into page ranges and merge the extractions in code."
+      },
+      {
+        "key": "C",
+        "text": "Move invoices past 900 lines to a higher tier, which will express the same array more compactly and so fit inside the response allowance."
+      },
+      {
+        "key": "D",
+        "text": "Ask the model to summarise the line items by commodity code rather than enumerate them once the invoice runs long."
+      },
+      {
+        "key": "E",
+        "text": "Emit one line item per output line in a self-delimiting format, so a truncated response still yields usable records and a resumable position."
+      }
+    ],
+    "correct": [
+      "B",
+      "E"
+    ],
+    "explanation": {
+      "correct": "Two complementary moves keep the deliverable intact. Splitting long invoices by page range before the call bounds the output per request, and because the split is driven by a cheap pre-count it only applies to the tail that needs it. Changing the output framing so each record stands alone on its own line addresses the second problem: a single monolithic JSON array is all-or-nothing, whereas a line-delimited stream degrades gracefully — a truncation costs the last partial record and tells you exactly where to resume. Together they turn a total-loss failure mode into a bounded, recoverable one on the highest-value shipments.",
+      "distractors": {
+        "A": "Capping the array length makes the model silently discard line items, on precisely the invoices with the highest duty exposure. Producing a confidently incomplete customs declaration is far worse than failing loudly.",
+        "C": "Assumes a compactness difference between tiers that has not been measured and would not change the underlying proportionality between line count and output length. A 900-line invoice overruns on any tier.",
+        "D": "Substitutes a summary for the enumeration the downstream customs process requires. The stem explicitly asks for responses that do not change what is delivered."
+      },
+      "concept": "For variable-length structured output, bound the work per request from a cheap pre-count, and choose a framing that degrades gracefully. Monolithic structures fail completely on truncation; record-per-line formats yield partial results and a resume point.",
+      "tip": "Watch for stems where the long tail is also the high-value tail. Any option that caps, truncates or summarises the tail is disqualified by that detail alone."
+    }
+  },
+  {
+    "id": "CPE-A-065",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Retirement deadline with an unresolved prompt regression",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A mining group generates shift-safety briefings with Claude. Its pinned model version retires in eleven days, a date the provider will not move. On the regression suite, three of five prompts pass on the successor and two regress materially. Those two produce the statutory hazard notice that must be issued before every shift and cannot be suspended. A quick eval shows both regressing prompts pass unchanged on the next capability tier up, at a cost the safety budget can absorb for the six weeks the re-work is estimated to need. What should the architect do?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Cut all five prompts over on the deadline and accept the regression on the hazard notice, fixing forward in the weeks after."
+      },
+      {
+        "key": "B",
+        "text": "Ask the provider for an exemption keeping the retiring version available for the two hazard-notice prompts until the re-work is complete."
+      },
+      {
+        "key": "C",
+        "text": "Cut the three passing prompts to the successor and run the two regressing prompts on the next tier up while the re-work proceeds."
+      },
+      {
+        "key": "D",
+        "text": "Halt the migration and re-work all five prompts against the successor in the eleven days left before cutting any over."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The stem hands you a validated escape route and a hard date. Splitting the migration lets the three clean prompts move on schedule while the two that matter most run on a tier already measured to handle them without modification, so the statutory notice is never degraded and never suspended. Paying a higher tier for six weeks on two prompts is a small, time-boxed cost with a defined exit, and the re-work then happens under normal engineering conditions rather than against a deadline. The key insight is that tier is a second dimension available during a migration, not just the thing being migrated.",
+      "distractors": {
+        "A": "Knowingly degrades a statutory safety notice to hit a schedule. Even briefly, that is the one output in this system where a quality regression is not a trade-off the team is entitled to make.",
+        "B": "Treats a published retirement date as negotiable and stakes the safety notice on a request that may well be refused, with eleven days of runway and no fallback prepared if it is.",
+        "D": "Halting the whole migration compresses five prompts' worth of re-work into eleven days and puts the three that already pass at unnecessary risk. It also ignores the tier option the team has already validated."
+      },
+      "concept": "During a forced migration, tier is an available lever alongside version. When some prompts regress on the successor, moving those prompts temporarily to a tier that passes them buys re-work time without degrading output or missing the retirement date.",
+      "tip": "When a stem mentions an adjacent tier that passes the failing cases unchanged, that clause is the answer. It is usually placed late in the stem so it reads as background."
+    }
+  },
+  {
+    "id": "CPE-A-066",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Choosing which published benchmark is worth consulting",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An architect is shortlisting capability tiers for a step that reads long clinical guidelines and answers multi-hop questions over them. Which TWO properties make a published benchmark worth consulting for that shortlist? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "It measures a capability the step actually exercises, such as multi-hop reasoning over long documents."
+      },
+      {
+        "key": "B",
+        "text": "It reports a single headline score that is easy to compare across tiers."
+      },
+      {
+        "key": "C",
+        "text": "Its inputs resemble the length and structure of the step's own inputs."
+      },
+      {
+        "key": "D",
+        "text": "It is the benchmark most frequently cited in the vendor's own material."
+      },
+      {
+        "key": "E",
+        "text": "It is scored by human raters rather than automatically."
+      }
+    ],
+    "correct": [
+      "A",
+      "C"
+    ],
+    "explanation": {
+      "correct": "A benchmark is useful for shortlisting to the extent that it is a proxy for your task, and proxy quality has two components. The first is construct match: the benchmark has to exercise the capability the step depends on, so a multi-hop reasoning benchmark is informative here and a short-answer factual recall benchmark is not. The second is input match: performance on short passages frequently fails to predict performance on long structured documents, so a benchmark whose inputs look like your inputs carries far more signal. Neither property makes the benchmark decisive — that still requires your own eval — but together they determine whether it is worth reading.",
+      "distractors": {
+        "B": "Comparability is convenience, not validity. A single easy-to-compare number derived from an irrelevant task is more dangerous than a messy result on a relevant one, because it invites a decision.",
+        "D": "Citation frequency in vendor material reflects marketing selection, which biases towards benchmarks where the vendor performs well. It carries no information about relevance to a clinical guideline task.",
+        "E": "Human grading affects the reliability of the benchmark's own scores, not whether the task it measures resembles yours. A human-graded benchmark of an unrelated capability is still unrelated."
+      },
+      "concept": "Judge a benchmark's shortlisting value by construct match and input match: does it exercise the capability your step needs, on inputs shaped like yours. Comparability, popularity and grading method say nothing about whether the result transfers.",
+      "tip": "When several options describe properties of the benchmark's presentation rather than its content, those are the distractors. Relevance questions are answered by what a benchmark measures and on what."
+    }
+  },
+  {
+    "id": "CPE-A-067",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Allocating a chain-wide latency budget across steps",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A four-step chain has a 3s end-to-end p95 budget. What does that budget imply for tier selection at each step?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Each step may take up to 3s, since the budget is measured end to end rather than step by step, and the steps run independently."
+      },
+      {
+        "key": "B",
+        "text": "All four steps should use the same tier, so the 3s budget divides evenly into four equal shares of 750ms per step."
+      },
+      {
+        "key": "C",
+        "text": "The budget applies only to the step the user is actively waiting on, which is the final synthesis step in the chain."
+      },
+      {
+        "key": "D",
+        "text": "Each step's tier must fit the budget left after the other steps and the non-model work — network, retrieval, serialisation — take their share."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "An end-to-end budget is a single quantity that every component draws from, including the parts that are not model calls. Tier selection at any one step is therefore a decision about how much of a shared, finite budget that step is allowed to consume, which cannot be made without knowing what the others need. In practice this means allocating the budget explicitly before choosing tiers — and reserving for retrieval, network round trips and serialisation, which routinely account for more of a chain's p95 than teams expect.",
+      "distractors": {
+        "A": "Four steps each taking the full budget would produce four times the allowance. End-to-end means the total, which is the constraint the whole chain shares.",
+        "B": "A uniform tier does not divide a latency budget evenly; steps differ in input size and output length, so their durations differ regardless of tier. Even allocation is also rarely optimal, since one step usually deserves more.",
+        "C": "In a synchronous chain the user waits for all of it. Even where some work is deferred, the budget still applies to whatever must complete before the response, so scoping it to one step understates the constraint."
+      },
+      "concept": "Allocate an end-to-end latency budget across all components — model calls and non-model work alike — before selecting tiers. A per-step tier decision is only meaningful against that step's allocated share.",
+      "tip": "Non-model time is the commonly forgotten term. If an option about a latency budget mentions only the model calls, check whether the stem left room for retrieval and network."
+    }
+  },
+  {
+    "id": "CPE-A-068",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "A new tier released mid-project before a stakeholder demo",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "An architecture and engineering firm is seven weeks into a twelve-week build of a specification-compliance checker, pinned to a specific model version, with a stakeholder demo in two weeks. A new capability tier is announced with strong published results on document reasoning. Two engineers want to adopt it immediately; the tech lead is uneasy. The team has an eval set built during weeks two and three. What should the team do next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Switch to the new tier now; adopting it before the demo shows stakeholders that the team is current."
+      },
+      {
+        "key": "B",
+        "text": "Pause the build for a week to evaluate the new tier properly before continuing the remaining work."
+      },
+      {
+        "key": "C",
+        "text": "Note the release in the backlog, run the demo on the pinned version, and schedule the comparison afterwards."
+      },
+      {
+        "key": "D",
+        "text": "Run the demo on both tiers side by side and let the stakeholders choose which one to proceed with."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The demo is a commitment two weeks out, and the pinned version is the configuration the team's work to date has been validated against. A new tier is an opportunity with no deadline attached, so the correct sequencing is to protect the commitment, keep the option, and evaluate it when the evaluation can be done properly. The eval set built in weeks two and three makes the later comparison cheap, which is the reason deferring costs nothing — the team is not choosing to ignore the release, only declining to absorb an unvalidated change into the two weeks before a demo.",
+      "distractors": {
+        "A": "Introduces an unvalidated change into the riskiest fortnight of the project for a presentational benefit. Stakeholders judge a demo by whether it works, and a compliance checker that regresses on a corner case in front of them is expensive.",
+        "B": "A week-long pause at week seven of twelve spends a large share of the remaining runway on something with no deadline. Evaluation is cheap once the eval set exists; the pause buys thoroughness the team can have later for free.",
+        "D": "Puts an engineering decision to an audience with neither the eval results nor the cost figures, and doubles the surface area of a demo. Stakeholders will reasonably pick whichever output reads better on the day, which is not how a tier gets chosen."
+      },
+      "concept": "A model release is not an event that has to be responded to. When a delivery commitment is near and an eval set already exists, defer the comparison to a point where it can be run properly — the option does not expire, and the commitment does.",
+      "tip": "Next-step items with a near-term demo and a shiny new option are testing sequencing discipline. The answer usually protects the commitment while explicitly preserving the option, rather than dismissing it."
+    }
+  },
+  {
+    "id": "CPE-A-069",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Inputs to a tier decision beyond accuracy and cost",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "Beyond accuracy on the eval and cost per call, which THREE factors should be explicit inputs to a production model tier decision? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "The step's allocated share of the end-to-end latency budget, and the tier's measured latency against that share."
+      },
+      {
+        "key": "B",
+        "text": "The number of engineers on the team who have previously worked with the tier."
+      },
+      {
+        "key": "C",
+        "text": "The cost of the downstream work an error triggers, which determines how much accuracy is worth buying."
+      },
+      {
+        "key": "D",
+        "text": "Where the tier's current version sits in its lifecycle, including any deprecation notice."
+      },
+      {
+        "key": "E",
+        "text": "Whether comparable companies in the same industry have standardised on the tier."
+      }
+    ],
+    "correct": [
+      "A",
+      "C",
+      "D"
+    ],
+    "explanation": {
+      "correct": "Three factors change the decision independently of the two headline numbers. Latency against the step's allocated share can disqualify a tier outright regardless of accuracy or price. The downstream cost of an error sets the exchange rate between accuracy and money, and without it a cost comparison has no denominator — this is what turns cost per call into cost per correct result. And the lifecycle position of the version tells you how soon you will be doing a migration, which is real engineering cost attached to a choice that otherwise looks free at the point of decision.",
+      "distractors": {
+        "B": "Familiarity is a delivery consideration, not a property of the tier's fitness. Prompts are re-tuned per tier and per version in any case, so prior exposure carries little transferable advantage.",
+        "E": "Industry standardisation reflects other organisations' constraints, task mixes and procurement histories. It is a comfort signal rather than evidence, and it is the reasoning that produces copied architectures that fit nobody."
+      },
+      "concept": "A tier decision has at least five inputs: accuracy on your eval, cost per call, latency against the step's allocated budget, the downstream cost of an error, and the version's lifecycle position. Missing any of them produces a decision that looks sound and fails on a dimension nobody priced.",
+      "tip": "Peer adoption and team familiarity are perennial distractors in model-selection items. Neither is a property of the model's fit to your task, which is the only thing the decision turns on."
+    }
+  },
+  {
+    "id": "CPE-A-070",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Handling an oversized scanned bundle within the window",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A customs brokerage receives shipping document bundles as single scanned PDFs. Most run 20 to 60 pages, but some reach 400. Only a handful of document types inside each bundle carry the fields the brokerage extracts, and customs stamps and handwritten signatures on those pages must be visible to the reviewer to confirm authenticity. What design should the architect choose?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Send all pages as images in a single request and rely on the context window to accommodate even the largest 400-page bundles without special handling."
+      },
+      {
+        "key": "B",
+        "text": "Run a cheap page-level classifier to identify document types, then send only the required pages to the extraction call in window-sized groups."
+      },
+      {
+        "key": "C",
+        "text": "Reject bundles above a 100-page threshold and require the customer to split them into smaller submissions before upload."
+      },
+      {
+        "key": "D",
+        "text": "Convert every page with OCR and send the extracted text with page numbers, since text costs far less per page than image input."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Two constraints combine and only one design satisfies both. Image pages consume window in proportion to their size, so a 400-page scanned bundle cannot be sent whole and must be reduced before the expensive call — and the stem tells you it is reducible, because only a few document types matter. A cheap page-level triage pass is the natural reducer: it costs little per page, needs only enough capability to recognise a document type, and shrinks the extraction call to a fraction of the bundle. Grouping the survivors into window-sized batches then keeps even an unusually dense bundle inside the limit.",
+      "distractors": {
+        "A": "A 400-page scanned bundle will not fit, and a design that works for the common 20-to-60-page case and fails on the tail is a design that fails on the bundles most likely to be complex.",
+        "C": "Pushes the problem to the customer for an internal limitation, and page count is not something the submitting party controls in most shipping workflows. It also does nothing about the cost of the 60-page bundles.",
+        "D": "Cheaper per page, but the stem requires stamps and handwritten signatures to be visible for authenticity confirmation, and OCR discards exactly that. This is the right instinct applied to a document class that cannot accept it."
+      },
+      "concept": "For long scanned documents, put a cheap selection pass in front of the expensive one. Triage pages by type or relevance, then send only what the task needs in window-sized groups — and check whether any required signal, such as stamps or signatures, forbids the cheaper text path.",
+      "tip": "Two clauses usually decide document-pipeline items: how big the worst case is, and what visual evidence must survive. Options that solve one while violating the other are the near-misses."
+    }
+  },
+  {
+    "id": "CPE-A-071",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Rare-slice regression discovered after a version migration",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A postal service migrated its address-normalisation step to a successor model version six weeks ago; aggregate accuracy improved and the regression suite passed. A spike in undeliverable mail has now been traced to a rural address format used in one region, which the successor normalises differently from its predecessor. That format is about 0.4% of national volume but roughly a third of the traffic in the affected delivery area. What should the team do?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Roll the whole step back to the previous model version nationally and hold it there until the successor handles the rural format correctly."
+      },
+      {
+        "key": "B",
+        "text": "Route that format to the previous pinned version while a fix is developed, and add it to the regression eval with enough cases to detect it."
+      },
+      {
+        "key": "C",
+        "text": "Add a post-processing rule that rewrites the successor's output for any address matching the affected rural format, and monitor its hit rate."
+      },
+      {
+        "key": "D",
+        "text": "Accept the change: aggregate accuracy improved and the affected format is only 0.4% of national volume, within normal regional variation."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The regression is real but bounded and identifiable, which supports containment rather than reversal: send the affected format to the version that handles it while the rest of the country keeps the aggregate improvement. The second half is what stops this recurring — the format was absent from the regression suite, which is why a passing suite and an improved aggregate coexisted with a broken delivery area for six weeks. Adding it with enough cases to resolve the effect fixes the instrument, not just the incident, and the national 0.4% figure is the wrong denominator when a third of one area's mail is affected.",
+      "distractors": {
+        "A": "Reverses an improvement for the whole country to fix one format. Full rollback is the right move when the regression is diffuse or unidentifiable; here the affected traffic can be recognised from the address itself.",
+        "C": "A rewrite rule patches the symptom and hides it from the eval, so the underlying difference never gets characterised and the rule accumulates as undocumented compensation. It is also fragile against the next version change.",
+        "D": "Reads the impact through the national denominator. A third of a delivery area's mail failing is a service failure in that area, and averaging it into national volume is how a localised outage becomes invisible in a dashboard."
+      },
+      "concept": "Aggregate improvement can conceal a concentrated regression. Contain by routing the affected slice to the version that handles it, then close the loop by adding that slice to the regression suite with enough cases to detect it next time.",
+      "tip": "When a stem gives you two denominators — a small national share and a large local one — the item is about which denominator the affected users experience. It is never the national one."
+    }
+  },
+  {
+    "id": "CPE-A-072",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Answering a request to standardise on the strongest tier",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "At a hotel group's monthly steering meeting, the COO asks why the programme does not simply run everything on the most capable model and stop having tier debates. The programme has six Claude-backed steps with very different volume and latency profiles, and each has an eval set. The COO owns the budget and has been supportive but is losing patience with engineering discussions. What should the architect do next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Agree with the COO and standardise on the highest tier to simplify the architecture, revisiting the decision later if run cost becomes a problem for the programme."
+      },
+      {
+        "key": "B",
+        "text": "Explain that the highest tier is slower and would breach the latency budgets of two of the six steps, and leave the matter there for the COO to accept."
+      },
+      {
+        "key": "C",
+        "text": "Commission an independent benchmark study comparing the candidate tiers across the subject domains of all six steps."
+      },
+      {
+        "key": "D",
+        "text": "Bring a per-step table to the next steering meeting — volume, latency budget, measured accuracy per tier and cost — so the question is settled on the programme's own numbers."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The COO is not asking a technical question; they are asking why a decision that sounds simple is taking engineering attention. The answer that ends the debate permanently is the one that makes the trade visible per step in the units the budget owner already thinks in. Six rows showing volume, the latency the step must fit, what each tier scored on that step's own eval, and what each would cost converts a recurring argument into a table the COO can read and, importantly, decide from — including deciding to spend more on the two or three steps where the strongest tier genuinely earns it.",
+      "distractors": {
+        "A": "Agreeing without the numbers commits the programme to its highest possible run cost and, on the latency-bound steps, to a configuration that will not meet its own budgets. 'Revisit if cost becomes a problem' means revisiting after the invoices arrive.",
+        "B": "Correct as far as it goes, and it answers a third of the question. It leaves the other four steps unaddressed, gives the COO nothing to decide with, and reads as engineering deflecting — which is the dynamic the stem describes.",
+        "C": "Commissions new work to answer a question the existing eval sets already answer. It is slower, less relevant than the team's own measurements, and it prolongs exactly the engineering discussion the COO is tired of."
+      },
+      "concept": "Answer 'why not just use the strongest model' with the programme's own per-step numbers, not with a principle. A table of volume, latency budget, measured accuracy and cost per step makes the trade-off legible to a budget owner and converts a recurring debate into a decision they can make.",
+      "tip": "When a stem tells you a stakeholder is losing patience, the answer is rarely more explanation. Look for the option that hands them something to decide with in their own units."
+    }
+  }
+]

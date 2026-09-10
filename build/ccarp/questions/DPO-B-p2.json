@@ -1,0 +1,719 @@
+[
+  {
+    "id": "DPO-B-019",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Trace sampling strategy for an expensive AI workload",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A manufacturing group runs Claude-based defect-report triage at roughly 900,000 requests a month. Capturing every trace with rendered prompts would cost more than the inference itself, so the platform team samples 1% of traces at the head. Quality engineers report the same frustration every time: whenever a customer-reported bad triage is investigated, that specific trace was not among the sampled ones. Which sampling change best fits this workload?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Raise head sampling from 1% to 10%: any given trace becomes ten times more likely to be captured, at one tenth of the cost of capturing every trace in full."
+      },
+      {
+        "key": "B",
+        "text": "Keep head sampling at 1% but extend retention on the sampled traces from 90 days to seven years, so that any historical investigation always has some material to work from."
+      },
+      {
+        "key": "C",
+        "text": "Adopt tail-based sampling: decide after the request completes, keeping traces that errored, ran long, or were flagged by a quality signal, plus a small random baseline."
+      },
+      {
+        "key": "D",
+        "text": "Stop capturing traces and rely on the application's structured logs, which already record a line for the request and the response of every call."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Head sampling decides before the outcome is known, so it is blind to the property the team actually cares about — that the triage turned out wrong. Deciding at the end lets the pipeline keep exactly the interesting minority: errors, latency outliers, low grader scores, negative user feedback. That gives near-complete coverage of the population being investigated while the retained volume stays close to what 1% cost, because interesting requests are rare.",
+      "distractors": {
+        "A": "Ten times the cost buys a ten-times-better coin flip. A randomly chosen 10% still misses nine out of ten specific complaints, which is the same conversation with a bigger bill.",
+        "B": "Retention answers how long a trace survives, not whether it was captured. The engineers' problem is that the trace never existed, so keeping the wrong 1% for seven years changes nothing.",
+        "D": "Application logs record what each service did in isolation. They do not carry the causal parent-child structure that lets an investigator see which retrieval fed which call in a multi-step triage."
+      },
+      "concept": "When the traces worth keeping are defined by their outcome, sample at the tail. Head sampling is appropriate for uniform performance statistics; it is structurally unable to guarantee coverage of rare failures.",
+      "tip": "If a stem says the interesting request is always the one that was not sampled, that is a description of head sampling's defining limitation, not an argument for a higher rate."
+    }
+  },
+  {
+    "id": "DPO-B-020",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Why silent-wrong-output outranks an outage in severity",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "For an AI-powered feature, why is an incident in which the feature returns confident but wrong output often rated more severe than an outage of the same duration?",
+    "options": [
+      {
+        "key": "A",
+        "text": "An outage announces itself and users stop relying on the feature, whereas wrong output is consumed as correct and its effects spread downstream."
+      },
+      {
+        "key": "B",
+        "text": "Wrong output consumes more tokens per request than a failed call does, so financial impact accumulates faster across the incident window."
+      },
+      {
+        "key": "C",
+        "text": "Availability is covered by the platform's SLO while output quality usually has none, so the wrong-output case has no owner on the on-call rota."
+      },
+      {
+        "key": "D",
+        "text": "Wrong output normally indicates a provider-side model regression the team cannot fix, whereas an outage is generally inside the team's own control."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Severity tracks damage, and damage tracks whether anyone notices. An outage is self-limiting: the feature is visibly unavailable, users fall back to another path, and the blast radius stops when service returns. Wrong output is absorbed as fact — written into records, forwarded to customers, used to make decisions — so the harm keeps compounding after the incident is closed and requires a remediation exercise over everything produced during the window.",
+      "distractors": {
+        "B": "Token spend during an incident is rarely the material cost, and a wrong answer is not systematically longer than a right one. This reasons about the wrong axis of impact.",
+        "C": "Often true as an organisational observation, and a good argument for defining a quality SLO. It explains why the incident is detected late, not why its consequences are worse.",
+        "D": "The premise is usually false — wrong output far more often traces to changed inputs, a prompt edit or a retrieval regression than to a provider change — and attributability is not what determines severity."
+      },
+      "concept": "Rate AI incidents by the reversibility and reach of the output, not only by availability. Silent incorrectness produces contamination that outlives the incident window, which is why detection and remediation scope both belong in the severity call.",
+      "tip": "For severity questions, ask what is still true after service is restored. Anything that leaves bad data behind outranks anything that merely stopped."
+    }
+  },
+  {
+    "id": "DPO-B-021",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Removing the two structural blockers to AI-codebase onboarding",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A retail bank's AI platform team loses about three weeks per new hire before that engineer can safely make a change. A retrospective identifies two dominant blockers: newcomers cannot tell which prompt an observed production behaviour came from, and they cannot run the system locally because every path requires production credentials. The team has budget for two investments this quarter. Which TWO address those blockers directly? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Publish a weekly digest of production quality metrics to the team channel so that newcomers gradually absorb how the system behaves over time."
+      },
+      {
+        "key": "B",
+        "text": "Stamp the prompt template identifier and version onto every stored response record, so any observed output resolves to a specific file and commit."
+      },
+      {
+        "key": "C",
+        "text": "Introduce a mandatory architecture review for any change that touches more than one prompt template in the shared library."
+      },
+      {
+        "key": "D",
+        "text": "Grant every new hire read-only production database access on day one so they can inspect real records while learning the domain model."
+      },
+      {
+        "key": "E",
+        "text": "Ship a recorded-fixture mode that replays captured tool results and stored model responses, letting the whole chain run locally with no live dependency."
+      }
+    ],
+    "correct": [
+      "B",
+      "E"
+    ],
+    "explanation": {
+      "correct": "Each blocker is an information-availability problem with a mechanical fix. Stamping the template identifier and version on the response record closes the loop from a behaviour someone can see to the text that caused it, without anyone needing to know which of many templates is in play. A recorded-fixture mode makes the system runnable on a laptop, which is what converts learning from reading into experimenting — and it removes the credential grant that was the reason local execution was blocked.",
+      "distractors": {
+        "A": "Passive exposure to aggregate metrics builds intuition slowly and does not answer either question a newcomer actually has when staring at one bad output.",
+        "C": "A review gate slows every change to compensate for missing knowledge. It protects the codebase from the newcomer rather than making the newcomer effective, and it consumes senior time indefinitely.",
+        "D": "This resolves the local-execution blocker in the worst possible way, extending production data access to the least experienced people. The stem frames credentials as the obstacle, not as the missing permission."
+      },
+      "concept": "Onboarding speed in an AI codebase is governed by two things: whether an observed behaviour can be traced to the artefact that produced it, and whether the system can be run without privileged access. Fix both mechanically rather than through documentation or supervision.",
+      "tip": "When a retrospective names specific blockers, score each option against those named blockers only. Generally good practices that address neither are the most common wrong answers here."
+    }
+  },
+  {
+    "id": "DPO-B-022",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Enforcing a hard AI spend ceiling rather than alerting on it",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A university's research-support assistant runs on a departmental budget that cannot be exceeded without a fresh approval from the faculty finance committee. Usage is bursty, spiking hard during assessment weeks. Today the only control is an email alert at 80% of the monthly budget. Twice this year the department has blown past the cap in the hours between the alert firing and someone reading it. What control should be added?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Lower the alert threshold from 80% to 60% of budget, giving whoever is on duty considerably more headroom between the first warning and the cap."
+      },
+      {
+        "key": "B",
+        "text": "Move the department onto an annual rather than a monthly budget, so a single assessment-week spike is absorbed by the quieter months either side of it."
+      },
+      {
+        "key": "C",
+        "text": "Charge any overage to the central platform budget and reconcile with the department quarterly, so no research request is ever blocked mid-term."
+      },
+      {
+        "key": "D",
+        "text": "Enforce the ceiling at the gateway: degrade to the cheaper tier as spend nears the limit, then refuse non-essential traffic, with a documented override path."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The budget is a hard constraint with an approval process attached, and no notification-based control can hold a hard constraint against a burst that outruns a human reading email. Enforcement has to live in the request path. Making it graduated rather than a cliff — cheaper tier first, then shedding non-essential traffic — keeps the assistant partly useful while the limit binds, and the override path means genuinely urgent work has a route that leaves an audit trail.",
+      "distractors": {
+        "A": "A lower threshold buys minutes against a spike that consumed the last 20% faster than anyone read the message. It is the same control with a different constant, and it will fail the same way.",
+        "B": "Annualising smooths reporting but does not stop an assessment-week burst from consuming the year. It also delays the moment anyone notices, since the percentage consumed looks small for longer.",
+        "C": "This converts a departmental overrun into a central one and removes the department's incentive to manage consumption. The approval requirement in the stem is precisely what this arrangement circumvents."
+      },
+      "concept": "A budget that must not be exceeded is a runtime control, not a monitoring threshold. Enforce it where requests are authorised, degrade gracefully as the limit approaches, and provide an explicit, logged override rather than relying on humans to react to alerts.",
+      "tip": "Distinguish a budget target from a budget ceiling. Targets get alerts; ceilings get enforcement in the request path, with the failure mode chosen deliberately."
+    }
+  },
+  {
+    "id": "DPO-B-023",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "What shadow mode provides that a small canary does not",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "What does running a new Claude-based component in shadow mode give a team that a 1% canary does not?",
+    "options": [
+      {
+        "key": "A",
+        "text": "It guarantees the new component causes no side effects, because shadow traffic is read-only by construction and cannot invoke tools that write."
+      },
+      {
+        "key": "B",
+        "text": "Every production request exercises the new component, so quality is measured across the full traffic distribution while no user sees its output."
+      },
+      {
+        "key": "C",
+        "text": "It produces latency comparisons faster, because shadow requests skip the network overhead that a real client connection imposes on the measurement."
+      },
+      {
+        "key": "D",
+        "text": "It lets real users give feedback on the new component's output before promotion, which a small canary cohort cannot gather at useful volume."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Shadow mode and canary trade opposite things. A canary exposes a small slice of users to real consequences; shadow exposes no users but sees everything. For an AI component whose failures cluster in rare input shapes, full-distribution coverage is the point: a 1% canary may take weeks to encounter the case that breaks it, while shadow encounters every such case on day one and can be compared offline against the incumbent's output.",
+      "distractors": {
+        "A": "Nothing about shadow mode makes tools read-only. A shadow run that calls a tool with side effects will duplicate those effects, which is why shadow deployments must stub or gate write-capable tools explicitly.",
+        "C": "Shadow calls still traverse the same network path to the provider. There is no measurement shortcut here, and latency conclusions from shadow traffic need care because the traffic is additive load.",
+        "D": "This inverts the two. A canary can collect user feedback precisely because users see the output; shadow output is never shown, so no user feedback on it exists to collect."
+      },
+      "concept": "Choose shadow when you need full-distribution quality comparison without user exposure, and canary when you need real user consequences and feedback at limited blast radius. They answer different questions, and mature rollouts commonly use shadow first, then canary.",
+      "tip": "Remember which one users can see. Any claim that shadow mode gathers user feedback, or that a canary sees all traffic, has the two swapped."
+    }
+  },
+  {
+    "id": "DPO-B-024",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Diagnosing peak-correlated JSON parse failures",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A payments processor asks Claude to return a JSON object listing unmatched transactions for reconciliation. Parse failures are negligible on ordinary days but reach 4% during end-of-month peaks, when unmatched lists are at their longest. Replaying a failing request reproduces the failure exactly. The team's first instinct is to wrap the parser in a JSON-repair library and move on. What is the more likely root cause to establish first?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Concurrency at peak is causing the client to interleave two streamed responses into a single buffer, corrupting the JSON before it reaches the parser."
+      },
+      {
+        "key": "B",
+        "text": "Schema adherence degrades as inputs grow longer, so the prompt needs additional few-shot examples demonstrating the exact JSON shape required."
+      },
+      {
+        "key": "C",
+        "text": "The response is hitting the configured maximum output tokens and stopping mid-object; the stop reason on the failing calls will say so directly."
+      },
+      {
+        "key": "D",
+        "text": "An autoscaling configuration is raising temperature at peak, making the model more likely to deviate from the requested schema under load."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Two clues in the stem point the same way. Failures correlate with output length rather than with load per se, and replay reproduces them exactly — which rules out anything stochastic or concurrency-related. Truncation at the output ceiling produces precisely this signature: syntactically valid JSON up to an arbitrary cut point. The stop reason on those responses settles it in one query, and the fix is pagination or a raised ceiling, not repair. A repair library here would silently fabricate a closing brace over a truncated list, turning a loud failure into a wrong reconciliation.",
+      "distractors": {
+        "A": "Buffer interleaving is load-dependent and non-deterministic, so it cannot survive exact reproduction on replay. It also produces garbled interior content rather than a clean prefix.",
+        "B": "Plausible in general, but it does not explain why the failure reproduces deterministically or why it tracks the length of the output rather than the difficulty of the input.",
+        "D": "Autoscaling does not alter sampling parameters, and temperature-driven schema drift would appear as malformed structure at random positions rather than a consistent truncation."
+      },
+      "concept": "Structured-output parse failures that correlate with response length are truncation until proven otherwise. Always inspect the stop reason before treating malformed output as a model behaviour problem — and never repair a truncated payload whose missing content is the answer.",
+      "tip": "\"Replay reproduces it exactly\" is the discriminator. It eliminates every concurrency and sampling explanation in one line, which is why the stem states it."
+    }
+  },
+  {
+    "id": "DPO-B-025",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Investigating an unsampled, unreproducible bad output",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A user of a legal-research assistant reports that yesterday the tool cited a case that does not exist. They supply a screenshot with a visible timestamp and their account identifier. The team samples traces at 2% and this request was not among them; rendered prompts are not logged at all. The retrieval index is snapshotted nightly and the prompt library is versioned in the repository. What is the most useful next step?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Determine whether the cited case exists in the retrieval index as it stood yesterday, and what has changed in the prompt or index since."
+      },
+      {
+        "key": "B",
+        "text": "Re-run the user's query against the current system and compare the answer with the screenshot, treating a mismatch as evidence the issue has resolved itself."
+      },
+      {
+        "key": "C",
+        "text": "Raise trace sampling to 100% for the assistant and wait for the failure to recur, so that a complete record exists the next time it happens."
+      },
+      {
+        "key": "D",
+        "text": "Open a provider support ticket attaching the screenshot as evidence of a hallucination, and pause the feature until the provider responds."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The trace is gone, but two durable artefacts survive: the nightly index snapshot and the versioned prompt library. Querying yesterday's snapshot for the case name splits the investigation cleanly — if the case is in the index, this is a data-quality problem in the corpus, not a model one; if it is absent, the model fabricated it and the grounding instructions and citation-verification step become the focus. Diffing the prompt version between yesterday and today costs minutes and may explain the onset outright.",
+      "distractors": {
+        "B": "The system today is not the system yesterday: the index has been rebuilt at least once and the prompt may have moved. A mismatch tells you nothing, and a match would be luck given a stochastic decoder.",
+        "C": "This improves future investigations, which the team should do, but it abandons this one and offers no timeline. A fabricated citation in legal research is not something to wait out.",
+        "D": "Escalating externally before checking your own corpus is premature, and the pause is disproportionate to one report when a cheap discriminating test is available in the artefacts you already keep."
+      },
+      "concept": "When a trace is missing, reconstruct from whatever versioned state survives — index snapshots, prompt commits, deploy history. Establishing whether a wrong fact was retrieved or invented is the highest-value split in any grounded-generation investigation.",
+      "tip": "Note which artefacts a stem tells you are versioned or snapshotted. Those mentions are the intended investigative path, not scene-setting."
+    }
+  },
+  {
+    "id": "DPO-B-026",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Response to a credential interpolated into production prompts",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An engineer discovers that a production access token has been interpolated into a Claude prompt and sent with every request for the past week. What is the correct response?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Remove the interpolation in the next release and watch the token for anomalous use, rotating it only if suspicious activity actually appears in the logs."
+      },
+      {
+        "key": "B",
+        "text": "Treat the token as compromised: rotate it now, remove the interpolation, and purge it from stored prompts, traces and captured eval fixtures."
+      },
+      {
+        "key": "C",
+        "text": "Confirm the requests fell under a zero-retention arrangement with the provider, and rotate the token only if that arrangement turns out not to cover them."
+      },
+      {
+        "key": "D",
+        "text": "Rotate the token but leave the stored prompts and traces untouched, since rotation renders the historical copies harmless from that point onward."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "A secret that has crossed a boundary it was not scoped for is compromised regardless of what happened at the far end, and rotation is the only action that makes that true statement stop mattering. The second half is the part teams forget: the same value is now sitting in the team's own logs, traces and any eval fixtures captured that week, all of which typically have broader read access and longer retention than the runtime. Rotation without purge leaves a live-looking credential in a widely readable store.",
+      "distractors": {
+        "A": "Waiting for evidence of misuse inverts the burden of proof for credentials. Absence of anomalous use over a week is weak evidence, and the exposure continues until the next release ships.",
+        "C": "A retention commitment governs what the provider does with the data; it does not un-send the secret, and it says nothing about the copies now held in the team's own observability stack.",
+        "D": "Rotation retires the token but not the habit or the artefacts. Those stores are also where the next auditor looks, and leaving credential-shaped values in them defeats the scanning controls built around them."
+      },
+      "concept": "Secret exposure through an AI request path has two remediation halves: rotate the credential, and purge every downstream copy the AI pipeline created in logs, traces and eval fixtures. Handling only the first leaves the artefact behind.",
+      "tip": "For any secret-leak item, check whether the option accounts for the copies. AI systems fan a single exposure out into several stores automatically."
+    }
+  },
+  {
+    "id": "DPO-B-027",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Defensible measurement design for AI assistance impact",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "Six months after rolling out AI coding assistance, a logistics company's engineering leadership wants an honest read on whether it is helping. Adoption is uneven and self-selected: about 40% of engineers use it daily, 35% weekly, and 25% not at all. Leadership has asked for a number it can defend to the CFO. Which measurement design gives the most defensible answer?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Compare the same teams' delivery metrics before and after rollout and attribute the difference to the tool, since the teams and the codebase are held constant."
+      },
+      {
+        "key": "B",
+        "text": "Withdraw the tool from a randomly chosen half of engineers for a quarter and compare completed story points between the two groups."
+      },
+      {
+        "key": "C",
+        "text": "Ask every engineer to self-report hours saved per week, multiply by loaded cost, and publish the resulting annualised saving figure."
+      },
+      {
+        "key": "D",
+        "text": "Compare change lead time and change failure rate between heavy and non-users, report the result as correlational, and pair it with a developer experience survey."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Adoption is self-selected, so no observational comparison can establish causation — the engineers who adopted daily may simply be the ones who ship more anyway. The defensible move is to measure outcomes that matter (lead time, change failure rate), state the correlational limitation explicitly rather than burying it, and triangulate with a survey that captures the effects delivery metrics cannot see, such as friction on unfamiliar code. A CFO can act on an honest correlation; a leadership team that oversells causation loses the argument the first time someone probes it.",
+      "distractors": {
+        "A": "Before-and-after over six months confounds the tool with every other change in that window: hiring, reorganisation, a new service, seasonal load. The teams being constant does not make the period constant.",
+        "B": "Randomisation is causally clean in principle, but withdrawing a tool people rely on damages morale and productivity in a way that biases the result, and story points are a self-set unit that inflates on demand.",
+        "C": "Self-reported time savings are the least reliable input available and are known to inflate under management attention. Multiplying an inflated estimate by a loaded rate produces a precise-looking figure with no evidential basis."
+      },
+      "concept": "With self-selected adoption, report correlation honestly and triangulate rather than claiming causation. Calibrated language about what the measurement can and cannot show is what makes an AI productivity claim survive scrutiny.",
+      "tip": "When a stem stresses that adoption is uneven and voluntary, it has already ruled out causal claims. The best available answer will be the one that says so out loud."
+    }
+  },
+  {
+    "id": "DPO-B-028",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Resolving a forked prompt template between two teams",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "Two teams at a travel company consume the same itinerary-summary prompt from a shared library. Four months ago Team A needed a stricter tone for corporate clients and copied the template into its own repository, because the shared version had no way to express that. Since then the shared template has received three accuracy fixes; Team A's fork has none, and its measured accuracy has drifted below the shared version's. Team A maintains the fork was necessary. What is the right structural response?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Keep the fork but add a scheduled job that opens a pull request against it whenever the upstream template changes, so Team A can review and merge each fix."
+      },
+      {
+        "key": "B",
+        "text": "Move both teams onto fully independent templates and accept the duplication as the ordinary cost of team autonomy on a shared platform."
+      },
+      {
+        "key": "C",
+        "text": "Parameterise the shared template so tone is an explicit input, then delete the fork once Team A's cases pass the shared eval suite."
+      },
+      {
+        "key": "D",
+        "text": "Forbid forking shared prompts as policy, revert Team A to the shared version, and route any remaining tone concerns to the platform team's backlog."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Team A's requirement was legitimate and the shared library could not express it, so the fork was a symptom of a missing extension point rather than a discipline failure. Adding tone as a parameter serves both consumers from one artefact, which means one place for the next accuracy fix to land. Requiring Team A's cases into the shared eval suite before deletion is what makes the merge safe and stops the same divergence recurring the next time the shared template changes.",
+      "distractors": {
+        "A": "Automating the merge notification institutionalises the duplication. Every upstream change becomes a review Team A can defer, and the fork continues to accumulate its own edits that upstream never sees.",
+        "B": "Formalising duplication guarantees that every future fix must be made twice and diverges the moment one team is busy. It also loses the shared eval suite, which is where the accuracy fixes were validated.",
+        "D": "Reverting removes a capability Team A demonstrably needs, so the fork will reappear under another name. Policy cannot suppress a requirement the shared artefact refuses to serve."
+      },
+      "concept": "A fork of a shared prompt is evidence of a missing parameter, not of poor citizenship. Resolve it by extending the shared artefact's interface and absorbing the forking team's cases into the shared eval suite, so one template stays correct for both consumers.",
+      "tip": "When a stem justifies why the divergence happened, the answer that only punishes the divergence is wrong. Look for the option that removes the reason."
+    }
+  },
+  {
+    "id": "DPO-B-029",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Secret-hygiene controls unique to AI workflows",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An organisation with a mature conventional secrets programme is hardening secret handling around its AI development workflow. Which TWO practices address exposure paths that its existing programme does not already cover? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Redacting credential-shaped strings from tool results before those results are appended to the model's context on the next turn."
+      },
+      {
+        "key": "B",
+        "text": "Holding service credentials in a managed secrets manager rather than in environment files committed alongside application code."
+      },
+      {
+        "key": "C",
+        "text": "Running a pre-commit secret scanner over every push so that credential patterns are caught before they enter version history."
+      },
+      {
+        "key": "D",
+        "text": "Scrubbing captured production prompts before they are stored as eval fixtures or shared with a vendor during a debugging engagement."
+      },
+      {
+        "key": "E",
+        "text": "Enforcing short-lived, automatically rotated credentials for all service-to-service calls so that any leaked value expires quickly."
+      }
+    ],
+    "correct": [
+      "A",
+      "D"
+    ],
+    "explanation": {
+      "correct": "AI workflows create two exposure paths that conventional programmes were never designed for. First, tool results are model input: a tool that returns an error body containing a connection string puts that string into the context window and from there into every subsequent turn, the trace, and the response log. Second, capturing production traffic into eval fixtures duplicates whatever users pasted into a store built for sharing, not for secrets. Both need controls at the AI-specific boundary.",
+      "distractors": {
+        "B": "Standard practice that a mature programme already has. It governs credentials the application holds at rest, which is the case the stem says is covered.",
+        "C": "Also already in place in any mature programme, and it addresses only secrets entering through source control — the path AI workflows do not change.",
+        "E": "Excellent hygiene and squarely conventional. Short lifetimes reduce the value of any leak, but they are not specific to the paths an AI system opens."
+      },
+      "concept": "AI systems introduce two novel secret paths: values entering the context through tool results and model input, and values being duplicated into eval fixtures and vendor debugging bundles. Existing secret programmes rarely cover either, because neither passes through source control or the runtime credential store.",
+      "tip": "The qualifier \"that a conventional programme does not already cover\" is doing the eliminating. Any control you would recommend for a system with no AI in it is not the answer."
+    }
+  },
+  {
+    "id": "DPO-B-030",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Restoring trace continuity across an asynchronous boundary",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A telehealth provider's clinical-note summarisation pipeline runs synchronously to an ingest API, hands off to a message queue, then to a worker that makes two Claude calls, then to a webhook callback. Traces show a complete span tree up to the enqueue and an entirely separate, unparented trace beginning at the worker. Investigating a bad summary currently means matching the two by timestamp and patient reference by hand. What is the fix?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Have the worker log the queue message identifier on every span, so an investigator can join the producer and consumer traces on that field afterwards."
+      },
+      {
+        "key": "B",
+        "text": "Propagate the trace context inside the message envelope and start the worker's spans as children of the producing span."
+      },
+      {
+        "key": "C",
+        "text": "Replace the queue with a synchronous call so the request never crosses a boundary that breaks the trace in the first place."
+      },
+      {
+        "key": "D",
+        "text": "Increase the sampling rate on the worker service so more of its traces are retained and a matching one is likelier to exist when needed."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Trace context does not cross a queue on its own, because the transport is not HTTP and nothing copies the headers. Carrying the trace and span identifiers in the message body or its attributes, and using them as the parent when the worker starts its own spans, restores one connected tree from ingest through both model calls to the callback. This is a small change local to the producer and consumer, and it makes the manual timestamp reconciliation disappear entirely.",
+      "distractors": {
+        "A": "A shared correlation field is better than nothing and is a reasonable stopgap, but it produces two traces the investigator must join manually in a query rather than one tree the UI renders. It also loses the parent-child timing relationships.",
+        "C": "Removing asynchrony to fix instrumentation sacrifices the queue's buffering and retry behaviour, which a clinical pipeline with variable model latency almost certainly depends on.",
+        "D": "Sampling determines how many traces exist, not whether they are connected. Retaining more disconnected worker traces makes the manual matching job larger, not smaller."
+      },
+      "concept": "Distributed tracing across asynchronous boundaries requires explicit context propagation in the message payload. Queues, schedulers and batch jobs all break the automatic header-based propagation that HTTP instrumentation provides for free.",
+      "tip": "A trace that is complete up to a handoff and starts fresh afterwards is the signature of lost context propagation, never of a sampling or retention problem."
+    }
+  },
+  {
+    "id": "DPO-B-031",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Attributing a cost spike between two simultaneous changes",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An insurer's claims-summarisation service normally costs about £9,000 a month. Last month it cost £31,000 while request volume rose only 6%. Two changes shipped in that window: conversation history sent with each call was extended from 3 turns to 10, and a retry policy was added that retries any non-2xx response up to five times. The team has per-request token counts, full trace data and deploy history. Which single analysis most quickly attributes the spike?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Compute cost per logical request before and after the deploy, which quantifies the jump precisely and confirms that volume growth is not responsible."
+      },
+      {
+        "key": "B",
+        "text": "Sample 50 traces from the expensive month and read their rendered prompts to see how long the conversation histories have actually become in practice."
+      },
+      {
+        "key": "C",
+        "text": "Disable the retry policy for a week and observe whether spend returns towards baseline, isolating that change by removal under real traffic."
+      },
+      {
+        "key": "D",
+        "text": "Compare mean input tokens per successful request across the deploy boundary, and separately count total attempts per logical request."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The two candidate causes inflate cost through different multipliers, so measuring both multipliers separates them in one pass. History expansion raises input tokens per attempt; the retry policy raises attempts per request while leaving per-attempt size alone. Restricting the token comparison to successful requests keeps retries out of that figure so the two measures stay independent. Whichever multiplier moved enough to account for roughly a 3.4-fold cost increase at flat volume is the dominant cause, and both are computable today from data the team already holds.",
+      "distractors": {
+        "A": "This confirms the spike is per-request rather than volume-driven, which the stem has effectively already told you. It produces a number without decomposing it into the two candidate mechanisms.",
+        "B": "Reading rendered prompts tests one hypothesis and says nothing about retries. Fifty samples also cannot detect a retry storm concentrated in a minority of requests.",
+        "C": "Isolation by removal works, but it costs a week, degrades reliability while the experiment runs, and only tests one of the two changes. It is the fallback when the data cannot answer the question, and here it can."
+      },
+      "concept": "Decompose cost into its multiplicative factors — attempts per request, tokens per attempt, price per token — and measure each independently. Attribution between simultaneous changes is fast when each change maps to a distinct factor.",
+      "tip": "When two changes ship together, look for the analysis that measures both at once along different axes, not the one that tests either hypothesis in isolation."
+    }
+  },
+  {
+    "id": "DPO-B-032",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Purpose of a permanent holdback after full rollout",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In the progressive rollout of an AI feature, what is the purpose of keeping a small holdback group on the previous behaviour after the feature reaches full rollout?",
+    "options": [
+      {
+        "key": "A",
+        "text": "It provides a pool of users who can be switched back onto the feature instantly if it fails elsewhere, which shortens the overall time needed to roll back."
+      },
+      {
+        "key": "B",
+        "text": "It lowers total inference cost by permanently leaving a defined slice of traffic on the cheaper legacy path rather than routing it through the model-backed one."
+      },
+      {
+        "key": "C",
+        "text": "It preserves a comparison population, so post-launch quality and business-metric claims can still be tested against the previous behaviour."
+      },
+      {
+        "key": "D",
+        "text": "It satisfies an obligation to obtain explicit consent from a sample of users before anyone is exposed to AI-generated content."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Once everyone is on the new behaviour, every subsequent metric movement becomes uninterpretable: seasonality, a pricing change, a competitor's launch and the AI feature all show up in the same line. A retained holdback keeps a concurrent control, so months later the team can still say what the feature is worth rather than what the quarter looked like. It also catches slow-onset degradation, since divergence between the two arms shows up before either arm's absolute numbers look alarming.",
+      "distractors": {
+        "A": "Rollback speed is a property of the flag, not of the holdback. The holdback group is already on the old behaviour, so it is exactly the population that does not need switching.",
+        "B": "A holdback is sized for statistical power, typically a small percentage, so it is irrelevant as a cost lever. Choosing it for cost reasons would also destroy its value as a control.",
+        "D": "Consent obligations, where they apply, attach to the exposed population rather than to a control group, and no holdback design satisfies a consent requirement."
+      },
+      "concept": "A holdback retained past full rollout converts a one-off launch decision into an ongoing measurement capability. Without a concurrent control, long-run claims about an AI feature's effect cannot be separated from everything else changing around it.",
+      "tip": "Ask what question the mechanism answers. A holdback answers \"what is it worth\"; a flag answers \"how fast can we stop it\". Options that swap the two are wrong."
+    }
+  },
+  {
+    "id": "DPO-B-033",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Reading a throughput increase that moved the bottleneck",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "Six months after a 60-person games studio rolled out AI coding assistance, pull requests opened per week are up 45%, median pull-request size is up 30%, and cycle time from open to merge has risen 20%. Defect escape rate is unchanged. Leadership reads the first figure as a win and wants to expand the licence. What is the most plausible reading of the three figures together, and what follows from it?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The constraint has moved from writing code to reviewing it; measure and staff review capacity before treating the pull-request increase as delivered throughput."
+      },
+      {
+        "key": "B",
+        "text": "The assistance is producing weaker code, so every AI-assisted change should be required to carry a second reviewer before it can be merged."
+      },
+      {
+        "key": "C",
+        "text": "Cycle time is a lagging indicator that normalises as teams adjust to a new way of working; hold the rollout where it is and re-measure once two further quarters of data exist."
+      },
+      {
+        "key": "D",
+        "text": "Engineers are batching more work into each change; impose a maximum pull-request size to bring cycle time back to its previous level."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "More changes, each larger, arriving at an unchanged number of reviewers is a queueing problem, and rising cycle time is exactly what that looks like. Nothing here says work is reaching users faster — opened pull requests are work in progress, not delivery. The unchanged defect escape rate argues against a quality collapse, which leaves review capacity as the binding constraint. Until it is measured and staffed, expanding the licence buys more inventory in front of the same bottleneck.",
+      "distractors": {
+        "B": "The defect escape rate has not moved, so the quality premise is unsupported. Adding a second reviewer to every change would also load the exact resource that is already the constraint.",
+        "C": "Waiting two quarters treats a structural bottleneck as a transient adjustment cost. Nothing in the data suggests review capacity grows on its own, and the licence decision is being made now.",
+        "D": "Capping pull-request size is a reasonable practice, but as a response here it targets one of the three signals in isolation. Smaller changes at 45% higher volume still arrive at the same reviewers."
+      },
+      "concept": "AI assistance accelerates the authoring step, which relocates the constraint downstream to review, testing and deployment. Judge the rollout on end-to-end delivery, not on the throughput of the step the tool made faster.",
+      "tip": "When a stem gives three metrics and one of them is flat, the flat one is usually there to eliminate an answer. Here the unchanged defect rate kills the quality explanation."
+    }
+  },
+  {
+    "id": "DPO-B-034",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Environment differences that hide an agent loop in staging",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "An agriculture-technology firm runs a Claude agent that fails roughly once in 200 production runs by oscillating between two tools until it exhausts its step limit. Engineers have run thousands of staging executions and cannot reproduce it once. Which THREE differences between the environments are the most likely candidates to investigate first? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Staging runs against a small curated tool-result corpus, so the agent never meets the ambiguous, conflicting or empty results production returns."
+      },
+      {
+        "key": "B",
+        "text": "Staging carries far lower concurrency, so each step completes with lower latency than the same step does in production."
+      },
+      {
+        "key": "C",
+        "text": "Staging resolves a floating model alias while production pins a specific version, so the two environments are not running the same model."
+      },
+      {
+        "key": "D",
+        "text": "Staging logs at DEBUG level while production logs at INFO, so the oscillation is only visible in one of the two environments."
+      },
+      {
+        "key": "E",
+        "text": "Staging conversations are short, so the agent never reaches the context length at which earlier instructions begin to lose salience."
+      }
+    ],
+    "correct": [
+      "A",
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "A tool-calling loop is driven by what the model sees and which model is seeing it. A curated staging corpus systematically omits the degenerate results — empty sets, contradictory rows, malformed payloads — that give an agent a reason to try the other tool and come back. A version mismatch means staging is literally not testing the deployed model, which alone can invalidate thousands of clean runs. And long production conversations push the terminating instructions further from the current turn, which is where oscillation typically starts. All three are testable by making staging resemble production on that axis.",
+      "distractors": {
+        "B": "Latency changes how long a loop takes to hit the step limit, not whether the model decides to call the other tool. Concurrency is a throughput property, and the failure is a decision property.",
+        "D": "Log level determines whether you can see the behaviour after it happens; it cannot cause or suppress the behaviour. If the loop occurred in staging, the step-limit exhaustion would surface regardless of verbosity."
+      },
+      "concept": "When a non-deterministic agent failure will not reproduce, enumerate the differences that change the model's inputs or the model itself: data realism, resolved model version, and context length. Differences affecting only speed or observability cannot explain a divergence in behaviour.",
+      "tip": "Sort candidate environment differences into ones that change what the model receives and ones that change how fast or how visibly it runs. Only the first category can cause a behavioural failure."
+    }
+  },
+  {
+    "id": "DPO-B-035",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Why total input tokens stops mapping to cost under caching",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A shared gateway records total input tokens and total output tokens for every request, and finance uses those two figures to charge teams back. The platform team then enables prompt caching on the largest system prompts. Why do the recorded figures stop mapping to actual cost?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Caching removes tokens from the request entirely before transmission, so the gateway's recorded input count materially understates what the provider actually processed for the call."
+      },
+      {
+        "key": "B",
+        "text": "Cache reads and cache writes are billed at different rates from ordinary input tokens, so one undifferentiated input total no longer corresponds to one cost."
+      },
+      {
+        "key": "C",
+        "text": "Cache hits are served from a client-side store and never reach the gateway, so those requests are absent from the access log altogether."
+      },
+      {
+        "key": "D",
+        "text": "Cached prefixes expire on a timer, so an identical recorded token count corresponds to a different cost depending on the time of day the call was made."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Prompt caching splits input tokens into categories that carry different rates: tokens written into the cache, tokens read back from it, and ordinary uncached input. A single summed input figure collapses all three, so two requests with identical totals can differ substantially in cost depending on their hit rate. The gateway has to record the categories separately for chargeback to reconcile, and once it does, cache hit rate also becomes visible as a per-team efficiency measure worth reporting.",
+      "distractors": {
+        "A": "Cached tokens are still part of the request and still counted; caching changes what they cost, not whether they exist. The recorded total is accurate as a token count and wrong only as a cost proxy.",
+        "C": "Prompt caching is a provider-side mechanism operating on the prefix of a request. Nothing is served locally, and every request still traverses the gateway exactly as before.",
+        "D": "Expiry does mean a long-idle prefix must be written again, but the reason the recorded figures fail is the missing rate categories, not the clock. Time of day is not the variable."
+      },
+      "concept": "Once prompt caching is enabled, cost attribution requires token counts broken out by cache write, cache read and uncached input. Reporting a single input total silently misprices every request and hides cache efficiency differences between teams.",
+      "tip": "Whenever a stem introduces caching into a cost-tracking system, check whether the tracking distinguishes the token categories. Aggregation that was fine before becomes wrong the moment rates diverge."
+    }
+  },
+  {
+    "id": "DPO-B-036",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Promotion decision when the quality signal is statistically ambiguous",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A logistics marketplace is at the 25% stage of rolling out AI-generated shipment descriptions. The promotion gate requires the model-graded quality score on sampled outputs to be no more than 2 points below the human-written baseline. The current reading from 120 sampled outputs is 1.8 points below baseline, with a 95% confidence interval running from 0.4 to 3.2 points below. The stage is stable on all operational signals and the team wants a decision today. What is the appropriate next step?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Promote to 100%: the point estimate satisfies the gate and the interval is symmetric around it, so the expected outcome is a pass."
+      },
+      {
+        "key": "B",
+        "text": "Roll back to 5%, because part of the interval exceeds the threshold and a quality gate should fail closed whenever it is uncertain."
+      },
+      {
+        "key": "C",
+        "text": "Hold at 25% and keep sampling until the interval sits wholly inside or wholly outside the 2-point threshold."
+      },
+      {
+        "key": "D",
+        "text": "Relax the gate to 3 points for this rollout, since grader variance makes a 2-point threshold impractical at a sample size this small."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The interval straddles the threshold, so the data cannot yet distinguish a comfortable pass from a clear failure — the honest statement is that the gate has not been evaluated, not that it passed. Holding at 25% is the low-regret action: the stage is operationally stable, users are already served, and sample size grows on its own with no additional exposure. The decision the team wants today is available, and it is the decision to keep measuring.",
+      "distractors": {
+        "A": "Treating a point estimate as the result is the specific error a confidence interval exists to prevent. A quarter of the plausible range sits beyond the threshold the organisation set.",
+        "B": "Failing closed is right when harm is occurring or unknown, but the stage is stable and nothing indicates active damage. Rolling back also discards the exposure that was generating the samples needed to resolve the ambiguity.",
+        "D": "Moving a threshold to accommodate a result you do not like removes the gate's meaning. If 2 points was the wrong threshold, that is a decision to make deliberately with evidence, not mid-rollout to unblock a promotion."
+      },
+      "concept": "A quality gate is evaluated against the confidence interval, not the point estimate. When the interval straddles the threshold, the correct action is to hold the current stage and accumulate samples — neither promote nor retreat on evidence that does not distinguish the two.",
+      "tip": "Any rollout stem quoting an interval alongside a point estimate is testing whether you read the interval. Check whether the threshold falls inside it before doing anything else."
+    }
+  }
+]

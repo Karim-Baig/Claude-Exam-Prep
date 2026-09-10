@@ -1,0 +1,724 @@
+[
+  {
+    "id": "INT-B-055",
+    "domain": "Integration",
+    "topic": "Validating that a token was issued for this server",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A healthcare payer runs a remote MCP server exposing claims-adjudication tools. Its authorisation check verifies that the bearer token is signed by the corporate identity provider, is unexpired, and carries a `claims.read` scope. A penetration test showed that a token minted for the internal reporting portal — also signed by the same provider, also carrying `claims.read` — was accepted, letting a lower-trust application drive adjudication tools. What must the check add?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Rejection of tokens whose remaining lifetime is longer than the server's session length."
+      },
+      {
+        "key": "B",
+        "text": "Verification that the token's intended audience identifies this server, rejecting any that does not."
+      },
+      {
+        "key": "C",
+        "text": "A mutual-TLS client certificate requirement on the endpoint in addition to the bearer token."
+      },
+      {
+        "key": "D",
+        "text": "A stricter scope requirement, so only tokens carrying an adjudication-specific scope are accepted."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Signature and expiry establish that a token is genuine; they say nothing about who it was minted for. Without an audience check, any credential the identity provider issues for any application becomes a key to this server, which is how a reporting portal's token reached adjudication tools. Verifying that the audience names this resource server is the control that closes it, and it is the reason the protocol's authorisation model treats accepting tokens not issued for you as prohibited rather than merely unwise.",
+      "distractors": {
+        "A": "Lifetime limits reduce the window in which a leaked token is useful. They do nothing about a currently valid token that was legitimately issued to a different application and should never have been honoured here.",
+        "C": "Client certificates add a second factor at the transport layer and would raise the bar in practice. They do not fix the flaw — a caller with both a certificate and any correctly signed token would still be accepted for the wrong purpose.",
+        "D": "A narrower scope helps only until some other application is granted it, and the reporting portal already held the scope the server was checking. Scope answers what may be done; audience answers who the credential was for."
+      },
+      "concept": "A resource server must validate three things independently: that the token is authentic, that it was issued for this server, and that it grants the specific permission being exercised. Accepting a valid token minted for someone else makes the server a confused deputy — it acts with its own privileges on the say-so of a caller who was never authorised to direct it.",
+      "tip": "When a stem lists the checks a system performs, read it as a list of what is missing. Signature and expiry with no mention of audience is the classic incomplete validation."
+    }
+  },
+  {
+    "id": "INT-B-056",
+    "domain": "Integration",
+    "topic": "Avoiding upstream token passthrough to downstream APIs",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A travel company's MCP server exposes a `check_fare` tool backed by a partner booking API. The server currently forwards the caller's own access token straight to that partner. The token is issued to the traveller-facing app and carries broad scopes including booking modification and payment-method access, because the app needs them elsewhere. Security review has flagged it. What is the right design?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Exchange the caller's token for a fare-lookup-scoped credential that carries the caller's identity."
+      },
+      {
+        "key": "B",
+        "text": "Keep forwarding the token but strip the unneeded scopes from its claim set before sending it on."
+      },
+      {
+        "key": "C",
+        "text": "Call the partner with a single shared operations credential and record the caller in the server's own log."
+      },
+      {
+        "key": "D",
+        "text": "Have the model pass only the scopes the call needs as a tool argument that the handler honours."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The tool needs fare lookup; the token it forwards can modify bookings and touch payment methods. Every downstream call therefore carries far more authority than the operation requires, and the partner cannot tell the difference. Exchanging the inbound credential for one minted for this purpose restores least privilege at the point where it is enforceable, while carrying the caller's identity forward keeps the partner's audit trail meaningful. That combination — narrow authority, preserved identity — is what token exchange exists to provide.",
+      "distractors": {
+        "B": "Editing claims in a signed token invalidates it, and any variant that still verifies is one the issuer sanctioned, not one you trimmed. Scope reduction has to happen at issuance, which is exactly what an exchange does.",
+        "C": "A shared operations credential fixes the scope problem by making every call anonymous to the partner. Their rate limiting, anomaly detection and audit trail now see one actor, and an incident cannot be traced to a traveller.",
+        "D": "Authority cannot be determined by an argument the model supplies. It is untrusted input, and a caller that wanted more privilege would simply ask for it. Least privilege has to be established by the party issuing the credential, never requested by the party that wants to use it."
+      },
+      "concept": "A server sitting between a caller and a downstream service should not relay the caller's credential. Terminate the inbound credential, verify it, then obtain a downstream credential scoped to the specific capability while propagating identity for audit. Passing tokens through spreads authority across trust boundaries that were never meant to share it.",
+      "tip": "Watch for a stem that explains why a token is broadly scoped — \"because the app needs them elsewhere\". That detail exists to tell you the excess authority is real and cannot be fixed at the issuer."
+    }
+  },
+  {
+    "id": "INT-B-057",
+    "domain": "Integration",
+    "topic": "Credential sourcing by MCP transport",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Where do backend credentials typically come from for a locally launched stdio MCP server, compared with a remote HTTP one?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Both take their backend credentials from the caller's access token, presented on every request."
+      },
+      {
+        "key": "B",
+        "text": "Both read them from a shared secrets file that the host writes at start-up and rotates daily."
+      },
+      {
+        "key": "C",
+        "text": "The stdio server takes them from its process environment; the HTTP server uses its own service credentials."
+      },
+      {
+        "key": "D",
+        "text": "The stdio server obtains them through an authorisation flow; the HTTP server reads them from environment variables."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "A stdio server is a child process running as the user who launched it, so it inherits that user's environment and takes its backend secrets from there — the same way any local command-line tool does. A network-reachable server has no such inheritance: it must establish who is calling from the presented credential, and then reach its backends with credentials it holds itself, scoped to what it is allowed to do on the caller's behalf. The two models differ because the trust source differs.",
+      "distractors": {
+        "A": "The caller's token authenticates the caller to the server. It is rarely the right credential for the server's backends, and using it that way is the passthrough pattern that spreads authority across trust boundaries.",
+        "B": "A host-written secrets file is neither how local servers conventionally receive configuration nor available to a remote server the host does not run. It also puts the host in the business of managing every server's backend secrets.",
+        "D": "This inverts the two. Authorisation flows exist for network-reachable servers that must identify unknown callers; a local subprocess already has the operating system's answer. The confusion has real consequences: it leads teams to build an authorisation flow for a subprocess while leaving a network endpoint reading secrets from a file."
+      },
+      "concept": "Credential design follows the trust source. Local subprocess servers inherit the launching user's identity and environment. Remote servers must authenticate every caller and hold their own least-privilege backend credentials. Deciding transport therefore decides your secrets-management story, and the two should be settled together.",
+      "tip": "Options that treat both transports identically are usually wrong on this topic — the whole point of the distinction is that the trust model differs."
+    }
+  },
+  {
+    "id": "INT-B-058",
+    "domain": "Integration",
+    "topic": "Enforcing end-user entitlements rather than a service identity",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A professional services firm's MCP server fronts its engagement-management system. Every tool runs its queries under one service account with read access across all engagements, because that was simplest to provision. An internal audit found that a junior consultant could ask the assistant about a restricted engagement they have no access to in the source system and receive a full answer. What must change?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Add a system-prompt instruction that the assistant must not answer about engagements outside the user's team."
+      },
+      {
+        "key": "B",
+        "text": "Have the host filter tool results against the user's entitlements before showing them."
+      },
+      {
+        "key": "C",
+        "text": "Require users to state their engagement code, and check it against a roster in the handler."
+      },
+      {
+        "key": "D",
+        "text": "Propagate the authenticated end-user identity to the server and evaluate their entitlements on every call."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The agent is an access path into the engagement system, and it currently bypasses that system's authorisation model entirely by querying as an account that can see everything. The only durable fix is to make the path enforce the same rules as every other path: carry the authenticated user through and evaluate their entitlements where the data is retrieved. Anything applied later is filtering data that should never have been fetched, and anything applied in the prompt is asking the model to be an access-control system.",
+      "distractors": {
+        "A": "This makes confidentiality a property of instruction-following. It also fails on the retrieval side — the restricted content is in context, so it can influence answers even when the model declines to quote it.",
+        "B": "Host-side filtering happens after the data has crossed the boundary and entered the transcript. It duplicates authorisation logic in a component that does not own it, and it will drift from the source system's rules.",
+        "C": "A self-declared engagement code is an assertion by the user, not an authenticated fact. A roster check based on it authorises whoever types the right code. An identity claim must be verified against something the user cannot choose, which in practice means the credential the host already holds."
+      },
+      "concept": "An agent must not become a privilege-escalation path. Where a backing system already has an authorisation model, propagate the end user's identity and let that model decide, rather than querying with a broad service identity and attempting to redact afterwards. Authorisation belongs at retrieval, not at presentation.",
+      "tip": "Ask where the data crosses a trust boundary. Any option that lets restricted content into the model's context and then removes it from the answer has already lost, whatever else it does well."
+    }
+  },
+  {
+    "id": "INT-B-059",
+    "domain": "Integration",
+    "topic": "Authorisation design for a multi-tenant MCP server",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "An HR-technology vendor is building a remote MCP server that customers' own assistants will connect to, serving many tenants from one deployment. Which THREE controls belong in the server's authorisation design? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Validate that the presented token was issued for this server, not merely that it is authentic."
+      },
+      {
+        "key": "B",
+        "text": "Rely on each customer's host application to filter results to that customer's data before display."
+      },
+      {
+        "key": "C",
+        "text": "Derive the tenant scope from the verified caller identity rather than from an argument in the tool call."
+      },
+      {
+        "key": "D",
+        "text": "Record the tenant identifier taken from the tool call's arguments as the audit trail's subject."
+      },
+      {
+        "key": "E",
+        "text": "Obtain a least-privilege backend credential per capability rather than one for the whole server."
+      }
+    ],
+    "correct": [
+      "A",
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "These three cover the distinct failures a shared multi-tenant deployment invites. Audience validation stops a credential minted elsewhere in the customer's estate from driving this server. Deriving tenancy from the verified identity means a tenant boundary cannot be crossed by a model-supplied argument, which is the only kind of cross-tenant leak that an otherwise correct system will still have. Per-capability backend credentials keep a defect in one tool from reaching data another tool serves, which matters most in exactly this design, where one process holds access to every tenant.",
+      "distractors": {
+        "B": "Isolation enforced by the consumer is not isolation. The vendor cannot audit or guarantee it, several hosts will implement it differently, and the data has already left the vendor's boundary by the time any filtering happens.",
+        "D": "Tool arguments are model-controlled and therefore untrusted. An audit trail whose subject can be set by the thing being audited records the claim rather than the fact; the subject must come from the verified credential."
+      },
+      "concept": "In a shared multi-tenant server, every security-relevant decision must derive from the verified caller identity: which tenant's data is reachable, what the audit trail records, and which backend credential is used. Anything derived from request content is a claim, and anything delegated to the client is unenforceable.",
+      "tip": "Two of the wrong options here look responsible — a filtering client and a logged tenant id. Ask where the value came from. Untrusted provenance disqualifies an option no matter how sensible the control sounds."
+    }
+  },
+  {
+    "id": "INT-B-060",
+    "domain": "Integration",
+    "topic": "Separating read and write capability into distinct servers",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A utility runs two agents against its outage-management system through one MCP server that exposes both read tools and dispatch-crew write tools. One agent is a customer-facing status assistant that must never dispatch anything; the other is an operator co-pilot that must. Risk has asked for an arrangement where a prompt-injection defect in the customer assistant could not cause a dispatch. What should the architect do?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Keep one server and add a description on each write tool saying the status assistant must not call it."
+      },
+      {
+        "key": "B",
+        "text": "Keep one server and require human approval for every call the customer-facing assistant makes."
+      },
+      {
+        "key": "C",
+        "text": "Split into read-only and write servers, connecting the status assistant only to the read-only one."
+      },
+      {
+        "key": "D",
+        "text": "Keep one server and have write handlers reject calls carrying an `agent_role` argument of `status`."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Risk asked for an impossibility, not an improbability. If the status assistant is never connected to a server that can dispatch, no instruction smuggled into retrieved content can produce a dispatch, because the capability is not in its tool set and no credential it holds reaches that backend. Splitting also lets the two capabilities be scoped, versioned and audited separately. Everything else on the list leaves the dangerous capability one successful manipulation away.",
+      "distractors": {
+        "A": "A description is an instruction to the model, and injection attacks are precisely instructions to the model. This defends against accident and not at all against the threat that was named.",
+        "B": "Approving every read makes the customer-facing assistant unusable, and approval fatigue is what turns a control into a rubber stamp. It also still relies on a human noticing the one dispatch among hundreds of prompts.",
+        "D": "A role carried in the arguments is supplied by the model and can be set to anything. Authorisation derived from untrusted request content is not authorisation. The same objection applies to any policy keyed on a field the model populates, because the caller and the thing being constrained are the same party."
+      },
+      "concept": "Scope capability at the connection, not in the prompt. Splitting a server along the read/write or reversibility line lets each agent be granted only what its job needs, so the blast radius of any manipulation is bounded by what was connected rather than by what the model was told.",
+      "tip": "A stem that says a failure must be impossible rather than unlikely is asking for a structural control. Every option that depends on the model's cooperation is eliminated by that phrasing alone."
+    }
+  },
+  {
+    "id": "INT-B-061",
+    "domain": "Integration",
+    "topic": "Why tokens issued elsewhere must be rejected",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Why must an MCP server refuse a token that is valid but was issued for a different service?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Because it would act for a caller the issuer never authorised to direct — a confused deputy."
+      },
+      {
+        "key": "B",
+        "text": "Because tokens issued for other services use a shorter expiry and would fail mid-session."
+      },
+      {
+        "key": "C",
+        "text": "Because the protocol requires a freshly minted token for each new session it opens."
+      },
+      {
+        "key": "D",
+        "text": "Because the audience claim is what identity providers use when applying per-service rate limits."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "A server that honours any authentic credential has effectively delegated its access-control decision to every application in the estate that can obtain a token. It then exercises its own privileges — its backend access, its ability to act — on behalf of a caller nobody authorised for this purpose. That is the confused deputy: the authority is genuine, the instruction is not. Checking the audience is what ties the credential to the service it was minted for.",
+      "distractors": {
+        "B": "Expiry is unrelated to who the token was for. A long-lived token issued for another service is exactly as dangerous as a short-lived one, and would be accepted just as readily.",
+        "C": "There is no per-session freshness rule. Sessions routinely reuse a credential; what matters is that the credential names this server as its intended recipient. Reusing a credential across a session is ordinary; what is never acceptable is honouring one that names a different service as its recipient.",
+        "D": "Rate limiting is an operational use some providers make of the claim. It is not why a resource server validates audience, and treating it as a metering field is how the check gets skipped."
+      },
+      "concept": "Authentication answers whether a credential is genuine; audience validation answers whether it was meant for you. A resource server that skips the second question becomes a general-purpose privilege amplifier for anything that can obtain a token from the same issuer.",
+      "tip": "Confused deputy is the concept name to reach for whenever a component with real authority acts on an instruction from a party that was never granted that authority. Recognising the label makes these items quick."
+    }
+  },
+  {
+    "id": "INT-B-062",
+    "domain": "Integration",
+    "topic": "Remediating an over-scoped backend credential",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "An access review at a supermarket chain found that the `search_documents` tool on its internal MCP server runs under a credential with read access to the whole document store, including HR case files. No one has retrieved an HR file through the agent, but nothing prevents it. The tool's actual job is searching store operating procedures. What should the team do next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Add an output filter that redacts HR case-file content from `search_documents` results."
+      },
+      {
+        "key": "B",
+        "text": "Narrow the tool description so the model does not reach for it on HR-related questions."
+      },
+      {
+        "key": "C",
+        "text": "Reissue the credential scoped to operating procedures, then re-run the access review."
+      },
+      {
+        "key": "D",
+        "text": "Require human approval on every `search_documents` call until the scope can be reduced."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The finding is about reachable authority, not about observed behaviour, so the remediation has to reduce what is reachable. A credential scoped to the operating-procedures corpus makes HR files unreachable by construction, and re-running the review is what converts the fix into evidence the auditors can accept. Doing this first also makes every later control cheaper, because there is less to filter, less to approve and less to monitor.",
+      "distractors": {
+        "A": "A redaction filter runs after the retrieval it was supposed to prevent, has to anticipate every sensitive field, and leaves the credential capable of reaching material the agent should never touch.",
+        "B": "Descriptions steer the model's choices; they do not bound its access. The finding was that nothing prevents retrieval, and a description prevents nothing. An auditor will read it the same way, because the control cannot be evidenced by anything other than the model's observed behaviour.",
+        "D": "Approval on every search makes a routine lookup unusable and delegates the security decision to whoever is clicking. It is a stopgap that tends to outlive the plan to fix the credential."
+      },
+      "concept": "When a review finds excess reachable authority, fix the grant before adding compensating controls. Least privilege at the credential is the only measure that removes the finding rather than mitigating it, and it shrinks the surface every other control has to cover.",
+      "tip": "Distinguish findings about what happened from findings about what could happen. A \"nothing prevents it\" finding is closed by removing the capability, never by monitoring or filtering its use."
+    }
+  },
+  {
+    "id": "INT-B-063",
+    "domain": "Integration",
+    "topic": "What each additional declared tool costs",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "What does each additional tool declared in a request cost, beyond the work of maintaining it?",
+    "options": [
+      {
+        "key": "A",
+        "text": "An extra round trip per turn, since the model evaluates each declared tool in sequence."
+      },
+      {
+        "key": "B",
+        "text": "Prefix space on every turn, plus one more candidate the model must discriminate between."
+      },
+      {
+        "key": "C",
+        "text": "Nothing after the first request of a conversation, since definitions are sent only once."
+      },
+      {
+        "key": "D",
+        "text": "Additional output tokens, because the model reasons about each declared tool before answering."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Tool definitions sit in the request prefix and are re-sent on every turn, so their schemas occupy budget for the whole conversation whether or not they are ever called. The second cost is subtler and usually larger: every extra tool is another candidate in a selection decision, and near-duplicates make that decision harder. Together they mean the right question is not \"can we afford these schemas\" but \"how many plausible choices are we asking the model to discriminate between on each turn\".",
+      "distractors": {
+        "A": "Declaring a tool does not invoke it. Round trips are driven by the calls the model actually makes, and an unused definition adds none. Nothing in the declared set forces an exchange with your handlers; only a call the model chooses to make does that.",
+        "C": "Every request carries the full definition set — the API is stateless, so nothing is remembered between turns. Caching can make re-sending cheaper, but the content is still present in the prefix.",
+        "D": "Output tokens reflect what the model generates. Tool definitions are input, and a larger tool set does not make responses longer. A cluttered tool set costs you on the input side while leaving output roughly unchanged, which is part of why the effect is missed on cost reports."
+      },
+      "concept": "Budget tool count on two axes: tokens in the prefix on every turn, and selection difficulty. The second degrades quality rather than cost, which is why teams often discover it late. Aim for the smallest set that covers the request in front of the model, not the largest set the window can hold.",
+      "tip": "The trap answer is that definitions are sent once. Statelessness is the anchor: everything the model needs is in every request, which is exactly why prefix content is a recurring cost."
+    }
+  },
+  {
+    "id": "INT-B-064",
+    "domain": "Integration",
+    "topic": "Merging tools into dispatchers to cut advertised count",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A wealth manager's advisory agent has grown to seventy tools and selection accuracy has fallen. A senior engineer proposes merging them into eight dispatcher tools, each taking an `operation` enum and an operation-specific payload, to bring the advertised count down. How should the architect respond?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Adopt it; fewer advertised tools reliably improves selection accuracy and prefix cost."
+      },
+      {
+        "key": "B",
+        "text": "Adopt it for the read-only tools and leave the write tools individually addressable."
+      },
+      {
+        "key": "C",
+        "text": "Adopt it and add strict schemas so malformed operation payloads are caught at generation."
+      },
+      {
+        "key": "D",
+        "text": "Reject it; cut the tools visible per request instead of hiding seventy behind eight."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Merging renames the problem. The seventy operations still have to be described somewhere for the model to use them, so the enum values and per-operation payload documentation move into eight large schemas and the prefix barely shrinks. The selection decision does not disappear either — it becomes an argument choice inside a tool, where it is harder to observe and impossible for the harness to gate or audit per operation. Cutting what is visible on a given request attacks both costs; consolidation attacks the count, which was only ever the symptom.",
+      "distractors": {
+        "A": "Advertised count correlates with the real drivers rather than causing them. Eight dispatchers whose descriptions must enumerate seventy operations leave the token cost and the discrimination problem essentially intact. The number on the dashboard improves while the two things it was standing in for do not.",
+        "B": "A partial merge keeps the write path gateable, which is the right instinct, but it still hides dozens of read operations behind a handful of names and delivers little of the promised saving.",
+        "C": "Strict schemas make arguments well-formed. They cannot make the model choose the right operation, which is the accuracy problem in the stem, and they add nothing to the token argument."
+      },
+      "concept": "Tool count matters because of prefix cost and selection difficulty, not as a number in itself. Consolidation moves both into a larger schema and costs you per-action gating and auditability. The lever that genuinely helps is reducing the set present on a given request, through routing, per-agent scoping, or discovery.",
+      "tip": "When an option promises to fix a metric, ask whether it fixes what the metric measures. Reducing an advertised count while preserving all the documentation behind it is a bookkeeping change."
+    }
+  },
+  {
+    "id": "INT-B-065",
+    "domain": "Integration",
+    "topic": "Costs incurred by a large declared tool surface",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "Which TWO statements accurately describe the cost of declaring a large number of tools on every request? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Each declared tool adds a round trip to the turn, whether or not it is used."
+      },
+      {
+        "key": "B",
+        "text": "Every tool's schema occupies the request prefix on every turn, used or not."
+      },
+      {
+        "key": "C",
+        "text": "Definitions for tools the model does not call are omitted from the request by the API."
+      },
+      {
+        "key": "D",
+        "text": "Selection accuracy degrades as the set accumulates tools with overlapping purposes."
+      },
+      {
+        "key": "E",
+        "text": "Output token usage scales with the number of tools declared on the request."
+      }
+    ],
+    "correct": [
+      "B",
+      "D"
+    ],
+    "explanation": {
+      "correct": "The two real costs are one measurable and one behavioural. Every schema is part of the prefix on every request, so a large set is a standing charge for the life of the conversation regardless of usage. And the model must choose among all of them each turn, so overlapping or near-duplicate definitions push the selection decision from a lookup toward a judgement call. The second is the one that bites hardest in practice, because it shows up as wrong answers rather than as a line on a cost report.",
+      "distractors": {
+        "A": "Round trips come from calls the model makes. Declaring a tool it never invokes adds no exchange with your handlers at all. The cost of a tool set is paid when the request is constructed, not when a handler executes, and the two are easy to conflate.",
+        "C": "Nothing prunes the request on your behalf; the API cannot know in advance which tools a turn will need. Deciding what to send is the client's job, which is precisely why routing and deferred loading exist.",
+        "E": "Output length reflects what the model generates in response. A larger declared set does not lengthen the answer or the tool call. Everything a tool definition costs sits on the input side of the request, which is why the effect shows up in prefix size rather than response length."
+      },
+      "concept": "Two independent budgets constrain a tool surface: context, which is linear in the schemas you send, and discrimination, which worsens as semantic overlap grows. A set can be affordable on the first and unusable on the second, so measure selection accuracy as well as token count.",
+      "tip": "Sort candidate costs into input-side and output-side. Tool definitions are entirely input-side, which eliminates any option about output tokens or per-tool round trips without further thought."
+    }
+  },
+  {
+    "id": "INT-B-066",
+    "domain": "Integration",
+    "topic": "Serving a very large tool catalogue to one agent",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An engineering conglomerate wants one internal assistant to reach roughly nine hundred tools spanning procurement, HSE, maintenance and finance. Any given conversation touches a handful. Sessions are long and the team relies on prefix caching for affordability. Declaring everything is far beyond the budget. What architecture should they adopt?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Keep a small always-loaded core plus a discovery mechanism that appends the schemas the model asks for."
+      },
+      {
+        "key": "B",
+        "text": "Predict the likely subset each turn and rewrite the tools array to match before every request."
+      },
+      {
+        "key": "C",
+        "text": "Split into a dozen assistants, each with a fixed set, and have users pick the right one."
+      },
+      {
+        "key": "D",
+        "text": "Publish all nine hundred schemas as a document the assistant reads through a single fetch tool."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Two constraints have to hold at once: only a handful of schemas may be resident, and the prefix must stay stable so long sessions keep hitting cache. Appending discovered definitions satisfies both — the front of the prefix never changes, so everything cached behind it survives, while the resident set grows only by what the conversation actually needed. A small always-loaded core gives the model somewhere to start and keeps discovery from being required on trivial turns.",
+      "distractors": {
+        "B": "Rewriting the array each turn changes the very front of the prefix, so every request invalidates the cache the team depends on. It also churns the model's view of its own capabilities between turns, which makes behaviour harder to reason about.",
+        "C": "Partitioning by assistant helps only when work partitions the same way. Cross-domain questions — a maintenance job with a procurement dependency — now need the user to know which assistant to ask and to stitch the answer together.",
+        "D": "Reading a catalogue through a fetch tool puts the same schema text into context, only later and as unstructured content. The model still cannot emit a call for a tool that was never declared."
+      },
+      "concept": "For large catalogues, separate the resident tool set from the reachable one. Keep a stable, small core declared up front and let the rest be discovered and appended on demand, so the context cost tracks what a conversation uses while the cached prefix stays intact. Swapping definitions in and out defeats both goals.",
+      "tip": "Note which mechanisms append and which replace. When a stem makes caching load-bearing, that distinction decides the item, and it is easy to miss because both approaches sound like dynamic tool loading."
+    }
+  },
+  {
+    "id": "INT-B-067",
+    "domain": "Integration",
+    "topic": "Application-layer routing of a per-request tool set",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A B2B software vendor's support agent covers five product lines, each with about twelve tools. Tickets arrive tagged with the product line, and cross-product questions are rare. All sixty tools are currently declared on every request, and the agent sometimes calls a tool from the wrong product. What is the most appropriate change?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Keep all sixty declared and disambiguate by prefixing every tool name with its product line."
+      },
+      {
+        "key": "B",
+        "text": "Attach only the tools for the ticket's product line, selected in the application before the request."
+      },
+      {
+        "key": "C",
+        "text": "Add a `choose_product_line` tool the model calls first, then have it work within that line."
+      },
+      {
+        "key": "D",
+        "text": "Put a routing table in the system prompt mapping symptoms to the correct product's tools."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The routing information already exists outside the model — the ticket carries the product line — so the selection can be made deterministically before the request is built. That cuts the declared set by four fifths, removes the cross-product confusion entirely, and costs nothing at runtime. Reserve model-mediated selection for cases where only the model can tell which subset applies; here the application knows, and using what it knows is both cheaper and more reliable than asking.",
+      "distractors": {
+        "A": "Prefixes make the names more distinguishable but leave sixty schemas in the prefix and sixty candidates in the decision. It improves the symptom without using the routing signal that is already available.",
+        "C": "A selection tool spends a round trip discovering something the ticket already states, and all sixty definitions remain resident throughout because the tool set was never narrowed. It also adds a failure mode, since the model can now choose the wrong product line before it has read the ticket carefully.",
+        "D": "A routing table in the prompt asks the model to perform a mapping the application can do exactly, and it grows and drifts as products change. The sixty definitions also stay in the prefix."
+      },
+      "concept": "Choose the earliest layer that has the information. When request metadata determines which capabilities are relevant, narrow the tool set in the application before the request is built — deterministic, free, and it shrinks both the token cost and the decision space. Dynamic discovery is for when relevance is only knowable from the conversation.",
+      "tip": "Look for a signal in the stem that is available before inference — a tag, a route, a tenant, a channel. If one exists, the answer usually uses it rather than asking the model to infer what you already know."
+    }
+  },
+  {
+    "id": "INT-B-068",
+    "domain": "Integration",
+    "topic": "What must remain loaded in a deferred-tool design",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "In a design where most tool definitions are deferred and loaded only when the model asks for them, what must always remain loaded?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Nothing; the model can request any tool by name from an empty starting set."
+      },
+      {
+        "key": "B",
+        "text": "Every read-only tool, so the model always has a safe default action."
+      },
+      {
+        "key": "C",
+        "text": "The tools most frequently used across recent production traffic."
+      },
+      {
+        "key": "D",
+        "text": "The discovery mechanism itself, plus at least one tool the model can act with."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Deferral needs an entry point. If the mechanism the model uses to find tools is itself deferred there is nothing to invoke, and a configuration in which every definition is withheld leaves the model with no way to act or to ask. So the discovery capability stays resident, and a minimal working set stays with it so ordinary turns do not pay a discovery round trip. Everything else is fair game to defer.",
+      "distractors": {
+        "A": "The model can only call tools it has been given. A name it has never seen is not addressable, which is why discovery has to be a capability rather than an assumption.",
+        "B": "Read-only tools are cheaper to get wrong, but that is a safety property, not a bootstrapping one. Keeping all of them resident can easily be most of the catalogue and defeats the purpose.",
+        "C": "Popularity is a reasonable heuristic for choosing the resident core, but it is a tuning decision rather than a requirement. Historical frequency does not guarantee the set contains a way to discover anything else."
+      },
+      "concept": "Any lazy-loading scheme needs a non-lazy bootstrap. Keep the discovery capability and a small entry-point set always present, then defer the long tail. Size the resident core by what most turns need, so discovery is the exception rather than a tax on every request.",
+      "tip": "Reason from bootstrapping rather than from memory. Ask what the model could possibly do on its first turn given the proposed configuration; options that leave it with nothing to invoke are self-eliminating."
+    }
+  },
+  {
+    "id": "INT-B-069",
+    "domain": "Integration",
+    "topic": "Removing tools that production traffic never uses",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A charity's grants assistant declares twelve tools. Six months of traces show four of them have never been called, and their capabilities are covered by other tools. What should the team do?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Remove them; unused definitions cost prefix space and add candidates to every selection."
+      },
+      {
+        "key": "B",
+        "text": "Keep them; a tool that is never called costs nothing at runtime or in the prefix."
+      },
+      {
+        "key": "C",
+        "text": "Keep them but mark them deprecated in their descriptions so the model deprioritises them."
+      },
+      {
+        "key": "D",
+        "text": "Merge them into one tool so the advertised count falls without losing the capability."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "A declared tool is paid for whether or not it is used: its schema is in the prefix on every turn, and it is one more option the model weighs when choosing. Four tools with no traffic in six months and overlapping coverage elsewhere are pure cost, and overlapping coverage is exactly the condition that makes selection harder. Removing them is reversible, evidence-backed and improves both budgets at once.",
+      "distractors": {
+        "B": "This mistakes invocation cost for declaration cost. The handler never runs, but the definition is transmitted, occupies the prefix, and participates in every selection decision. Every turn of every conversation carries those four schemas, and every selection decision weighs them, for six months of no benefit.",
+        "C": "A deprecation note keeps the full schema in the prefix and adds text to it, while relying on the model to interpret the note consistently. It is a migration device for tools still in use, not a substitute for deletion.",
+        "D": "Merging preserves capability nobody has needed for six months, and it adds the enum-and-payload documentation of four operations to a schema that must still describe them all. Consolidating dead capability is effort spent preserving something the evidence says nobody wants."
+      },
+      "concept": "Curate the tool surface from production evidence. Traffic data tells you which definitions earn their place; anything with no calls and redundant coverage should go. A tool set is an interface with a maintenance and inference cost, not a catalogue of everything the platform can do.",
+      "tip": "Easy items often hinge on one distinction — here, that declaring and calling are separate costs. Once you separate them, the reasoning is immediate."
+    }
+  },
+  {
+    "id": "INT-B-070",
+    "domain": "Integration",
+    "topic": "When dynamic tool loading is not worth its complexity",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A team is deciding whether to introduce dynamic tool discovery instead of declaring their full set up front. Which TWO conditions argue against it? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "The set is small and stable, so a fixed prefix caches well and discovery adds a hop."
+      },
+      {
+        "key": "B",
+        "text": "The organisation maintains more than twenty tools in total across its systems."
+      },
+      {
+        "key": "C",
+        "text": "All the tools in the set are read-only lookups with no side effects."
+      },
+      {
+        "key": "D",
+        "text": "The team has moved to a higher-capability model tier for this agent."
+      },
+      {
+        "key": "E",
+        "text": "Nearly every request needs the same handful of tools from the catalogue."
+      }
+    ],
+    "correct": [
+      "A",
+      "E"
+    ],
+    "explanation": {
+      "correct": "Discovery earns its complexity when the resident set would otherwise be large and most of it irrelevant. Both keyed conditions negate that. A small, stable set is cheap to declare and produces an unchanging prefix that caches perfectly, so discovery buys nothing and costs a round trip. And when almost every request needs the same tools, the discovered set converges on the declared set anyway — you have added a step to arrive where you started, plus a new failure mode when discovery misses something.",
+      "distractors": {
+        "B": "A total across the organisation says nothing about how many tools any one agent needs. What matters is the resident set for this system and how much of it a typical request uses.",
+        "C": "Read-only tools are safer to expose, which if anything makes a larger declared set more tolerable. Safety does not bear on whether discovery is worth the machinery. The relevant question is how much of the resident set a typical request needs, not how risky the set would be if misused.",
+        "D": "A more capable model tolerates a wider selection surface somewhat better, but it does not change the token arithmetic, and it is a poor reason to skip an architecture decision either way."
+      },
+      "concept": "Dynamic tool selection is an optimisation with real costs: an extra hop, a new retrieval failure mode, and more moving parts to test. It pays when the catalogue is large and per-request relevance is narrow. With a small stable set, or high overlap between requests, declaring everything up front is both cheaper and simpler.",
+      "tip": "For \"when is this not worth it\" items, restate the condition under which the technique pays and negate it. Options about safety, model tier or organisational totals are usually orthogonal to that condition."
+    }
+  },
+  {
+    "id": "INT-B-071",
+    "domain": "Integration",
+    "topic": "Tool discovery failures as a retrieval problem",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A hotel group's operations assistant uses discovery over a catalogue of roughly four hundred tools. Guest-recovery workflows fail because the assistant never finds `issue_service_recovery_credit`; its description reads \"Creates a compensatory ledger entry against a reservation\", while staff and the model both search using words like refund, goodwill and compensation. The team's proposal is to load all four hundred tools whenever discovery returns nothing. What should they do next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Increase the number of candidate tools discovery returns per search from five to twenty."
+      },
+      {
+        "key": "B",
+        "text": "Treat discovery as retrieval: rewrite descriptions in users' vocabulary and measure recall."
+      },
+      {
+        "key": "C",
+        "text": "Adopt the team's fallback and load all four hundred tools when a search comes back empty."
+      },
+      {
+        "key": "D",
+        "text": "Instruct the assistant to rephrase and retry its search up to three times before it gives up."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Discovery is retrieval over a corpus of tool descriptions, and this is a classic vocabulary mismatch between the index and the query. The durable fix is on the corpus side — describe the tool in the words people and models actually use, including the domain synonyms — and then measure it, because without a recall metric over a set of realistic requests the next mismatch is discovered by a guest complaint. Naming the failure as retrieval is what makes the whole toolkit of retrieval evaluation available.",
+      "distractors": {
+        "A": "A longer candidate list helps when the right tool ranks low. Here it does not match the query terms at all, so widening the cut-off mostly adds irrelevant tools to the context.",
+        "C": "The full-catalogue fallback abandons the reason discovery exists, and it fires precisely on the hardest requests. It also hides the underlying defect, so the descriptions never improve. A fallback that triggers on exactly the failures you most need to understand is also the one most likely to become permanent.",
+        "D": "Rephrasing may stumble onto the right terms sometimes, at the cost of extra round trips on the workflows that are already failing. It leaves the index wrong and makes the behaviour less predictable."
+      },
+      "concept": "Once tools are discovered rather than declared, tool descriptions become an index and selection becomes retrieval. Write descriptions for the queries you expect, include domain synonyms, and evaluate discovery with a recall metric over representative requests, exactly as you would evaluate a document retriever.",
+      "tip": "The proposed fallback in the stem is there to be rejected. When a stem hands you the team's plan, it is usually the plausible-but-wrong option, and the key names the class of problem correctly instead."
+    }
+  },
+  {
+    "id": "INT-B-072",
+    "domain": "Integration",
+    "topic": "Advertising tools according to the caller's granted scopes",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A media measurement company exposes an MCP server to partner agencies. Each partner's access token carries scopes reflecting what they bought — some have panel data only, some also have cross-platform attribution. Which TWO practices should the server follow? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Advertise the complete tool list and rely on the model to avoid tools the partner has not bought."
+      },
+      {
+        "key": "B",
+        "text": "Have the partner pass their entitlement tier as a tool argument that the handler checks."
+      },
+      {
+        "key": "C",
+        "text": "Filter the advertised tool list by the scopes in the verified token, so unavailable capabilities are never offered."
+      },
+      {
+        "key": "D",
+        "text": "Re-check the scope at execution, because advertising a narrower list is not authorisation."
+      },
+      {
+        "key": "E",
+        "text": "Issue one long-lived shared token per partner organisation so scope checks stay simple."
+      }
+    ],
+    "correct": [
+      "C",
+      "D"
+    ],
+    "explanation": {
+      "correct": "The two work as a pair and neither is sufficient alone. Filtering the advertised list is a usability and context measure: the model never sees capabilities it cannot use, so it does not waste turns attempting them or promise the agency something it has not bought, and the prefix stays proportionate to what the partner has. Re-checking at execution is the security measure, because the list is advice to a client you do not control and a request can arrive for anything. Advertise narrowly, enforce independently.",
+      "distractors": {
+        "A": "Entitlement enforced by the model is not enforcement, and it also leaks the shape of the product catalogue to every partner. They can see exactly which capabilities exist behind the paywall.",
+        "B": "A self-declared tier is a claim from the caller, and in an agent context it is a claim the model composes. Entitlement must come from the verified credential, never from request content.",
+        "E": "A shared long-lived token removes per-user attribution, makes rotation an outage, and cannot express that different people at the same agency hold different access. Simplicity of the scope check is not worth any of that."
+      },
+      "concept": "Capability advertisement and authorisation are separate concerns. Filter what you advertise to keep the model's surface honest and small; enforce at execution because the advertised list is not a security boundary. Both decisions must derive from the verified credential rather than from anything in the request body.",
+      "tip": "Whenever an option makes visibility do the work of enforcement, expect the key to include both a visibility measure and an independent enforcement measure. Pairs like this are common in multi-select items on scoping."
+    }
+  }
+]

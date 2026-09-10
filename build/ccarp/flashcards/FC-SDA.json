@@ -1,0 +1,182 @@
+[
+  {
+    "id": "FC-SDA-001",
+    "domain": "Solution Design & Architecture",
+    "topic": "Workflow versus agent",
+    "difficulty": "hard",
+    "front": "A team wants to replace a working three-step chain with an autonomous agent. What single question decides whether that is justified?",
+    "back": "Whether the path is knowable in advance. Workflows win whenever the steps can be enumerated: cheaper, faster, testable, debuggable, reproducible. An agent earns its cost only when the number and order of steps depend on what is discovered at runtime, and only where non-determinism is tolerable and the result can be verified. Autonomy you do not need is variance and cost.",
+    "hook": "If the stem describes a task you could draw as a flowchart, an agent is wrong no matter how modern the option sounds. Look for runtime-unknown step counts."
+  },
+  {
+    "id": "FC-SDA-002",
+    "domain": "Solution Design & Architecture",
+    "topic": "The augmented LLM baseline",
+    "difficulty": "easy",
+    "front": "What is the augmented LLM, and why does every pattern discussion start there?",
+    "back": "A single model call equipped with retrieval, tools and memory, with no orchestration around it. It is the baseline because most production tasks are solved by it, and every component you add — chaining, routing, subagents — costs latency, tokens, failure modes and debugging surface. You escalate off the baseline only when a measured failure demands it, and you name that failure.",
+    "hook": "Architecture questions frequently key to the simplest option. The trap is the elaborate multi-stage pipeline offered when the stem never says the single call failed."
+  },
+  {
+    "id": "FC-SDA-003",
+    "domain": "Solution Design & Architecture",
+    "topic": "Routing pattern and its preconditions",
+    "difficulty": "easy",
+    "front": "Inbound messages span refunds, technical faults and legal complaints, each needing different handling. Which pattern fits, and what does it need to be safe?",
+    "back": "Routing: a lightweight classification step sends each input to a specialised prompt or model tier, so no single prompt has to hedge across every category. It needs an explicit default branch for low-confidence or unmatched inputs, and its own evaluation — router errors hide inside end-to-end accuracy and look like downstream quality problems.",
+    "hook": "Distinct input categories with distinct handling means routing. The follow-up the exam checks is whether you gave the classifier a fallback path and a separate eval."
+  },
+  {
+    "id": "FC-SDA-004",
+    "domain": "Solution Design & Architecture",
+    "topic": "Sectioning versus voting",
+    "difficulty": "medium",
+    "front": "Parallelisation has two forms. What separates sectioning from voting, and which problem does each solve?",
+    "back": "Sectioning splits one task into independent subtasks run concurrently and then merged — different work per call, bought for latency and for keeping each call focused on one concern. Voting runs the same task multiple times, or with varied prompts, and aggregates by consensus — same work per call, bought for confidence on high-stakes or noisy judgements. Speed and focus versus reliability.",
+    "hook": "\"Split the work\" versus \"repeat the work.\" If the stem's pain is missed detections on a risky classification, it wants voting; sectioning would not help at all."
+  },
+  {
+    "id": "FC-SDA-005",
+    "domain": "Solution Design & Architecture",
+    "topic": "Evaluator-optimiser loop",
+    "difficulty": "medium",
+    "front": "Draft quality must improve where clear criteria exist and iteration is cheap. Which pattern applies, and what must be bounded?",
+    "back": "Evaluator–optimiser: a generator produces a candidate, a critic scores it against explicit criteria, the generator revises, and the loop repeats. It only pays when the criteria are articulable and the feedback measurably improves the next draft. Bound it with a maximum iteration count and a stopping condition, or a stubborn input loops and cost becomes unbounded.",
+    "hook": "The precondition is a rubric a critic can actually apply. Without articulable criteria the loop just rewords an acceptable answer at full token cost."
+  },
+  {
+    "id": "FC-SDA-006",
+    "domain": "Solution Design & Architecture",
+    "topic": "Orchestrator-workers versus fixed parallelisation",
+    "difficulty": "medium",
+    "front": "Both orchestrator–workers and parallelisation fan work out to several calls. What actually distinguishes them?",
+    "back": "Who decides the decomposition. Parallelisation splits along boundaries fixed at design time. In orchestrator–workers a coordinating model determines at runtime how many subtasks exist and what each one is, dispatches workers, then synthesises their outputs. The split is dynamic and input-dependent, which is why it needs a cap on worker count and a synthesis step that has been evaluated in its own right.",
+    "hook": "Ask whether the architect fixed the split at design time or the model chooses it per input. Unpredictable subtask counts always indicate orchestrator-workers."
+  },
+  {
+    "id": "FC-SDA-007",
+    "domain": "Solution Design & Architecture",
+    "topic": "Context isolation as the reason for subagents",
+    "difficulty": "hard",
+    "front": "Beyond running things in parallel, what is the main architectural reason to split an agent into subagents?",
+    "back": "Context isolation. Each subagent explores inside its own window and returns only a condensed result, so the coordinator's context accumulates conclusions instead of every intermediate tool output, false lead and retry. That keeps the main thread coherent over long tasks. The corollary is that the handoff must be a deliberate, compact result contract — never a transcript dump.",
+    "hook": "A long-running agent whose context fills with search noise is a context-management stem. Subagents answer it; parallel speed is the side benefit, not the reason."
+  },
+  {
+    "id": "FC-SDA-008",
+    "domain": "Solution Design & Architecture",
+    "topic": "When multi-agent loses to a single agent",
+    "difficulty": "hard",
+    "front": "When does a multi-agent design perform worse than one agent holding the same tools?",
+    "back": "When the subtasks are tightly coupled or share mutable state. Every agent boundary costs tokens (each agent carries its own context), coordination latency, and a place for instructions to be dropped in handoff. Multi-agent pays for read-heavy, parallelisable, weakly-coupled exploration. It hurts when several agents must converge on one evolving artefact, where a single thread is cheaper and more coherent.",
+    "hook": "The multi-agent trap is a task with shared writes or ordering dependencies. Coupling disqualifies it — task size and impressiveness do not qualify it."
+  },
+  {
+    "id": "FC-SDA-009",
+    "domain": "Solution Design & Architecture",
+    "topic": "Agent termination conditions",
+    "difficulty": "medium",
+    "front": "What must every agent loop have before production, and why is a token budget by itself not enough?",
+    "back": "Explicit termination: a maximum iteration count, a wall-clock or token ceiling, a success condition the loop can detect, and a defined escalation when none is reached. A budget alone terminates by exhaustion — expensively, at the worst possible moment, with no usable output. Add a no-progress check, such as repeated identical tool calls, so it stops early rather than merely eventually.",
+    "hook": "A stem describing an agent that \"sometimes runs for hours\" wants termination conditions, and the best option also says what happens when the limit is hit."
+  },
+  {
+    "id": "FC-SDA-010",
+    "domain": "Solution Design & Architecture",
+    "topic": "Partial failure in a worker fan-out",
+    "difficulty": "medium",
+    "front": "One worker of five fails midway through a fan-out. What should the orchestrator do, and what design choice makes that possible?",
+    "back": "Treat the failure as data: gather the partial results, mark the failed slice explicitly, then retry it, degrade with the gap declared, or escalate. What must never happen is the synthesiser presenting four-fifths of an answer as complete. That requires each worker to return a structured result carrying a status, so \"found nothing\" is distinguishable from \"never ran\".",
+    "hook": "Partial-failure stems hinge on whether missing work is visible downstream. A synthesis step that cannot tell an empty result from a crashed worker is the defect."
+  },
+  {
+    "id": "FC-SDA-011",
+    "domain": "Solution Design & Architecture",
+    "topic": "Where request latency actually goes",
+    "difficulty": "medium",
+    "front": "A team proposes a faster vector store to cut p95 latency. In a typical LLM request, where does the time actually go?",
+    "back": "Mostly into generation: output tokens are produced sequentially, so latency tracks how much the model writes far more than how much it reads. Then any extended-thinking budget, then the number of sequential model calls in the chain, then retrieval and network. Shortening the output, removing a chain hop, or streaming the first token usually beats tuning the datastore.",
+    "hook": "Latency questions are won by counting sequential model calls and output tokens. Retrieval-side optimisation is the plausible distractor unless the stem actually times it."
+  },
+  {
+    "id": "FC-SDA-012",
+    "domain": "Solution Design & Architecture",
+    "topic": "Per-subtask model tier mixing",
+    "difficulty": "easy",
+    "front": "Why is \"which model should this system use?\" the wrong question to answer?",
+    "back": "Because the unit of model selection is the subtask, not the system. Classification, routing, extraction and formatting run well on the cheapest tier; the one step carrying genuine ambiguity or high stakes justifies the strongest. Mixing tiers along the pipeline captures most of the quality at a fraction of the cost — provided each step has an eval proving the cheaper tier holds.",
+    "hook": "When a stem frames model choice for a whole system, look for the step boundary. The intended answer assigns tiers per step and gates each downgrade on an eval."
+  },
+  {
+    "id": "FC-SDA-013",
+    "domain": "Solution Design & Architecture",
+    "topic": "Unit economics at volume",
+    "difficulty": "medium",
+    "front": "A pilot looks cheap per request and the business now wants millions of requests a month. What belongs in the cost model beyond per-request tokens?",
+    "back": "Retries and failed attempts, the tokens consumed by every intermediate turn of a chain or agent loop rather than just the final answer, the cached versus uncached share of the prefix, output tokens weighted separately from input, evaluation and monitoring runs, and human review of escalations. Model cost per successful outcome: a cheap call that fails half the time is the expensive one.",
+    "hook": "Cost stems reward \"per successful task\" reasoning. The trap is a per-call comparison that ignores retries, intermediate loop turns and the human fallback queue."
+  },
+  {
+    "id": "FC-SDA-014",
+    "domain": "Solution Design & Architecture",
+    "topic": "Three distinct caching layers",
+    "difficulty": "hard",
+    "front": "Prompt caching, semantic response caching and deterministic result caching solve different problems. Which does what, and which one can be wrong?",
+    "back": "Prompt caching reuses a repeated input prefix within the call — cuts cost and time-to-first-token but still generates. Semantic caching returns a previously stored answer when a new query is close enough in meaning — skips the call entirely, and can serve a subtly wrong answer. Deterministic caching keys on exact inputs for pure operations — safe, but with a narrow hit rate.",
+    "hook": "Separate them by asking whether the model still runs. Semantic caching is the only layer that can return an incorrect answer, so correctness-critical stems exclude it."
+  },
+  {
+    "id": "FC-SDA-015",
+    "domain": "Solution Design & Architecture",
+    "topic": "Change cost and maintainability",
+    "difficulty": "easy",
+    "front": "Which long-run cost do architecture comparisons most often omit?",
+    "back": "Change cost. Every prompt, tool schema, eval set, guardrail and orchestration step is an artefact somebody must maintain, version and re-test when the model, the data or the requirement moves. A design with four coordinated agents is not only more expensive per request — it is more expensive per requirement change, and over a multi-year life that term dominates.",
+    "hook": "TCO stems are rarely about API spend. When two designs are close on accuracy and cost, the tie-break the exam wants is maintainability and change cost."
+  },
+  {
+    "id": "FC-SDA-016",
+    "domain": "Solution Design & Architecture",
+    "topic": "Human-in-the-loop placement",
+    "difficulty": "easy",
+    "front": "An agent drafts and issues customer refunds. Where exactly should the human review step sit?",
+    "back": "Immediately before the irreversible action, not after the text is generated and not on every intermediate step. Put approval where an effect becomes external and hard to undo — the payment, the send, the record write — and let everything upstream run unattended. Reviewing output that is never acted on is theatre; approving after the money moved is a postmortem.",
+    "hook": "Find the irreversible step and place the human directly in front of it. Distractors review the final text, or review everything, which trains reviewers to rubber-stamp."
+  },
+  {
+    "id": "FC-SDA-017",
+    "domain": "Solution Design & Architecture",
+    "topic": "Graceful degradation versus retrying",
+    "difficulty": "medium",
+    "front": "The primary model path is unavailable during an incident. What separates a real degradation plan from a retry policy?",
+    "back": "A degradation plan defines a reduced but still useful service, decided in advance: fall back to a cheaper tier or a deterministic path, disable the optional AI feature while the core transaction still completes, and communicate reduced confidence to the user. Retrying the same path harder during an outage adds load. The design work is deciding which capabilities are droppable.",
+    "hook": "Graceful degradation is written down before the incident, not improvised during it. If an option only makes the system try harder, it is not a degradation answer."
+  },
+  {
+    "id": "FC-SDA-018",
+    "domain": "Solution Design & Architecture",
+    "topic": "End-to-end timeout budgeting",
+    "difficulty": "hard",
+    "front": "Every step in a four-step chain carries the same generous timeout, yet the caller's SLO covers the whole chain. What is structurally wrong?",
+    "back": "Timeouts are being set per step instead of budgeted end-to-end, so the worst case exceeds the caller's limit: the caller abandons while downstream work continues, burning cost with nobody left to receive the result. Allocate the total budget across steps, propagate the remaining deadline down the chain, and let each step decline work it cannot finish in the time left.",
+    "hook": "When a stem lists per-step timeouts and an overall SLO, add them up. The intended answer is a propagated deadline, not a uniform per-step value or more retries."
+  },
+  {
+    "id": "FC-SDA-019",
+    "domain": "Solution Design & Architecture",
+    "topic": "Checkpointing and state recovery",
+    "difficulty": "medium",
+    "front": "A long document-processing agent crashes near the end of a run and restarts from zero. What was missing from the design?",
+    "back": "Durable checkpointing: persist each completed step and its output to external state keyed by a run id, so a restart resumes from the last committed step instead of replaying everything. Pair it with idempotent step execution so a replayed step cannot duplicate side effects. Conversation context is not state — anything you cannot afford to lose must live outside it.",
+    "hook": "Long-running agent stems mentioning crashes or restarts want external resumable state. \"Raise the timeout\" and \"retry the whole run\" are the distractors."
+  },
+  {
+    "id": "FC-SDA-020",
+    "domain": "Solution Design & Architecture",
+    "topic": "Blast-radius containment",
+    "difficulty": "medium",
+    "front": "What does blast-radius containment mean for an agent holding write access to production systems?",
+    "back": "Bounding what a single bad run can do before anyone notices: credentials scoped to the minimum resources, per-run caps on quantity and value, dry-run or staging execution where it exists, confirmation required above a threshold, and every action either reversible or logged well enough to reverse. Containment starts from the assumption that the agent will sometimes be wrong.",
+    "hook": "Containment options bound the damage of a wrong action; filter options try to prevent it. A stem that concedes errors are inevitable is asking for containment."
+  }
+]

@@ -1,0 +1,724 @@
+[
+  {
+    "id": "DPO-B-055",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Framing a cross-team incident at the AI/downstream boundary",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A grocery wholesaler parses emailed purchase orders with Claude and writes the result into its ERP. Overnight, 12% of orders begin landing in the ERP's exception queue with a \"quantity field invalid\" error. The AI team's dashboards show normal parse success, normal token counts and normal latency. The ERP team reports no change on their side, and neither team has deployed in a week. Both teams are on the bridge. What is the most productive framing for the next fifteen minutes?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Treat this as an ERP validation change until that team can prove otherwise, since the rejection message originates inside their system and only they can interpret it."
+      },
+      {
+        "key": "B",
+        "text": "Compare the quantity values the AI service emitted overnight against those it emitted last week, since a shift in output shape satisfies both teams' dashboards."
+      },
+      {
+        "key": "C",
+        "text": "Have the AI team roll back to the previous release and watch the exception rate, since that isolates which side of the boundary is responsible fastest."
+      },
+      {
+        "key": "D",
+        "text": "Ask the ERP team to relax the quantity validation temporarily so orders keep flowing while the two teams investigate the cause properly."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Both dashboards are green because neither team measures the contract between them. The AI service counts a parse as successful when it produces a response; the ERP counts a write as valid when the field passes validation. A model that starts emitting \"12 cases\" where it previously emitted \"12\", or a decimal where an integer was expected, is invisible on both sides and fully explains the symptom. Looking at the actual emitted values across the boundary is the one check that neither team's monitoring performs.",
+      "distractors": {
+        "A": "Assigning the investigation by where the error text is printed is how boundary incidents stall. The rejecting system is rarely the changing system, and the stem already says the ERP has not changed.",
+        "C": "There is nothing to roll back to: no deploy has shipped in a week on either side, so the previous release is the release currently running.",
+        "D": "Disabling a validation rule to make an error stop is how bad data enters a system of record. The exception queue is working correctly by catching this."
+      },
+      "concept": "When an AI component feeds a deterministic downstream system, the failure often lives in the contract between them and is invisible to both sides' health metrics. Monitor the shape and distribution of what the model emits, not just whether it emitted something.",
+      "tip": "Two green dashboards and one red queue means nobody is measuring the interface. Look at the payload crossing the boundary before arguing about ownership."
+    }
+  },
+  {
+    "id": "DPO-B-056",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Sandbox access for new engineers without unbounded spend",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A pharmaceutical analytics group is onboarding six engineers onto its Claude-based literature-screening service. Leadership wants them experimenting freely from week one, but is nervous: another group's runaway evaluation loop consumed a large unbudgeted amount overnight last quarter. Which setup best serves both concerns?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Give each engineer a personal key on a sandbox account with a hard spend cap and no production data access, and let them raise their own cap up to a limit."
+      },
+      {
+        "key": "B",
+        "text": "Issue the shared team key to all six and require the tech lead to approve in advance any run expected to exceed a defined token budget."
+      },
+      {
+        "key": "C",
+        "text": "Restrict experimentation to a locally hosted small open model, and grant provider access only once an engineer has shipped their first reviewed change."
+      },
+      {
+        "key": "D",
+        "text": "Grant production key access from day one and rely on the existing monthly spend alert plus a review requirement on any newly added call site."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Separate accounts turn a governance question into an arithmetic one: the worst case is bounded by the cap, so nobody has to predict what a new engineer will do. Per-engineer keys make attribution automatic when something does run away, and self-service raises within a limit remove the approval queue that would otherwise be the thing slowing everyone down. The absence of production data access means an experiment cannot become a data incident as well as a cost one.",
+      "distractors": {
+        "B": "Prior approval requires the engineer to predict the cost of a run, which is exactly what a newcomer cannot do, and a runaway loop overshoots whatever was estimated. It also puts the tech lead in the critical path of every experiment.",
+        "C": "A different model does not teach the behaviour of the one in production, so week one is spent learning something that will not transfer. It also delays access behind a milestone that access would have helped them reach.",
+        "D": "A monthly alert is far too coarse for an overnight loop, and code review governs call sites in the repository rather than the ad-hoc scripts new engineers actually run."
+      },
+      "concept": "Enable exploration by bounding the worst case rather than by gating each action. Sandbox accounts with hard caps and per-person keys give autonomy and attribution simultaneously; approval workflows give neither and cost senior attention.",
+      "tip": "When a stem pairs \"experiment freely\" with a past cost incident, the answer is a structural limit, not a human approval step. Approvals fail against automation running overnight."
+    }
+  },
+  {
+    "id": "DPO-B-057",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Remediating output already persisted by a bad prompt",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "At 14:00 an insurer discovers that a prompt change deployed at 09:00 has been generating policy summaries stating an incorrect excess amount. In those five hours, 2,300 summaries were generated and written to customer policy records; roughly 400 of those were also emailed to customers. Reverting the prompt is a ten-minute deploy. Beyond the revert, what should the response plan be?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Regenerate all 2,300 summaries with the corrected prompt and overwrite the stored records in place, so every policy file is immediately accurate again."
+      },
+      {
+        "key": "B",
+        "text": "Notify the 400 customers who were emailed, and leave the remaining 1,900 stored summaries as they are, since no customer has seen those."
+      },
+      {
+        "key": "C",
+        "text": "Quarantine all 2,300 records so none can be served or re-sent, then regenerate them while preserving the originals as evidence of what was issued."
+      },
+      {
+        "key": "D",
+        "text": "Raise a data-quality ticket so the 2,300 records are corrected by the nightly batch job that already reconciles policy documentation."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Three obligations have to be met at once. The 1,900 unseen summaries are still wrong and still servable, so they must be stopped before they are viewed or forwarded — quarantine achieves that in one action while regeneration runs. The 400 emailed summaries are a customer communication that has already happened, and correcting the record without keeping the original destroys the evidence of what the insurer actually told those customers, which is what the remediation notice and any subsequent complaint will be assessed against.",
+      "distractors": {
+        "A": "Overwriting in place is fast and destroys the audit trail. For the 400 emailed cases the original is the only record of what the customer was told, and a regulator asking what went wrong will find a corrected file and no evidence.",
+        "B": "This treats visibility as the boundary of harm. The 1,900 records sit on live policy files and will be read by agents, sent on request, or pulled into renewal documents at any time.",
+        "D": "A nightly batch leaves wrong excess figures readable for hours on records customers and staff actively use, and treats a live correctness incident as routine data cleanup."
+      },
+      "concept": "When a prompt defect has already produced persisted output, remediation has three parts: stop generation, contain what is stored so it cannot be served, and correct it without destroying the original. Reverting the prompt only addresses the first.",
+      "tip": "Split the affected population by what has already reached a customer and what has not. Stems that give you two counts are asking you to treat the two groups differently."
+    }
+  },
+  {
+    "id": "DPO-B-058",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Containing secrets in an ad-hoc AI debugging habit",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "Engineers at a telco routinely paste production log excerpts into an AI assistant to debug faster. A security review finds those excerpts have included subscriber identifiers and, on two occasions, a database connection string. A blanket ban was announced last year and quietly stopped being observed within a month. Which TWO measures are most likely to reduce exposure while keeping the workflow? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Require every engineer to complete annual training on what may and may not be shared with external tools, with a signed acknowledgement."
+      },
+      {
+        "key": "B",
+        "text": "Provide a one-command log-fetch tool that strips subscriber identifiers and credential patterns before the excerpt ever reaches the clipboard."
+      },
+      {
+        "key": "C",
+        "text": "Shorten production log retention so that far fewer sensitive excerpts exist for anyone to copy in the first place."
+      },
+      {
+        "key": "D",
+        "text": "Route assistant traffic through a monitored egress proxy that blocks any request containing a credential pattern and records the attempt."
+      },
+      {
+        "key": "E",
+        "text": "Restrict production log access to the current on-call engineer, so at most one person at a time is in a position to copy an excerpt."
+      }
+    ],
+    "correct": [
+      "B",
+      "D"
+    ],
+    "explanation": {
+      "correct": "The ban failed because the workflow is genuinely valuable, so the two measures that work are the ones that do not ask engineers to give it up. A redacting fetch tool makes the safe path the fastest path, which is the only kind of control that survives contact with a deadline. The egress proxy is the backstop for everything the tool does not cover — pasted screenshots of a dashboard, a hand-typed connection string — and its log turns an invisible practice into something measurable.",
+      "distractors": {
+        "A": "The engineers already know the rule; a ban told them. Training addresses ignorance, and the review found a convenience problem instead.",
+        "C": "Cutting retention degrades every incident investigation to reduce the supply of material for one bad habit. The excerpts being pasted are recent by definition, so short retention would not have prevented either incident.",
+        "E": "Concentrating access does not change behaviour, since the on-call engineer is the person most likely to be debugging under pressure. It also removes the ability of anyone else to help."
+      },
+      "concept": "When a risky practice persists after a ban, the practice is delivering real value. Control it by supplying a sanctioned path that is easier than the unsafe one, plus an enforcement point at the egress boundary — not by repeating the prohibition.",
+      "tip": "A stem that tells you a policy was announced and then ignored is ruling out every answer that amounts to announcing it again more firmly."
+    }
+  },
+  {
+    "id": "DPO-B-059",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Joining late user complaints to the originating session",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A council's benefits-advice chatbot handles about 4,000 sessions a week. Complaints arrive days later through a separate case-management system, describing what the bot said but carrying no identifier that exists anywhere in the AI platform's telemetry. Investigators currently search by approximate time of day and remembered phrases, and succeed maybe half the time. What should the team change?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Log the full conversation transcript for every session, so that free-text search across the logs becomes reliable enough to find any complained-about exchange."
+      },
+      {
+        "key": "B",
+        "text": "Add a question to the complaint form asking for the date and approximate time of the session, so investigators can narrow the search window considerably."
+      },
+      {
+        "key": "C",
+        "text": "Index the bot's response text in a search engine so an investigator can paste a quoted phrase from the complaint and retrieve the matching session."
+      },
+      {
+        "key": "D",
+        "text": "Show a short session reference in the chat interface and require it on the complaint form, so the case record carries the key that resolves to the trace."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The complaint and the trace live in two systems with no shared key, and no amount of searching fixes a missing join. Surfacing a short reference to the user and capturing it on the complaint form creates that key at the only moment both sides are present — the user's session and the user's complaint. It is also cheap: no additional data is retained, and lookup becomes exact rather than probabilistic.",
+      "distractors": {
+        "A": "Retaining every transcript for a benefits service creates a large store of sensitive personal circumstances to satisfy an occasional lookup, and free-text search over 4,000 sessions a week still returns candidates rather than the session.",
+        "B": "Time narrowing is what investigators already do, and it is why they succeed half the time. Recalled timings from days ago are approximate, and hundreds of sessions occur in any plausible window.",
+        "C": "Quoted-phrase search works when the complainant reproduces the wording exactly, which people rarely do days later. It also requires storing all response text, and paraphrase or a common phrase collapses the match."
+      },
+      "concept": "Correlation between an AI system and the channels where its failures are reported requires an identifier the user can carry across the boundary. Surface a reference in the interface and capture it wherever complaints are recorded.",
+      "tip": "If the complaint channel and the telemetry share no field, no search strategy is the answer. Look for the option that creates a shared key rather than the one that searches harder."
+    }
+  },
+  {
+    "id": "DPO-B-060",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Time saved versus capacity realised in an ROI claim",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A retailer's platform team surveys its 90 engineers and reports that AI assistance saves each of them about 4 hours a week. A finance partner converts 360 saved hours a week into roughly 9 full-time equivalents and circulates the figure as an annualised saving. Over the same six months, delivery output is flat, headcount is unchanged, and no team has taken on additional scope. The engineering director is asked to endorse the number. What is the accurate characterisation?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Time saved on a task is not capacity realised; unless freed hours were redirected into identifiable work, the saving is notional and the flat output is the evidence."
+      },
+      {
+        "key": "B",
+        "text": "The saving is real but lagging; delivery metrics typically take two to three quarters to reflect a capacity increase of this magnitude in a team of this size."
+      },
+      {
+        "key": "C",
+        "text": "The estimate is conservative, since it counts only authoring time and omits the time saved on code review, incident response and onboarding new joiners."
+      },
+      {
+        "key": "D",
+        "text": "The calculation should be redone using fully loaded cost rather than base salary, which would make the annualised saving materially larger than stated."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The arithmetic is sound and the conclusion is not. Saved minutes convert into value only if they are reinvested into work someone wanted, and the flat output over six months says they were not — they were absorbed into slack, context switching, or a bottleneck further down the pipeline. Endorsing a 9-FTE saving that no one can point to in delivery is how an AI programme loses credibility at the first review, and the honest version reports the perceived time saving as a leading indicator alongside the outcome measure that has not moved.",
+      "distractors": {
+        "B": "Six months of flat output is not a lag; it is a result. Invoking a longer horizon makes the claim unfalsifiable, which is precisely what a finance partner should not accept.",
+        "C": "Adding categories multiplies an unvalidated self-report. The problem is not that the estimate is too small — it is that nothing downstream corroborates any of it.",
+        "D": "Choosing a higher cost basis inflates the headline figure while leaving the underlying premise untested. It makes an unsupported number bigger."
+      },
+      "concept": "Time saved is an input measure; capacity realised is an outcome. Report AI savings only where the freed time is visible in throughput, scope taken on, or headcount not hired — otherwise state it as perceived benefit and say so plainly.",
+      "tip": "When a stem gives you a savings calculation that computes correctly, the flaw is in the premise, not the arithmetic. Look for the outcome metric that failed to move."
+    }
+  },
+  {
+    "id": "DPO-B-061",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Reconciling a strong eval score with a weak production result",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A university admissions platform's Claude-based document-completeness checker scores 96% on a 500-case eval set assembled from historical applications. In the first week of the intake period, admissions staff report it misses genuinely missing documents in roughly one application in eight. The team re-runs the eval suite against the currently deployed prompt and still gets 96%. What is the most useful next step?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Move the checker to a higher model tier, since production inputs are evidently harder than the historical cases the eval set was built from."
+      },
+      {
+        "key": "B",
+        "text": "Add the reported production failures to the eval set and re-run the suite, so that it reflects the reality admissions staff are experiencing during this intake week."
+      },
+      {
+        "key": "C",
+        "text": "Lower the confidence threshold at which the checker flags an application as incomplete, trading a rise in false positives for fewer missed documents."
+      },
+      {
+        "key": "D",
+        "text": "Sample the failing production applications and compare their composition against the eval set's, since a gap this wide points first at a difference between the two populations."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "A 96% eval score alongside a 12.5% production miss rate cannot both describe the same population judged by the same standard, and the likeliest explanation by far is that the eval set is not drawn from the same distribution as live traffic. (The other candidate — that the eval scores a different notion of a miss than admissions staff apply — surfaces from the same comparison.) That is the finding to establish before changing anything, and it is usually concrete: historical applications are complete and tidy because they were accepted, while intake-week submissions arrive partial, in unexpected formats, or from applicant types the archive under-represents. Naming the difference tells you what to fix and what the eval set must include to keep telling the truth afterwards.",
+      "distractors": {
+        "A": "Spending more per request on a hypothesis nobody has tested. If the failures come from document types the prompt never anticipated, a stronger model will handle them somewhat better while the eval set continues to report a score that means nothing.",
+        "B": "The right thing to do second. Adding the observed failures without first characterising the gap patches the suite against the specific cases that reached a complaint, leaving the rest of the unrepresented population invisible.",
+        "C": "Threshold tuning treats the symptom and buys misses back with false positives, which for admissions means chasing applicants for documents they already sent. It also assumes the failures are borderline calls rather than unrecognised inputs."
+      },
+      "concept": "When eval and production disagree, the eval set's representativeness is the first hypothesis, not the model's capability. An eval built from historical or archived data systematically excludes the malformed, partial and novel inputs that generate most production failures.",
+      "tip": "Convert both figures to the same units before reasoning. A 4% eval error against a 12.5% production miss rate is a threefold gap, which points at what the eval measures, not at a tuning knob."
+    }
+  },
+  {
+    "id": "DPO-B-062",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Telling an AI quality incident from an infrastructure incident",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Which observation most reliably distinguishes an AI-feature quality incident from an infrastructure incident affecting the same feature?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Quality incidents begin gradually as behaviour drifts, whereas infrastructure incidents start abruptly at an identifiable moment in time."
+      },
+      {
+        "key": "B",
+        "text": "In a quality incident the health signals stay green, because the feature is responding successfully with content that happens to be wrong."
+      },
+      {
+        "key": "C",
+        "text": "Quality incidents affect a subset of users with particular inputs, whereas infrastructure incidents affect everyone using the feature at once."
+      },
+      {
+        "key": "D",
+        "text": "Quality incidents are reported by users, whereas infrastructure incidents are caught by monitoring before any user has noticed anything."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "This is the structural difference rather than a tendency. An infrastructure fault shows up as failed requests, timeouts or restarts, all of which the standard signals are built to detect. A quality fault produces a well-formed successful response containing something incorrect, which no availability signal can distinguish from a good one. That is why detecting quality incidents requires a separate class of instrumentation — graders, schema validation, user-override rates — rather than a tighter threshold on the existing dashboards.",
+      "distractors": {
+        "A": "Both patterns occur in both categories. A prompt change or an alias rollover causes an abrupt quality shift, and a slowly filling disk causes gradual infrastructure degradation.",
+        "C": "Also frequently true and not reliable. A regional outage affects a subset, while a bad system prompt affects everyone, so the scope of impact does not identify the category.",
+        "D": "A useful rule of thumb that describes current tooling rather than the incidents themselves, and it stops being true the moment quality monitoring exists — which is the change this observation argues for."
+      },
+      "concept": "Quality failures are successful responses with wrong content, so they are invisible to availability instrumentation by construction. Detection requires signals derived from the output itself or from user behaviour toward it.",
+      "tip": "Prefer the option stating a structural property over options stating tendencies. \"Usually gradual\" and \"usually a subset\" are heuristics with counterexamples in both directions."
+    }
+  },
+  {
+    "id": "DPO-B-063",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Content that does not belong in a prompt library repository",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Which artefact should not be committed into a prompt library repository?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The output schema each template is expected to produce, expressed as a schema file the consuming service also validates against."
+      },
+      {
+        "key": "B",
+        "text": "The golden eval cases used to grade each template automatically on every pull request that touches it."
+      },
+      {
+        "key": "C",
+        "text": "Real customer transcripts captured from production and pasted in verbatim to serve as few-shot examples."
+      },
+      {
+        "key": "D",
+        "text": "A changelog describing behavioural changes between template versions for the benefit of downstream consumers."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "A prompt repository is typically readable by the whole engineering organisation, cloned onto laptops, mirrored into CI, and retained forever in version history — which makes it one of the worst available homes for personal data. Verbatim customer content also carries no lawful basis for that use in most jurisdictions, and a commit cannot be unmade cleanly when a deletion request arrives. Where production examples genuinely improve the prompt, the right form is a synthesised or thoroughly de-identified version.",
+      "distractors": {
+        "A": "The schema is part of the template's contract with its consumer and belongs beside it, so a change to either is reviewed as one unit.",
+        "B": "Golden cases are the executable specification for the template and must be versioned alongside it, provided they are themselves synthetic or de-identified.",
+        "D": "A changelog is how consuming teams learn that behaviour moved between versions. Keeping it in the repository is exactly right."
+      },
+      "concept": "Version-controlled artefacts are effectively permanent and broadly readable. Personal or customer-identifying data must be de-identified or synthesised before it becomes a few-shot example, an eval case, or a test fixture.",
+      "tip": "For \"what does not belong\" items, ask which option's risk comes from the storage medium rather than from its content. Git history is forever and clones widely."
+    }
+  },
+  {
+    "id": "DPO-B-064",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "First-five-minutes information for an AI-feature responder",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A logistics operator is writing the first-five-minutes checklist that will be attached to every page for any of its AI features. The design goal is that a responder with no prior context can decide within five minutes whether to contain, and what containing would actually mean. Which THREE items must the checklist put in front of them? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Which flags and kill switches govern this feature, their current state, and precisely what behaviour each one stops."
+      },
+      {
+        "key": "B",
+        "text": "A full architecture diagram of the feature covering every tool, dependency and downstream consumer in the chain."
+      },
+      {
+        "key": "C",
+        "text": "What changed recently across all four behaviour-bearing surfaces: code, prompt version, retrieval corpus and resolved model version."
+      },
+      {
+        "key": "D",
+        "text": "Where this feature's output is persisted or forwarded, so the responder knows what remains live after generation stops."
+      },
+      {
+        "key": "E",
+        "text": "The feature's monthly cost and its per-request cost trend over the preceding thirty days, for context on its business importance."
+      }
+    ],
+    "correct": [
+      "A",
+      "C",
+      "D"
+    ],
+    "explanation": {
+      "correct": "Containment needs three answers. What lever do I have, and does pulling it actually stop the behaviour — hence the flag inventory with its real effect, not just its name. What plausibly caused this — and for an AI feature the change surface is wider than code, so the checklist has to name the prompt version, the corpus and the resolved model alongside it. And what is still live once generation stops, because persisted or already-dispatched output keeps causing harm after the switch is off. Each is a decision input, not background.",
+      "distractors": {
+        "B": "A full diagram is the right artefact for the postmortem and the wrong one for minute two. A responder under pressure needs the three or four facts that determine an action, not a map to read.",
+        "E": "Cost belongs on a monthly review, not on a page. It does not inform whether to contain, and offering it invites a responder to hesitate over disabling an expensive feature."
+      },
+      "concept": "An AI-feature runbook must answer three containment questions immediately: what stops it, what changed across code, prompt, corpus and model version, and what output is already downstream. Reference material that does not lead to an action belongs elsewhere.",
+      "tip": "Test each checklist item against the stated time budget. If a responder cannot act on it inside five minutes, it fails the requirement no matter how useful it is later."
+    }
+  },
+  {
+    "id": "DPO-B-065",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Rolling out by consequence tier rather than random percentage",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A commercial insurer is rolling out Claude-drafted responses to broker enquiries. Enquiries range from routine questions about cover limits to complex claims-history queries where a wrong statement can create a coverage dispute the insurer must honour. The delivery team's default plan is a random 5/25/100 percentage rollout on all enquiry types at once. The head of underwriting objects. What rollout design better fits this risk profile?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Roll out by enquiry category, beginning with the lowest-consequence categories and admitting harder ones only as each clears its own quality gate."
+      },
+      {
+        "key": "B",
+        "text": "Keep the random percentage rollout but require an underwriter to review every drafted response until the feature reaches full exposure at 100%."
+      },
+      {
+        "key": "C",
+        "text": "Keep the random percentage rollout and suppress any draft where the model's stated confidence falls below a threshold tuned during the 5% stage."
+      },
+      {
+        "key": "D",
+        "text": "Roll out by broker account, beginning with the smallest brokers by premium volume and expanding upward in account size over four weeks."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Random percentage rollout limits how many people are exposed but not how badly a given exposure can go wrong, and here the two are very different: a wrong cover-limit answer is embarrassing while a wrong claims-history statement can bind the insurer. Segmenting by consequence puts the lowest-stakes traffic first and makes each expansion a deliberate decision backed by that category's own quality evidence. It also produces category-specific eval sets, which is where the real coverage gaps become visible.",
+      "distractors": {
+        "B": "Reviewing every draft removes the efficiency the feature exists to deliver and does not scale to 100%. It also creates rubber-stamping pressure on underwriters as volume rises, which is worse than no review.",
+        "C": "Self-reported confidence from a model is a weak and poorly calibrated signal, and it is not sensitive to the dimension that matters here. A model can be entirely confident about a claims-history statement that is wrong.",
+        "D": "Broker size is a proxy for commercial exposure, not for the difficulty or consequence of the enquiry. A small broker can ask the question that creates a coverage dispute."
+      },
+      "concept": "Progressive rollout should segment on the axis along which consequences vary. Random percentage staging controls the number of affected users; it does not control the severity of what can go wrong to any one of them.",
+      "tip": "When a stem contrasts routine cases against a few high-consequence ones, the answer segments the rollout by that distinction rather than sampling uniformly across it."
+    }
+  },
+  {
+    "id": "DPO-B-066",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "On-demand full-fidelity capture under low baseline sampling",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A team samples traces at a low baseline rate for cost reasons, but support needs to capture a complete trace for one specific user while that user is still on the phone. Which mechanism provides this?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Temporarily raise the global sampling rate to 100% for the duration of the support call, then return it to the baseline afterwards."
+      },
+      {
+        "key": "B",
+        "text": "Replay the user's most recent request through a debug endpoint configured to capture everything, and investigate the replayed trace."
+      },
+      {
+        "key": "C",
+        "text": "A sampling override set for that session at the edge and propagated downstream, forcing every service to retain its spans."
+      },
+      {
+        "key": "D",
+        "text": "Extend span retention for the affected service so the user's earlier traces remain available for a longer investigation window."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The sampling decision has to be made per request and honoured by everyone downstream, which is what a propagated override provides: support flags the session, the edge marks the trace as forced-keep, and each service reads that flag rather than rolling its own dice. The result is one complete trace for one user at negligible cost, and the same mechanism supports debug capture for a canary cohort or a single tenant without changing anything globally.",
+      "distractors": {
+        "A": "A global change captures every user's traffic to obtain one user's trace, which is expensive at production volume and often the moment a tracing bill spikes. It also fails if the call ends before anyone applies it.",
+        "B": "A replay produces a trace of the replay. It is a different request at a different time, so anything caused by the original state, timing or retrieved context will not be present.",
+        "D": "Retention governs how long a captured trace survives. If baseline sampling discarded the user's trace, there is nothing for a longer window to preserve."
+      },
+      "concept": "Design sampling as a per-request decision made once at the edge and propagated, with an override channel for support and debugging. That combination gives low steady-state cost and full fidelity on demand without a global change.",
+      "tip": "Distinguish whether a trace was captured from how long it is kept. Retention answers can never fix a capture problem, and stems often offer one for the other."
+    }
+  },
+  {
+    "id": "DPO-B-067",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Capture requirements for replaying a whole agent trajectory",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A defence-logistics contractor must be able to replay a completed agent run for post-hoc review — the entire trajectory, not a single call — and demonstrate to an auditor that the replay reflects what happened. Which THREE things must be captured for each step? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "The full message list as it stood at the start of that step, including any compaction or truncation the runtime applied before sending."
+      },
+      {
+        "key": "B",
+        "text": "The exact tool invocation arguments the model produced and the exact results that were returned into the conversation."
+      },
+      {
+        "key": "C",
+        "text": "The wall-clock duration of each step, so that the replay can reproduce the original pacing of the run."
+      },
+      {
+        "key": "D",
+        "text": "A human-readable narrative summarising the agent's reasoning at each step, written when the run completed."
+      },
+      {
+        "key": "E",
+        "text": "The resolved model version and the tool definitions in force at that step, since both can change between the run and the replay."
+      }
+    ],
+    "correct": [
+      "A",
+      "B",
+      "E"
+    ],
+    "explanation": {
+      "correct": "A trajectory replay is a sequence of faithful single-call replays, so each step needs its complete input. The message list is that input, and capturing it after compaction matters because a runtime that summarised turn six changed what the model saw at turn seven — reconstructing from raw history would produce a different run. Tool arguments and results are the other half of the context, and they must be the captured values rather than re-fetched ones. Model version and tool definitions are the environment: a changed tool description alters selection behaviour as surely as a changed prompt.",
+      "distractors": {
+        "C": "Timing is useful for performance analysis and irrelevant to fidelity. The model's behaviour does not depend on how long the previous step took, so reproducing pacing reproduces nothing.",
+        "D": "A narrative written after the fact is an interpretation, not a captured input. It cannot be fed back into a replay, and presenting it to an auditor as the record substitutes commentary for evidence."
+      },
+      "concept": "Replaying an agent means reconstructing each step's exact input and environment: post-compaction message list, tool arguments and results as returned, resolved model version, and the tool schemas in force. Anything re-derived at replay time is a new run, not a replay.",
+      "tip": "Compaction is the detail most often missed. If the runtime rewrites history mid-run, the raw conversation log is not what the model received and will not reproduce the trajectory."
+    }
+  },
+  {
+    "id": "DPO-B-068",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Selecting AI engineering metrics that resist inflation",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An organisation wants two headline metrics for AI-assisted engineering that are hard to inflate through behaviour change alone. Which TWO qualify? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Lines of code accepted from the assistant per engineer per week, aggregated to team level for reporting."
+      },
+      {
+        "key": "B",
+        "text": "Number of assistant sessions started per engineer per week, as a measure of how embedded the tool has become."
+      },
+      {
+        "key": "C",
+        "text": "Change failure rate: the proportion of deployments that require a hotfix, rollback or forward fix."
+      },
+      {
+        "key": "D",
+        "text": "Proportion of pull request descriptions that mention the assistant was used in producing the change."
+      },
+      {
+        "key": "E",
+        "text": "Defect escape rate: the proportion of defects found in production rather than before release."
+      }
+    ],
+    "correct": [
+      "C",
+      "E"
+    ],
+    "explanation": {
+      "correct": "Both keys measure a consequence nobody wants, which is what makes them resistant: an engineer cannot improve either by working differently in front of the tool, only by shipping fewer broken changes. They also cannot be inflated in the flattering direction, because the flattering direction is downward and getting there requires the underlying improvement. That asymmetry is what separates an outcome metric from an activity metric.",
+      "distractors": {
+        "A": "Accepting more suggestions raises this immediately and costs nothing, which is the definition of a gameable metric. It also rewards volume of code, which the organisation does not want more of.",
+        "B": "Session count responds to opening the tool. It measures a habit rather than a result, and it rises fastest when the tool is least useful and engineers are retrying.",
+        "D": "A self-reported field in a text box, trivially satisfied by typing a sentence and equally trivially omitted by someone who does not want to be counted."
+      },
+      "concept": "Metrics resist gaming when improving the number requires the underlying improvement. Prefer outcome measures whose good direction is costly to fake over activity and attribution measures that respond directly to the behaviour being reported.",
+      "tip": "Ask how you would move each number by lunchtime without doing better work. If there is an obvious answer, the metric is an activity count."
+    }
+  },
+  {
+    "id": "DPO-B-069",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Controlling tail cost in an agentic feature",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A commodities trading firm runs an agentic research assistant. Median run cost is modest, but the most expensive 1% of runs cost around 60 times the median, because the agent iterates through many tool calls before terminating. Monthly spend is dominated by that tail, and per-desk budgets are being breached by a handful of runs each month rather than by general usage. Which control addresses this most directly?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Lower each desk's monthly budget so that the existing tail is absorbed within a smaller ceiling and overruns become visible sooner."
+      },
+      {
+        "key": "B",
+        "text": "Enforce a per-run token and step budget, with the agent required to return its best partial result when the budget is reached."
+      },
+      {
+        "key": "C",
+        "text": "Move the assistant to a cheaper model tier so that every run, tail runs included, costs proportionally less than it does today."
+      },
+      {
+        "key": "D",
+        "text": "Alert the desk head whenever a single run exceeds ten times the median cost, so unusually expensive runs get reviewed after the fact."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The distribution is the problem, so the control has to bound the individual run rather than the aggregate. A per-run token and step budget converts an unbounded loop into a bounded one and makes the worst case knowable, which is what per-desk budgets need in order to hold. Returning the best partial result matters as much as the cap: a run terminated with nothing wastes everything spent, while a partial answer plus an explicit note that the budget was reached is usable and tells the team which queries need decomposition.",
+      "distractors": {
+        "A": "A smaller ceiling is breached by the same tail sooner. Nothing about the runs changes, so this converts an occasional overrun into a frequent one.",
+        "C": "A uniform price reduction leaves the shape of the distribution intact, and a weaker model on an agentic task often iterates more, which can lengthen the tail rather than shorten it.",
+        "D": "An alert after a run has completed reports spending that has already happened. It is worth having as a detector, but it cannot stop the run that breaches the budget."
+      },
+      "concept": "In agentic systems cost is long-tailed because loop length is data-dependent. Bound cost per run with token and step budgets and define a graceful partial result at the limit, rather than managing spend only at the aggregate level.",
+      "tip": "When a stem quotes a tail multiple against a median, it is telling you the aggregate controls are the wrong layer. The answer will constrain the individual unit of work."
+    }
+  },
+  {
+    "id": "DPO-B-070",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Hot-fixing a prompt that ships inside the application artefact",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A prompt library ships inside the application artefact. A production prompt defect needs correcting sooner than the normal release train allows. What is the appropriate practice?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Maintain a runtime override store for emergencies, so that any prompt can be replaced without a deploy whenever speed matters more than process."
+      },
+      {
+        "key": "B",
+        "text": "Accept the release train's cadence, since bypassing it is what produced the drift problem that keeping prompts in the artefact was meant to solve."
+      },
+      {
+        "key": "C",
+        "text": "Move the prompt permanently out of the artefact and serve it from configuration, so that hot fixes are always available for this template in future."
+      },
+      {
+        "key": "D",
+        "text": "Use the expedited release path the codebase already has for hot fixes, so the prompt change is still reviewed, versioned and rolled back as one artefact."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The organisation has already solved this problem for code: there is a fast path with reduced ceremony that still produces a reviewed, versioned, revertible artefact. Prompts are code, so they use it. Nothing about a prompt defect requires a mechanism that code defects do not, and routing it through the existing path keeps one deployment history, one rollback unit, and one answer to the question of which prompt was live at a given moment.",
+      "distractors": {
+        "A": "An emergency override store becomes the ordinary path within a quarter, because it is always faster. It reintroduces exactly the divergence between repository and production that the library was built to eliminate.",
+        "B": "Refusing to expedite treats process as the objective. A defect actively producing bad output justifies the fast path, and the fast path exists precisely so that urgency does not force a bypass.",
+        "C": "Restructuring one template's storage during an incident is a design change made under pressure, and it leaves that prompt permanently outside the review and rollback boundary that protects the rest."
+      },
+      "concept": "Treating prompts as code means using the same delivery mechanisms, including the expedited one. Creating a prompt-specific bypass reintroduces the drift that versioning was adopted to prevent.",
+      "tip": "When an option offers a special emergency channel for prompts, ask what stops it becoming the normal channel. Usually nothing does."
+    }
+  },
+  {
+    "id": "DPO-B-071",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Simultaneous degradation across unrelated AI features",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "Within twenty minutes, three unrelated AI features at a logistics platform — route summarisation, customer-email drafting and invoice extraction — all begin producing noticeably worse output. The three are owned by different teams, run on different services, and use entirely different prompts. Error rates, latency and throughput are normal everywhere. What should the incident commander direct first?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Enumerate what the three features share — gateway, model alias, embedding index, redaction middleware — and check each for a change inside that window."
+      },
+      {
+        "key": "B",
+        "text": "Have each owning team investigate its own feature in parallel and report back within thirty minutes, since three teams can cover far more ground than one."
+      },
+      {
+        "key": "C",
+        "text": "Declare a provider-side incident, since simultaneous degradation across unrelated services is characteristic of a change in the underlying model."
+      },
+      {
+        "key": "D",
+        "text": "Roll back the most recent deploy on each of the three services, on the basis that a shared release train may have carried a common library change."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Three independent features degrading inside the same twenty minutes is overwhelming evidence of a single shared cause, and the fastest route to it is enumerating the shared surface rather than guessing which element of it moved. In an AI platform that surface is usually short and easy to check: the gateway, whatever the model alias currently resolves to, a shared embedding or retrieval index, and any common middleware that rewrites prompts or redacts content. One of those has a change in the window, and finding it is minutes of work.",
+      "distractors": {
+        "B": "Three parallel investigations of three symptoms is the most expensive way to find one cause. Each team will reasonably conclude nothing changed on its side, which is true and unhelpful.",
+        "C": "This is one hypothesis from the shared list, adopted before it was tested. It is also the one the team can neither confirm nor fix quickly, so declaring it first tends to stop the search that would have found the real cause.",
+        "D": "Blind rollback of three services with no deploy identified as suspicious introduces three simultaneous changes during an incident and may reverse something unrelated and needed."
+      },
+      "concept": "Correlated failure across independent components implicates the shared substrate. Maintain an explicit inventory of what AI features hold in common — gateway, resolved model, shared indexes, common middleware — so that this enumeration is a lookup rather than a discussion.",
+      "tip": "Simultaneity is the strongest signal in the stem. Any answer that treats the three failures as three problems has discarded the most informative fact you were given."
+    }
+  },
+  {
+    "id": "DPO-B-072",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "First focus for a run team inheriting an AI service",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A run team at a national rail operator is taking ownership of a Claude-based delay-explanation service from the team that built it. Handover completes in two weeks. The run team is experienced at operating conventional services but has never owned an AI system, and the building team is being reassigned immediately afterwards. In the first handover session the run team asks what to concentrate on. What should they establish first?",
+    "options": [
+      {
+        "key": "A",
+        "text": "A complete walkthrough of every prompt template in the service and the reasoning behind each instruction it contains."
+      },
+      {
+        "key": "B",
+        "text": "Which signals tell them the output has gone bad, and which control stops it — ahead of anything about how the internals work."
+      },
+      {
+        "key": "C",
+        "text": "A cost model for the service so they can forecast and defend their operating budget across the first year of ownership."
+      },
+      {
+        "key": "D",
+        "text": "Access to the building team's on-call rota for three months, so anything they cannot resolve can be escalated to the original authors."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The building team disappears in two weeks, so the run team must first be able to detect and contain independently. Detection is the gap their conventional experience does not cover: they know how to read error rates and will not, unprompted, know that this service can be entirely healthy and entirely wrong. Establishing the quality signals and the control that stops the feature makes them safe owners immediately, and everything else — prompts, internals, cost — can be learned incrementally once nothing can go undetected while they learn it.",
+      "distractors": {
+        "A": "Depth without controls produces a team that understands the service and cannot tell when it has broken. Prompt internals are also the part best recovered later from the repository and eval suite, which do not leave with the authors.",
+        "C": "A cost model matters for the budget cycle, not for safe operation from day one. It is also derivable from the platform's existing spend reporting without the building team's help.",
+        "D": "A shared rota is a sensible transition safety net and is not a focus. Relying on reassigned engineers as the primary answer delays real ownership and fails the moment they are unavailable."
+      },
+      "concept": "Operational readiness for an AI service starts with detection and containment: what tells you the output is wrong, and what stops it. Architectural understanding is valuable but recoverable from artefacts; the ability to notice a silent quality failure is not.",
+      "tip": "In handover scenarios, note when the outgoing team leaves. A short window pushes the answer toward capabilities the run team cannot reconstruct alone rather than knowledge sitting in the repository."
+    }
+  }
+]

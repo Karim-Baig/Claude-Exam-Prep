@@ -1,0 +1,456 @@
+[
+  {
+    "id": "SDA-B-019",
+    "domain": "Solution Design & Architecture",
+    "topic": "Idempotency of a handoff that a caller may retry",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A health insurer's prior-authorisation orchestrator delegates the final step — writing the authorisation decision into the claims system — to a subagent holding the write tool. Last week the orchestrator's call to that subagent exceeded its client timeout after the subagent had already written the record. The orchestrator retried, and a second authorisation was created for the same request. The retried subagent ran in a fresh context and had no knowledge of the earlier attempt. What is the correct fix?",
+    "options": [
+      { "key": "A", "text": "Derive an idempotency key from request and step ids, carry it in the handoff, and have the write tool collapse a repeat onto the original record." },
+      { "key": "B", "text": "Have the orchestrator query the claims system for an existing authorisation on that request id before it retries, and skip the retry if one is found." },
+      { "key": "C", "text": "Raise the orchestrator's client timeout from 30 to 120 seconds so that slow writes complete before the retry is triggered." },
+      { "key": "D", "text": "Add an instruction to the subagent's prompt and to its handoff brief telling it never to create an authorisation that already exists." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The detail that decides this is that the retried subagent runs in a fresh context: it cannot know about the first attempt, so no amount of instruction or self-awareness will help. The duplicate must be prevented where the state change happens. A key derived deterministically from the request and step means the same logical operation produces the same key on every attempt, and the write tool can collapse repeats into the original result. That makes the handoff safe to retry at any level — orchestrator, queue redelivery, or an operator replaying a failed run.",
+      "distractors": {
+        "B": "A check-then-write across two calls has a race between them, and the retry path is exactly where concurrent attempts are likely. It also fails when the first write succeeded but has not yet become visible to the query, which is a common shape for the timeout that started this incident.",
+        "C": "A longer timeout reduces how often the race is triggered without removing it. Any retry mechanism anywhere in the stack — a queue redelivery, a manual replay — reintroduces the duplicate, and the timeout is now worse for genuine failures.",
+        "D": "This asks the model to avoid repeating an action it has no memory of. Context isolation means the retried subagent's window contains nothing about the first run, so the instruction is unactionable even if the model wanted to comply."
+      },
+      "concept": "Any handoff that can be retried must be idempotent at the point of state change, using a key the caller derives deterministically rather than one the callee invents. Because subagents run in fresh contexts, a retried branch cannot detect its own earlier attempt; deduplication has to live in the tool or the system of record.",
+      "tip": "When a stem mentions that the retried agent \"ran in a fresh context\", it is eliminating every option that relies on the agent remembering or checking its own history. Treat it as an explicit hint."
+    }
+  },
+  {
+    "id": "SDA-B-020",
+    "domain": "Solution Design & Architecture",
+    "topic": "Insufficiency of self-declared task completion",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Why should an agent's own statement that it has finished never be the sole termination condition for an autonomous loop in production?",
+    "options": [
+      { "key": "A", "text": "Because the platform does not expose a stop-reason value on the final turn that a caller's control loop can act on." },
+      { "key": "B", "text": "Because the completion statement consumes output tokens from the same budget the model would otherwise spend on the answer itself." },
+      { "key": "C", "text": "Because a model cannot emit a completion signal until the harness has let it consume its entire iteration budget." },
+      { "key": "D", "text": "Because completion is an unverified self-assessment: the loop can end on a task that was abandoned, misunderstood or half done." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Self-declared completion conflates two different things — the model has stopped producing work, and the work is actually done. In production only the second matters, and only an external check can establish it: the file exists, the record validates, the required fields are populated, the test passes. Pairing the model's signal with a verifiable success predicate turns an opinion into a checkable condition, and gives the loop something to do when the predicate fails rather than exiting quietly on a half-finished task.",
+      "distractors": {
+        "A": "Callers do receive a signal that generation ended; the problem is what that signal means. Knowing the model stopped tells you nothing about whether the objective was achieved.",
+        "B": "Output-token cost of a completion statement is negligible and is not why the practice is unsafe. This substitutes a trivial efficiency point for a correctness one.",
+        "C": "There is no such relationship. Agents commonly declare completion early, which is precisely the failure being described."
+      },
+      "concept": "Termination needs a success predicate the harness can evaluate, not just an assertion the model can make. Design each agent task so \"done\" is observable in state — an artefact written, a schema validated, a check passed — and reserve the model's own signal as a hint that the predicate should now be evaluated.",
+      "tip": "Recall items about termination reward the answer that separates the model's claim from externally observable state. Options citing platform mechanics or token economics are usually filler."
+    }
+  },
+  {
+    "id": "SDA-B-021",
+    "domain": "Solution Design & Architecture",
+    "topic": "Sizing subagent returns to protect the orchestrator window",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A broadcaster's archive-clearance system fans out to eight subagents, each investigating rights for a different footage segment. Each returns a discursive report of several thousand words. By the time the eighth return arrives, the orchestrator is producing clearance decisions that contradict the constraints stated in its own opening instructions, and reviewers notice the earliest segments being handled worst. The eight investigations must all continue to happen. What is the right change?",
+    "options": [
+      { "key": "A", "text": "Have the orchestrator summarise each report to a few hundred words as it arrives, so only the summaries accumulate in its own window." },
+      { "key": "B", "text": "Reduce the fan-out to four subagents per request and run two sequential rounds, halving the peak accumulation in the window." },
+      { "key": "C", "text": "Constrain each return to a fixed schema with a per-field size budget, and have subagents write their notes to an artefact store and return a reference." },
+      { "key": "D", "text": "Move the orchestrator to a model with a one-million-token context window so all eight discursive reports fit comfortably alongside its own instructions." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The symptom — instructions honoured worse as the window fills, with the earliest material degrading first — is the orchestrator drowning in returns. The economical place to fix that is at the source, because the subagent already knows which parts of its investigation matter and it is the only component that can compress without reading everything twice. A schema with a size budget makes the return cost predictable and lets the orchestrator's window stay dominated by the decision rules, while the reference preserves the full reasoning for audit and for the rare case where detail is needed.",
+      "distractors": {
+        "A": "Summarising on arrival still requires the orchestrator to read every full report first, so the tokens are spent and the compression happens after the cost is incurred. It adds a model call per branch to solve a problem that a return contract prevents for free.",
+        "B": "Two sequential rounds double the wall-clock time for the same work and only halve the peak accumulation. Four multi-thousand-word reports still crowd the instructions, so the failure returns at a lower fan-out.",
+        "D": "A larger window raises the ceiling without changing the trend. Long, low-density context degrades instruction-following well before it hits any hard limit, and this design will grow into whatever headroom it is given."
+      },
+      "concept": "The return leg of a handoff needs a budget as much as the request leg. Specify the shape and maximum size of what a subagent may send back, and give it somewhere to put everything else. An orchestrator's window should hold decisions and constraints, not the raw material its branches were created to absorb.",
+      "tip": "\"Earliest items handled worst as the run progresses\" is a context-saturation signature. It points at the volume of material entering the window, not at the model tier or the branch count."
+    }
+  },
+  {
+    "id": "SDA-B-022",
+    "domain": "Solution Design & Architecture",
+    "topic": "Partial-failure contract for a fan-out step",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "Branches in a fan-out occasionally fail — a data source is down, a tool times out — and the aggregate is produced from whatever returned. Which TWO elements make that partial-failure behaviour defensible in production? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "The aggregate result carries a machine-readable field naming which branches failed and the class of failure." },
+      { "key": "B", "text": "The orchestrator retries any failed branch continuously until it succeeds, so the aggregate is always complete." },
+      { "key": "C", "text": "The design states, per branch, whether its absence is tolerable or must abort the whole request." },
+      { "key": "D", "text": "The orchestrator substitutes its own best estimate for a failed branch so the output keeps a consistent shape." },
+      { "key": "E", "text": "Raw error output from failed branches is appended to the aggregate so downstream consumers can debug it." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "Two properties turn ad-hoc degradation into a contract. First, the consumer must be able to tell that the result is partial and in what way — a structured field naming the failed branches and their failure class, so downstream logic can branch on it rather than a human noticing later. Second, tolerability has to be decided per branch at design time: a missing flood-risk lookup may be fatal to a quote where a missing marketing-preference lookup is not, and only the designer knows which. Together they make partial results explicit and bounded rather than silent.",
+      "distractors": {
+        "B": "Unbounded retry converts an availability problem into a hung request and an unbounded bill. Retry belongs in the contract with a fixed budget, after which the branch is failed — the point is to have a defined outcome, not to insist on success.",
+        "D": "A synthesised substitute is the most dangerous option available: it makes an incomplete result indistinguishable from a complete one, in a document a customer will be priced against. Preserving output shape is never worth manufacturing input.",
+        "E": "Raw error text bloats the aggregate, leaks internals to consumers, and is unstructured. Carry a failure class and a correlation id in the result and keep the detail in logs where it can be looked up."
+      },
+      "concept": "Every fan-out needs an explicit partial-failure contract: which branches are required, which are optional, how failure is represented in the aggregate, and what the retry budget is. Without one, the system silently invents a policy at runtime, and that policy is usually \"proceed and say nothing\".",
+      "tip": "For partial-failure items, ask whether each option makes the incompleteness visible and bounded. Anything that hides it — substitution, unlimited retry, or shape preservation — is wrong regardless of how tidy it looks."
+    }
+  },
+  {
+    "id": "SDA-B-023",
+    "domain": "Solution Design & Architecture",
+    "topic": "Boundary contracts that localise a quality regression",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An agritech company runs a crop-advisory system as four chained agents: field-data interpretation, pest-risk assessment, treatment-option selection, and advisory drafting. After a release, growers report worse advice. The team has end-to-end quality scores and a full request trace, but three days of investigation has not established which agent changed behaviour, because each agent's input is the previous agent's free-text output. What should the architecture add?",
+    "options": [
+      { "key": "A", "text": "Broaden the end-to-end evaluation set with several hundred grower cases so more of them exercise each part of the chain." },
+      { "key": "B", "text": "Define a versioned, structured contract at each agent boundary and capture its inputs and outputs per request, so any stage can be replayed alone." },
+      { "key": "C", "text": "Raise trace verbosity to debug level so every intermediate message and tool call is recorded in full for each request." },
+      { "key": "D", "text": "Consolidate the four agents into one prompt so there is only one component whose behaviour can change between releases." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The blocker is that free-text interfaces make each stage's correctness undefinable in isolation: you cannot say a stage regressed without a statement of what it was supposed to produce. A structured contract at each boundary supplies that statement, and capturing the boundary values per request makes any stage replayable with real production inputs. Versioning the contract also tells you immediately when the regression is an interface change rather than a behaviour change. This is a design property, not a tooling one — no volume of tracing supplies a specification that was never written.",
+      "distractors": {
+        "A": "More end-to-end cases raise confidence that something is wrong without localising it. End-to-end scores are the right top-level signal and the wrong instrument for attribution in a four-stage chain.",
+        "C": "The team already has a full trace. Verbosity gives more text about the same undifferentiated pipeline; without a contract there is still no definition of correct output for any individual stage.",
+        "D": "Collapsing the chain removes the attribution problem by removing the components, along with whatever isolation and tier choices motivated the split. It also makes future regressions harder to reason about, not easier, since everything now happens in one opaque step."
+      },
+      "concept": "A multi-agent system is only as debuggable as its interfaces. Every boundary should carry a versioned contract and have its values captured per request, so each agent can be exercised, scored and replayed independently. Free-text handoffs make the whole pipeline a single untestable unit no matter how many agents are drawn on the diagram.",
+      "tip": "When a stem stresses that observability already exists and the team still cannot localise a fault, the missing thing is a specification, not more data. Look for the option that defines correctness at a boundary."
+    }
+  },
+  {
+    "id": "SDA-B-024",
+    "domain": "Solution Design & Architecture",
+    "topic": "Detecting delegation cycles between agents",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A tax authority's assessment system has a case-analysis agent that can delegate document extraction to an extraction agent, and an extraction agent that can delegate back to the case-analysis agent when a clause needs legal interpretation. Both delegations are legitimate and used regularly. In production, some cases ping-pong between the two until the global iteration cap fires, with each hop re-reading the same document. What should be added?",
+    "options": [
+      { "key": "A", "text": "Carry the delegation path in each handoff and refuse to invoke an agent already on it; a callee needing an ancestor returns a typed request." },
+      { "key": "B", "text": "Remove the extraction agent's ability to delegate, so every clause interpretation happens in the case-analysis agent before extraction is called." },
+      { "key": "C", "text": "Lower the global iteration cap to eight hops per case, so ping-pong runs terminate sooner and cost less." },
+      { "key": "D", "text": "Cache the extracted document text under the case id so repeated hops do not re-read it, removing most of the loop's token cost." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Mutual delegation between two agents is a cycle in the call graph, and cycles are prevented the same way here as anywhere else: by knowing the path you arrived on and refusing to re-enter a node already on it. Carrying the path in the handoff costs almost nothing and makes the rule enforceable in the runtime. The second half matters just as much — the callee still has a genuine need, so it must have a non-delegating way to express it. Returning a typed request lets the ancestor, which already holds the surrounding context, resolve it in one step instead of a new descent.",
+      "distractors": {
+        "B": "This removes a capability the stem says is legitimate and regularly used. Interpretation requests would now have to be anticipated by the caller before extraction runs, which is exactly the information it does not have yet.",
+        "C": "A lower cap makes the pathology cheaper without making it stop happening, and it truncates the complex cases that genuinely need many iterations. Caps are a backstop; they are not a substitute for cycle detection.",
+        "D": "Caching removes some of the cost while leaving the loop in place. The run still consumes iterations and still ends at the cap without an answer, and now it does so faster."
+      },
+      "concept": "Once agents can invoke each other in both directions, you have a graph, not a tree, and it needs the controls a graph needs: a path carried with each call, refusal to re-enter an active node, and a non-recursive channel for a callee to ask something of its caller. Depth limits alone do not detect cycles.",
+      "tip": "Distinguish depth from cycles. A depth cap bounds cost; only path tracking prevents the loop. If a stem describes two components calling each other, the answer involves knowing where the call came from."
+    }
+  },
+  {
+    "id": "SDA-B-025",
+    "domain": "Solution Design & Architecture",
+    "topic": "Strongest rationale for a narrower subagent tool allowlist",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "What is the strongest reason to give a subagent a tool allowlist strictly narrower than its caller's?",
+    "options": [
+      { "key": "A", "text": "It reduces the tokens spent re-sending tool definitions in every subagent request, which adds up across a wide fan-out." },
+      { "key": "B", "text": "It shortens the subagent's turnaround, because a shorter tool list gives the model fewer candidate calls to weigh at each step." },
+      { "key": "C", "text": "It bounds what the branch can do if its brief is misread or its input subverts it, keeping the damage inside its own scope." },
+      { "key": "D", "text": "It keeps the orchestrator's tool set stable so the caller's cached request prefix remains valid and reusable across turns." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Least privilege at an agent boundary is a containment control. A branch working on untrusted or ambiguous input will occasionally do something unintended, and the only durable question is how much it can reach when it does. Narrowing the allowlist makes the worst outcome of a misbehaving branch a bounded, reviewable one rather than an open-ended one. The token and latency effects are real but incidental — you would still narrow the allowlist if they were zero, and you would not widen it to save tokens.",
+      "distractors": {
+        "A": "Fewer tool definitions do trim the request, but this is a marginal efficiency, not a reason. It would never justify the design work on its own, and it collapses if the tool schemas happen to be small.",
+        "B": "Choice among tools is not the dominant cost in a branch's turnaround, and a narrower list can lengthen a run if the agent has to work around a missing capability.",
+        "D": "Prefix stability is a caching consideration for the caller's own requests and is unaffected by what the callee is allowed to do."
+      },
+      "concept": "Treat each agent boundary as a privilege boundary and grant the minimum capability the brief requires. Blast radius, not efficiency, is the reason. A subagent that only reads should hold no tool that writes, regardless of how convenient a shared tool set would be.",
+      "tip": "\"Strongest reason\" items often list two or three true-but-minor effects alongside the principled one. Pick the reason that would still hold if the incidental benefits vanished."
+    }
+  },
+  {
+    "id": "SDA-B-026",
+    "domain": "Solution Design & Architecture",
+    "topic": "Bulk context duplicated across every branch",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A mining group assesses permit applications with six subagents, one per site under a single application. Each subagent receives the same forty-page environmental policy plus its own site dossier, which is itself large and different for every site. Cost per application is far higher than modelled. Profiling shows the shared policy text accounts for most of the input tokens across the six branches. What is the right structural change?",
+    "options": [
+      { "key": "A", "text": "Give each subagent a retrieval tool that fetches the forty-page policy on demand at the start of its run, instead of receiving it in the handoff." },
+      { "key": "B", "text": "Merge the six subagents into one agent that reads the policy once and assesses all six sites in a single pass." },
+      { "key": "C", "text": "Increase each subagent's context allowance so the policy and the site dossier fit together in one window without truncation." },
+      { "key": "D", "text": "Extract the policy provisions relevant to this application once, and pass the short extract into each of the six handoffs with the site dossier." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Splitting work only saves context when each branch's context is different. Here the largest single input is identical across all six branches, so the split is multiplying it rather than isolating it. Extracting the relevant provisions once converts that shared bulk into a small artefact that can be duplicated cheaply, and it happens in a place where the extraction can be reviewed and reused. The site dossiers remain per-branch and genuinely benefit from isolation, so the boundary survives — it is only the shared material that moves.",
+      "distractors": {
+        "A": "An on-demand fetch changes when the tokens are spent, not how many. Whatever the tool returns still lands in the subagent's window six times, and now there is a tool round trip per branch as well.",
+        "B": "Merging collapses six large, distinct site dossiers into one window, which is precisely the material the split exists to keep apart. It solves the shared-policy duplication by creating a much worse per-request context problem.",
+        "C": "Nothing in the stem says anything is being truncated. Raising the allowance leaves the duplicated policy tokens in place and does not touch the cost the team is trying to reduce."
+      },
+      "concept": "Before splitting a task across agents, ask what fraction of each branch's context is unique to that branch. Fan-out duplicates everything shared and isolates only what differs; when the shared portion dominates, reduce it once at the top and pass a compact derivative down.",
+      "tip": "Profiling data in a stem is the answer key. Once you are told the shared input dominates the token count, only options that reduce the shared input can matter."
+    }
+  },
+  {
+    "id": "SDA-B-027",
+    "domain": "Solution Design & Architecture",
+    "topic": "Bounding tail latency caused by a straggler branch",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A satellite-imagery provider fans out to six analysis subagents per customer request. Five typically return in a few seconds; one reads a much larger tile set and is routinely the last to finish, so it sets the request's p95 on its own. The slowness is workload, not variance — the same branch is slow every time. Product will accept a result without that branch's contribution if the gap is stated. Which TWO changes bound tail latency without corrupting the result? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Raise the request-level deadline until the large-tile branch usually completes within it." },
+      { "key": "B", "text": "Give every branch its own deadline and return a typed timeout result for any branch that exceeds it." },
+      { "key": "C", "text": "Issue duplicate copies of all six branches on separate workers and use whichever copy of each returns first." },
+      { "key": "D", "text": "Mark that branch optional in the fan-out contract, so the aggregate can be produced without it and names the missing contribution." },
+      { "key": "E", "text": "Have the orchestrator generate a substitute contribution for any branch that has not returned when the deadline passes." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "Bounding a tail means deciding in advance what happens when a branch is late, and then being able to ship a result anyway. A per-branch deadline gives the first: the request's duration stops depending on the slowest participant, and the timeout becomes a value the aggregator can reason about instead of a hang. Declaring the branch optional gives the second: the contract now says a result without that contribution is valid provided the gap is disclosed, which is exactly the trade product has agreed to. Both changes keep the aggregate honest about what it contains.",
+      "distractors": {
+        "A": "Extending the deadline moves the p95 up rather than bounding it, which is the opposite of the goal. It also makes every request wait for the slowest workload, including the many where the branch adds little.",
+        "C": "Hedged duplicate requests help when slowness comes from variance. The stem says it comes from the size of the workload, so the duplicate is slow for the same reason, and the design pays twice for every branch to fix one.",
+        "E": "A manufactured contribution destroys the property that makes the partial result acceptable. Product agreed to a result with a stated gap, not to a result containing content no branch produced."
+      },
+      "concept": "In a fan-out, the request is as slow as its slowest required branch. Bound the tail with per-branch deadlines that yield typed results, and make the aggregate's completeness contract explicit so a missing optional branch is a declared gap rather than a hidden one. Hedging only helps when the delay is variance.",
+      "tip": "Note whether the stem attributes slowness to variance or to workload. Duplicate-and-race is a correct technique for the first and a waste of money for the second; exam items rely on you reading which one you were given."
+    }
+  },
+  {
+    "id": "SDA-B-028",
+    "domain": "Solution Design & Architecture",
+    "topic": "Eliminating duplicated tool calls across branches",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "An international NGO screens grant applicants with two subagents running concurrently: one assesses financial standing, one assesses programme history. Both begin by calling the same external charity-registry lookup for the applicant, a metered per-call service. Roughly 40% of the system's registry spend is duplicate calls for the same organisation, and because the two branches start simultaneously the duplicates are always in flight at the same time. What should the team do next?",
+    "options": [
+      { "key": "A", "text": "Add a shared response cache keyed on the lookup arguments so the second branch reuses the first branch's result." },
+      { "key": "B", "text": "Perform the registry lookup once in a pre-step before fan-out, and pass the result into both handoffs." },
+      { "key": "C", "text": "Instruct each subagent to check whether the other branch is likely to need the same lookup and to skip it if so." },
+      { "key": "D", "text": "Merge the two subagents into one screening agent so the registry lookup naturally happens only once per applicant." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The lookup is a shared prerequisite of both branches and depends only on inputs known before fan-out, so it belongs above the split. Hoisting it makes the duplicate structurally impossible rather than probabilistically avoided, removes an external dependency from two branches at once, and gives both branches identical registry data — which also removes a source of inconsistency between their conclusions. It costs one sequential call before the parallel section, which is cheap against a 40% reduction in metered spend.",
+      "distractors": {
+        "A": "A cache is the reflexive answer and it does not work under the timing the stem describes. Both branches start together, so the second call is issued before the first has returned and there is nothing to hit; you would need request coalescing, which is more machinery than simply doing the call once.",
+        "C": "This asks each branch to predict another branch's behaviour from inside an isolated context where it cannot observe it. Skipping on a guess also risks neither branch performing the lookup at all.",
+        "D": "Merging removes the duplicate by removing the parallelism and the context isolation between two genuinely different assessments. That is a large architectural concession to avoid one redundant call."
+      },
+      "concept": "Work that every branch performs identically, on inputs known before the split, belongs before the split. Fan-out should begin at the point where the branches' inputs actually diverge; anything hoisted above that point is paid for once and keeps the branches consistent with each other.",
+      "tip": "Concurrency details in a stem are load-bearing. \"Always in flight at the same time\" is there to disqualify the cache, which would otherwise be a perfectly good answer."
+    }
+  },
+  {
+    "id": "SDA-B-029",
+    "domain": "Solution Design & Architecture",
+    "topic": "Non-deterministic branch ordering at aggregation",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A transit authority's service-disruption assistant fans out to five subagents and synthesises their returns into a passenger advisory. Identical inputs replayed an hour apart produce advisories that emphasise different causes and occasionally reverse the recommended alternative route. Investigation shows the branches are appended to the aggregator's prompt in completion order, which varies run to run. Throughput requirements rule out running the branches sequentially. What is the most effective next step?",
+    "options": [
+      { "key": "A", "text": "Assemble the aggregator's input in canonical branch order rather than arrival order, so the same set of returns always produces the same prompt." },
+      { "key": "B", "text": "Set the aggregator's sampling temperature to zero, treating that as a determinism guarantee for the synthesis step." },
+      { "key": "C", "text": "Add a judge agent that generates two candidate advisories, compares them against the five branch returns, and selects the better one." },
+      { "key": "D", "text": "Have each subagent stamp its return with a completion timestamp so the aggregator can record the true ordering in the trace." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The variance has been traced to the input, not the model: two runs with the same branch results are producing two different prompts because the ordering differs. Normalising the assembly removes that variable entirely and costs nothing, since the aggregator has no legitimate reason to care which branch happened to finish first. Ordering effects on synthesis are real — material earlier in a long prompt is weighted differently from material later — so a stable order also makes the aggregator's behaviour something you can evaluate and regression-test.",
+      "distractors": {
+        "B": "Lowering temperature reduces sampling variance while leaving prompt variance untouched: two different prompts will still yield two different advisories, so the reversals persist and are now harder to attribute. Temperature 0 is not a determinism guarantee either — it makes sampling greedy, not the service bit-for-bit reproducible.",
+        "C": "A judge adds cost and another nondeterministic component on top of an input defect that has already been identified. Choosing between two unstable outputs does not make either of them stable.",
+        "D": "Recording completion times documents the nondeterminism rather than removing it. Arrival order is an artefact of scheduling and has no bearing on how the advisory should be composed."
+      },
+      "concept": "Aggregation must be a deterministic function of the set of branch results, not of the order they arrived in. Sort into a canonical order, use a fixed template, and treat arrival time as scheduling metadata. Otherwise the same evidence produces different answers and no eval or regression suite is trustworthy.",
+      "tip": "When a stem has already localised the cause of variance, the answer removes that cause. Options that reduce variance somewhere else — temperature, judges, extra passes — are distractors even though each is a real technique."
+    }
+  },
+  {
+    "id": "SDA-B-030",
+    "domain": "Solution Design & Architecture",
+    "topic": "Who owns the user channel in a multi-agent run",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A staffing firm's candidate-screening system runs two subagents that can each prompt the recruiter directly when they need clarification. Recruiters report being asked interleaved questions from what appears to be one assistant, sometimes contradictory, and the compliance team cannot reconstruct which component asked for which piece of information. Mid-run clarification is genuinely needed and cannot simply be removed. How should this be restructured?",
+    "options": [
+      { "key": "A", "text": "Serialise access to the recruiter with a lock so only one subagent may hold the conversation at a time, queueing the other." },
+      { "key": "B", "text": "Give each subagent its own labelled conversation thread with the recruiter, so the source of every question is clear in the transcript." },
+      { "key": "C", "text": "Have subagents return a typed \"clarification required\" result to the orchestrator, which owns the only user channel and decides how to resolve it." },
+      { "key": "D", "text": "Allow subagents to proceed on their best assumption and mark the affected conclusions as low confidence for the recruiter to review at the end of the run." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Interleaved and contradictory questions are the visible symptom of two agents each believing they are the assistant. Making clarification a return value rather than a side effect puts one component in charge of the human interaction: it can deduplicate questions, answer some from context the branches never had, batch the rest into one coherent exchange, and log every question against the request. It also keeps the subagents composable — a component that blocks on a human cannot be reused in a batch or automated path, whereas one that returns a typed request can.",
+      "distractors": {
+        "A": "A lock stops the interleaving and leaves everything else: the recruiter still receives unrelated questions from an unidentified source, contradictions still surface serially, and the audit gap remains. It also introduces branches blocked on a human holding a lock.",
+        "B": "Multiple threads make the plumbing visible to the user, which is worse rather than better, and multiply the recruiter's workload. Users should see one assistant regardless of how many agents implement it.",
+        "D": "Assuming and flagging is a reasonable fallback when no human is available, but the stem says clarification is genuinely needed. This trades a coordination problem for a quality problem and pushes the reconciliation onto the recruiter at the end."
+      },
+      "concept": "Exactly one component should own the channel to the human. Subagents express the need for input as a typed result and let the orchestrator decide how and whether to satisfy it. Agents that perform I/O with users as a side effect cannot be composed, batched, tested offline, or audited coherently.",
+      "tip": "Any option that lets several agents write to the same external channel — a user, a ticket, a shared document — should be suspect. Centralise the channel and make the need for it a value that travels through the handoff."
+    }
+  },
+  {
+    "id": "SDA-B-031",
+    "domain": "Solution Design & Architecture",
+    "topic": "Versioning a shared artefact between producing and consuming agents",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "At an automotive tier-one supplier, a defect-triage agent writes a structured part-risk record to a shared store, and three downstream agents consume it. A release renamed two fields in that record. The downstream agents did not error; they produced confident assessments with the renamed data missing, and the gap was found six days later in a quality review. Which TWO changes should the team make to the shared artefact? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Version the record schema explicitly and have consumers reject a version they do not recognise, raising a typed error rather than proceeding." },
+      { "key": "B", "text": "Run a compatibility window in which the producer emits both the old and the new field names until every consumer has been migrated." },
+      { "key": "C", "text": "Have consuming agents inspect the record at runtime and adapt to whatever fields are present, skipping any they do not recognise." },
+      { "key": "D", "text": "Freeze the record schema under change control so that no future release is able to rename or remove one of its fields." },
+      { "key": "E", "text": "Pass the record through the orchestrator's conversation instead of the shared store, so no external contract is needed between the agents." }
+    ],
+    "correct": ["A", "B"],
+    "explanation": {
+      "correct": "The damage came from a silent mismatch: the consumers had no way to notice that the artefact they received was not the artefact they were written against. An explicit version plus a rejection rule converts that into a loud, typed failure at the first request rather than a quality finding six days later. The compatibility window then makes the change deployable without a lockstep release, because the producer satisfies both the old and the new contract while consumers migrate at their own pace. Together they give you detection and a safe migration path.",
+      "distractors": {
+        "C": "Runtime adaptation is what already happened, informally: the consumers coped with missing fields and produced plausible output. Tolerating unknown shapes is precisely the behaviour that let a breaking change pass unnoticed.",
+        "D": "A frozen schema is not a governance control, it is a deferral. The requirement to change will arrive anyway and will be met by an out-of-band workaround, which is harder to see than a versioned change.",
+        "E": "Moving the artefact into conversation state removes the store, not the contract. The consumers still depend on a particular shape, and now the dependency is undocumented and unversioned as well as implicit."
+      },
+      "concept": "Shared state between agents is a published interface and needs interface discipline: an explicit version on the artefact, consumers that fail loudly on versions they do not understand, and dual-emission windows for migration. Silent tolerance of unexpected shapes converts breaking changes into quality defects found weeks later.",
+      "tip": "\"No error, but wrong output, discovered much later\" is the signature of a missing contract check. The fix is always to make the mismatch detectable at the boundary, not to make the consumer more forgiving."
+    }
+  },
+  {
+    "id": "SDA-B-032",
+    "domain": "Solution Design & Architecture",
+    "topic": "What belongs in shared state versus agent-private state",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A construction consultancy runs a long-lived multi-agent job that produces a tender review over several hours, during which individual agents are occasionally restarted after infrastructure faults. The team is deciding what to place in the job's shared store. Which TWO items belong there rather than in each agent's private context? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Each agent's full intermediate reasoning transcript, so any agent can inspect how another reached its position." },
+      { "key": "B", "text": "The canonical task plan and its per-step completion state, so the job can resume correctly after an agent is restarted." },
+      { "key": "C", "text": "Each agent's tool credentials, so that any surviving agent can take over a failed peer's work after a restart." },
+      { "key": "D", "text": "The orchestrator's system prompt, so every agent on the job shares identical framing and house style." },
+      { "key": "E", "text": "Versioned, immutable output artefacts that downstream agents are contractually required to consume." }
+    ],
+    "correct": ["B", "E"],
+    "explanation": {
+      "correct": "Shared state earns its complexity when something must survive an individual agent, and only two items here qualify. The plan and its completion state are the job's durable identity: without them a restarted agent cannot know what has already been done, and work is either repeated or skipped. Versioned output artefacts are the deliberate, contracted interface between agents — immutable, so a consumer cannot be surprised mid-read, and versioned, so a change is detectable. Everything else in the list is either private by nature or a coupling you would have to unpick later.",
+      "distractors": {
+        "A": "Publishing reasoning transcripts creates the largest possible coupling surface for the least benefit: consumers begin depending on another agent's working notes, which have no contract and change with every prompt edit. Share conclusions with provenance, not deliberation.",
+        "C": "Shared credentials collapse the privilege boundaries that justify separate agents. Failover should re-run a branch under its own identity, not let an arbitrary agent borrow another's authority.",
+        "D": "Identical framing across agents is not a goal — divergent, task-specific framing is one of the reasons to have several agents. A prompt is configuration and belongs with the agent's definition, not in runtime job state."
+      },
+      "concept": "Put something in shared state only if it must outlive an individual agent or forms a contracted interface between agents: durable plan and progress, and versioned immutable artefacts. Keep reasoning, prompts and credentials private. Every additional shared item is a coupling that constrains how each agent may change.",
+      "tip": "Test each candidate for shared state with one question: would a restart or a redesign of one agent break another because of it? If sharing creates that dependency without a contract, it belongs private."
+    }
+  },
+  {
+    "id": "SDA-B-033",
+    "domain": "Solution Design & Architecture",
+    "topic": "Deterministic step implemented as an agent",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A cold-chain logistics platform has a \"unit reconciliation agent\" in its pipeline whose entire job is converting pallet counts to gross weight using a fixed conversion table, then returning the total. It occasionally returns a figure that is slightly off, and it adds a round trip to every request. What should the architect do?",
+    "options": [
+      { "key": "A", "text": "Keep the agent but pin its sampling temperature to zero so the arithmetic stops varying between identical requests." },
+      { "key": "B", "text": "Keep the agent but move it to the cheapest available tier, since a table lookup needs no reasoning capability." },
+      { "key": "C", "text": "Keep the agent and add an evaluation suite covering every row of the conversion table so drift is caught in CI." },
+      { "key": "D", "text": "Replace it with a deterministic function exposed as a tool to the calling agent, removing the model from the step." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Looking a value up in a fixed table and multiplying it out has exactly one correct answer, known in advance, with no interpretation involved. Delegating that to a model buys nothing and costs three things: a round trip of latency, tokens, and a small but non-zero error rate on a figure that downstream shipping documents depend on. Turning it into a function the parent agent calls makes it exact, instant and free, and it shrinks the agent roster — which is worth doing on its own, because every agent in a system is something to monitor, evaluate and version.",
+      "distractors": {
+        "A": "Zero temperature reduces variability without guaranteeing arithmetic correctness, and it leaves the latency and cost of the extra hop untouched. Reaching for a sampling parameter to make a calculation reliable is a sign the calculation should not be sampled at all.",
+        "B": "A cheaper tier lowers the price of an unnecessary call and typically raises the error rate on the exact thing that is already going wrong. The step's cost is not the primary complaint.",
+        "C": "Evaluating a deterministic conversion is effort spent proving that a model can do what a two-line function does correctly by construction. Reserve eval capacity for the steps where judgement is actually exercised."
+      },
+      "concept": "Only give a step to an agent if it needs judgement, interpretation, or open-ended tool use. Deterministic transformations, lookups and arithmetic belong in code called as tools. Every agent you remove takes with it a round trip, a failure mode, and a component that would otherwise need monitoring and evaluation.",
+      "tip": "If you can write the acceptance test as an exact expected value for every input, the step does not need a model. Options that tune, downgrade or evaluate the agent are all avoiding that conclusion."
+    }
+  },
+  {
+    "id": "SDA-B-034",
+    "domain": "Solution Design & Architecture",
+    "topic": "Deduplicating overlapping results across search branches",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A litigation team runs three retrieval subagents over the same document corpus, each using a different strategy: keyword, semantic similarity, and metadata-driven. Their result sets overlap heavily, and the aggregator concatenates them before summarising. Associates have started citing \"the volume of corroborating documents\" in memos, and one privileged document that two branches returned was reported as two separate items. The corpus cannot be partitioned between the strategies, because each strategy is meant to sweep all of it. What should the aggregation step do?",
+    "options": [
+      { "key": "A", "text": "Instruct each branch to avoid returning documents the other two strategies are likely to have surfaced already." },
+      { "key": "B", "text": "Deduplicate on stable document identity at aggregation, keeping one entry per document with the branches that found it." },
+      { "key": "C", "text": "Add an instruction to the aggregator's prompt telling it to remove duplicate documents from the concatenated set before summarising." },
+      { "key": "D", "text": "Rank the three branches by historical precision and keep only the highest-ranked branch's copy of any document it returned." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Two defects share one root cause: the aggregate treats a retrieval hit as the unit of counting when the document is the unit that matters. Deduplicating on stable identity fixes the miscount and the double-reported privileged item at once. Keeping the list of branches that found each document is the part that preserves value rather than discarding it — three independent strategies converging on one document is meaningful signal, but it is a property of that document, not evidence of three documents. The associates then get a defensible corroboration measure instead of an inflated count.",
+      "distractors": {
+        "A": "A branch cannot know what its concurrent peers have found, and asking it to guess would suppress genuine hits. Overlap between complementary retrieval strategies is intended behaviour; the problem is how it is counted afterwards.",
+        "C": "Deduplication by identity is a set operation and should be done in code, where it is exact and cheap. Asking the model to do it makes an auditable property of a legal work product depend on how carefully it compared long documents.",
+        "D": "Discarding a branch's copy throws away exactly the information that makes the aggregate trustworthy — that more than one strategy independently surfaced the document. It also introduces a ranking that would need its own maintenance and justification."
+      },
+      "concept": "Aggregate on entity identity, not on returned items, whenever branches can surface the same thing. Collapse duplicates in code and retain the set of branches that produced each entity as provenance. Overlap is then a confidence signal rather than an inflated count, and downstream consumers can reason about both.",
+      "tip": "When a stem shows a count being used as evidence, check whether the counted unit is unique. Inflated corroboration from overlapping branches is a classic multi-agent aggregation defect."
+    }
+  },
+  {
+    "id": "SDA-B-035",
+    "domain": "Solution Design & Architecture",
+    "topic": "Risk of unmediated agent-to-agent conversation",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "What is the principal architectural risk of letting subagents converse directly with each other instead of exchanging results through the orchestrator?",
+    "options": [
+      { "key": "A", "text": "Direct agent-to-agent exchanges cannot carry structured payloads, so the agents are limited to unstructured natural-language text." },
+      { "key": "B", "text": "Each pairwise exchange requires its own tool definitions on both sides, which raises the token cost of every branch." },
+      { "key": "C", "text": "Agents that talk to each other directly must all run on the same model tier for the duration of the exchange." },
+      { "key": "D", "text": "No single component bounds the interaction, so turn counts, spend and termination become emergent rather than controlled." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Routing every exchange through one component is what makes a multi-agent system governable. The orchestrator is where iteration counts, budgets, deadlines and stopping rules are applied, and where the trace of who asked whom for what is recorded. Once agents talk to each other directly, no single component knows how long the interaction has been running or what it has cost, so the natural failure is a pair of agents negotiating politely until something else stops them. Peer-to-peer messaging is workable, but only with the same controls reimplemented in the message layer.",
+      "distractors": {
+        "A": "Nothing prevents structured payloads between agents. Message shape is a design decision, and it is available in either topology.",
+        "B": "Token overhead exists in any topology and is not the governing concern. This is a real but minor cost placed where a control-plane argument belongs.",
+        "C": "Tier selection is per invocation and is unaffected by who initiates the call. Mixed tiers are common in both mediated and direct designs."
+      },
+      "concept": "Keep one component responsible for the interaction graph. Centralising handoffs gives you a single place to enforce budgets, depth, deadlines and termination, and a single trace to debug from. Direct peer messaging is not forbidden, but it moves those controls into the messaging layer, where they are usually forgotten.",
+      "tip": "Ask where the limits live. If an architectural change means no component can answer \"how much has this request spent so far\", that is the risk the item is testing."
+    }
+  },
+  {
+    "id": "SDA-B-036",
+    "domain": "Solution Design & Architecture",
+    "topic": "Externally verified success predicate for agent termination",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A semiconductor fab runs an agent that responds to process-recipe deviations by proposing and applying a corrective parameter set through a controlled tool. The loop ends when the agent reports the deviation resolved. Twice this quarter the agent reported resolution while the tool call that would have applied the correction had been rejected by the equipment interface, and the deviation persisted into the next lot. What should the termination condition become?",
+    "options": [
+      { "key": "A", "text": "The agent must restate the applied parameter set and confirm resolution in a structured field before the loop is allowed to end." },
+      { "key": "B", "text": "The loop must run a minimum of three correction iterations before any completion claim from the agent is accepted." },
+      { "key": "C", "text": "The loop ends only when a fresh read of equipment state confirms the parameters are in effect and the deviation is in tolerance, escalating otherwise." },
+      { "key": "D", "text": "A second agent reviews the first agent's transcript and confirms that a corrective parameter set was described before the loop ends." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The failure is a claim about the world that was never checked against the world. Terminating on a fresh read of equipment state closes that gap directly: the condition is evaluated against the system of record rather than against the agent's account of what it did, so a rejected tool call cannot be mistaken for an applied one. The escalation path matters equally — an agent that cannot make the predicate true must hand off to a human rather than exiting, which is the difference between a loop that terminates safely and one that terminates quietly.",
+      "distractors": {
+        "A": "A structured self-report is still a self-report. It makes the claim easier to parse and no more true; the agent that believed it had applied the correction would populate the field with the same confidence.",
+        "B": "A minimum iteration count adds cost and delay without adding evidence. Neither the number of steps taken nor their duration tells you whether the equipment accepted the change.",
+        "D": "Reviewing the transcript verifies that a correction was described, which is the thing that was never in doubt. The reviewer sees the same account of events and has no independent view of equipment state, so a rejected tool call reads exactly like an accepted one."
+      },
+      "concept": "A success predicate should be evaluated against observable external state, not against the agent's narration of its own actions. Where an agent changes the world, terminate on a read-back that confirms the change, and define an escalation path for the case where the predicate cannot be satisfied.",
+      "tip": "Physical or transactional systems in a stem are a cue that read-back verification is available and therefore expected. Options that improve the fidelity of the agent's self-report are all variations on the defect."
+    }
+  }
+]

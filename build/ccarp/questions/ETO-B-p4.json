@@ -1,0 +1,724 @@
+[
+  {
+    "id": "ETO-B-055",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Why a canary cohort cannot double as an A/B test",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A team asks whether the canary already running for a change can also serve as the A/B test that decides whether to keep it. What is the key limitation?",
+    "options": [
+      {
+        "key": "A",
+        "text": "A canary has no comparison group at all, since every request in the window goes to the candidate, so no difference can be computed."
+      },
+      {
+        "key": "B",
+        "text": "The candidate in a canary runs on separate infrastructure from the control, so any measured difference is confounded by the environment."
+      },
+      {
+        "key": "C",
+        "text": "Canaries expose only systems metrics such as latency and error rate; quality metrics require a dedicated offline experiment platform."
+      },
+      {
+        "key": "D",
+        "text": "Canary cohorts are sized to spot harm at low exposure and are often assigned by region rather than at random, so they cannot give a powered, unbiased read."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The two mechanisms are tuned for opposite properties. A canary wants the smallest exposure that still reveals a serious problem fast, and it frequently selects the cohort by something convenient — an internal population, one region, one tenant tier — because that also bounds the damage. Both choices are fatal to inference: too few units to detect the effect size that matters, and a cohort that differs systematically from the rest of the population. Treat the canary as a safety mechanism and run the experiment as its own randomised design, even if the two overlap in time.",
+      "distractors": {
+        "A": "There is usually something to compare against — the traffic still on the incumbent. The problem is that this comparison is not randomised and is underpowered, not that it does not exist.",
+        "B": "Canary and control normally run on the same platform; even where deployment differs, that is an implementation detail rather than the general limitation on using a canary as an experiment.",
+        "C": "Quality metrics can be computed on canary traffic perfectly well, by sampling and scoring the responses. The constraint is statistical, not a limitation on which metrics are observable."
+      },
+      "concept": "Progressive delivery and experimentation answer different questions with different designs. Canary: is anything going badly wrong at low exposure, decided against pre-set guardrails. Experiment: is the change better, decided on a randomised, powered comparison of a primary metric. Conflating them yields decisions that are neither safe nor supported.",
+      "tip": "Whenever a stem proposes reusing one mechanism for another purpose, check the sample and the assignment. Small, non-random cohorts are for harm detection; inference needs randomisation and power."
+    }
+  },
+  {
+    "id": "ETO-B-056",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Re-baselining an adversarial suite after a model version change",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A national postal service upgrades the model behind its parcel-claims assistant. Prompt, guardrails and tools are unchanged. The safety team re-runs its 600-case adversarial suite, sees the same overall block rate as the previous release, and proposes carrying the previous safety sign-off forward unchanged. Why is that unsound, and what should they do?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The sign-off can carry forward: the aggregate block rate is unchanged and nothing in the team's own prompt, guardrails or tools was modified."
+      },
+      {
+        "key": "B",
+        "text": "The suite is now worthless because it was authored against the previous model, and it must be regenerated from scratch before any new sign-off."
+      },
+      {
+        "key": "C",
+        "text": "A model change is the provider's responsibility for safety behaviour; the team need only re-run the functional suite and confirm there are no capability regressions."
+      },
+      {
+        "key": "D",
+        "text": "An unchanged aggregate can hide a changed set of failures; compare case by case against the previous run and add attacks aimed at the new version's behaviour."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Two runs at the same block rate can disagree on which cases failed, and a model change is exactly the event that shuffles the set. Cases the old version resisted may now succeed while different ones close, so the aggregate stays flat while the residual risk moves to a different harm category — possibly a more severe one. The case-by-case diff is nearly free once both runs are stored, and it turns a reassuring number into an actionable list. Extending the suite matters too, because a suite iterated against one version has been shaped by that version's weaknesses.",
+      "distractors": {
+        "A": "This treats the model as if it were outside the system. It is the largest component in it, and a version change alters refusal behaviour, instruction-following and susceptibility in ways that no unchanged prompt compensates for.",
+        "B": "Discarding the corpus destroys the comparison that reveals the problem. The existing cases are what make two releases comparable; the right move is to keep them and add to them, not to start again.",
+        "C": "Safety behaviour of the deployed system is the deploying organisation's responsibility. Provider-level work reduces baseline risk but says nothing about this prompt, this tool surface and this population of claimants."
+      },
+      "concept": "Compare safety results per case, not only in aggregate. A model version change should trigger a re-baseline: run the full corpus, diff the outcomes against the previous run, review every newly failing case, and add attacks aimed at the new version rather than assuming the old suite still probes the right weaknesses.",
+      "tip": "\"The number is the same\" is not \"nothing changed\". When a stem gives you an unchanged aggregate across a version boundary, the intended insight is almost always that the composition moved underneath it."
+    }
+  },
+  {
+    "id": "ETO-B-057",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Per-hop retrieval measurement for multi-hop questions",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A specialty chemicals manufacturer's regulatory assistant answers questions that require chaining: find a substance's hazard classification, then the handling rule for that classification, then whether the site holds an exemption. Retrieval runs iteratively for up to three rounds, each query derived from the previous round's result. The eval computes context precision and recall over the union of everything retrieved across all rounds. Reviewers find that two thirds of wrong answers had a correct first hop and a failed second. What is the measurement problem, and what should replace it?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Union-level metrics cannot localise a broken link in the chain; measure retrieval per hop against per-hop required evidence and report end-to-end success by hop."
+      },
+      {
+        "key": "B",
+        "text": "The union is too small to contain the evidence for all three hops; raise k in each round so that the union reliably covers the whole chain."
+      },
+      {
+        "key": "C",
+        "text": "Iterative retrieval is inherently unevaluable; replace it with a single expanded query so that standard single-shot retrieval metrics apply again."
+      },
+      {
+        "key": "D",
+        "text": "Faithfulness is the metric that should be decomposed here; scoring it separately for each hop's contribution would reveal where the chain failed."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Pooling three rounds into one set throws away the structure that carries the diagnosis. A union can look healthy — the first hop's evidence is abundant and topically dense — while the second hop retrieved nothing useful, and the aggregate recall figure absorbs it. Because each query is derived from the previous result, failure also compounds: a marginally wrong first hop produces a query that cannot succeed. Measuring per hop against per-hop required evidence localises the break, and reporting conditional success shows how much of the end-to-end loss each link contributes.",
+      "distractors": {
+        "B": "The second hop is failing because it asks the wrong question, not because it returns too few results. Raising k adds material around a mis-specified query, dilutes precision, and makes the union metric look even healthier while the chain stays broken.",
+        "C": "A single expanded query cannot express hop two, whose terms are unknown until hop one resolves — that is why the system iterates. Removing the capability to make the metrics simpler solves the measurement problem by deleting the product.",
+        "D": "Faithfulness scores the generator against whatever context it received, so it is downstream of the failure. When hop two retrieves nothing useful, the answer can be entirely faithful to the context it had and still be wrong."
+      },
+      "concept": "Evaluate a pipeline at the granularity at which it can fail. Multi-hop retrieval needs per-hop evidence targets and conditional success reporting, because pooled metrics hide which stage broke and errors in early stages propagate into the queries that later stages issue.",
+      "tip": "When a stem describes a derived, iterative process and an eval that aggregates over the whole thing, the answer is almost always to instrument the stages. Look for the option that restores the structure the metric flattened."
+    }
+  },
+  {
+    "id": "ETO-B-058",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Conditions for substituting offline replay for an online test",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "Which TWO conditions must hold before an offline paired comparison on logged inputs can substitute for an online A/B test of a change? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "The offline metric must be validated against the online outcome that the decision actually depends on."
+      },
+      {
+        "key": "B",
+        "text": "The logged inputs must have been collected while the candidate version was already serving some share of traffic."
+      },
+      {
+        "key": "C",
+        "text": "The change must not alter user behaviour in a way that feeds back into the input distribution that replay assumes is fixed."
+      },
+      {
+        "key": "D",
+        "text": "Both versions must produce responses of comparable length, so the comparison is not confounded by verbosity."
+      },
+      {
+        "key": "E",
+        "text": "The change must already be deployed behind a feature flag in production before the offline comparison is run."
+      }
+    ],
+    "correct": [
+      "A",
+      "C"
+    ],
+    "explanation": {
+      "correct": "Offline replay is cheap, safe and fast, and it silently assumes two things. First, that the score it produces stands in for the outcome you actually care about — an unvalidated proxy means you have measured something precisely and learned nothing about the decision. Second, that the inputs are exogenous: replay feeds the candidate a distribution generated by the incumbent, so if the change would alter how users phrase requests, how often they return, or what they ask next, the replayed distribution is the wrong one and the estimate is biased in a direction you cannot sign.",
+      "distractors": {
+        "B": "Logs from the incumbent are the normal and sufficient input for replay — that is the point of the technique. Requiring the candidate to have served traffic already would mean the online test had happened, making the substitution moot.",
+        "D": "Response length is a property of the outputs being compared, not a precondition for the method. If one version is systematically more verbose and that matters, it belongs in the metric or the rubric.",
+        "E": "Feature flags govern how a change is exposed in production. An offline comparison runs against logged data with no deployment at all, so the flag is irrelevant to its validity."
+      },
+      "concept": "Offline replay estimates the effect of a change on a fixed input distribution, scored by a proxy. It is valid when the proxy is validated and the treatment does not change the distribution. Anything that alters user behaviour — latency, tone, coverage, refusals — breaks the second assumption and requires an online test.",
+      "tip": "Ask whether the change could alter what users do next. If it could, logged traffic no longer represents the world the change would create, and no amount of offline volume repairs that."
+    }
+  },
+  {
+    "id": "ETO-B-059",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Building an adversarial suite from attacks seen in production",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A university's student-services assistant is available to anyone with a student login and handles fees, accommodation and welfare questions. Its adversarial suite is entirely hand-authored by two engineers and passes at a high rate every release. The safety lead suspects students are probing the assistant in ways the suite does not contain, and wants coverage of what is actually being attempted. Which programme delivers that best?",
+    "options": [
+      {
+        "key": "A",
+        "text": "License a third-party jailbreak prompt collection and add it to the suite wholesale, giving immediate breadth beyond what two engineers can imagine."
+      },
+      {
+        "key": "B",
+        "text": "Expand the hand-authored suite fivefold, allocating the new cases across the harm taxonomy in proportion to each category's severity and prevalence."
+      },
+      {
+        "key": "C",
+        "text": "Monitor refusal rate as the primary indicator, on the basis that a rise in refusals signals an increase in attack attempts against the assistant."
+      },
+      {
+        "key": "D",
+        "text": "Mine production traffic for attack-shaped inputs, have humans confirm them, promote confirmed attempts and their variants into the suite, and track in-the-wild rates."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "A hand-authored suite is bounded by two people's imagination, and the population probing this system is thousands of students with local knowledge of the domain — fees appeals, accommodation allocations, disciplinary records. Production traffic is the only source that reflects what they actually try. Mining it with classification and clustering scales the search, human confirmation keeps the false positives out, and promoting variants prevents the fix from being a memorised string. Tracking real-world attempt and success rates alongside the suite matters because the suite measures preparedness while the traffic measures exposure.",
+      "distractors": {
+        "A": "Generic collections broaden coverage of generic techniques and are worth having as one input, but they are not aimed at this system's data, entitlements or subject matter. Bulk-importing unlabelled cases also floods the suite with prompts whose expected behaviour nobody has defined.",
+        "B": "Five times as much output from the same two authors extends the same mental model. Severity-weighted allocation is a sound way to spend authoring effort, but it cannot introduce categories of attack the authors have not conceived of.",
+        "C": "Refusal rate is a weak and ambiguous signal that moves with legitimate traffic mix as much as with attacks — and crucially, a successful attack does not produce a refusal. Monitoring it hardest misses precisely the events that matter most."
+      },
+      "concept": "Adversarial coverage has two sources: what experts imagine and what your users actually do. The second is available in your logs, scales with your user base, and reflects your specific domain. Build the pipeline that turns real attempts into permanent test cases, and report exposure separately from suite performance.",
+      "tip": "Watch for options that measure the defence rather than the attack. Refusal rate goes up when the system gets twitchy and stays flat when an attack succeeds, which makes it a poor primary signal for adversarial pressure."
+    }
+  },
+  {
+    "id": "ETO-B-060",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Overriding an advisory gate during a live incident",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An online retailer is three days from peak trading. A live incident: the returns assistant is quoting the wrong returns window for one product category, and call volume is climbing now. The fix passes every case in the blocking safety and policy set, and fails two cases in the advisory quality set on tone and formatting. Release policy states that blocking gates cannot be overridden and advisory failures require a named approver. What is the right action?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Ship under a recorded exception signed by the named approver, with the two advisory failures raised as follow-up work and a short canary first."
+      },
+      {
+        "key": "B",
+        "text": "Hold the release until every case in both sets passes, since shipping a knowingly failing build during peak sets an unacceptable precedent."
+      },
+      {
+        "key": "C",
+        "text": "Remove the two failing tone and formatting cases from the advisory set so the build goes green, and re-add them after peak."
+      },
+      {
+        "key": "D",
+        "text": "Ship immediately without going through the approval step, on the grounds that a live customer-facing incident overrides the normal release process."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The policy already anticipates this situation, which is why it distinguishes the two sets. Safety and policy are non-negotiable and the fix clears them; tone and formatting are quality preferences and the process says a named person may accept them knowingly. Using the exception path gives the organisation what it needs on all three fronts: the incident stops, the trade-off has an owner rather than being absorbed silently, and the debt is visible as a ticket instead of becoming permanent. A canary before the ramp is cheap insurance on a change written under time pressure.",
+      "distractors": {
+        "B": "Treating advisory failures as blocking discards the distinction the policy was written to create, and it prices two formatting defects above a live incident during the retailer's highest-volume week. Gates exist to inform the trade-off, not to remove judgement from it.",
+        "C": "Deleting the failing cases makes the evidence disappear rather than the problem, and cases removed \"until after peak\" reliably stay removed. It also leaves no record that anyone accepted the defect.",
+        "D": "The approval step costs minutes and is the entire mechanism by which an exception is attributable afterwards. Skipping it converts a legitimate documented trade-off into an undocumented bypass that the next audit will find."
+      },
+      "concept": "A release policy that separates blocking from advisory gates is designed to be used under pressure. The correct behaviour is to honour the blocking set absolutely, take advisory failures through the exception path with a named owner and a remediation commitment, and never to edit the suite to change the verdict.",
+      "tip": "When a stem spells out the release policy, the answer is usually to apply it rather than to route around it. Options that silence a check or skip an approval are wrong even when the underlying decision to ship is right."
+    }
+  },
+  {
+    "id": "ETO-B-061",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Purpose of an expected-failure list in a suite",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "What is the purpose of maintaining an expected-failure list in an eval suite?",
+    "options": [
+      {
+        "key": "A",
+        "text": "To skip the cases that are known to fail, so that the suite runs faster and the build stays green for the weekly release review meeting."
+      },
+      {
+        "key": "B",
+        "text": "To record accepted limitations, so the gate blocks new failures while keeping known ones visible and flags any that start passing."
+      },
+      {
+        "key": "C",
+        "text": "To hold the cases that fail intermittently, so run-to-run sampling variation does not turn the build red on a re-run."
+      },
+      {
+        "key": "D",
+        "text": "To mark the cases where the automated grader is known to disagree with the human reviewers' considered verdict."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "A suite has to distinguish \"we know about this and have decided to live with it for now\" from \"this just broke\". An expected-failure list encodes the first as data: those cases still run, still report, and do not block, so a new failure elsewhere stands out immediately. The unexpected-pass signal matters just as much — when a listed case starts passing, either the limitation has been fixed and the list is stale, or something changed that nobody intended. Both are worth knowing, and both are invisible if the cases are merely deleted.",
+      "distractors": {
+        "A": "Skipping is what makes a limitation vanish from view. Expected failures continue to execute; the list changes how the result is interpreted, not whether it is produced.",
+        "C": "That describes quarantining flaky cases, which is a different practice with different risks. Intermittency is a property of the measurement; an expected failure is a known, reproducible limitation the team has consciously accepted.",
+        "D": "Grader disagreement is a measurement-validity problem handled by fixing or revalidating the grader. Filing it under expected failures would hide a broken instrument behind a list of accepted product gaps."
+      },
+      "concept": "Keep known limitations in the suite as expected failures rather than deleting or skipping them. The list becomes an explicit, reviewable inventory of accepted gaps, the gate can block only on unexpected results, and unexpected passes surface changes nobody predicted.",
+      "tip": "Distinguish three ways of handling a red case: fix it, accept it explicitly, or hide it. Only the middle option keeps both the signal and the honesty, and it is what the exam calls expected failure."
+    }
+  },
+  {
+    "id": "ETO-B-062",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Acting on a guardrail breach mid-canary",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A grocery retailer's canary for a new order-tracking assistant is at 25% of traffic. At 02:10 the pre-agreed guardrail — refusal rate on order-status questions — breaches its threshold and stays breached through the full confirmation window. The on-call engineer sees that an inventory API is also throwing errors and is fairly confident the breach is a coincidence rather than a property of the candidate. What should they do?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Pause the ramp at 25% and investigate the inventory API first, rolling back only if the candidate turns out to be implicated."
+      },
+      {
+        "key": "B",
+        "text": "Suppress the guardrail for the duration of the upstream outage and let the canary continue accumulating exposure at 25%."
+      },
+      {
+        "key": "C",
+        "text": "Execute the rollback as defined, then investigate; if the outage explains it, restart the canary once it is resolved."
+      },
+      {
+        "key": "D",
+        "text": "Roll back and abandon the change, since a guardrail breach during canary means the candidate is not ready for this release cycle."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The threshold and the confirmation window were agreed in daylight by people who were not tired, precisely so that this decision would not be made at two in the morning by one engineer with a hypothesis. Rolling back is cheap and reversible; being wrong about the hypothesis is not. Investigating afterwards costs nothing that matters, because the upstream outage will still be diagnosable and the canary can restart the same day. The engineer's reasoning may well be right — but a rule that yields whenever someone on call is confident is not a rule.",
+      "distractors": {
+        "A": "Pausing keeps a quarter of customers on a candidate whose guardrail is currently breached, for however long the investigation takes. It looks like a measured middle path and is actually a decision to hold exposure while uncertain.",
+        "B": "Editing the control mid-run is the worst option available. It removes the only automated protection at the exact moment it fired, and the change is easy to forget once the incident is over.",
+        "D": "Abandoning goes too far in the other direction. If the upstream outage explains the breach, the candidate is unaffected and there is nothing to abandon; the canary should resume under the same guardrails."
+      },
+      "concept": "Guardrails are pre-commitments, so honour them and then investigate. Rollback is the cheap, reversible action; continued exposure under a breached guardrail is not. Decide in advance what the automation does, and make in-the-moment confidence about root cause insufficient to override it.",
+      "tip": "Watch for stems that supply a plausible alternative explanation and an engineer who believes it. The reasoning may be correct and it still does not change what the pre-agreed rule requires you to do first."
+    }
+  },
+  {
+    "id": "ETO-B-063",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Dimensions an adversarial suite must vary for a tool-using assistant",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "An engineering consultancy's internal assistant retrieves from a project document store that clients and subcontractors both contribute to, and can call a timesheet tool and a document-export tool. The safety team is designing its adversarial suite from scratch. Which THREE dimensions must the suite vary to cover this system's realistic attack surface? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "The channel through which adversarial content arrives — user message, retrieved project document, or tool result."
+      },
+      {
+        "key": "B",
+        "text": "The length of the attack payload in tokens, since payloads over a thousand tokens are the ones most likely to succeed."
+      },
+      {
+        "key": "C",
+        "text": "The entitlement level of the requesting user, since identical instructions have different consequences at different privilege levels."
+      },
+      {
+        "key": "D",
+        "text": "The attacker's objective — policy violation, exfiltration to an external destination, or unauthorised tool invocation."
+      },
+      {
+        "key": "E",
+        "text": "The sampling temperature used at inference, since temperatures above 0.7 raise the likelihood of compliance considerably."
+      }
+    ],
+    "correct": [
+      "A",
+      "C",
+      "D"
+    ],
+    "explanation": {
+      "correct": "The surface is the product of where hostile text can enter, who it acts as, and what it is trying to achieve. Channel matters because a document uploaded by a subcontractor reaches the model with the same standing as the user's own words and is authored by someone the firm does not control. Entitlement matters because the same successful instruction is a nuisance for a junior and a breach for a partner, so results must be reported per privilege level. Objective matters because defences are not uniform — a system that refuses policy violations reliably may still export a document when told to.",
+      "distractors": {
+        "B": "Payload length is not a reliable predictor of success and asserting it as one bakes an unsupported claim into the design. Length may be worth recording as an attribute; it is not an axis the suite must span.",
+        "E": "Inference temperature is a configuration parameter of the deployment, not part of the attack surface. Test the configuration the system actually runs, and treat any change to it as a change requiring re-baselining."
+      },
+      "concept": "Enumerate an adversarial suite along three axes: entry channel by who authors the content, actor privilege by what a success would grant, and objective by what the attacker is trying to obtain. Coverage is the cross-product of those, and a suite that varies only one of them will pass while leaving whole quadrants untested.",
+      "tip": "Options asserting a mechanism — longer works better, hotter sampling complies more — are usually invented regularities. The axes that survive scrutiny are structural: where content enters, whose authority it borrows, what it achieves."
+    }
+  },
+  {
+    "id": "ETO-B-064",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Resolving a quality-versus-cost result with no pre-agreed rule",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A veterinary group A/B tests two prompts for its appointment-triage assistant. Arm B scores three points higher on triage accuracy and costs 2.4 times as much per conversation because it invokes extended reasoning on every case. No rule for trading accuracy against cost was agreed before the test. The team is deadlocked. What should they do?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Price a mis-triage in the group's own terms, have the accountable owner weigh it against the extra spend, and record the rate."
+      },
+      {
+        "key": "B",
+        "text": "Adopt arm B, because in a clinical triage context an accuracy improvement always justifies additional inference cost, whatever the multiple."
+      },
+      {
+        "key": "C",
+        "text": "Adopt arm A, because a 2.4-times increase in cost per conversation cannot be justified by a three-point movement on a single metric."
+      },
+      {
+        "key": "D",
+        "text": "Re-run the experiment with cost per conversation as the primary metric and accuracy as a guardrail, so the two are compared on one scale."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The data is not deadlocked; the decision framework is missing. Neither arm dominates, so somebody has to state what a triage error is worth relative to a unit of spend, and that is a business judgement with an owner rather than something the experiment can settle. Grounding it in the group's own numbers — the cost of a missed urgent case, the cost of an unnecessary appointment — turns an argument about preferences into an arithmetic comparison. Writing the resulting exchange rate down is what stops the next comparison rerunning the same deadlock.",
+      "distractors": {
+        "B": "\"Accuracy always wins in clinical settings\" is an unpriced principle. Taken literally it justifies unbounded spend for arbitrarily small gains, and a practice that overspends on triage has less to spend on the care the triage routes to.",
+        "C": "This is the mirror error, rejecting a real quality gain on the size of a ratio alone. Whether 2.4 times is expensive depends entirely on the absolute cost per conversation and on what a mis-triage costs — neither of which the option engages with.",
+        "D": "Cost per conversation is deterministic and can be computed without an experiment, so re-running to measure it wastes weeks. Swapping which metric is primary also does not create the exchange rate the decision needs."
+      },
+      "concept": "When a candidate wins on quality and loses on cost, the experiment has done its job and the missing artefact is a decision rule. Agree the exchange rate — value of a quality unit against spend — with the accountable owner, ideally before the test, and record it so it applies to the next comparison as well.",
+      "tip": "Two options that assert a universal direction, one each way, usually flank the real answer: both are unpriced positions. The keyed choice is the one that makes the trade-off explicit and attributes it to an owner."
+    }
+  },
+  {
+    "id": "ETO-B-065",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Why shadow comparisons should be paired on identical inputs",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Why should a shadow comparison score the candidate and the incumbent on identical inputs rather than on two separate samples of traffic?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Because using separate samples would double the inference cost of the exercise on every mirrored request."
+      },
+      {
+        "key": "B",
+        "text": "Because the incumbent's outputs cannot be logged unless the same request object is reused for both calls in one process."
+      },
+      {
+        "key": "C",
+        "text": "Because paired inputs are required before a judge can produce absolute rather than relative scores for each output."
+      },
+      {
+        "key": "D",
+        "text": "Because pairing removes input difficulty as a source of variation, so a smaller sample detects the difference."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Most of the variance in any quality metric comes from the inputs themselves — some requests are simply harder — and that variance is shared when both versions see the same request. Comparing per-pair differences cancels it, so the comparison is dramatically more sensitive than two independent samples of the same size. This is the structural advantage of shadow mode over any design that splits traffic: you get the paired comparison for free, because mirroring hands both versions the identical request.",
+      "distractors": {
+        "A": "Mirroring already doubles inference volume, so cost is unchanged by whether the inputs are paired. The pairing decision is about statistical efficiency, not spend.",
+        "B": "Both versions' outputs are logged independently regardless of whether the inputs match. There is no technical obstacle to logging two unrelated samples; the result is just a weaker comparison.",
+        "C": "Judges can produce absolute scores on single outputs and relative verdicts on pairs. Pairing enables the stronger comparative reading but is not a precondition for scoring at all."
+      },
+      "concept": "Paired designs cancel shared variance and are the default whenever the same input can be sent to both versions. Reserve unpaired comparisons for situations where pairing is impossible — typically because serving one version changes what the user does next.",
+      "tip": "Pairing is a sensitivity argument, not a cost or a plumbing argument. When an option explains a design choice by variance reduction, it is usually the one the exam wants."
+    }
+  },
+  {
+    "id": "ETO-B-066",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Separating agent reasoning failures from dependency failures",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A pharmaceutical wholesaler's order-exception agent fails 14% of its 400 eval cases. Traces show the agent selecting the right tools in a sensible order; in most failures, the inventory tool returned stale rows because the test fixture behind it has drifted from the production schema. The team is about to commit a sprint to prompt engineering. What should the evaluation add first?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Update the inventory fixture to match the current production schema and re-run the full 400-case suite before committing a whole sprint to prompt engineering."
+      },
+      {
+        "key": "B",
+        "text": "Run the suite twice — tool responses pinned to recorded known-good values, then the live tool layer — so failures attribute to reasoning or to dependencies."
+      },
+      {
+        "key": "C",
+        "text": "Score every case end-to-end against the live tool layer only, since that is the behaviour users actually experience in production every day."
+      },
+      {
+        "key": "D",
+        "text": "Add a judge that reads the agent's stated reasoning and grades whether its plan was sound given the rows the inventory tool actually returned."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The team is one fixture drift away from spending a sprint fixing a model that is behaving correctly. What the harness lacks is the ability to answer \"whose fault was that\" without a human reading traces, and running two configurations supplies it structurally: with tool responses pinned to known-good values, every remaining failure is the agent's; against live tools, the additional failures are the dependency's. The gap between the two numbers becomes a standing metric, and it keeps its value long after this particular fixture is repaired.",
+      "distractors": {
+        "A": "Repairing the fixture is necessary and should happen, but it is a one-off correction that leaves the harness just as unable to attribute the next such failure. Fixtures drift continuously; the capability to detect it is the durable fix.",
+        "C": "Live-only scoring gives a realistic aggregate and destroys attribution, while also making the suite non-deterministic and dependent on the availability of every downstream system. It is a useful configuration to have, not the only one to have.",
+        "D": "Grading the narration measures how the agent explains itself, which is only loosely coupled to what it did. In this case the reasoning would score well — the plan was sound — so the judge would confirm the misdiagnosis rather than correct it."
+      },
+      "concept": "Evaluate agents at two levels: a hermetic configuration with pinned tool responses that isolates the model's reasoning and tool selection, and an integrated configuration against real dependencies. The hermetic run is the regression gate because it is deterministic; the integrated run measures the system users actually meet.",
+      "tip": "When a stem shows the agent doing everything right and the data being wrong, the item is about attribution. The answer creates a way to tell the two apart, not a way to fix the current instance."
+    }
+  },
+  {
+    "id": "ETO-B-067",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Testing exposure to instructions embedded in uploaded documents",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A construction firm's project assistant retrieves from a document store that subcontractors upload into directly, and can call a schedule-update tool. The security team wants to measure how exposed the system is to instructions embedded inside uploaded documents. Which TWO test designs measure that exposure? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Insert marked canary documents carrying benign instruction-like content into a copy of the corpus, and measure how often the output follows them."
+      },
+      {
+        "key": "B",
+        "text": "Scan uploads at ingestion for instruction-like phrasing and report how many subcontractor documents are flagged for review each week."
+      },
+      {
+        "key": "C",
+        "text": "Ask the model directly whether it would obey instructions found in a retrieved document, and record its answer as the exposure measure."
+      },
+      {
+        "key": "D",
+        "text": "Run the end-to-end suite with canary documents ranked into the top-k for realistic project queries, checking whether unrequested schedule updates fire."
+      },
+      {
+        "key": "E",
+        "text": "Measure the refusal rate on user messages that contain instruction-like phrasing, using a weekly random sample of the chat logs."
+      }
+    ],
+    "correct": [
+      "A",
+      "D"
+    ],
+    "explanation": {
+      "correct": "Exposure is a property of the running system, so it has to be provoked and observed rather than inferred. Marked canary documents give you a safe, attributable payload — benign content whose appearance in an output proves the model followed text it should have treated as data — and inserting them into a corpus copy keeps the experiment out of live retrieval. Driving the end-to-end suite with those documents ranked into the context for realistic queries closes the loop to impact: an unrequested schedule-update call is the difference between a curiosity and an incident.",
+      "distractors": {
+        "B": "An ingestion scanner is a control, and counting its hits measures the control's activity rather than the system's susceptibility. It tells you how many documents looked suspicious, not what the model would have done with the ones that got through.",
+        "C": "Self-report is not behaviour. A model asked in the abstract will describe the policy it should follow, which is uncorrelated with what it does when the instruction is embedded in a retrieved document during a real task.",
+        "E": "This measures the wrong channel entirely. The threat here originates in subcontractor-uploaded content, and refusal behaviour on user-typed messages says nothing about how retrieved text is treated."
+      },
+      "concept": "Measure indirect injection exposure with canary payloads planted in a corpus copy and executed through the full pipeline including tools. The observable is impact — content echoed, or an action taken that no user asked for — not whether a scanner flagged the document or whether the model says it would comply.",
+      "tip": "Separate controls from measurements. Detector hit counts, refusal rates and model self-reports all describe defences; exposure is only established by running the attack path end to end and watching what the system does."
+    }
+  },
+  {
+    "id": "ETO-B-068",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Evaluating a corpus refresh with code held constant",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A regulatory-content vendor refreshes the 400,000-document corpus behind its compliance assistant every month. This month the application code, prompts and model version are unchanged. The team runs its usual regression suite — which is pinned to last month's corpus snapshot — sees green, and ships the refreshed corpus to production. What is missing?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Nothing: since no code, prompt or model version changed this month, the pinned run is the correct and sufficient evidence for this release."
+      },
+      {
+        "key": "B",
+        "text": "A corpus-side evaluation with code and prompts held fixed against the new snapshot, checking recall against the annotated evidence set."
+      },
+      {
+        "key": "C",
+        "text": "The suite should stop pinning and always run against the live index, so that monthly content changes are covered automatically."
+      },
+      {
+        "key": "D",
+        "text": "A larger retrieval k for this release, to compensate for the additional documents now competing for space in the retrieved set."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The pinned run answered the question it was built for — did the code change break anything — and the code did not change, so it was always going to be green. The variable that moved this month is the corpus, and it can break the system in ways no code test sees: a superseded regulation that outranks its replacement, a re-issued document that shifts the top-k, an ingestion fault that drops a section. The mirror-image experiment is what is missing: freeze the code, vary the content, and re-check evidence coverage and previously answerable questions.",
+      "distractors": {
+        "A": "This is the trap the pinning discipline creates if it is applied without its counterpart. Pinning makes code changes attributable; it does not make content changes safe, and here it guarantees the run could not have detected the only thing that moved.",
+        "C": "Unpinning would restore coverage of content at the cost of attribution for code, putting the team back where pinning was introduced to help. Two evaluations, each varying one thing, is what covers both.",
+        "D": "Raising k is a tuning response to a problem nobody has measured yet. It would also change the code-side configuration in the same release as the content change, confounding both."
+      },
+      "concept": "A RAG system has two independently changing inputs — the code path and the corpus — and each needs its own gate that holds the other fixed. Corpus refreshes are releases: evaluate them for evidence coverage, for regression on previously answerable questions, and for removal of superseded material.",
+      "tip": "When a stem tells you what did not change, ask what did. A green suite that was pinned against the only moving variable is evidence about nothing relevant to this release."
+    }
+  },
+  {
+    "id": "ETO-B-069",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Handling a treatment-side outage inside an experiment window",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A ticketing platform runs a four-week A/B between two models for its seat-change assistant; the treatment arm finishes ahead on the primary metric. During the readout an analyst finds that on day nine the treatment arm's serving path had a three-hour window of elevated errors, during which affected requests fell back to a canned response. The team wants to declare the win. What should be done next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Drop the failed requests from the treatment arm and re-analyse, keeping every other observation from both arms."
+      },
+      {
+        "key": "B",
+        "text": "Accept the result: three hours out of four weeks cannot plausibly change a conclusion drawn from the full period."
+      },
+      {
+        "key": "C",
+        "text": "Exclude the affected window from both arms and confirm the conclusion does not depend on the exclusion."
+      },
+      {
+        "key": "D",
+        "text": "Declare the experiment invalid and re-run the full four weeks once the serving path has been stabilised and monitored."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The outage is correlated with the treatment, so any repair has to be symmetric or it introduces a worse bias than the one it fixes. Removing the whole window from both arms preserves comparability: both lose the same slice of calendar time, with the same traffic mix and the same population. Re-analysing and checking that the conclusion survives is the second half of the job — a sensitivity check that tells you whether the win rests on the decision to exclude. If the result flips depending on that choice, there is no win to declare.",
+      "distractors": {
+        "A": "Deleting only the treatment arm's failed requests removes its bad outcomes and keeps the control's, which biases the comparison in the treatment's favour. It is the most tempting repair and the most damaging one, because it looks like cleaning bad data.",
+        "B": "It might be true, and the point is that nobody has checked. A three-hour outage can concentrate a disproportionate share of high-value sessions, and users who hit a canned response may behave differently for days afterwards.",
+        "D": "Discarding four weeks of otherwise valid data is disproportionate when a symmetric exclusion and a sensitivity check can settle it. Re-running becomes the right call only if the conclusion turns out to depend on the exclusion."
+      },
+      "concept": "Repair experiment contamination symmetrically. Exclude affected time windows from all arms rather than filtering individual records from the affected one, then re-analyse and report whether the conclusion is sensitive to the exclusion. Asymmetric data cleaning is how a null result becomes a win.",
+      "tip": "Any proposed fix that removes observations from one arm only should trigger alarm. Ask whether the same rule, applied identically to both arms, would remove the same slice — if not, it is selection, not cleaning."
+    }
+  },
+  {
+    "id": "ETO-B-070",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Properties that make an eval gate credible as a control",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "Which TWO properties make an automated eval gate credible as a control when an external auditor examines the release process? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Overrides are made technically impossible, so that no release can bypass the gate under any circumstances."
+      },
+      {
+        "key": "B",
+        "text": "Thresholds, suite version and run artefacts are retained for every release, and any run can be reproduced."
+      },
+      {
+        "key": "C",
+        "text": "Every override is recorded with the approver, the stated reason and a remediation commitment."
+      },
+      {
+        "key": "D",
+        "text": "The gate reduces to a single composite score, so that its verdict is unambiguous to a non-specialist reader."
+      },
+      {
+        "key": "E",
+        "text": "The gate is executed by the engineers who authored the change, so that failures are triaged in the shortest possible time."
+      }
+    ],
+    "correct": [
+      "B",
+      "C"
+    ],
+    "explanation": {
+      "correct": "An auditor is testing whether the control operated as described, which requires evidence and an account of the exceptions. Retaining thresholds, suite versions and artefacts per release makes the first testable: the auditor can pick a release and reconstruct what was run against what standard. A recorded override trail makes the second testable, and it is what distinguishes a control that was applied with documented judgement from one that was quietly ignored. Both are about producing durable evidence, which is the currency of an audit.",
+      "distractors": {
+        "A": "Controls with no exception path get bypassed in ways nobody records — the check gets disabled, the release goes out of band, or the suite is edited. Auditors expect a documented, approved exception route, not the claim that exceptions cannot occur.",
+        "D": "A composite score is easier to read and harder to rely on. It hides which criteria passed, mixes safety with style, and cannot demonstrate that the non-negotiable checks were satisfied on any given release.",
+        "E": "Who triages a failure is an efficiency question. Self-execution with no independent record is in fact a weakness in the control, because nothing outside the change author's own process attests that the gate ran."
+      },
+      "concept": "A control is auditable when its standard, its execution and its exceptions all leave durable records. Design gates to emit versioned artefacts per release and to route every override through a named approver with a reason and a remediation commitment — an unbypassable gate is a fiction, an unrecorded bypass is a finding.",
+      "tip": "Audit questions reward evidence over strictness. Options promising that something can never happen are usually weaker than options that make it visible when it does."
+    }
+  },
+  {
+    "id": "ETO-B-071",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Percentage canary cannot cover a rare affected code path",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A payments processor is changing the assistant that drafts chargeback-evidence packs. The change affects only one rare dispute reason code, which appears in about one in five hundred conversations; the assistant handles roughly 12,000 conversations a day. The standard rollout is a 5% canary held for 48 hours, and the release window is fixed at 48 hours. What is wrong with applying the standard rollout here, and what should replace it?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Nothing is wrong; hold the canary at 5% for two weeks so that enough of the twenty-four affected conversations a day accumulate to read."
+      },
+      {
+        "key": "B",
+        "text": "The cohort is too small in general; raise the canary to 50% for the 48 hours so that any regression on the reason code is visible quickly."
+      },
+      {
+        "key": "C",
+        "text": "Skip the canary and rely on the offline suite, which already covers this rare reason code in depth with dozens of curated evidence packs."
+      },
+      {
+        "key": "D",
+        "text": "The canary will see only a couple of affected conversations, so route on the attribute — send that reason code to the candidate — and replay logged instances."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Do the arithmetic the stem invites: 12,000 conversations a day at one in five hundred is 24 affected conversations daily, of which a 5% canary sees roughly one, so about two or three across the whole 48-hour window. That is not exposure, it is anecdote — the canary would come back green whatever the change did. Routing on the dispute reason code concentrates the exposure exactly where the change lives while leaving 99.8% of traffic untouched, which is both more informative and lower risk than the percentage-based default.",
+      "distractors": {
+        "A": "Two weeks would eventually accumulate the volume, and the stem fixes the release window at 48 hours. It also keeps diluting: the great majority of canary traffic is on a path the change does not touch, so almost all the exposure buys nothing.",
+        "B": "Raising the percentage exposes ten times as many customers on the unaffected path in order to reach a still-small number of affected ones. It increases risk substantially and information marginally, which is the wrong direction on both.",
+        "C": "The offline suite is necessary and does not substitute for real exposure. Evidence packs are built from real dispute documents whose messiness a curated suite does not reproduce, and this is a financial artefact that goes to a card scheme."
+      },
+      "concept": "Percentage canaries assume the change affects traffic uniformly. When it affects a rare path, route on the attribute that identifies that path rather than on a random fraction — targeted exposure concentrates learning where the risk is and leaves unaffected traffic entirely alone.",
+      "tip": "Multiply the traffic rate by the canary fraction before accepting a rollout plan. If the affected-case count over the window is in single digits, the canary is theatre and the answer will involve targeting rather than percentages."
+    }
+  },
+  {
+    "id": "ETO-B-072",
+    "domain": "Evaluation, Testing & Optimisation",
+    "topic": "Weighing a single invariant violation against aggregate gains",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An asset manager's client-reporting agent is gated on three things: final-answer score and tool-call precision, both advisory against the incumbent, and a set of forbidden-call assertions that are blocking — one of which states that this agent must never invoke the trade-execution tool. The candidate improves the final-answer score by four points, drops tool-call precision by six, and trips the forbidden-call assertion on one case out of 500. The team argues that one in 500 is inside the suite's run-to-run variation. What is the correct decision?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Ship it: net quality improved, and a 0.2% rate on a single assertion sits well inside the run-to-run noise band the team has measured for this suite."
+      },
+      {
+        "key": "B",
+        "text": "Block the release and root-cause the violation; a forbidden-call assertion is an invariant, and one occurrence proves the behaviour is reachable."
+      },
+      {
+        "key": "C",
+        "text": "Ship behind a 1% canary for a week so the behaviour can be observed under real client traffic before the decision is finalised."
+      },
+      {
+        "key": "D",
+        "text": "Reclassify the assertion as advisory and add a hard block in the tool layer, so the same protection is enforced closer to the action."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Noise reasoning applies to estimates of a rate and not to the existence of a behaviour. The suite has demonstrated a path on which this agent calls the trade-execution tool; whether that path recurs in one run out of 500 or one out of five million, it exists, and for an asset manager an unauthorised execution is not a quality defect but a control failure. The advisory movements are irrelevant to that decision — they inform whether the change is worth shipping once it is safe, which it currently is not. The correct output is a root cause, not a rate.",
+      "distractors": {
+        "A": "This misapplies a legitimate technique. A noise band tells you whether a score difference is real; it says nothing about a binary event whose occurrence is itself the finding. One reproduction is proof of reachability.",
+        "C": "A canary would put real client accounts in the path of a tool call the system is designed never to make. Progressive exposure manages uncertainty about quality, not known-reachable violations of a hard constraint.",
+        "D": "A tool-layer block is genuinely good defence in depth and should probably exist anyway. Downgrading the assertion at the same time removes the signal that the model is still attempting the call, so the underlying defect gets masked rather than fixed."
+      },
+      "concept": "Invariants and metrics take different decision rules. A metric moves and you ask whether the movement exceeds noise; an invariant is violated or it is not, and a single violation blocks. Keep forbidden-action assertions binary, blocking and separate from the scored dimensions of the gate.",
+      "tip": "When a stem offers a rate on a safety assertion, that framing is the trap. Ask whether the check describes a quantity or a thing that must never happen — for the latter, the denominator is irrelevant."
+    }
+  }
+]

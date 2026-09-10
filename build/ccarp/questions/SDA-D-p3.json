@@ -1,0 +1,455 @@
+[
+  {
+    "id": "SDA-D-037",
+    "domain": "Solution Design & Architecture",
+    "topic": "Deadline versus timeout in a multi-step path",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In a multi-step request path, what distinguishes a deadline from a timeout?",
+    "options": [
+      { "key": "A", "text": "A timeout is enforced by the calling client, while a deadline is enforced by the downstream service that receives the call." },
+      { "key": "B", "text": "A timeout bounds one call; a deadline is an absolute time carried with the request that each step derives its remaining budget from." },
+      { "key": "C", "text": "A deadline applies only to synchronous request paths, while a timeout applies to asynchronous work items taken from a queue instead." },
+      { "key": "D", "text": "A deadline is simply the sum of the per-step timeouts configured along the chain, computed for it at deployment time." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The distinction is scope. A timeout is a local, relative bound — this call may take this long — and every step configuring one independently produces a chain whose worst case is the sum of the parts, multiplied again by retries. A deadline belongs to the request: it is set once at the entry point as an absolute time, travels with the call, and each step computes its own limit from what is left. That is what makes end-to-end latency a designed property rather than an emergent one, and what lets a step decline to start work it cannot finish in time.",
+      "distractors": {
+        "A": "Both are usually enforced by the caller, because the caller is the party that must stop waiting. Where enforcement sits is an implementation detail; the difference is whether the bound is local to one hop or shared by the whole request.",
+        "C": "Both concepts apply to both styles. Asynchronous work has deadlines too — a job that will not be useful after a certain time should not be started — and that is one of the more commonly missed applications.",
+        "D": "This describes what happens when a system has no deadline: the effective end-to-end bound is whatever the per-step timeouts happen to add up to. A deadline is chosen from the requirement and imposed downwards, not derived upwards."
+      },
+      "concept": "Latency requirements attach to requests, not to components. Establish the deadline at the boundary where the requirement exists, propagate it, and derive every local timeout and retry decision from the remaining budget. A chain of independently chosen timeouts cannot satisfy an end-to-end target except by coincidence.",
+      "tip": "If a design conversation is about tuning individual timeouts, the missing concept is usually deadline propagation. The giveaway symptom is per-component dashboards that all look healthy during an end-to-end breach."
+    }
+  },
+  {
+    "id": "SDA-D-038",
+    "domain": "Solution Design & Architecture",
+    "topic": "Avoiding a duplicate human control in an existing workflow",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A telehealth provider uses Claude to draft the post-consultation summary that the treating clinician then signs. Volume is 9,000 consultations a day, the clinician already reads and signs every note as part of an unchanged existing workflow, and the median edit is minor. The safety team has proposed inserting a mandatory review queue staffed by clinical safety officers before drafts reach the signing clinician; that queue could clear roughly 600 notes a day. How should the human review be designed?",
+    "options": [
+      { "key": "A", "text": "Adopt the mandatory safety-officer gate and grow that team fifteen-fold until it can clear all 9,000 notes a day before signing." },
+      { "key": "B", "text": "Send only the notes the model flags as uncertain to a safety officer, and let the remainder go out without the clinician's signature." },
+      { "key": "C", "text": "Keep the signing clinician as the in-path control, and spend the safety officers' capacity on risk-stratified audit of signed notes." },
+      { "key": "D", "text": "Replace the clinician's review with an automated second-model check of each draft, freeing clinician time while keeping a check in the path." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "There is already an accountable human in the path who reads every note and whose signature is the clinical act — adding a serial gate that can absorb one note in fifteen would introduce a queue that either blocks 93% of traffic or is bypassed, and it would duplicate a control rather than add one. The scarce specialist capacity is far more valuable applied where the clinician cannot see: across the population, sampling by risk, looking for systematic drafting errors that no individual signer would notice. That converts the safety officers from a bottleneck into the measurement function the system currently lacks.",
+      "distractors": {
+        "A": "Staffing a fifteen-fold increase to duplicate a review the clinician already performs is the most expensive option available and adds latency to every consultation note. Serial gates are worth their cost only where no accountable human is already in the path.",
+        "B": "This removes the accountable signature from most notes, which is the one control the workflow definitely has, and it decides which notes lose it using an uncalibrated model signal. It trades away the strong existing control to fund a weaker new one.",
+        "D": "A second model is a quality aid, not an accountable reviewer, and the clinician's signature is what makes the note a clinical record. Removing the human here saves time by deleting the control that made the automation acceptable in the first place."
+      },
+      "concept": "Before adding a human-in-the-loop step, find the humans already in the loop. If an accountable reviewer already sees every item, additional serial review usually duplicates rather than strengthens; scarce expert capacity is better spent on risk-stratified sampling and population-level audit, which catches the systematic errors that per-item review does not.",
+      "tip": "Compare the proposed reviewer throughput to the item volume before evaluating anything else. When the ratio is wildly off, the item is asking you to convert a proposed gate into a sampling function."
+    }
+  },
+  {
+    "id": "SDA-D-039",
+    "domain": "Solution Design & Architecture",
+    "topic": "Placing a validator where the model cannot bypass it",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An energy trading desk runs a Claude agent that proposes intraday power trades. The model emits a structured order payload and an execution adapter submits it to the exchange. A deterministic validator — instrument whitelist, size cap, price collar — exists as a tool, and the system prompt instructs the model to call it and submit only on a pass. Last Thursday a run submitted an order the validator would have rejected, because the model called the submit tool without calling validate first. What is the correct fix?",
+    "options": [
+      { "key": "A", "text": "Strengthen the system prompt so the validate-then-submit sequence is stated as mandatory, reinforced with a worked example of the correct ordering." },
+      { "key": "B", "text": "Add a second Claude call that reviews each order payload against the instrument whitelist, size cap and price collar before submit runs." },
+      { "key": "C", "text": "Remove the submit tool and have a duty trader re-key the model's payload into the exchange front end before it goes to market." },
+      { "key": "D", "text": "Move the validator inside the execution adapter so it runs on every submission, leaving the tool exposed to the model only as advisory feedback." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "A check the model chooses whether to invoke is not a control, because the model's control flow is a probabilistic artefact and this run has already demonstrated it can skip a step. Relocating the validator into the adapter makes it part of the path every order must traverse, so no reasoning failure, prompt regression or novel input can route around it. Keeping the tool exposed as advisory is still worthwhile — it lets the agent correct itself early and cheaply — but the enforcement point sits at the boundary where the irreversible action happens, which is the only place it can be guaranteed.",
+      "distractors": {
+        "A": "Prompt instructions shape likelihood, not guarantees, and a desk submitting trades needs a guarantee. Reinforcing wording reduces the frequency of the failure while leaving its possibility exactly where it was, which is the wrong risk posture for an exchange submission.",
+        "B": "This replaces a deterministic rule check with a probabilistic one, and the new check sits in the same optional position as the old one. Limits are numeric and machine-checkable; asking a model to verify them adds cost, latency and a second thing that can be skipped.",
+        "C": "Manual re-entry moves the unvalidated payload to a human under time pressure who cannot verify a price collar at intraday speed, and it discards the automation the desk built. Human review is not a substitute for a deterministic limit check."
+      },
+      "concept": "Guardrails belong on the execution path, not in the model's plan. Any check the model must decide to invoke is advisory by construction; enforcement must sit in code that every request traverses, typically at the tool boundary immediately before the side effect. Expose the same check as a tool if early feedback helps, but never rely on it being called.",
+      "tip": "When a stem says the model failed to call a validation tool, no option that improves the prompt can be right. The question is where enforcement lives, and the answer is always the narrowest point all traffic must cross."
+    }
+  },
+  {
+    "id": "SDA-D-040",
+    "domain": "Solution Design & Architecture",
+    "topic": "Shedding versus queueing under sustained overload",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "Under sustained overload of a model dependency, why is shedding excess requests generally preferable to queueing them?",
+    "options": [
+      { "key": "A", "text": "A queue that fills faster than it drains slows every request and fails them anyway; shedding fails a subset and keeps the rest inside budget." },
+      { "key": "B", "text": "Queues in front of a model call cannot be given a maximum depth, so any queueing design in front of one is unbounded in latency by construction." },
+      { "key": "C", "text": "Shedding avoids paying the inference cost of the requests that are dropped, which is the main argument for using it in an incident." },
+      { "key": "D", "text": "Queued requests are admitted behind the circuit breaker, so a queue prevents the breaker from protecting the dependency." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Overload is a rate problem, and a queue does not change the rate — it only defers the moment of failure while degrading everything behind it. Once arrival exceeds service rate, latency grows without bound, callers time out on requests that are still queued and will still be served pointlessly, and memory and connections are consumed holding work nobody is waiting for any more. Shedding concentrates the loss: a defined fraction fails fast and immediately, and the rest are served within their latency budget, which is a far better outcome than uniformly slow failure.",
+      "distractors": {
+        "B": "Queues can and should be bounded, with a maximum depth and an age-based drop policy. The argument for shedding is not that bounding is impossible but that even a bounded queue turns overload into universal latency growth before it starts rejecting.",
+        "C": "Cost reduction is a real side effect and the wrong reason. If cost were the argument, queueing would be preferable whenever the work eventually completes; the reliability argument is about latency and resource exhaustion, which holds regardless of price.",
+        "D": "Queueing does not bypass a breaker, and the two operate at different points. Stating a mechanism that does not exist is a common way this distinction gets muddled in design reviews."
+      },
+      "concept": "Under sustained overload, prefer bounded loss to unbounded latency. Shed early at admission using load or concurrency signals, drop the oldest queued work rather than the newest arrival where the work has a deadline, and reserve queueing for absorbing short bursts whose backlog will demonstrably drain.",
+      "tip": "Ask whether the excess work will ever be useful when it is finally served. If a queued request will be abandoned by its caller before it reaches the front, queueing it is pure cost, and shedding is the answer."
+    }
+  },
+  {
+    "id": "SDA-D-041",
+    "domain": "Solution Design & Architecture",
+    "topic": "Containing a runaway agent mid-run",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "At 09:40 an account manager reports that customer records in the CRM are showing mangled legal entity names. A scheduled Claude data-quality agent that normalises company names is midway through its run; its log shows 1.2 million records already updated under a normalisation rule changed in this morning's deploy, and the run is continuing. The agent holds a write credential covering the whole CRM. The CRM maintains a per-field change log with previous values, retained 90 days. What should the on-call engineer do next?",
+    "options": [
+      { "key": "A", "text": "Halt the run and revoke the agent's write credential, then scope which records and fields were touched from the change log before remediating." },
+      { "key": "B", "text": "Start a reverse run that re-normalises the 1.2 million affected records back to their original form using the same pipeline." },
+      { "key": "C", "text": "Restore the whole CRM from last night's snapshot backup, which is known to predate this morning's deploy of the rule." },
+      { "key": "D", "text": "Pause the run, add a validation rule to the normalisation step, and resume so the remaining records are processed correctly." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The run is still writing, so every minute of deliberation costs more damaged records — stopping the writes is the only action that bounds the incident, and revoking the credential rather than just stopping the job prevents an automatic restart or a second scheduled invocation from resuming it. Scoping comes next and comes from the change log, which the stem tells you exists with previous values: it turns an unknown blast radius into an enumerated list and makes a targeted, verifiable revert possible. Containment then assessment then remediation, in that order.",
+      "distractors": {
+        "B": "This writes 1.2 million more records through the same pipeline that just produced the defect, before anyone knows the true scope or whether the reverse transformation is even well defined for the mangled values. Remediation before scoping is how a one-field incident becomes a two-field incident.",
+        "C": "A full restore discards every legitimate change made by humans and other integrations since last night, converting a bounded, reversible field-level problem into organisation-wide data loss. It is also unnecessary, since the change log supports a targeted revert.",
+        "D": "Resuming during an unscoped incident continues writing under a pipeline that has already been shown to be wrong, and it leaves the 1.2 million existing bad records untouched. Fixing forward is a decision for after containment, not instead of it."
+      },
+      "concept": "Blast-radius containment for an agent with broad write access is a sequence: stop the actor, remove its authority so it cannot resume, enumerate what it changed from an independent record, then remediate narrowly. Broad restores and reverse runs are both attempts to remediate before the scope is known, and both usually enlarge the incident.",
+      "tip": "When a stem mentions a change log with previous values, it is handing you the scoping and revert mechanism. Any option that restores from backup or re-runs the pipeline is ignoring the tool the author placed in the scenario."
+    }
+  },
+  {
+    "id": "SDA-D-042",
+    "domain": "Solution Design & Architecture",
+    "topic": "Preconditions for safely hedging a model request",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A team adds request hedging to a Claude-backed lookup: if the first call has not returned by the observed p95, a duplicate call is issued and whichever response arrives first is used. Which TWO conditions must hold for this to be safe in production? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "The hedge must be routed to a different model tier from the original, so that the two attempts cannot fail for the same reason." },
+      { "key": "B", "text": "The operation must be free of side effects, or carry an idempotency key, because both calls may reach and complete at the dependency." },
+      { "key": "C", "text": "Hedging must improve the median latency by as much as it improves the tail, or the extra inference spend is not justified." },
+      { "key": "D", "text": "The hedge rate must be capped and suppressed when the dependency is degraded, so hedging cannot double the load during an incident." },
+      { "key": "E", "text": "The hedge must be issued at the same instant as the original request so that both attempts start from an identical point." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "Hedging deliberately duplicates work, so its two hazards are duplicated effects and duplicated load. Both calls can complete even though only one response is consumed, which means any write, charge or message triggered by the operation happens twice unless the operation is side-effect free or deduplicated at the sink. And because the hedge fires on slowness, a slow dependency triggers hedges on nearly every request precisely when it can least afford twice the traffic — so the hedge rate needs a ceiling and a kill switch tied to dependency health.",
+      "distractors": {
+        "A": "Cross-tier routing addresses correlated failure, which is a fallback concern. Hedging targets variance in latency within a healthy dependency, and sending the hedge somewhere else changes the answer the user might receive depending on which call wins.",
+        "C": "Hedging is a tail technique by construction: the hedge only fires for requests already slower than p95, so it cannot move the median. Judging it by median improvement rejects the technique for failing to do something it was never meant to do.",
+        "E": "Issuing both at once is duplication, not hedging — it doubles cost and load on every single request rather than on the slow tail. The delay before the hedge is what makes the cost proportional to the tail you are trying to trim."
+      },
+      "concept": "Hedging trades a bounded increase in cost and load for a reduction in tail latency. It is safe only when duplicate execution is harmless and when the duplication is rate-limited and health-aware, because the trigger condition correlates exactly with the moments when extra load is most damaging.",
+      "tip": "For any technique that issues extra calls — hedging, speculative execution, retries — ask what happens if both land and what happens when the dependency is already sick. Those two questions produce the correct pair almost every time."
+    }
+  },
+  {
+    "id": "SDA-D-043",
+    "domain": "Solution Design & Architecture",
+    "topic": "Retry amplification across chain depth",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A request passes through three tiers — an edge service, an orchestrator, and a worker that calls the model. Each tier retries a failed call up to two further times, so up to three attempts per tier, and all three use exponential backoff with jitter. Which TWO statements about this configuration are correct? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "In the worst case a single user request can produce as many as 27 separate calls to the model endpoint at the innermost tier." },
+      { "key": "B", "text": "Because every tier applies exponential backoff with jitter, the total retry load stays bounded by the sum of the per-tier retry counts." },
+      { "key": "C", "text": "A retry budget scoped to the whole request, decremented by every tier's attempt, bounds amplification that per-tier policies cannot." },
+      { "key": "D", "text": "The innermost tier receives the fewest attempts, because it sits furthest from the caller that initiated the request." },
+      { "key": "E", "text": "Retrying at every tier is safe as long as the model call itself is stateless, since a stateless call can always be repeated." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "Retries compose multiplicatively down a chain: three attempts at each of three tiers is three cubed, so one user request can become twenty-seven calls at the innermost dependency. That is why a per-tier policy, however reasonable in isolation, cannot bound amplification — each tier is correct about its own behaviour and blind to the others. A request-scoped retry budget carried alongside the request fixes this by making attempts a shared, finite resource: once it is spent, no tier retries, regardless of what its local policy would prefer.",
+      "distractors": {
+        "B": "Jitter spreads attempts in time so clients do not resynchronise; it has no effect on how many attempts occur. The total is the product of the per-tier counts, not the sum, and confusing the two is what makes deep chains collapse under retry storms.",
+        "D": "The relationship is inverted. Attempts accumulate as the request travels inward, so the innermost dependency — usually the most expensive and most contended — absorbs the largest multiple of the original volume.",
+        "E": "Statelessness makes an individual retry correct; it does nothing about volume. A stateless model call retried twenty-seven times still applies twenty-seven times the load to a dependency that is failing because it is overloaded."
+      },
+      "concept": "Retry policy must be reasoned about at request scope, not per component. Either retry at exactly one layer — usually the one closest to the failure with enough context to judge it — or carry a shared retry budget through the chain. Multiplicative amplification is the standard mechanism by which a partial dependency degradation becomes a full outage.",
+      "tip": "Whenever a stem lists retry counts at multiple layers, multiply them before reading the options. The resulting number is usually one of the answers and is also the reason the correct remedy is a shared budget."
+    }
+  },
+  {
+    "id": "SDA-D-044",
+    "domain": "Solution Design & Architecture",
+    "topic": "Alerting on fallback activation rate",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A rail operator's passenger-information assistant has a tested fallback that serves templated status text whenever the model path fails. Since it was added, the user-visible error rate has stayed near zero and no alert has fired in six weeks. A quarterly review then finds that the model path has been failing for 18% of requests for a month, so nearly a fifth of passengers have been receiving templated text instead of the assistant. Which monitoring change addresses this class of problem?",
+    "options": [
+      { "key": "A", "text": "Lower the alert threshold on the user-visible error rate so smaller increases are caught." },
+      { "key": "B", "text": "Alert on the model path's p95 latency, since a degrading dependency will show as slower responses first." },
+      { "key": "C", "text": "Alert on fallback activation rate, both against an absolute threshold and against its own trend." },
+      { "key": "D", "text": "Add a synthetic check that calls the assistant once a minute and alerts if it returns an error." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The fallback did its job perfectly, and that is the problem: its entire purpose is to make failure invisible to the user, which necessarily makes it invisible to every user-visible signal. The only place the failure is legible is at the moment the system chooses the degraded path, so that choice has to be counted and alerted on directly. Trend matters as much as threshold, because chronic low-level fallback dependence — the state this operator was in for a month — creeps upward without crossing any dramatic line, and it means the service is running with no remaining margin.",
+      "distractors": {
+        "A": "There is nothing to lower the threshold onto. Users received successful responses throughout, so the user-visible error rate was genuinely near zero and would have remained so at any threshold.",
+        "B": "A failing path is frequently fast to fail, and latency percentiles computed over the requests that succeeded will not reflect the ones that were diverted. Latency is a good saturation signal and a poor availability signal for a path that is being bypassed.",
+        "D": "As specified, the synthetic gets the same templated response a real user gets and records a success, so it stays green for the whole month. A synthetic probe only helps here if it asserts which path served it — which is the fallback-activation signal by another name."
+      },
+      "concept": "Every mitigation that hides a failure from users must be instrumented as a first-class signal, because it removes the failure from your existing telemetry. Count and alert on fallback activations, cache-serve-on-error events, retry successes and degraded-mode entries — these are leading indicators of a dependency problem that the user-visible metrics are designed not to show.",
+      "tip": "Six weeks of silence after adding a fallback is not good news in an exam stem. Ask what the mitigation is concealing and whether anything counts how often it fires."
+    }
+  },
+  {
+    "id": "SDA-D-045",
+    "domain": "Solution Design & Architecture",
+    "topic": "Acting when a canary sits below the rollback threshold",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A prompt change is 40 minutes into a rollout on a 5% canary cohort of a document-classification service. Automatic rollback is configured to fire when the cohort's schema-validation failure rate exceeds 10%. The canary is running at 8.2% against a baseline of 0.3%, so rollback has not fired. Every failed classification is routed to a manual queue that is now 4,000 items deep and growing. The on-call engineer is watching the dashboard. What should the engineer do next?",
+    "options": [
+      { "key": "A", "text": "Wait for the failure rate to cross 10% so the automated rollback fires and produces its own audit record." },
+      { "key": "B", "text": "Expand the canary to 20% of traffic to obtain a statistically firmer estimate of the true failure rate." },
+      { "key": "C", "text": "Lower the automatic rollback threshold from 10% to 5% so the automation performs the rollback itself." },
+      { "key": "D", "text": "Roll the canary back manually now, and correct the rollback threshold once the service is stable again." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The evidence is already unambiguous: 8.2% against a 0.3% baseline is roughly twenty-seven times worse, sustained for 40 minutes, with a downstream queue absorbing the damage and growing. The threshold was calibrated wrongly, and a miscalibrated automation is not a reason to keep a known-bad change in production — the automation exists to act when nobody is watching, and somebody is watching. Roll back first because it is the fastest path to stopping the harm, and treat the threshold as a defect to fix in the calm afterwards, along with the queue drain.",
+      "distractors": {
+        "A": "Waiting for a number to cross a line that has already been shown to be set in the wrong place substitutes procedure for judgement, and the queue grows for the whole period. A manual rollback is auditable too; the audit trail is not a reason to prolong an incident.",
+        "B": "This deliberately exposes four times as many users to a change already known to be far worse than baseline. Statistical confidence is not the missing ingredient at a twenty-seven-fold difference, and canary expansion is a promotion step, not a diagnostic one.",
+        "C": "Editing the control plane mid-incident is slower and riskier than performing the action directly, and a wrong threshold value can take effect in ways nobody has time to verify. Adjust automation after the system is safe, not as the mechanism for making it safe."
+      },
+      "concept": "Automated rollback thresholds are a floor on responsiveness, never a ceiling on human authority. When a canary shows a clear regression against baseline, act on the comparison rather than on the threshold, and treat the threshold that failed to fire as its own finding in the postmortem.",
+      "tip": "Compute the ratio to baseline, not just the absolute rate. A stem that gives you both is inviting you to notice that a change sitting under the threshold can still be catastrophically worse than what it replaced."
+    }
+  },
+  {
+    "id": "SDA-D-046",
+    "domain": "Solution Design & Architecture",
+    "topic": "Compensating actions for completed external writes",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In a workflow where an agent performs several external writes across different systems, what is a compensating action?",
+    "options": [
+      { "key": "A", "text": "A re-execution of the failed step under the same idempotency key, so the effect is applied exactly once at the sink." },
+      { "key": "B", "text": "A separate operation that reverses the business effect of a completed step that cannot be undone by a transaction rollback." },
+      { "key": "C", "text": "A degraded response returned to the caller explaining that one of the workflow's external steps could not complete." },
+      { "key": "D", "text": "An audit-log entry recording what the failed step would have written to the external system if it had succeeded." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Once a write has landed in an external system, no transaction manager can withdraw it, so the workflow must express the undo as forward work: a refund against a charge, a cancellation against a booking, a credit note against an invoice. That operation is itself a step that can fail and therefore needs its own retry and idempotency treatment. Designing compensations explicitly, per step, is what makes a multi-system agent workflow recoverable rather than merely hopeful, and it is also what tells you which steps should sit behind a human gate because no compensation exists.",
+      "distractors": {
+        "A": "Retrying under a stable key is how a step is made safe to repeat; it drives the effect forward rather than reversing it. Compensation is what you need when the step succeeded and a later step failed.",
+        "C": "Returning something degraded to the caller addresses the response, not the state left behind in other systems. A caller can receive a perfectly graceful message while three external writes sit half-applied.",
+        "D": "Recording intent is useful and is not a reversal. An audit entry about a step that did not happen leaves the world unchanged, whereas compensation exists precisely because the world was changed."
+      },
+      "concept": "Multi-system workflows cannot be atomic, so recoverability is designed as a set of per-step compensations plus a defined order for applying them. During design, list each side-effecting step and name its compensation; a step whose effects cannot be compensated is exactly the step that needs a human approval gate in front of it.",
+      "tip": "The word compensating signals that a step has already succeeded. Options describing retries, fallbacks or logging are all about steps that failed, which is a different half of the failure model."
+    }
+  },
+  {
+    "id": "SDA-D-047",
+    "domain": "Solution Design & Architecture",
+    "topic": "Specifying the failure behaviour of an approval step",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A hospital pharmacy system routes Claude-proposed medication-order clarifications to a named pharmacist for approval before they are sent to the prescriber. Last month several proposals sat in the pending state for more than 30 hours because the assigned pharmacist was on leave, and nothing in the system noticed. Which THREE elements must the approval step's specification include? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "An explicit deadline by which the pharmacist's decision must be recorded against the proposal." },
+      { "key": "B", "text": "The model's raw confidence score for the proposal, presented as the pharmacist's primary decision aid." },
+      { "key": "C", "text": "The default outcome that applies when that deadline expires, and who is notified when it does." },
+      { "key": "D", "text": "Commitment of the approval record in the same database transaction as the model call that produced the proposal." },
+      { "key": "E", "text": "A named escalation tier that receives the item when the primary approver has not acted or is unavailable." }
+    ],
+    "correct": ["A", "C", "E"],
+    "explanation": {
+      "correct": "An approval step is a state in a workflow and, like any other state, it needs a bound and an exit. Without a deadline the pending state is unbounded, which is exactly what produced the 30-hour delays. Without a defined expiry outcome the system has no legal move when the deadline passes, so items simply accumulate; naming the outcome and the notification makes the timeout an event rather than a silence. And without an escalation tier the design depends on one named individual being available, which no roster guarantees — a fallback approver is the human equivalent of a redundant dependency.",
+      "distractors": {
+        "B": "A raw confidence score is uncalibrated and anchors the reviewer on the model's certainty rather than on the clinical evidence. It may be shown as one signal among several, but making it the primary decision aid degrades the quality of the human judgement the step exists to obtain.",
+        "D": "A human approval arrives minutes or hours after the model call, so the two cannot share a transaction, and coupling them would mean an approval could not be recorded once the original transaction closed. The approval is a separate event linked by identifier."
+      },
+      "concept": "Treat a human approval as a dependency with availability characteristics. Specify its deadline, its behaviour on expiry, its escalation path when the primary approver is unavailable, and its observability — pending-queue age is a monitored signal. An approval step without a timeout is an unbounded wait that no dashboard will show you.",
+      "tip": "Approval-step items reward asking what happens when nobody answers. The three required elements are almost always a bound, a defined default, and an alternate approver."
+    }
+  },
+  {
+    "id": "SDA-D-048",
+    "domain": "Solution Design & Architecture",
+    "topic": "Deduplication retention versus dead-letter replay horizon",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A charity's donation-receipt service consumes a queue; each message triggers a Claude-generated receipt letter and an email send, deduplicated against an idempotency key held in a cache with a 24-hour time to live. Messages that exhaust their retries land in a dead-letter queue, where they historically wait two to nine days until an engineer investigates and replays them. After last week's replay, 3,100 donors received a second receipt. What is the correct fix?",
+    "options": [
+      { "key": "A", "text": "Tighten the operational commitment so dead-letter messages are always investigated and replayed within the 24-hour cache window." },
+      { "key": "B", "text": "Make deduplication durable against a per-donation record rather than a short-lived cache, so the guarantee has no expiry." },
+      { "key": "C", "text": "Raise the retry count and lengthen the backoff intervals so that far fewer messages reach the dead-letter queue at all." },
+      { "key": "D", "text": "Generate a fresh idempotency key when a dead-letter message is replayed, so the replay is processed cleanly as a new operation." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The keys were correct and the retention was not: a deduplication window only protects operations that repeat inside it, and this pipeline's real repeat interval is the dead-letter dwell time, which is measured in days. Anchoring the check to a durable record of the donation itself removes the time dimension from the guarantee entirely, so a replay next week is recognised as the same operation just as reliably as a retry ten seconds later. That also matches how the business thinks about it: one donation, one receipt, forever.",
+      "distractors": {
+        "A": "This makes correctness contingent on human response time, including over weekends and holidays, and one missed day reintroduces the duplicate. Operational commitments are not a substitute for a property the code can guarantee.",
+        "C": "Fewer dead-lettered messages means fewer duplicates, not none, and the messages that do dead-letter are the ones with real problems — they are the most likely to be replayed later. This reduces exposure without changing the defect.",
+        "D": "A new key on replay guarantees the duplicate rather than preventing it, since the whole mechanism depends on the replay presenting the same identity as the original. It is the failure mode dressed as a remedy."
+      },
+      "concept": "A deduplication window must exceed the maximum interval over which the same logical operation can be presented again — including retries, dead-letter replays, manual reprocessing and disaster-recovery re-ingestion. Where that interval is unbounded or operator-controlled, tie the check to a durable business record instead of to a time-limited cache.",
+      "tip": "Whenever a stem gives both a deduplication TTL and a replay or backlog interval, compare them. If the second is larger than the first, the item is about retention horizon, not about keys."
+    }
+  },
+  {
+    "id": "SDA-D-049",
+    "domain": "Solution Design & Architecture",
+    "topic": "Signalling degraded responses in the response contract",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A service can answer either from its primary model path or from a degraded templated path. What must the response contract include?",
+    "options": [
+      { "key": "A", "text": "An HTTP error status on the response, so that callers treat any degraded answer as a failed request and automatically retry it later." },
+      { "key": "B", "text": "Nothing beyond the normal payload; the contract should stay identical so that existing callers require no changes." },
+      { "key": "C", "text": "A Retry-After header on the response, so the caller can come back later for the full-quality model answer." },
+      { "key": "D", "text": "An indication of which path produced the response, so callers, caches and evaluation can tell degraded output from normal." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Degraded output that is indistinguishable from normal output contaminates everything downstream. Caches store it as though it were the real answer, evaluation pipelines score it as a quality regression rather than an availability event, support cannot tell a complaining user why the answer was thin, and nobody can measure how often the degraded path ran. A mode field costs nothing and turns all of those into answerable questions. Callers that do not care can ignore it; the ones that must behave differently — caching layers especially — now can.",
+      "distractors": {
+        "A": "The request succeeded, and labelling success as failure breaks retry logic, error budgets and client behaviour. Reserve error status for requests that produced no usable answer; degradation is a different axis from failure.",
+        "B": "Identical contracts are convenient at integration time and expensive afterwards. This is the position that produced the situation where nobody can tell how much of last month's traffic was served by the fallback.",
+        "C": "A retry hint implies the caller should ask again, which for most clients means more load on a dependency that is already degraded. It also answers a different question from the one the contract needs to answer, which is what this response is."
+      },
+      "concept": "Degradation must be observable in the response, not only in the logs. Include a mode or quality indicator so that caching, evaluation, support tooling and client behaviour can all discriminate between a full-quality answer and a fallback, and so that the rate of degraded responses is measurable from the outside.",
+      "tip": "Ask what a cache would do with the response. If a degraded answer would be stored and served as though it were the real one, the contract is missing a mode indicator."
+    }
+  },
+  {
+    "id": "SDA-D-050",
+    "domain": "Solution Design & Architecture",
+    "topic": "Isolating batch and interactive workloads on a shared quota",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A media company serves two workloads from one account and one shared token-per-minute allocation: an overnight archive-tagging batch and a customer-facing interactive assistant. Twice this quarter the batch has overrun into the morning and consumed enough of the allocation that interactive requests were throttled for around an hour. Which TWO changes contain the impact of a future overrun? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Increase the account's overall token-per-minute allocation so both workloads fit even when they overlap at peak." },
+      { "key": "B", "text": "Give each workload its own credential and allocation, so the batch cannot draw from the interactive workload's share." },
+      { "key": "C", "text": "Have both workloads share one connection pool and one scheduler so that utilisation is smoothed across the hour." },
+      { "key": "D", "text": "Apply priority-based admission that defers or sheds batch requests first when the interactive workload nears its ceiling." },
+      { "key": "E", "text": "Disable retries on the interactive workload so that it consumes less of the shared token allocation each minute." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "Both changes convert a shared, first-come resource into a governed one. Separate credentials and allocations make the isolation structural: the batch physically cannot spend the interactive workload's budget, so an overrun becomes slower tagging rather than a customer-facing incident. Priority-based admission adds the dynamic half, handling the cases separation alone does not — bursts within the interactive workload, or a deliberate decision to let batch use idle headroom while still guaranteeing it yields first. Together they give a hard floor plus graceful use of spare capacity.",
+      "distractors": {
+        "A": "A bigger shared pool is still a shared pool, and the batch scales with the archive backlog rather than with the provisioned ceiling. This raises cost, delays the next occurrence, and leaves the interactive workload's availability dependent on the batch's good behaviour.",
+        "C": "Sharing a connection pool increases coupling rather than reducing it, giving the batch another finite resource it can exhaust. Smoothing utilisation is not a containment property; it is a description of what happens when contention is averaged.",
+        "E": "Interactive retries are not the cause, and removing them raises the user-visible error rate to protect the workload that should be yielding. This penalises the traffic the isolation is meant to protect."
+      },
+      "concept": "When workloads with different priorities share a finite resource, contain them with static partitioning plus a priority policy. Partitioning guarantees a floor for the critical workload; priority-based admission lets the lower-priority workload use slack while making it the first thing shed. Enlarging the shared pool changes the threshold, not the failure mode.",
+      "tip": "In shared-resource items, distinguish options that reduce the chance of contention from options that bound its consequences. Only the second kind counts as containment, and the stem usually asks about consequences."
+    }
+  },
+  {
+    "id": "SDA-D-051",
+    "domain": "Solution Design & Architecture",
+    "topic": "Timeout design for a streamed response",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A contact-centre agent-assist tool streams suggested replies to advisers while they are on a call. It currently applies a single 20-second total timeout to the streaming request. Two problems recur: long but genuinely useful suggestions are cut off at 20 seconds, and when the stream stalls after the first few tokens the adviser watches a frozen partial suggestion for the remaining time before anything happens. What timeout design fits this workload?",
+    "options": [
+      { "key": "A", "text": "Raise the total streaming timeout from 20 seconds to 45 so the long but genuinely useful suggestions can complete." },
+      { "key": "B", "text": "Lower the total streaming timeout from 20 seconds to 8 so that stalled streams are abandoned quickly on the adviser's screen." },
+      { "key": "C", "text": "Apply three bounds: a time-to-first-token limit, an inter-token stall limit, and an overall deadline for the whole response." },
+      { "key": "D", "text": "Stop streaming and return the completed suggestion in one response, keeping a single 20-second timeout on the whole call." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "A single total timeout conflates two independent failure modes and can only be wrong for one of them: set it long enough for a legitimate long suggestion and a stall goes undetected for the whole window; set it short enough to catch stalls and useful work is truncated. Streaming gives you a signal a unary call does not — token arrival — so use it. First-token latency detects a request that never started, the inter-token gap detects one that stopped, and the overall deadline still bounds the total. Each bound then targets one failure mode and can be tuned independently.",
+      "distractors": {
+        "A": "This optimises for one symptom and worsens the other: the adviser, mid-call with a customer, would now stare at a frozen suggestion for 45 seconds. Extending a bound that is already too long for the stall case is the wrong direction on the axis that hurts most.",
+        "B": "Eight seconds truncates the long suggestions the stem describes as genuinely useful, converting a visible stall into a silent quality loss. Both problems come from having one bound, and picking a different single value simply relocates the harm.",
+        "D": "Removing streaming discards the incremental delivery advisers rely on during a live call, and it makes stalls entirely invisible until the timeout expires. It solves the detection problem by removing the only signal that would have detected it."
+      },
+      "concept": "Streaming transport requires a family of timeouts rather than one: time to first token for start-up failure, an inter-token or stall timeout for mid-stream loss, and an overall deadline for total duration. Each corresponds to a distinct failure, and a single aggregate bound necessarily mis-serves at least one of them.",
+      "tip": "When a stem describes both truncated long responses and undetected stalls under one timeout, the answer decomposes the timeout. Look for the option that names first-token and inter-token bounds separately."
+    }
+  },
+  {
+    "id": "SDA-D-052",
+    "domain": "Solution Design & Architecture",
+    "topic": "What a synthetic probe detects that live metrics cannot",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "For a Claude-backed feature, what is a synthetic probe intended to detect that live-traffic metrics cannot?",
+    "options": [
+      { "key": "A", "text": "Failures on paths current traffic is not exercising, and failures a fallback is masking from user-visible metrics." },
+      { "key": "B", "text": "Cost regressions introduced by a prompt change, before they appear on the monthly provider invoice or budget alert." },
+      { "key": "C", "text": "Whether the model's answers are factually correct for the specific questions that real users are asking today." },
+      { "key": "D", "text": "How close the account is to its allocated request and token ceilings during the busiest peak periods of the day." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Live metrics can only report on the code paths that live traffic happens to take, which leaves two blind spots. Rarely used paths — the fallback, the retry branch, a feature used mostly in one time zone — go untested until the moment they matter, and a probe that deliberately exercises them keeps them honest. And where a mitigation is successfully hiding a failure, the user-visible signals stay green by design; a probe that asserts which path served it makes the concealed failure visible. Both are about coverage that organic traffic does not provide.",
+      "distractors": {
+        "B": "Cost movement is measured from usage telemetry across real traffic, and a probe's own volume is deliberately tiny and unrepresentative. Running probes to estimate spend would produce a number driven by the probe's prompt rather than by the user population's.",
+        "C": "Factual quality on real questions is an evaluation problem, assessed against a reference set or by graded sampling of production traffic. A probe checks that the machinery responds correctly, not that the content is right for a user it was not sent by.",
+        "D": "Headroom against an allocation is read directly from usage counters and rate-limit responses. A probe contributes to consumption rather than measuring it."
+      },
+      "concept": "Synthetic probes buy coverage and independence: they exercise paths traffic neglects and they can assert internal facts — which path served the response, whether the guardrail ran — that a user-visible success signal cannot express. They complement live telemetry and never replace it, because they carry none of the diversity of real inputs.",
+      "tip": "Read the assertion the probe makes, not just its schedule. A probe that only checks for a non-error response will pass happily through a fallback, which is the failure it was most likely bought to catch."
+    }
+  },
+  {
+    "id": "SDA-D-053",
+    "domain": "Solution Design & Architecture",
+    "topic": "Durability of long-running conversational session state",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An immigration-advice charity runs a Claude intake assistant that gathers a long case history over 30 to 50 minutes of conversation. Session state lives entirely in the browser and is sent back with each turn. Clients often use shared library computers or phones with unreliable connectivity, so a closed tab or dropped session loses the entire intake and the client must start again. Caseworkers report clients abandoning after a second loss. What should the architect change?",
+    "options": [
+      { "key": "A", "text": "Extend the browser session timeout to several hours and warn the user with a countdown banner before it expires." },
+      { "key": "B", "text": "Have the assistant emit a running summary that the client can copy and paste back into a new session in order to resume." },
+      { "key": "C", "text": "Shorten the intake to the ten most important questions so that losing a session costs the client less time." },
+      { "key": "D", "text": "Persist the conversation and extracted case state server-side after each turn under a resumable session id." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "State held only on the client is lost by every event the stem describes, and none of those events are timeouts — a closed tab on a shared library machine and a dropped mobile connection defeat any expiry setting. Writing state to the server after each turn makes the durable copy independent of the device, so recovery becomes reattachment rather than re-entry. Persisting the extracted case state alongside the transcript matters too: it means the resumed session continues from structured facts rather than replaying a long conversation, which is both cheaper and less likely to drift.",
+      "distractors": {
+        "A": "A longer timeout protects against inactivity and nothing else. The failure modes here are the tab disappearing and the network dropping, both of which happen without warning and neither of which a client-side timer survives.",
+        "B": "This transfers recovery work onto users who are, by the nature of the service, least able to perform it, and on a shared computer the copied text is both fragile and a privacy hazard. It also loses the structured extraction and keeps only prose.",
+        "C": "Reducing the intake sacrifices the case detail that gives the service its value in order to make a durability bug hurt less. Scope reduction is a legitimate lever when the work itself is too long, not when the storage is in the wrong place."
+      },
+      "concept": "Any interaction whose value accumulates over time needs server-side state that is durable after each meaningful increment, addressed by an identifier the user can return to. Client-held state is acceptable only where the work is short enough that losing it is inconsequential — a judgement made from session length and the cost of restarting.",
+      "tip": "Note who bears the cost of recovery in each option. Designs that require the user to preserve or re-supply state are usually wrong, and they are most wrong for the populations that appear in public-service scenarios."
+    }
+  },
+  {
+    "id": "SDA-D-054",
+    "domain": "Solution Design & Architecture",
+    "topic": "What a degraded mode specification must define",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A team documents its degraded mode entirely as \"the model call is skipped\". What is missing from that specification?",
+    "options": [
+      { "key": "A", "text": "The per-request cost saving that the mode delivers for as long as it stays active in production." },
+      { "key": "B", "text": "What the user receives, which guarantees hold, how the mode is entered and exited, and how it is signalled." },
+      { "key": "C", "text": "Which on-call engineers hold the authority to enable and disable the mode during an incident." },
+      { "key": "D", "text": "The model tier that would otherwise have served each request had the degraded mode not been active at the time." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Saying what the system stops doing describes an absence, not a behaviour. A degraded mode is a product state and needs the same definition as any other: the response a user actually gets, which promises survive and which are suspended, the condition that turns the mode on and the condition that turns it back off, and the signal that tells callers and downstream systems which mode produced the answer. Without the exit condition in particular, services routinely stay degraded after the trigger has cleared, because nothing is specified to bring them back.",
+      "distractors": {
+        "A": "Cost per request while degraded is a consequence worth knowing and not part of the behavioural contract. It tells nobody what the user sees or when the mode ends.",
+        "C": "Authorisation belongs in the runbook and matters most for manually triggered modes; it says nothing about what the mode does. Many degraded modes are entered automatically, and those still need every element of the behavioural definition.",
+        "D": "The counterfactual path is irrelevant to how the system behaves while degraded. It might be useful in a postmortem comparison, but it is not something the specification needs to state."
+      },
+      "concept": "Specify a degraded mode as a first-class operating state: the output contract, the guarantees retained and suspended, the entry and exit conditions, and the observable signal of its use. Modes defined only by what they skip get built inconsistently, never get tested, and tend to persist long after the condition that triggered them has passed.",
+      "tip": "Exit conditions are the element most often omitted and most often tested. If a specification says how a mode starts but not how it ends, that is the gap the question is pointing at."
+    }
+  }
+]

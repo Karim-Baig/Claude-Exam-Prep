@@ -1,0 +1,724 @@
+[
+  {
+    "id": "INT-D-019",
+    "domain": "Integration",
+    "topic": "Least-privilege cloud role for invoking a managed model service",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A pharmaceutical company's clinical-document summariser runs on cloud compute using one role that carries broad permissions on the managed model service, including the ability to create, modify and delete provisioned capacity. A security review flags it. The service calls exactly one model tier in one region. What change should the team make?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Keep the single role and rely on the private endpoint and security-group rules, since nothing outside the VPC can reach the model service at all."
+      },
+      {
+        "key": "B",
+        "text": "Keep the single role and add detective controls that alert the security team within minutes whenever capacity-management actions are performed with it."
+      },
+      {
+        "key": "C",
+        "text": "Give the workload role invoke permission only, constrained to the model identifiers and region it uses, and move capacity actions to a pipeline role."
+      },
+      {
+        "key": "D",
+        "text": "Split the role by environment so development and production have separate identities, keeping the same broad action set in each and tagging calls by environment."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The workload and the pipeline have genuinely different jobs, and least privilege means the identity that serves traffic should be unable to perform an action it never needs. Constraining invoke to the specific model identifiers and region also bounds what a compromise can spend and prevents accidental use of an unapproved tier or an out-of-scope region — a control that matters more here than usual, because the region choice is itself a compliance decision. Capacity management moves to an identity that is assumed deliberately, during a deploy, with its own audit trail.",
+      "distractors": {
+        "A": "Network isolation and identity scope defend different things. A private endpoint stops an outside caller reaching the service; it does nothing about what the compromised workload inside the VPC is permitted to do once an attacker is running code on it.",
+        "B": "Detection is not prevention. An alert tells you afterwards that a compromised workload deleted provisioned capacity; the point of separating the roles is that it could not have done so. Detective controls are a supplement to scope reduction, never a replacement.",
+        "D": "Environment separation limits cross-environment blast radius, which is worth having, but production still holds a role that can destroy production capacity. The over-broad action set is the finding, and this leaves it in place twice."
+      },
+      "concept": "Scope a model-invoking role along three axes: action (invoke only), resource (the specific model identifiers), and region. Control-plane operations belong to a deployment identity, not the runtime identity, so a runtime compromise cannot reconfigure the platform it runs on.",
+      "tip": "When a stem tells you the workload uses exactly one model in one region, that detail exists to make the resource and region constraints available. Unused specifics in a stem are usually the key."
+    }
+  },
+  {
+    "id": "INT-D-020",
+    "domain": "Integration",
+    "topic": "Decoupling application code from provider model identifiers",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An airline's operations assistant runs across two hosting routes for resilience. Concrete provider model identifier strings appear in fourteen places across six services. A routine change to the identifier used on the secondary route was applied to four services and missed the rest, causing a partial outage during a failover drill. The resilience objective is not negotiable. What is the correct structural fix?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Configure every service to request the provider's newest available model alias rather than a pinned identifier, removing the need to update strings at all."
+      },
+      {
+        "key": "B",
+        "text": "Move all fourteen identifiers into one shared constants package that every service imports, and version that package on each route change."
+      },
+      {
+        "key": "C",
+        "text": "Have services request a logical model name, resolved to the route's concrete identifier by the gateway from environment configuration."
+      },
+      {
+        "key": "D",
+        "text": "Add a start-up health check to each service that validates its configured identifiers against both routes and refuses to start when either fails to resolve."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The defect is that a provider-specific detail leaked into application code, so a route-level change became a six-service coordinated deployment. Resolving a logical name to a concrete identifier at the gateway makes the mapping a single piece of configuration owned by the team that owns the routes, changeable without touching or redeploying anything, and testable in isolation. It also makes the failover drill a configuration switch rather than a release, which is the only way an untested failover path ever becomes a tested one.",
+      "distractors": {
+        "A": "Removing version pinning trades a deployment problem for a behavioural one: outputs, latency and cost can change under a production system with no change on the team's side, and reproducing a past decision becomes impossible. Pinning is a feature.",
+        "B": "A shared package removes the copy-paste problem but keeps the identifier compiled into each service, so every change still requires rebuilding and redeploying six services in lockstep. That is exactly the coordination the partial outage came from.",
+        "D": "Fail-fast validation is a good guardrail and it detects the mismatch instead of preventing it. In the drill it would have turned a partial outage into a refusal to start, which is safer but still an outage of the services that were missed."
+      },
+      "concept": "Provider identifiers are deployment configuration, not application logic. Give services a stable logical model name and resolve it to a concrete per-route identifier at the boundary, so route changes, version pins and failover targets move without a code release.",
+      "tip": "When a stem counts how many places a string appears, the answer is an indirection that reduces that count to one — and the best indirection sits outside the services, not inside a shared library they all compile."
+    }
+  },
+  {
+    "id": "INT-D-021",
+    "domain": "Integration",
+    "topic": "Scope of an internal abstraction layer over hosting routes",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A maritime logistics firm wants the ability to move Claude workloads between hosting routes within a quarter if commercial terms change. An architect proposes an internal client library that every service uses. Which TWO responsibilities genuinely belong in that library? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Guaranteeing identical token-level outputs across routes by fixing sampling parameters and seeds inside the library so migrations need no re-testing."
+      },
+      {
+        "key": "B",
+        "text": "Normalising the request and response envelope for the capabilities actually in use, and failing loudly on anything the target route has not been verified to support."
+      },
+      {
+        "key": "C",
+        "text": "Owning prompt templates and retrieval logic for all teams, so that a route change cannot alter the text the model receives anywhere in the estate."
+      },
+      {
+        "key": "D",
+        "text": "Resolving the endpoint and performing authentication for the active route, so callers never handle route-specific credentials, signing or URLs."
+      },
+      {
+        "key": "E",
+        "text": "Re-implementing client-side any capability one route offers and another lacks, so every route presents the same surface whatever it natively supports."
+      }
+    ],
+    "correct": [
+      "B",
+      "D"
+    ],
+    "explanation": {
+      "correct": "Portability is bought by containing the parts that differ per route and refusing to hide the parts that cannot be made the same. Authentication, signing and endpoint resolution are pure route mechanics with no product meaning, so absorbing them removes the largest migration cost. Normalising the envelope for the capability set actually in use keeps the library small, and the loud failure on unverified capabilities is what stops the abstraction from becoming a lie — the team finds out at build time that a route cannot do something, instead of in production during a migration.",
+      "distractors": {
+        "A": "No library can guarantee token-level equivalence across independently operated inference stacks, and promising it sets the organisation up to treat any output difference as a bug. Migration confidence comes from re-running evaluations on the target route, not from a determinism claim.",
+        "C": "Prompt templates and retrieval are product logic that varies per use case and changes on product timelines. Putting them in the portability library couples every team's release to the platform team and has nothing to do with which route is active.",
+        "E": "Client-side emulation is how portability layers rot. Each emulated capability is code the platform team now maintains, it usually behaves subtly differently from the native one, and it makes the abstraction claim things about the target route that are not true."
+      },
+      "concept": "A portability layer should absorb mechanics and expose differences. Contain credentials, endpoints and the envelope for the capabilities you use; never emulate missing capabilities and never promise output equivalence — validate that with evaluations at migration time instead.",
+      "tip": "On abstraction-scope items, the true options are the boring plumbing ones. Anything promising that two independent systems will behave identically is the distractor, however appealing the guarantee sounds."
+    }
+  },
+  {
+    "id": "INT-D-022",
+    "domain": "Integration",
+    "topic": "Non-human identity for a scheduled model job",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A nightly Claude-backed reconciliation job runs under a named engineer's personal credentials. Beyond policy compliance, what is the operational argument for changing this, and what should replace it?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Nothing operational is wrong; record the engineer as the documented owner in the service catalogue so the dependency is visible at handover."
+      },
+      {
+        "key": "B",
+        "text": "The job's lifecycle is tied to a person's employment and its actions are attributed to a human who did not perform them; bind it to a dedicated non-human identity."
+      },
+      {
+        "key": "C",
+        "text": "Personal credentials cannot be rotated automatically; create a shared team login whose password sits in the team's password manager and is shared with the on-call rota."
+      },
+      {
+        "key": "D",
+        "text": "Personal credentials carry too much permission; keep them but request an extended session lifetime from identity management so the job is never interrupted mid-run."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "Two failures follow from a human credential running a machine job. The first is availability: when the engineer changes team, takes leave with a forced password reset, or leaves the company, the job stops, usually at the worst possible time and with no obvious cause. The second is attribution: every action the job takes appears in the audit trail as that person's, which corrupts the record on exactly the events an investigator would care about. A dedicated non-human identity has its own permissions, its own rotation, and an owner who is accountable without being the actor.",
+      "distractors": {
+        "A": "Documenting the owner is worth doing and changes nothing. The job still dies with the account and still signs its actions with a person's identity.",
+        "C": "A shared login is the same problem with more people. Nobody can be held accountable for its use, offboarding does not revoke it, and a password in a shared vault is a credential every team member can copy.",
+        "D": "Extending a human session lifetime makes the credential more dangerous while leaving both the lifecycle dependency and the attribution problem exactly as they were."
+      },
+      "concept": "Automated work needs its own identity with its own lifecycle, permissions and named human owner. Human credentials carry human lifecycle events, and any process bound to one inherits every reason that account might be disabled.",
+      "tip": "Identity recall items usually have two defensible-sounding answers about permissions. The discriminator is lifecycle — ask what happens to the job when the person leaves."
+    }
+  },
+  {
+    "id": "INT-D-023",
+    "domain": "Integration",
+    "topic": "Federated credentials from on-premises CI to a cloud model service",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A national tax agency runs its CI runners on premises and cannot move them to the cloud within this programme. A nightly evaluation job on those runners calls the cloud-hosted Claude service using a long-lived cloud access key held in the CI variable store. The agency's standard is that no static cloud credential may exist outside the cloud. What should the team implement?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Move the key into an on-premises hardware security module and have the runner fetch it at job start over the agency's internal network."
+      },
+      {
+        "key": "B",
+        "text": "Keep the key but rotate it nightly from a scheduled CI pipeline that writes the new value into the variable store before the evaluation job runs."
+      },
+      {
+        "key": "C",
+        "text": "Terminate the calls at an on-premises forward proxy that holds the key and signs requests, so the runners themselves never handle a cloud credential."
+      },
+      {
+        "key": "D",
+        "text": "Establish a trust relationship so the runner exchanges its short-lived CI-issued identity token for temporary cloud credentials scoped to the evaluation role."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "Identity federation is precisely the mechanism for this situation: the CI system can already prove what a job is with a short-lived signed token, and the cloud can be configured to trust that issuer and mint temporary, role-scoped credentials in exchange. The static key stops existing rather than being better guarded, which is what the standard demands, and the credentials the job receives expire on their own within the job's lifetime. It also gives per-pipeline scoping, so the evaluation job cannot borrow another team's access.",
+      "distractors": {
+        "A": "An HSM improves custody of a secret that the standard says should not exist. It also cannot prevent the runner from reading the credential into memory and using it, because that is the whole point of fetching it.",
+        "B": "Nightly rotation shortens the window but the credential is still static between rotations, still stored outside the cloud, and the rotation automation itself needs a durable credential — which is now the thing that violates the standard.",
+        "C": "The proxy relocates the static key to one place rather than eliminating it. Fewer copies is genuinely better, but a long-lived cloud credential still sits outside the cloud, which is the specific thing prohibited."
+      },
+      "concept": "When a workload outside a cloud must call into it, prefer token exchange over secret storage: let the external platform assert the workload's identity and have the cloud mint short-lived scoped credentials. Reserve stored secrets for callers with no assertable identity at all.",
+      "tip": "If the standard says a credential must not exist, discount every option that merely stores it better. Only the option that removes the credential can satisfy the rule as written."
+    }
+  },
+  {
+    "id": "INT-D-024",
+    "domain": "Integration",
+    "topic": "Central LLM gateway as a tier-zero dependency",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A hotel group routes all Claude traffic through a single central gateway. A bad configuration push took the gateway down for 25 minutes, and every AI feature across six products went dark simultaneously. An executive now wants the gateway removed and teams given direct provider access. As the platform architect, what do you propose instead?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Make the gateway fail open, forwarding requests unmodified to the provider whenever its own health checks fail, so an unhealthy gateway never blocks a product feature."
+      },
+      {
+        "key": "B",
+        "text": "Keep the gateway and run it as tier-zero: zonal and regional redundancy, progressive configuration rollout with automatic rollback, and a rehearsed break-glass path."
+      },
+      {
+        "key": "C",
+        "text": "Remove the gateway from the request path and keep it as an out-of-band collector that the six products report their usage to after the fact."
+      },
+      {
+        "key": "D",
+        "text": "Run two independently built gateways from different vendors in active-active behind one virtual address, so a defect in one cannot take out all six products."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "The incident is evidence about how the gateway is operated, not about whether it should exist — the controls it provides are the reason nine teams stopped holding their own credentials. The correct response is to hold it to the standard of any other shared dependency in the request path: redundancy, progressive configuration rollout with automatic rollback so a bad push degrades a fraction of traffic, and a break-glass path that has actually been rehearsed and that still produces the audit record the organisation depends on. That converts a 25-minute total outage into a bounded, observable one.",
+      "distractors": {
+        "A": "Failing open sounds like graceful degradation and is the opposite: the moment the gateway is unhealthy is the moment the organisation loses the evidence of what was sent, and an unhealthy component is a poor judge of whether it should be bypassed.",
+        "C": "Out-of-band reporting means the gateway can no longer hold credentials, enforce quota or capture what content left the estate, because it is not in the path. It removes the outage by removing the function.",
+        "D": "Two vendor implementations doubles the operational surface, the integration testing and the failure modes, for protection against a class of defect the incident was not — the outage came from a configuration push, which a second gateway with the same config would also have received."
+      },
+      "concept": "A shared component in the request path is a tier-zero dependency and must be engineered like one: redundancy, progressive config delivery with rollback, an independent deploy cadence from its consumers, and a rehearsed break-glass path that does not sacrifice the controls it exists to enforce.",
+      "tip": "When an incident prompts 'remove the shared component', check what the component was for. If those needs still exist, the answer is always about operating it better, not deleting it."
+    }
+  },
+  {
+    "id": "INT-D-025",
+    "domain": "Integration",
+    "topic": "Proxy buffering destroying time-to-first-token in a streamed UX",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A sports-media company's live commentary assistant streams Claude output into an editor's console, and editors were used to seeing the first words in well under a second. After the team moved all traffic behind a newly introduced gateway with a web application firewall in front of it, editors report that nothing appears until the whole response is ready, though total response time is unchanged. What is the most likely cause and fix?",
+    "options": [
+      {
+        "key": "A",
+        "text": "The model tier changed as part of the migration; move back to the tier the console used before, which had the lower first-token latency."
+      },
+      {
+        "key": "B",
+        "text": "The gateway's request timeout is shorter than the generation time; raise it above the longest observed commentary and the response will begin arriving earlier."
+      },
+      {
+        "key": "C",
+        "text": "The gateway's regional placement added round-trip latency on every hop; move the gateway into the same region as the editors' console to remove it."
+      },
+      {
+        "key": "D",
+        "text": "An intermediary is buffering the response body before forwarding; configure every hop to stream through unbuffered and add a client-side first-token metric."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "The diagnostic detail is that total time is unchanged while perceived time collapsed to the total. That pattern means the tokens are still being produced at the same rate but something between the model and the browser is accumulating the body and releasing it at the end — the classic behaviour of a firewall that must see a whole body to inspect it, or a proxy with response buffering and compression enabled by default. The fix is per-hop configuration, and the first-token metric matters because without it the team is debugging a user perception with only aggregate latency to look at.",
+      "distractors": {
+        "A": "A tier change would move total generation time too, and the stem attributes the change to the migration of the network path rather than the model configuration.",
+        "B": "A short timeout produces truncated or failed responses, not complete responses delivered late. Nothing in the symptom suggests requests are being cut off.",
+        "C": "Extra network distance would raise total response time as well as first-token time. The stem explicitly says total time is unchanged, which rules out an added round-trip cost."
+      },
+      "concept": "Streaming is an end-to-end property: any hop that buffers, inspects or compresses a whole body converts a progressive response into a batch one. When you introduce a gateway or inspection layer, verify first-token latency separately from total latency, because only one of them will move.",
+      "tip": "Unchanged total time plus collapsed perceived time is always an intermediary buffering. Treat 'total is the same' in a latency stem as the clue that eliminates every explanation involving more work or more distance."
+    }
+  },
+  {
+    "id": "INT-D-026",
+    "domain": "Integration",
+    "topic": "Purpose of a dead-letter queue in a model enrichment pipeline",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In an event-driven pipeline where workers call Claude to enrich incoming records, what is the purpose of a dead-letter queue?",
+    "options": [
+      {
+        "key": "A",
+        "text": "To preserve message ordering when several consumers process the same enrichment queue in parallel, by parking records that arrive out of sequence."
+      },
+      {
+        "key": "B",
+        "text": "To isolate messages that still fail after the retry policy is exhausted, so they stop blocking progress and can be inspected and replayed."
+      },
+      {
+        "key": "C",
+        "text": "To retain successfully processed messages as an immutable record that satisfies audit retention and can be reprocessed after a prompt change."
+      },
+      {
+        "key": "D",
+        "text": "To hold messages while the account is being rate limited by the provider, releasing them back to the enrichment workers once capacity is available again."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "A dead-letter queue exists to make poison messages someone's problem instead of everyone's. Without one, a record that can never succeed — a malformed payload, an oversized document, a reference to a deleted entity — is retried forever, consuming worker slots and model capacity that healthy traffic needs, and in an ordered queue it blocks everything behind it. Moving it aside after the retry budget is spent restores throughput, and keeping it retrievable means the failure can be diagnosed and, once the underlying cause is fixed, replayed deliberately rather than lost.",
+      "distractors": {
+        "A": "Ordering is a property of the queue type and its partitioning, not of the failure path. If anything, dead-lettering deliberately breaks strict ordering in exchange for progress.",
+        "C": "Successful messages are not dead letters. Retaining processed events for audit is a separate concern served by an event log or archive with its own retention policy.",
+        "D": "Rate limiting is transient and is handled by the retry policy and by backpressure on consumer concurrency. Sending rate-limited messages to a dead-letter queue would misclassify a recoverable condition as a permanent failure."
+      },
+      "concept": "Retries handle transient failure; dead-lettering handles permanent failure. Every asynchronous consumer needs both, plus alerting on dead-letter depth — an empty error rate with a growing dead-letter queue is a silent outage for the records in it.",
+      "tip": "Alert on dead-letter depth, not just consumer error rate. Once a message is parked, the consumer looks perfectly healthy, which is why this failure mode is usually discovered by a customer."
+    }
+  },
+  {
+    "id": "INT-D-027",
+    "domain": "Integration",
+    "topic": "Consumer design for an at-least-once model enrichment stream",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "An agricultural co-operative classifies roughly 200,000 sensor incident reports a day with Claude. Producers publish to a broker with at-least-once delivery; consumers call the model, write the classification to a data store, and notify an agronomist when severity is high. Which THREE properties must the consumer design have? (Choose THREE.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "A synchronous acknowledgement returned to the sensor gateway only once the classification has been stored, so producers can retry anything not confirmed in the window."
+      },
+      {
+        "key": "B",
+        "text": "Exactly-once delivery enabled on the broker, which removes the need for any consumer-side deduplication of the store write or the notification."
+      },
+      {
+        "key": "C",
+        "text": "Consumer concurrency bounded so in-flight requests stay within the account's sustainable model capacity, scaled on queue depth rather than error rate."
+      },
+      {
+        "key": "D",
+        "text": "A dead-letter path for events that fail deterministically, with alerting on dead-letter depth as well as consumer error rate and classification latency."
+      },
+      {
+        "key": "E",
+        "text": "A deterministic idempotency key derived from the source event, applied to both the data-store write and the agronomist notification."
+      }
+    ],
+    "correct": [
+      "C",
+      "D",
+      "E"
+    ],
+    "explanation": {
+      "correct": "At-least-once delivery pushes correctness onto the consumer, so a deterministic key covering every external effect — including the notification, which is the effect a human notices — is non-negotiable. Bounded concurrency is what stops an autoscaler from converting a backlog into a wall of rejections; queue depth is the right signal because error rate only rises after capacity has already been exceeded. The dead-letter path with depth alerting closes the third gap: without it, permanently failing reports either block progress or vanish while every dashboard stays green.",
+      "distractors": {
+        "A": "Making the producer wait for classification reinstates exactly the coupling the queue was introduced to remove: sensor gateways would block on variable model latency, and a slow model would apply backpressure all the way to the field devices.",
+        "B": "Brokers can offer strong delivery guarantees within their own boundary, but the consumer's effects here are an external data-store write and a notification, which sit outside any broker transaction. End-to-end exactly-once with external side effects is achieved by idempotent consumers, not by a broker setting."
+      },
+      "concept": "For at-least-once streams the consumer owns correctness: idempotency over every external effect, concurrency bounded by downstream capacity with queue depth as the signal, and a dead-letter path that is alerted on. Delivery guarantees from the broker never extend to side effects outside it.",
+      "tip": "Notifications are the effect authors forget to make idempotent. When a stem mentions alerting a human, check whether the option covering idempotency actually includes that path or only the database write."
+    }
+  },
+  {
+    "id": "INT-D-028",
+    "domain": "Integration",
+    "topic": "Transactional outbox for reliable event publication",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A construction-equipment rental platform creates a damage report row and publishes an event that triggers a Claude-based damage assessment. Operations reports two intermittent faults: assessments occasionally exist for reports that were rolled back, and reports occasionally exist with no assessment ever produced. What design removes both?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Publish the event before committing the damage report, and issue a compensating deletion of the assessment if the transaction subsequently rolls back."
+      },
+      {
+        "key": "B",
+        "text": "Enrol the database and the broker in a single distributed two-phase commit under an XA coordinator so the row and the event succeed or fail together."
+      },
+      {
+        "key": "C",
+        "text": "Write the event to an outbox table in the same transaction as the damage report, and have a relay read the outbox and publish with at-least-once semantics."
+      },
+      {
+        "key": "D",
+        "text": "Publish after the commit inside the same request handler, retrying until the broker acknowledges and holding the client response open until it does."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Both symptoms are the same bug seen from two sides: a database write and a message publish are separate operations with no shared atomicity, so either can succeed while the other fails. The outbox makes the event part of the same transaction as the business row, which means an event exists if and only if the report was committed. A relay then publishes at-least-once from durable state, so a process crash delays delivery rather than losing it, and the downstream assessment consumer handles duplicates with an idempotency key.",
+      "distractors": {
+        "A": "Publishing first guarantees the phantom assessments the stem already describes, and compensation is best-effort: if the process dies between the rollback and the compensating delete, the orphan assessment survives.",
+        "B": "Distributed transactions across a database and a message broker are rarely supported in modern stacks, and where they are they introduce coordinator failure modes and locks held across a network boundary. It is the textbook answer that practitioners have moved away from for good reasons.",
+        "D": "This is the closest miss. It fixes the phantom assessments but not the missing ones: if the handler crashes or is evicted after commit and before the broker acknowledges, the event is gone with nothing durable recording that it was owed. It also ties client response time to broker availability."
+      },
+      "concept": "A state change and the event announcing it must be committed atomically or they will diverge. Write the event alongside the state in one transaction and publish it from durable storage afterwards; make the consumer idempotent to absorb the at-least-once redelivery this creates.",
+      "tip": "Two symptoms — extra effects and missing effects — from one integration nearly always mean a dual-write. Look for the option that makes the event part of the transaction rather than adjacent to it."
+    }
+  },
+  {
+    "id": "INT-D-029",
+    "domain": "Integration",
+    "topic": "Webhook signature verification broken by body normalisation",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A games studio receives webhooks from a payments partner that trigger a Claude-generated fraud narrative for analysts. The partner signs each request with an HMAC over the request body. After the studio inserted a managed API gateway that validates and re-serialises JSON and injects tracing headers, every signature check fails, though the payloads are otherwise correct. What should the engineer do next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Ask the payments partner to sign a canonical JSON form of the payload so that the gateway's re-serialisation no longer changes the signed content."
+      },
+      {
+        "key": "B",
+        "text": "Disable signature verification at the receiver and authenticate the partner with mutual TLS plus a source-address allowlist maintained on the gateway."
+      },
+      {
+        "key": "C",
+        "text": "Have the gateway recompute the HMAC over the normalised body using the shared secret and forward the new value, so the receiver's check passes."
+      },
+      {
+        "key": "D",
+        "text": "Preserve the exact bytes the partner signed — pass the raw body through the gateway untransformed, or verify before any normalisation."
+      }
+    ],
+    "correct": [
+      "D"
+    ],
+    "explanation": {
+      "correct": "An HMAC authenticates a specific byte sequence. Re-serialising JSON changes key order, whitespace and numeric formatting without changing meaning, so the signature is now computed over bytes that no longer exist by the time verification runs. The only correct responses keep verification and the original bytes together: either the gateway forwards the body untouched, or verification is moved to the first component that sees the request, before any transformation. Both preserve end-to-end authenticity from the partner to the studio.",
+      "distractors": {
+        "A": "Canonical signing is a reasonable protocol design and a poor incident response: it requires a partner-side change on their schedule, for an integration that worked yesterday, and the studio would still be broken until they ship it.",
+        "B": "Transport-level and network-level controls tell you the connection came from an expected place. They do not authenticate the message, and a partner on shared egress infrastructure makes source-address allowlisting weak. Dropping message authentication to fix a byte-handling bug is a large downgrade.",
+        "C": "Re-signing at the gateway means the receiver is now authenticating the gateway, not the partner. It also copies the partner's shared secret into another component, widening the blast radius of a compromise while destroying the property the signature existed to provide."
+      },
+      "concept": "Signature verification must happen over the bytes as received, at the earliest hop that sees them. Any component that reformats, decompresses or re-serialises a body must sit behind verification, never in front of it.",
+      "tip": "When signatures start failing right after an infrastructure change and payloads still look right, stop reading the crypto and look for something that rewrote the body. Semantic equality is not byte equality."
+    }
+  },
+  {
+    "id": "INT-D-030",
+    "domain": "Integration",
+    "topic": "Per-key ordering with parallel throughput in an event stream",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A telco processes roughly 3 million customer chat events a day through a Claude-based intent classifier. Ordering matters strictly within a single customer's conversation, because a later message can supersede an earlier one, but ordering between different customers is irrelevant. A single strictly ordered queue cannot sustain the volume. What design satisfies both requirements?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Use a single strictly ordered queue with many more consumers, since ordering is a property of the queue itself rather than of how it is consumed."
+      },
+      {
+        "key": "B",
+        "text": "Use an unordered queue and have each consumer buffer briefly and sort the events it receives by producer timestamp before calling the classifier."
+      },
+      {
+        "key": "C",
+        "text": "Partition the stream by customer identifier so ordering holds within each partition while partitions are consumed in parallel, provisioning enough partitions up front to carry the volume."
+      },
+      {
+        "key": "D",
+        "text": "Use an unordered queue with a global sequence number, and have consumers buffer any event that arrives ahead of the next expected number until the missing one lands."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "The stem hands you the partition key by telling you that ordering is required within a customer and irrelevant between customers. Keying the stream on customer identifier makes order a per-partition guarantee, which is exactly the granularity the business needs, and leaves throughput free to scale with the number of partitions rather than being pinned to one serialised consumer. It also keeps all of a customer's events on one consumer, which makes any per-conversation state the classifier needs local rather than shared.",
+      "distractors": {
+        "A": "Adding consumers to a strictly ordered queue either does nothing, because delivery is serialised, or breaks the guarantee, because two consumers now process adjacent messages concurrently. Ordering and parallelism have to be reconciled by partitioning, not by consumer count.",
+        "B": "Consumers cannot sort a stream they see only in fragments. Each consumer sees an arbitrary subset arriving over time and has no way to know whether an earlier event for the same customer is still in flight elsewhere.",
+        "D": "Global sequencing reintroduces the serialisation it was meant to avoid: one slow or dead-lettered event blocks every consumer behind it, and buffering to fill gaps is unbounded memory with a head-of-line stall across all 3 million daily events."
+      },
+      "concept": "Ordering requirements are almost never global. Identify the scope within which order actually matters, make that the partition key, and you get the guarantee where it is needed and parallelism everywhere else.",
+      "tip": "A stem that says ordering matters within X but not between X values is naming the partition key. Options offering global ordering are solving a stronger, more expensive problem than the one you were given."
+    }
+  },
+  {
+    "id": "INT-D-031",
+    "domain": "Integration",
+    "topic": "Change-data-capture triggers for regenerating model output",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A university regenerates Claude-produced plain-language explanations of policy documents whenever the source record changes, driven by a change-data-capture stream from the policy database. Costs are higher than forecast and the same explanation is sometimes regenerated repeatedly with identical text. Which TWO changes address this? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "Rely on the change stream's ordering guarantee so the newest version always wins, and store the explanation with no version field or content hash beside it."
+      },
+      {
+        "key": "B",
+        "text": "Filter the change stream to the fields that actually affect the generated text, so timestamp, flag and workflow-state updates do not trigger regeneration."
+      },
+      {
+        "key": "C",
+        "text": "Consume the change stream synchronously inside the policy database's commit path so no reader can see a policy without its current explanation."
+      },
+      {
+        "key": "D",
+        "text": "Key the enrichment on a hash of the contributing source fields plus the prompt version, and skip generation when that key already has a stored result."
+      },
+      {
+        "key": "E",
+        "text": "Send change events straight to the model without an intervening queue, since the change-data-capture system already retries any delivery that fails."
+      }
+    ],
+    "correct": [
+      "B",
+      "D"
+    ],
+    "explanation": {
+      "correct": "Change-data-capture is deliberately indiscriminate — it reports that a row changed, not that anything meaningful changed — so the first job is to narrow the trigger to the columns that are actually inputs to the prompt. The second is to make regeneration idempotent with respect to content: hashing the contributing fields together with the prompt version means an event that carries no semantic change costs a lookup instead of a model call, while a genuine prompt revision correctly invalidates every stored result. Together they eliminate both sources of the duplicate spend.",
+      "distractors": {
+        "A": "Storing no version field removes the only means of detecting a stale or out-of-order write, and change streams give ordering guarantees only within a partition — replays, backfills and partition rebalances all defeat a last-write-wins assumption.",
+        "C": "Putting a variable-latency model call inside a database commit path couples every policy edit to model availability and turns an enrichment into a transaction dependency. Staleness measured in seconds is the correct trade here.",
+        "E": "Removing the queue removes backpressure, so a bulk update to the policy table becomes an instantaneous burst against a rate-limited service. Retry in the capture system protects delivery, not the downstream's capacity."
+      },
+      "concept": "Trigger regeneration on semantic change, not row change. Filter the change stream to prompt-relevant fields and key stored output on a content hash plus prompt version, so replays and cosmetic updates are free and prompt revisions correctly invalidate everything.",
+      "tip": "Including the prompt version in the cache key is the detail candidates miss. Without it, a prompt improvement silently fails to reach any record that has not otherwise changed."
+    }
+  },
+  {
+    "id": "INT-D-032",
+    "domain": "Integration",
+    "topic": "Idempotent submission of an asynchronous job",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A client submits a long-running Claude job. The submission succeeds on the server but the client's connection times out before the response arrives, so the client retries. What element of the async contract prevents a second job from being created?",
+    "options": [
+      {
+        "key": "A",
+        "text": "A client-supplied idempotency key on the submission, which the server binds to the created job and uses to return the original job handle on any repeat."
+      },
+      {
+        "key": "B",
+        "text": "Server-side deduplication on a hash of the request payload, retained indefinitely and shared across every client that calls the submission endpoint."
+      },
+      {
+        "key": "C",
+        "text": "Exponential backoff with jitter on the client's retry, spacing attempts far enough apart for the first submission to complete first."
+      },
+      {
+        "key": "D",
+        "text": "A status endpoint the client can poll to discover whether a job matching its request payload already exists before submitting again."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "The client cannot distinguish 'the server never received it' from 'the server accepted it and the response was lost', so the contract has to make the retry safe rather than make the client smarter. A key chosen by the client and recorded by the server on first acceptance turns the second submission into a lookup that returns the same handle. That is the only mechanism here that gives a deterministic answer regardless of how many times the client retries or how long the gap between attempts is.",
+      "distractors": {
+        "B": "Payload hashing without an expiry window conflates distinct legitimate requests: two clients asking the same question, or the same client deliberately re-running a job, are silently collapsed into one. Idempotency must be scoped and client-declared.",
+        "C": "Backoff changes when the retry happens, not what it means. A retry after any delay still looks like a brand-new submission to a server with no way to recognise it.",
+        "D": "Without a client-supplied key there is nothing to poll on — the client has no handle, and asking 'is there a job like mine' is a fuzzy match the server cannot answer reliably."
+      },
+      "concept": "Idempotency on submission is what makes an async contract retry-safe. The key must be supplied by the client, bound to the created resource on first acceptance, and honoured for a documented window so a repeat returns the original handle rather than creating work.",
+      "tip": "Distinguish the three async ingredients: the handle identifies the job, the status endpoint reports on it, and the idempotency key stops it being created twice. Stems about a lost response are always asking about the third."
+    }
+  },
+  {
+    "id": "INT-D-033",
+    "domain": "Integration",
+    "topic": "Reconciling a fixed client deadline with a slower model chain",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A roadside-assistance app must display a recommended action within a hard 3-second budget, a figure the product owner will not move because it is in a customer commitment. The Claude chain that produces the recommendation — retrieve incident history, classify, then draft the guidance — measures 4.5 seconds at p95 and 9 seconds at p99, and the steps are genuinely dependent. A deterministic rules engine can produce a usable, lower-quality recommendation in under 200 milliseconds. What should the architect propose?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Negotiate the budget up to 5 seconds on the basis that p95 would then be met, and treat the residual p99 tail as an acceptable error rate."
+      },
+      {
+        "key": "B",
+        "text": "Return the rules-engine recommendation inside the budget and push the model chain's refined guidance into the open session when it completes."
+      },
+      {
+        "key": "C",
+        "text": "Collapse the three steps into a single call on the fastest model tier so p95 fits inside the 3-second budget, accepting the quality reduction."
+      },
+      {
+        "key": "D",
+        "text": "Run the three steps concurrently and merge their outputs, so total latency approaches that of the slowest single step rather than their sum."
+      }
+    ],
+    "correct": [
+      "B"
+    ],
+    "explanation": {
+      "correct": "A hard commitment and a chain that cannot fit inside it means the model must stop being on the critical path. Answering from the rules engine satisfies the commitment deterministically, and delivering the model's refinement into the same session afterwards preserves the quality benefit for the large majority of cases where it arrives quickly. The hard client-side deadline matters too: it bounds how long a request can hold resources on the tail, and it makes the model's contribution an enhancement whose absence degrades the answer rather than breaking it.",
+      "distractors": {
+        "A": "The stem states the number is fixed and contractual. Even setting that aside, moving to 5 seconds converts a p95 breach into a p99 breach rather than removing it.",
+        "C": "Fitting p95 inside the budget still leaves one request in twenty breaching a hard commitment, and the tail is the part the commitment is written about. It also spends the quality of every response to fix the timing of a minority.",
+        "D": "The stem says the steps are dependent: classification needs the retrieved history and drafting needs the classification. Running them concurrently would mean drafting without the inputs it exists to use."
+      },
+      "concept": "When the deadline is fixed and the model cannot meet it, invert the dependency: answer deterministically inside the budget and treat the model output as a refinement delivered asynchronously. Optimise a chain only when the gap is a tail problem, not a structural one.",
+      "tip": "A stem that hands you a fast deterministic fallback alongside a slow model path is telling you the answer is progressive delivery. Check p99 against the budget, not p95 — commitments are broken by tails."
+    }
+  },
+  {
+    "id": "INT-D-034",
+    "domain": "Integration",
+    "topic": "Writing model output back into a system of record with provenance",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A waste-management operator writes Claude-generated explanations of route exceptions back into its dispatch platform, which is the operational system of record and is also read by supervisors, customers and an external auditor. Six months later the auditor cannot determine which explanations were machine-generated, and one supervisor's manual correction was silently overwritten by a regeneration. How should the write-back be redesigned?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Write generated text into dedicated fields carrying model and prompt version, a timestamp, source input identifiers and a review status a human edit sets."
+      },
+      {
+        "key": "B",
+        "text": "Stop writing back to the dispatch platform and keep generated explanations in the analytics warehouse, where lineage and versioning are already tracked."
+      },
+      {
+        "key": "C",
+        "text": "Add a single boolean on each record indicating that it contains AI-generated content, and version the whole record on every regeneration."
+      },
+      {
+        "key": "D",
+        "text": "Keep writing into the existing notes field but prefix every generated paragraph with a machine-readable marker that consumers and the auditor can filter on."
+      }
+    ],
+    "correct": [
+      "A"
+    ],
+    "explanation": {
+      "correct": "Two distinct failures have to be fixed by the same design. Provenance requires that generated content be separable at the field level and carry enough metadata to reconstruct how it was produced — which model, which prompt version, from which inputs, when — because the auditor's question is asked years after the run. The overwrite requires that human edits be recognisable to the pipeline, which a review status on the generated field provides: once a supervisor has touched it, regeneration must skip or branch rather than overwrite. Neither problem is solvable while machine and human text share one field.",
+      "distractors": {
+        "B": "Removing the write-back removes the feature. Dispatchers and supervisors need the explanation where they work, and the warehouse is not the system of record the auditor is examining.",
+        "C": "A record-level flag says something on this record was generated without saying what, which does not answer the auditor's question, and record versioning preserves history without preventing the supervisor's correction from being overwritten in the first place.",
+        "D": "Markers inside free text are fragile against copy-paste, truncation and any consumer that renders the field verbatim, and they are unqueryable at scale. They also give the regeneration job no way to know a human has edited the content."
+      },
+      "concept": "When model output lands in a system of record, keep it in fields of its own, tag it with the metadata needed to reproduce it, and give it a status that human intervention can set. Provenance and edit-protection are field-level properties; record-level flags satisfy neither.",
+      "tip": "Two symptoms in one stem — an audit gap and a lost human edit — means the answer must address both. Discard options that solve provenance while leaving regeneration free to overwrite."
+    }
+  },
+  {
+    "id": "INT-D-035",
+    "domain": "Integration",
+    "topic": "Conditions that select an asynchronous contract",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An architect must decide whether a new Claude-backed capability is exposed synchronously or asynchronously. Which TWO conditions most strongly indicate the asynchronous contract? (Choose TWO.)",
+    "options": [
+      {
+        "key": "A",
+        "text": "The result must be read back consistently inside the same database transaction as the write the caller has just made, before that transaction commits."
+      },
+      {
+        "key": "B",
+        "text": "A person is waiting in an interactive session and the result has no value if it arrives after they have moved on to the next case."
+      },
+      {
+        "key": "C",
+        "text": "The capability needs to be callable directly from a single-page browser application that has no backend of its own to hold credentials."
+      },
+      {
+        "key": "D",
+        "text": "The p99 processing time exceeds a caller timeout that the calling system cannot change, such as a partner's fixed HTTP client limit."
+      },
+      {
+        "key": "E",
+        "text": "The work must survive caller disconnects, deploys and restarts, because re-running it is expensive or produces side effects."
+      }
+    ],
+    "correct": [
+      "D",
+      "E"
+    ],
+    "explanation": {
+      "correct": "Two properties push work off the request path. The first is a latency distribution that cannot fit inside a deadline the caller controls — once p99 is outside a fixed timeout, the synchronous contract is failing by design, not by accident. The second is durability of the work itself: if losing an in-flight job costs real money or leaves partial side effects, the job needs an identity and durable state independent of any connection, which is precisely what the async contract provides.",
+      "distractors": {
+        "A": "A requirement to read the result consistently inside the caller's transaction argues strongly against asynchrony, since the result does not exist when the transaction commits. That constraint forces either a synchronous call or a redesign of the transaction boundary.",
+        "B": "This argues the other way. An interactive session where a late result is worthless is the classic case for keeping the work synchronous, usually with progressive delivery and a fast deterministic fallback rather than a job handle.",
+        "C": "Browser-callability is a question about authentication, credential exposure and CORS, not about the timing contract. Both shapes can be exposed to a browser, and neither is safer for it by default."
+      },
+      "concept": "Choose async when the work outlives the request — because the tail exceeds a fixed deadline, or because the work is too valuable to lose with a connection. Choose sync when a human is blocked on the answer or when downstream consistency depends on having it now.",
+      "tip": "Two of the five options in this shape of item always argue for the opposite contract. Read each one and ask which way it pushes, rather than whether it is a true statement about the system."
+    }
+  },
+  {
+    "id": "INT-D-036",
+    "domain": "Integration",
+    "topic": "Triage during a degraded primary regional model endpoint",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "An automotive parts distributor's gateway shows rising error rates and latency against its primary regional model endpoint. The gateway's synthetic probe against a secondary region — in the same residency scope — is healthy. The quarterly error budget is nearly spent. A large B2B catalogue-enrichment batch is mid-run; its items are individually idempotent and the whole job can be re-run. The failover path has never been exercised in production. What should the on-call architect do next?",
+    "options": [
+      {
+        "key": "A",
+        "text": "Raise the gateway's retry count and timeouts so requests ride out the degradation, and open a support ticket with the provider in parallel."
+      },
+      {
+        "key": "B",
+        "text": "Fail all traffic over to the secondary region at once, so both interactive and batch workloads leave the degraded endpoint in a single change."
+      },
+      {
+        "key": "C",
+        "text": "Shift interactive traffic to the healthy secondary region through the gateway's routing configuration, and hold the batch job rather than migrating it too."
+      },
+      {
+        "key": "D",
+        "text": "Roll back the most recent application deployment, since a caller-side change is the most common cause of a sudden rise in errors and latency."
+      }
+    ],
+    "correct": [
+      "C"
+    ],
+    "explanation": {
+      "correct": "Two facts in the stem set the priority. The error budget is nearly spent, so interactive traffic is what needs protecting; the batch is idempotent and re-runnable, so it is what can afford to wait. Moving only interactive traffic also keeps the first ever production use of the failover path at the lowest load it will ever have, which is exactly the caution an unexercised path deserves — if the secondary behaves unexpectedly, the blast radius is bounded and the batch has not been dragged into it. The batch resumes once the failover is observed to be stable, or once the primary recovers.",
+      "distractors": {
+        "A": "More retries against a degraded endpoint increases its load and lengthens tail latency for everyone, which burns error budget faster. Opening a ticket is right and is not a mitigation.",
+        "B": "Moving everything at once puts an untested path under full production plus batch load simultaneously. If the secondary has a lower effective ceiling or an unnoticed configuration gap, the response converts a partial degradation into a total one.",
+        "D": "The probe evidence contradicts the hypothesis: a caller-side regression would degrade calls to both regions, and the secondary probe is healthy. Rolling back a good deployment costs time and adds a variable during an incident."
+      },
+      "concept": "During provider-side degradation, move the traffic whose failure costs most and defer the traffic that can be re-run. An unexercised failover path should be entered with the smallest viable load, because the first production execution is also the first real test.",
+      "tip": "Stems that tell you a job is idempotent and re-runnable are telling you what to sacrifice. Pair that with the error-budget detail and the triage order is decided for you."
+    }
+  }
+]

@@ -1,0 +1,454 @@
+[
+  {
+    "id": "SDA-B-001",
+    "domain": "Solution Design & Architecture",
+    "topic": "Drawing subagent boundaries by context consumption",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "Northline Freight runs a Claude agent that answers \"why is this shipment late\". Each answer needs three sources: carrier EDI event logs (often tens of thousands of tokens per shipment), port and weather advisories (long free text), and the customer's contract SLA terms (a few hundred tokens). Today one agent holds all three tools. Latency is within budget, but when the EDI logs are long the agent starts answering a different question than the one asked, and the SLA clause is frequently ignored. The team has approved a move to subagents. Where should the boundary be drawn?",
+    "options": [
+      { "key": "A", "text": "Keep the single agent, raise `max_tokens` to 8,000, and prepend a standing reminder of the original question ahead of every tool result so it stays salient." },
+      { "key": "B", "text": "Give each bulky source its own subagent returning a short structured finding, so the orchestrator holds only the question, the SLA terms and the findings." },
+      { "key": "C", "text": "Split by customer tier, routing premium accounts to a higher-capability agent with a larger thinking budget and spot-rate shippers to a cheaper one." },
+      { "key": "D", "text": "Split by output section — one subagent drafts the root-cause narrative and another drafts the remediation offer — with both receiving the same full source set." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The failure described is context dilution: a large, low-density source is crowding out the instruction and the SLA clause. The boundary that fixes that is the one where a lot of context is consumed and very little is returned. Each source reader burns its own window on raw logs and hands back a compact finding, so the orchestrator's window stays dominated by the question and the contract terms it must apply. This is the canonical case where multi-agent earns its coordination cost — high read volume, small return, and branches that are independent of each other.",
+      "distractors": {
+        "A": "Raising the output cap does nothing about input crowding, and instructions that ask the model to compensate for a context problem are the weakest available control. This move is reasonable when the failure is truncated output; here the stem says the answer drifts off-question, which is an input-side symptom.",
+        "C": "Tier routing is a cost and quality lever, not a context lever. A premium customer's shipment produces exactly the same volume of EDI logs, so the drift reappears on the expensive path. Route by tier when unit economics are the problem, not when the window is the problem.",
+        "D": "Splitting the output while duplicating the input is the worst of both designs: both subagents still carry the full logs, so neither escapes the dilution, and the system now pays twice to load the same context plus a coordination round trip."
+      },
+      "concept": "Put subagent boundaries where context is consumed, not where the deliverable happens to divide. A good boundary has a high ratio of tokens read to tokens returned and needs no further conversation with the caller. Boundaries drawn around output sections, customer segments, or team ownership usually duplicate input instead of isolating it.",
+      "tip": "When a stem describes an agent \"losing the thread\" or ignoring a small but critical instruction while processing a large source, it is describing an input-context problem. Look for the option that removes bulk from the main window rather than the one that adds instruction."
+    }
+  },
+  {
+    "id": "SDA-B-002",
+    "domain": "Solution Design & Architecture",
+    "topic": "Dominant token overhead in orchestrator fan-out",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In an orchestrator-plus-subagents design, what most directly drives total token consumption above an equivalent single-agent-with-tools design performing the same task?",
+    "options": [
+      { "key": "A", "text": "Prompt caching keys on an exact prefix match, so subagent invocations can never reuse a cached prefix and multi-agent systems forfeit caching entirely." },
+      { "key": "B", "text": "The orchestrator must retain each subagent's complete transcript — every tool call and intermediate step — in its own window to produce a final answer." },
+      { "key": "C", "text": "Each subagent re-establishes its own context — system prompt, framing, tool schemas — and the orchestrator reads each result on top of its own state." },
+      { "key": "D", "text": "Parallel subagent calls are automatically re-issued by the platform until every branch returns, so input tokens are multiplied by the fan-out factor." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Coordination overhead is structural, not incidental. Each subagent is a fresh conversation, so its framing and tool definitions are paid for again on every branch, and the orchestrator then spends further input tokens ingesting whatever each branch returns before it can reason over the set. The multiplier scales with the number of handoffs rather than the difficulty of the work, which is why fan-out only pays off when each branch would otherwise have forced a very large amount of material through the main window.",
+      "distractors": {
+        "A": "This overstates the constraint into a false absolute. Subagents that share a stable framing can be designed to reuse a common prefix; the point is that a naive design gives each one a different prefix and forfeits the reuse, not that reuse is impossible.",
+        "B": "If this were true, context isolation would deliver nothing, and the pattern would have no reason to exist. The orchestrator sees the returned result, and a well-designed system makes that result deliberately small.",
+        "D": "No such automatic re-issue exists. Retry behaviour is something the orchestration layer implements deliberately; inventing it as platform behaviour hides the real and more mundane cause of the extra spend."
+      },
+      "concept": "The cost of a multi-agent system is proportional to the number of context establishments and handoffs, not to the number of agents on the diagram. Two agents that hand off six times cost more than six agents that hand off once. Budget the protocol, not the roster.",
+      "tip": "Recall items on multi-agent cost usually offer one plain structural answer among several invented platform behaviours. Prefer the option that describes something you could observe in a token log."
+    }
+  },
+  {
+    "id": "SDA-B-003",
+    "domain": "Solution Design & Architecture",
+    "topic": "Concurrent writes to a shared agent scratchpad",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A pharmacovigilance team runs five subagents in parallel, each screening a different literature source for adverse-event signals. All five append to one shared `findings.md` on a mounted volume, which the orchestrator reads at the end. Two problems appear in production: sections occasionally vanish when two agents write at the same time, and agents that happen to read the file mid-run start echoing each other's tentative conclusions, so the orchestrator sees three \"independent\" confirmations of one weak signal. Parallelism must be preserved. What is the correct fix?",
+    "options": [
+      { "key": "A", "text": "Wrap every append in an advisory `flock` on the mounted volume so writes are serialised at the filesystem level and no section is lost." },
+      { "key": "B", "text": "Run the five screening agents sequentially in a fixed source order, each appending to the file only after the previous one has finished." },
+      { "key": "C", "text": "Instruct each subagent in its system prompt to append only beneath its own source heading and never to read sections written by another agent." },
+      { "key": "D", "text": "Give each subagent a private output artifact keyed to its agent id, and have the orchestrator merge the five once all branches complete." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "There are two distinct defects here and only one option fixes both. Lost sections are a write-contention bug; the fake corroboration is an independence bug, because agents that can observe each other's drafts are no longer independent evidence. Private per-agent artifacts remove contention entirely — there is no shared write target — and they restore independence, because no branch can see another's partial state. Merging after all branches complete makes the aggregation step explicit and gives the orchestrator provenance for each finding, which matters when a signal's strength depends on how many genuinely separate sources produced it.",
+      "distractors": {
+        "A": "Locking fixes the lost writes and nothing else. The agents can still read the file, so the cross-contamination that inflates a weak signal into three confirmations survives untouched, and lock waits add stalls to exactly the parallelism you were trying to keep.",
+        "B": "Serialising removes contention by removing concurrency, which the stem rules out. It also makes the independence problem worse, since each agent now reliably sees everything written before it rather than occasionally.",
+        "C": "This turns a concurrency invariant and an evidence-independence invariant into prompt instructions. Model compliance is a reasonable way to shape output style; it is not a way to enforce a property whose violation is silent and only visible in aggregate."
+      },
+      "concept": "Shared mutable state between concurrent agents costs you two guarantees at once: write integrity and result independence. Default to private state with an explicit merge. Introduce genuinely shared state only when agents must coordinate mid-flight, and then enforce the invariant in the runtime, never in the prompt.",
+      "tip": "When a stem lists two symptoms, check every option against both. Here the locking answer is attractive because it cleanly solves the first symptom, and candidates who stop reading after \"vanishing sections\" take it."
+    }
+  },
+  {
+    "id": "SDA-B-004",
+    "domain": "Solution Design & Architecture",
+    "topic": "Structuring the handoff payload to a subagent",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A national benefits agency has an orchestrator that delegates \"verify the claimant's residency evidence\" to a verification subagent. The handoff today is a free-text paragraph the orchestrator composes each time. Casework auditors report that when evidence is missing the subagent sometimes returns a confident partial verdict, and that failed verifications cannot be traced back to the originating claim. Which TWO changes to the handoff payload most directly address these complaints? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Include the orchestrator's full conversation transcript, including earlier caseworker turns, so the subagent has complete background on the claim." },
+      { "key": "B", "text": "Specify an output contract naming the fields the subagent must return, including a distinct \"evidence insufficient to decide\" value." },
+      { "key": "C", "text": "Have the orchestrator compose fresh handoff wording on every call so the instruction adapts to the particular residency documents the claimant filed." },
+      { "key": "D", "text": "Carry a correlation id for the claim into the handoff, together with the iteration and cost budget the subagent must operate inside." },
+      { "key": "E", "text": "Grant the subagent runtime access to the full tool registry, including the payments and correspondence tools, so it can pick whatever it needs." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "The two complaints map to two payload gaps. A confident partial verdict happens because the contract offers no legitimate way to say \"I cannot decide\" — if the only shapes available are approve and reject, the model will pick one. Adding an explicit insufficiency value makes abstention a first-class, machine-readable outcome. Untraceable failures happen because nothing links the subagent's work to the claim; a correlation id threaded through the handoff and into logs restores that link. Carrying the remaining budget in the same payload also makes the subagent's stopping condition explicit rather than implied.",
+      "distractors": {
+        "A": "Forwarding the whole transcript inverts the reason for delegating: the subagent's clean window is the asset. It also does nothing for either complaint — more background does not create an abstain option, and it does not make the branch traceable.",
+        "C": "Model-composed instructions vary run to run, which is the opposite of what an audited process needs. Two identical claims can receive materially different instructions, and there is no stable contract to test the subagent against.",
+        "E": "Broad runtime tool access widens the subagent's blast radius and makes its behaviour harder to reason about. Tool scope is a boundary decision made at design time; it is not a remedy for an ambiguous output contract."
+      },
+      "concept": "A handoff is an interface, so give it the properties of one: a fixed request shape, a fixed response shape that can express failure and abstention, an identifier that survives into logs, and the resource budget the callee may spend. Free-text handoffs are untestable and force the callee to invent semantics.",
+      "tip": "\"Confident answer where it should have said it did not know\" almost always points to a missing state in the output contract rather than to a model quality problem. Look for the option that adds the missing state."
+    }
+  },
+  {
+    "id": "SDA-B-005",
+    "domain": "Solution Design & Architecture",
+    "topic": "Bounding recursive subagent spawning after an incident",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "At an online marketplace, a research agent that can spawn subagents ran overnight against a large supplier-audit queue and consumed the team's entire monthly token allocation in about four hours. The run has been stopped and the feature disabled. Traces show delegation chains six levels deep, with several agents delegating work that was nearly identical to their own task. Leadership wants the feature back on within the week. What should the team do first, before re-enabling it?",
+    "options": [
+      { "key": "A", "text": "Add a line to the system prompt stating that an agent may spawn at most two subagents and must never delegate a task substantially identical to its own." },
+      { "key": "B", "text": "Move all subagents to a cheaper model tier and reserve the frontier model for the root agent, so a comparable overnight run fits inside the allocation." },
+      { "key": "C", "text": "Cap delegation depth in the orchestration layer and pass one request-level budget down through each handoff, decremented as it is spent." },
+      { "key": "D", "text": "Add a compaction step that summarises each subagent's result into the orchestrator's running state before it continues, keeping that window small." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The incident is an unbounded-resource failure, so the first control must be one that cannot be talked out of. Depth is capped by the code that performs the spawn, and total spend is bounded by a budget created once per request and decremented as each branch consumes it — so no combination of fan-out and depth can exceed what the root was granted. This also fixes the near-duplicate delegation indirectly: once budget is scarce and inherited rather than replenished, a branch that re-delegates its own task runs out instead of multiplying.",
+      "distractors": {
+        "A": "Prompt-level limits are advisory. They will reduce the frequency of runaway trees without bounding the worst case, and the worst case is precisely what emptied the allocation. Use prompt guidance to shape ordinary behaviour, never as the only barrier against unbounded resource use.",
+        "B": "Cheaper tokens change the constant, not the growth. An unbounded tree on a cheaper tier still consumes an unbounded amount; it simply takes longer to notice, which is arguably worse for a feature that runs overnight.",
+        "D": "Compaction controls the orchestrator's context growth, which is a real concern in long agent loops but is not what happened here. The spend came from the number of agents started, not from the size of the orchestrator's window."
+      },
+      "concept": "Any agent permitted to create agents needs three runtime-enforced limits: maximum depth, maximum total spend for the request, and a wall-clock deadline. Budgets must be inherited and decremented, never granted fresh per agent, or total cost grows with the size of the tree rather than the size of the request.",
+      "tip": "\"What should you do first\" after a resource incident is nearly always the control that makes the worst case finite, not the change that makes the average case cheaper. Rank options by whether they bound or merely reduce."
+    }
+  },
+  {
+    "id": "SDA-B-006",
+    "domain": "Solution Design & Architecture",
+    "topic": "Multi-agent applied to tightly coupled drafting work",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A commercial law firm builds an assistant that drafts a complete supply agreement from a term sheet. An engineer proposes five subagents — one per clause family — running in parallel and writing into a shared document, arguing that this mirrors how the human team divides work. Partners reviewing the pilot output complain that defined terms drift between clauses, the liability cap contradicts the indemnity, and cross-references point at the wrong sections. Retrieval over the precedent library is working well. What is the right architecture?",
+    "options": [
+      { "key": "A", "text": "Keep the five clause agents but add a sixth that reads the assembled draft end to end, reconciles defined terms, and rewrites clauses that contradict each other." },
+      { "key": "B", "text": "Keep the five clause agents and give them a shared defined-terms scratchpad on a mounted volume that each reads and appends to as it drafts." },
+      { "key": "C", "text": "Keep the five clause agents but route the higher-risk families — liability, indemnity, termination — to a higher-capability tier with extended thinking." },
+      { "key": "D", "text": "Use one drafting agent with retrieval over the precedent library, reserving subagents for separable work such as precedent research." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Every defect the partners report is a coherence defect, and coherence is exactly what context isolation destroys. A liability cap can only be reconciled with an indemnity by something that holds both while it reasons; five isolated windows structurally cannot. Copying a human division of labour is not an argument, because the humans share a room, a partner review, and a shared working memory that the isolated agents do not have. The right boundary here separates work that consumes context and returns little — searching precedent — from work that must hold the whole artefact in one head.",
+      "distractors": {
+        "A": "A consistency pass tries to repair downstream what the architecture broke upstream. The reviewer must load the entire draft plus enough precedent to adjudicate conflicts — which is the single-context design, arrived at after paying for five drafting agents first.",
+        "B": "A shared terms scratchpad helps with vocabulary drift and does nothing for substantive contradictions between a cap and an indemnity. It also introduces concurrent writes between agents whose drafting order is nondeterministic.",
+        "C": "Tier routing raises the quality of each clause considered alone. The failures are relational — they exist between clauses — so no per-clause improvement addresses them, and the spend goes up."
+      },
+      "concept": "Multi-agent fan-out trades shared context for parallelism and window headroom. When the deliverable's correctness depends on relationships between its parts, that trade is a loss at any price. Decompose along information boundaries, not along the org chart or the document's table of contents.",
+      "tip": "\"This mirrors how our team divides the work\" is a distractor pattern, not a design rationale. Ask what the humans share that the agents would not."
+    }
+  },
+  {
+    "id": "SDA-B-007",
+    "domain": "Solution Design & Architecture",
+    "topic": "Preserving auditability when subagent context is discarded",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A transmission utility uses a multi-agent system to produce maintenance-deferral recommendations. Subagents each read a slice of the sensor and inspection archive and return a short assessment; the orchestrator combines these into a recommendation an engineer signs off. The regulator requires that, for seven years, any recommendation can be reconstructed to show exactly what evidence supported it. Today the subagents' windows are discarded when they return, and the archive is continuously re-indexed. What must the design add?",
+    "options": [
+      { "key": "A", "text": "Persist each subagent's inputs, tool calls and raw outputs to an append-only store keyed by a request correlation id, and have handoffs carry references into it." },
+      { "key": "B", "text": "Return each subagent's full transcript to the orchestrator so the final recommendation is produced from complete evidence and can be replayed from the orchestrator's saved conversation." },
+      { "key": "C", "text": "Store the orchestrator's final recommendation in the case record together with the subagent summaries it received, since those summaries are what actually informed the engineer's sign-off." },
+      { "key": "D", "text": "Require each subagent to cite the archive record identifiers it relied on inside its returned assessment, so an auditor can follow those citations back into the archive." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Two details in the stem set the requirement. The retention horizon is seven years, and the archive is continuously re-indexed — so a pointer that resolves today may resolve to different content later, or to nothing. Reconstruction therefore needs the evidence as it was at decision time, captured immutably and tied to the request. Writing that record at the point of consumption, and passing only references onward, keeps the audit obligation and the context-isolation benefit independent of one another: the orchestrator's window stays small while the evidentiary chain stays complete.",
+      "distractors": {
+        "B": "This buys audit coverage by abandoning isolation, which is the reason the subagents exist. It also relocates a seven-year regulatory record into conversation state, which is a transport format, not a retention system with immutability guarantees.",
+        "C": "Summaries record the conclusion, not the evidence. A regulator asking why a deferral was recommended will want the sensor readings behind the assessment, and those are precisely what this option discards.",
+        "D": "Citations are necessary but not sufficient when the underlying index is mutable. In seven years a cited record may have been re-chunked, superseded or deleted, and the citation then proves nothing about what the agent actually read."
+      },
+      "concept": "Context isolation deletes evidence by design, so any system with a reproducibility obligation must externalise that evidence at the moment it is consumed, immutably and under a correlation id. Log what went into each agent, not only what came out, and never rely on a mutable index to reconstruct a past decision.",
+      "tip": "A retention period measured in years plus a mutable data source is a deliberate pairing. It tells you snapshots are required and that references alone will not survive."
+    }
+  },
+  {
+    "id": "SDA-B-008",
+    "domain": "Solution Design & Architecture",
+    "topic": "Primary benefit of subagent context isolation",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "What is the primary architectural benefit of running a subagent in its own context window rather than performing the same work inside the orchestrator's conversation?",
+    "options": [
+      { "key": "A", "text": "It makes the subagent's output deterministic, because the isolated window is assembled identically on every call, so repeated runs return the same result." },
+      { "key": "B", "text": "The orchestrator spends window space only on the subagent's condensed result, so a long exploration cannot crowd out the main task's instructions." },
+      { "key": "C", "text": "It lets the subagent run without loading its own tool schemas, since the orchestrator's request has already paid for those definitions." },
+      { "key": "D", "text": "It prevents the subagent from fabricating content, because a smaller window keeps only relevant material in front of the model and reduces hallucination." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Isolation is a context-budgeting device. Exploratory work — searching, reading, discarding dead ends — generates a large volume of material whose value collapses to a short conclusion. Doing it inline forces the orchestrator to carry all of that intermediate noise for the rest of the task, degrading its grip on the original instructions. Running it in a separate window means the main thread pays only for the conclusion. The corollary matters as much as the benefit: whatever the subagent saw is gone unless it was deliberately persisted elsewhere.",
+      "distractors": {
+        "A": "Isolation changes what context a call sees, not the sampling behaviour of the model. A subagent is exactly as nondeterministic as the same prompt run anywhere else.",
+        "C": "Each subagent call is its own request and carries whatever tool definitions it needs. Nothing is inherited from the orchestrator's request, which is part of why fan-out costs extra tokens.",
+        "D": "Smaller windows do not confer factual reliability. In fact isolation can make fabrication more dangerous, because the orchestrator has no way to inspect the evidence behind a confidently worded return."
+      },
+      "concept": "Treat a subagent as a function whose main effect is to convert a large, noisy context into a small, structured value. The value of the pattern rises with the ratio of tokens read to tokens returned, and its main hazard is that everything not returned is irrecoverable.",
+      "tip": "Distractors that promise determinism or freedom from hallucination as a side effect of an architectural choice are almost always wrong. Architecture moves cost, latency and blast radius; it does not change the model's nature."
+    }
+  },
+  {
+    "id": "SDA-B-009",
+    "domain": "Solution Design & Architecture",
+    "topic": "Splitting agents along tool-privilege lines",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A managed security provider's tier-one triage agent handles reported phishing. It reads the raw reported message — attacker-authored content, including embedded instructions — and it also holds tools that can quarantine a mailbox, disable a user session and query the SIEM. Analysts have started seeing quarantine actions against mailboxes unrelated to the reported message. The provider needs to keep automated quarantine, which is its main value proposition. What boundary should the redesign draw?",
+    "options": [
+      { "key": "A", "text": "Keep one agent but require it to restate the reported message as a structured summary before acting, so the attacker's raw prose is not in front of it at action time." },
+      { "key": "B", "text": "Keep one agent and add an output filter that blocks quarantine calls whose target mailbox does not appear in the reported message's headers or body." },
+      { "key": "C", "text": "Split into an analysis agent that reads the raw message with no privileged tools, returning a typed verdict with named targets, and an action agent that never sees attacker text." },
+      { "key": "D", "text": "Keep one agent but put the quarantine tool behind a tier-two analyst approval step, so no mailbox is disabled without a human confirming the action." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The unrelated quarantines indicate that content the agent read is influencing actions it takes, so the fix is to make sure that nothing which reads untrusted input also holds the authority to act. Separating the reader from the actor gives each agent a strictly smaller privilege set than the combined one, and forces the influence of untrusted text through a narrow, typed channel — a verdict with named targets — that the action agent can validate. The provider keeps automation because the action agent still runs unattended; it simply cannot be steered by prose it never sees.",
+      "distractors": {
+        "A": "Self-summarisation does not sever the influence path: the summary is produced by the same agent that read the injected instruction and can carry it forward. Paraphrasing untrusted content is not the same as excluding it from the privileged context.",
+        "B": "A target allowlist derived from the message text is a useful defence in depth, but it is derived from the untrusted artefact itself, so a crafted message can name whatever mailbox it wants. It narrows the attack without changing who holds the authority.",
+        "D": "Human approval on every quarantine destroys the automation the provider sells and shifts a high-volume decision onto analysts. Approval gates belong on the small set of irreversible or high-blast-radius actions, not as a substitute for a privilege boundary."
+      },
+      "concept": "Agent boundaries are privilege boundaries. Any agent that ingests content it does not control should hold no tool that can change state; give it a typed return instead, and let a separate, unexposed agent act on that return. The split costs one handoff and removes an entire class of confused-deputy failure.",
+      "tip": "When a stem pairs untrusted input with state-changing tools in the same agent, the architectural answer is almost always to separate reading from acting — not to add an instruction, a filter, or a human to the existing agent."
+    }
+  },
+  {
+    "id": "SDA-B-010",
+    "domain": "Solution Design & Architecture",
+    "topic": "Workload properties that justify multi-agent over single agent",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "Which THREE properties of a workload constitute a genuine justification for multiple agents rather than one agent with a good tool set? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "Subtasks are independent of one another and each consumes far more context than the compact result it returns to the caller." },
+      { "key": "B", "text": "The end-to-end interaction must complete inside a sub-second budget, with nothing streamed or shown to the user before the final answer." },
+      { "key": "C", "text": "Different subtasks require different tool permissions or data-residency scopes that should not be combined into a single agent's authority." },
+      { "key": "D", "text": "The deliverable is one continuous narrative whose later sections depend on judgements and wording fixed while writing the earlier ones." },
+      { "key": "E", "text": "Subtasks warrant different model tiers and stopping criteria, and one system prompt would have to carry instruction sets that conflict." }
+    ],
+    "correct": ["A", "C", "E"],
+    "explanation": {
+      "correct": "The three defensible justifications are context economics, privilege separation, and configuration divergence. Independent, read-heavy branches let you spend a large amount of context in parallel and return little, which is the case where fan-out pays for its overhead. Divergent permission or residency scopes make a combined agent over-privileged by construction, and no prompt can fix that. And when subtasks need different tiers, different iteration limits and instructions that contradict one another, forcing them into one system prompt produces a prompt that is worse at every task than a set of focused ones would be.",
+      "distractors": {
+        "B": "A hard sub-second budget argues against multi-agent. Every handoff adds a full round trip plus the time to re-establish context, and with nothing streamed to the user there is no perceived-latency relief to offset it.",
+        "D": "This is the coherence case, where isolation is a liability. Later sections depending on earlier judgements means the reasoning must stay in one context; splitting it guarantees drift and contradiction that a later reconciliation pass can only partly repair."
+      },
+      "concept": "Multi-agent is justified by context economics, privilege separation, or configuration divergence — ideally more than one at once. It is not justified by task complexity alone, by organisational structure, or by a desire for tidy diagrams. Where subtasks are coupled or the budget is latency-bound, one agent with tools remains the stronger design.",
+      "tip": "In a \"choose three\" over justifications, expect exactly two anti-cases planted as plausible positives. Latency pressure and narrative coherence are the two that most often get misread as reasons to add agents."
+    }
+  },
+  {
+    "id": "SDA-B-011",
+    "domain": "Solution Design & Architecture",
+    "topic": "No-progress detection as a termination condition",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A telco's network-fault agent diagnoses circuit outages using a tool loop with a hard cap of 40 iterations. On roughly one call in twelve it enters a rut: it issues the same diagnostic query with the same arguments over and over, exhausts all 40 iterations, and then returns a vague answer with no indication that anything went wrong. Analysis shows that genuinely hard faults sometimes legitimately need more than 25 iterations. What should be added?",
+    "options": [
+      { "key": "A", "text": "A no-progress condition that ends the loop when consecutive iterations add no new arguments or evidence, returning a typed \"unable to progress\" result." },
+      { "key": "B", "text": "A reduction of the global iteration cap from 40 to 10, so a stuck run is cut off after a few wasted queries rather than burning the whole budget." },
+      { "key": "C", "text": "An increase in sampling temperature from 0.2 to 0.9 after the tenth iteration, so the agent varies its diagnostic queries instead of reissuing the same one." },
+      { "key": "D", "text": "A system-prompt instruction telling the agent never to issue a tool call with arguments identical to one it has already made during the same diagnosis." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "An iteration cap is a backstop, not a termination condition — it fires long after the run stopped being useful and it cannot distinguish exhaustion from stuckness. A progress predicate can: if several consecutive steps add no new tool arguments and no new evidence, the loop is not going to recover, and it should stop immediately and say so. The typed result matters as much as the early exit, because the current failure is silent — the caller receives a vague answer indistinguishable from a real one. Long legitimate runs are unaffected, since they keep producing new state.",
+      "distractors": {
+        "B": "This trades one failure for a worse one. The stem states that genuinely hard faults sometimes need more than 25 iterations, so a cap of 10 would abandon the cases where the agent earns its place, while stuck runs still burn ten iterations before stopping.",
+        "C": "Raising temperature makes repetition less likely without making progress more likely, and it degrades the precision of tool arguments on the runs that were working. Randomness is not a substitute for a stopping rule.",
+        "D": "The instruction is a reasonable nudge but cannot be relied on to enforce loop termination, and it does not create the typed failure result that lets the caller distinguish \"stuck\" from \"diagnosed\"."
+      },
+      "concept": "Every agent loop needs at least three independent stopping rules: a success predicate, a resource ceiling (iterations, tokens, wall clock), and a no-progress detector. The ceiling protects the bill; the progress detector protects usefulness. Both must return a distinguishable status so callers can tell an incomplete run from a completed one.",
+      "tip": "When a stem gives you a distribution — \"hard cases legitimately need more than 25\" — it is pre-emptively eliminating any option that just tightens a global limit. Read those numbers as constraints on the answer."
+    }
+  },
+  {
+    "id": "SDA-B-012",
+    "domain": "Solution Design & Architecture",
+    "topic": "Resolving contradictory subagent findings at aggregation",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A supermarket group runs recall assessments with three subagents: one reads supplier batch records, one reads laboratory test results, one reads customer complaint text. Their conclusions sometimes contradict each other — lab says clear, complaints say contaminated. The aggregator today concatenates the three returns and asks a high-capability model to \"summarise the findings and recommend an action\". In two post-incident reviews, the aggregator silently adopted one branch and the recommendation was wrong. Food-safety leadership will not accept silent conflict resolution. What should change?",
+    "options": [
+      { "key": "A", "text": "Take a majority vote across the three subagents, treating two agreeing branches as outweighing one dissenting branch, and log the split for the safety review." },
+      { "key": "B", "text": "Add a fourth verification agent that re-reads the concatenated findings, flags any recommendation it disagrees with, and returns a dissent note to the aggregator." },
+      { "key": "C", "text": "Let the three subagents exchange their findings over a bounded number of rounds and iterate until they converge on a shared conclusion before the aggregator runs." },
+      { "key": "D", "text": "Have each subagent return structured claims with provenance and a confidence or abstain value, under a precedence policy that escalates contradictions to a human." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Silent resolution happens because the aggregator is given prose and an open-ended instruction, so it has no way to detect a contradiction and no rule for what to do when it finds one. Structured claims with provenance make disagreement machine-detectable rather than a matter of narrative style, and an abstain value stops a weak branch from being read as a confident one. The precedence policy then decides which conflicts the system may resolve itself and which must reach a person — which is exactly the guarantee leadership asked for, and it is a property of the aggregation contract, not of the model doing the summarising.",
+      "distractors": {
+        "A": "Voting is only valid when the voters are interchangeable estimators of the same quantity. These three read entirely different evidence, so a two-to-one split may simply mean two agents looked at sources where the problem is invisible. Reserve voting for redundant runs of the same task.",
+        "B": "A reviewer over the same concatenated prose inherits the same blindness: without provenance and confidence it cannot tell a contradiction from a difference in emphasis. It adds cost and a second opinion, not a resolution rule.",
+        "C": "Inter-agent negotiation removes the independence that makes three sources valuable, and it can converge confidently on a wrong shared answer. It also adds unbounded conversational turns to a step that currently has a fixed cost."
+      },
+      "concept": "Aggregation is a design surface, not a summarisation prompt. Specify what each branch must return (claims, provenance, confidence, abstention), how conflicts are detected, and what policy resolves them — including which ones must escalate. Without that, the aggregator will resolve conflicts anyway, invisibly.",
+      "tip": "Watch for voting offered over non-interchangeable agents. If the branches read different evidence, a vote is arithmetic on incomparable things, and the item is testing whether you notice."
+    }
+  },
+  {
+    "id": "SDA-B-013",
+    "domain": "Solution Design & Architecture",
+    "topic": "Subagent fabricating a result after tool failure",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A biotech competitive-intelligence system fans out to retrieval subagents, each searching a different registry. In a postmortem, one subagent's search tool returned server errors for its whole run; the subagent nevertheless returned a fluent summary describing a clinical trial that does not exist, and the orchestrator folded it into a briefing that reached the executive team. Retries were already configured on the tool and had been exhausted. What is the most effective next step?",
+    "options": [
+      { "key": "A", "text": "Add an instruction to the subagent's system prompt, repeated in its final turn, telling it never to report a finding it did not actually retrieve." },
+      { "key": "B", "text": "Make tool exhaustion a harness-level outcome: the runtime marks a branch failed when retries are exhausted, and the aggregator reports missing branches as missing." },
+      { "key": "C", "text": "Increase the retry count from three to eight and add jitter to the exponential backoff so a registry's transient 5xx errors are less likely to exhaust the budget." },
+      { "key": "D", "text": "Add a judge agent that fact-checks every trial cited in the assembled briefing against the source registries before it is released to the executive team." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Two things went wrong and only one of them is about the model. The branch failed, and nothing in the system recorded that it failed — the orchestrator could not distinguish \"searched and found nothing\" from \"never successfully searched\". Deciding branch health in the runtime, where the tool errors are actually observed, removes the model's opinion from a question it is not qualified to answer. Requiring the aggregator to surface missing branches closes the second half: a briefing assembled from two of three registries is a different artefact from a complete one, and the reader must be told which they have.",
+      "distractors": {
+        "A": "The prompt is the weakest place to enforce this, because the failure mode is precisely that the model produced confident text under pressure to return something. An instruction competes with that pressure; a runtime status does not.",
+        "C": "Better retry behaviour reduces how often branches fail. It does nothing about what happens when one eventually does, and registries will go down for longer than any retry budget. This is a good availability change and the wrong fix for a fabrication path.",
+        "D": "Verification after assembly is expensive, catches only some fabrications, and leaves the incomplete-briefing problem untouched. It is worth considering as defence in depth once the branch-status gap is closed, not as the primary control."
+      },
+      "concept": "Errors must propagate between agents as typed data, not as prose or silence. Whoever observes the failure — usually the runtime, not the model — should record it, and every aggregation step needs a defined behaviour for missing or failed branches. A result assembled from an unknown subset of its inputs is not a partial result; it is an unlabelled wrong one.",
+      "tip": "In postmortem stems, separate the trigger from the propagation. Fixing the trigger (a flaky tool) leaves the propagation path intact for the next trigger; fixing propagation covers every future trigger."
+    }
+  },
+  {
+    "id": "SDA-B-014",
+    "domain": "Solution Design & Architecture",
+    "topic": "Enforcing agent stopping rules outside the prompt",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A university library builds a research-assistant agent. Occasional runs continue for hours. The team adds \"complete your work within at most ten steps\" to the system prompt; long runs still occur, though less often. What is the correct correction?",
+    "options": [
+      { "key": "A", "text": "Repeat the ten-step limit in every user turn and in a reminder appended after each tool result, so it stays salient as the conversation grows." },
+      { "key": "B", "text": "Move the agent to a higher-capability tier, which follows multi-step procedural instructions such as step limits far more reliably." },
+      { "key": "C", "text": "Enforce the step limit and a wall-clock deadline in the orchestration loop that drives the agent, treating the prompt instruction as guidance." },
+      { "key": "D", "text": "Expose a `remaining_steps` tool the agent is instructed to call before each action so it can track its own budget and wind down as it approaches zero." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Stopping rules are controls, and controls belong in the code that owns the loop. The orchestration layer already counts iterations and holds the clock, so it can end the run unconditionally regardless of what the model decides. Keeping the prompt instruction is still worthwhile — it makes the model behave sensibly inside the budget, and it means the model can plan against the limit — but the guarantee comes from the loop. The distinction generalises: prompts shape behaviour, harnesses enforce invariants.",
+      "distractors": {
+        "A": "Restating an instruction raises compliance probability slightly and consumes tokens on every turn. It still leaves an unbounded worst case, which is the actual problem, and it makes the transcript noisier for anyone debugging it.",
+        "B": "Instruction-following improves with capability, but improving the odds is not the same as bounding the outcome. A stronger model that ignores the limit once a week is still an unbounded run once a week, at a higher price.",
+        "D": "A self-reporting tool is useful telemetry and can help the model pace itself, but the agent still chooses whether to act on it. Anything the model can decline to do is not an enforcement mechanism."
+      },
+      "concept": "Split every agent control into the guidance layer and the enforcement layer. Guidance lives in the prompt and improves typical behaviour; enforcement lives in the runtime and defines the worst case. If a limit exists to protect cost, latency or safety, it must have an enforcement-layer implementation.",
+      "tip": "Any option that fixes a resource problem by rewording, repeating, or upgrading the model is answering a different question. Look for the one that puts the limit somewhere the model cannot reach."
+    }
+  },
+  {
+    "id": "SDA-B-015",
+    "domain": "Solution Design & Architecture",
+    "topic": "Symptoms of a badly placed subagent boundary",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "During a design review, which TWO observations are evidence that a subagent boundary has been placed in the wrong location? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "The subagent needs several rounds of clarification with the orchestrator before it can start useful work." },
+      { "key": "B", "text": "The subagent consumes far more context reading source material than the size of the result it returns." },
+      { "key": "C", "text": "The orchestrator has to forward most of its own conversation into the subagent for it to produce anything useful." },
+      { "key": "D", "text": "The subagent runs on a cheaper model tier than the orchestrator, with its own iteration cap." },
+      { "key": "E", "text": "The subagent's tool allowlist is strictly narrower than the orchestrator's, with no write scopes." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "Boundaries in the right place produce a callee that can be handed a compact, self-contained brief and left alone until it returns. Repeated clarification rounds mean the brief cannot be made self-contained at that cut point, and every round pays the full coordination cost again. Needing most of the caller's conversation forwarded means the work was never separable in the first place — you have paid for a handoff and received none of the isolation, because the same context now exists in two windows. Both symptoms say the same thing: move the cut, or remove it.",
+      "distractors": {
+        "B": "This is the signature of a good boundary, not a bad one. A high read-to-return ratio is precisely what justifies the coordination overhead of delegating.",
+        "D": "Tier divergence is a normal and often deliberate reason to split work: cheap breadth in the branches, expensive judgement at the top. It says nothing about whether the cut is in the right place.",
+        "E": "A narrower allowlist is a benefit of the boundary. Least privilege for the callee is one of the strongest independent reasons to introduce a subagent at all."
+      },
+      "concept": "Judge a subagent boundary by two tests: can the brief be made self-contained, and is the return much smaller than the input? Chatty handoffs and forwarded caller context both mean the cut runs through the middle of a single body of reasoning rather than between two separable ones.",
+      "tip": "In multi-select items about \"what is wrong\", expect several options describing textbook-correct properties. Sort each option into good sign, bad sign, or neutral before selecting, and only then count."
+    }
+  },
+  {
+    "id": "SDA-B-016",
+    "domain": "Solution Design & Architecture",
+    "topic": "Global versus per-agent budget in a delegation tree",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A port authority's berth-planning system lets each agent delegate to at most four children, to a maximum depth of three levels below the root. Each agent is granted a fresh budget of 20 tool calls when it starts. The worst case is therefore 85 agents and 1,700 tool calls for a single planning request, which the team has now hit twice. The architect wants a change that bounds total spend per request regardless of how the delegation tree happens to unfold. Which change achieves that?",
+    "options": [
+      { "key": "A", "text": "Allocate one tool-call budget at the root of the request and pass the remaining balance down through each handoff, decremented as calls are spent." },
+      { "key": "B", "text": "Reduce the per-agent grant from 20 tool calls to 10, halving the worst case to 850 calls while leaving the depth and fan-out limits as they are." },
+      { "key": "C", "text": "Reduce the maximum fan-out from four children to two while keeping the depth limit and the per-agent grant, giving 15 agents and 300 tool calls." },
+      { "key": "D", "text": "Emit a telemetry event on every spawn and page the on-call engineer when a request passes a tool-call threshold, so a runaway tree is caught early." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The question asks for a bound that holds regardless of tree shape, and only a budget owned by the request rather than by each agent provides one. Once the balance is created once and decremented as it is spent, the total is capped at the root allocation whatever the fan-out and depth turn out to be, and branches that overspend starve their siblings rather than multiplying the bill. Per-agent grants make total cost a function of how many agents happen to exist, which is exactly the quantity nobody controls at request time.",
+      "distractors": {
+        "B": "Halving the grant halves the worst case to 850 calls. That is still a number produced by multiplying an uncontrolled agent count by a per-agent allowance, so it reduces the exposure without bounding it, and it penalises the shallow requests that were behaving well.",
+        "C": "A fan-out of two over the same three levels gives 15 agents and 300 calls — a real reduction, but the same structural defect. Total cost still scales with tree size, and any future change to the depth limit reopens the problem.",
+        "D": "Observability tells you the budget was blown; it does not stop it. Alerting is worth adding alongside a real limit, but an on-call engineer is not a rate limiter."
+      },
+      "concept": "In any delegation tree, resource limits must be inherited and consumed, not granted per node. A per-node allowance makes total cost proportional to the number of nodes, which is emergent and unbounded; a request-scoped balance makes cost a fixed input the architect chooses.",
+      "tip": "When a stem says \"regardless of how the tree unfolds\" or \"whatever the shape\", it is asking for a bound, not a reduction. Options that shrink a multiplier are disqualified by that phrase alone."
+    }
+  },
+  {
+    "id": "SDA-B-017",
+    "domain": "Solution Design & Architecture",
+    "topic": "Collapsing and parallelising a sequential handoff chain",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A retailer's service assistant runs four agents in sequence: an intake agent that classifies the request, a policy agent that searches a very large returns-policy corpus, an order agent that queries the order system, and a writer agent that composes the reply. Each stage averages 2.2 seconds, so the complete reply lands at about 8.8 seconds against a 5-second p95 SLO measured on the finished response. The policy corpus is bulky enough that keeping it out of the main window is the reason the policy agent exists. Policy lookup and order lookup do not depend on each other. What change meets the SLO with the least loss of quality?",
+    "options": [
+      { "key": "A", "text": "Stream the writer agent's tokens over the chat channel so the customer sees the reply forming at roughly 6.6 seconds instead of waiting for 8.8." },
+      { "key": "B", "text": "Move the writer agent to a faster tier, cutting its 2.2-second stage roughly in half and bringing the total to about 7.7 seconds." },
+      { "key": "C", "text": "Collapse all four agents into one holding the classification, policy and order tools, eliminating all three handoffs and their round trips." },
+      { "key": "D", "text": "Fold intake classification into the orchestrator's routing step, run the policy and order agents concurrently, and keep the writer as the final stage." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Three of the four stages are unnecessary as sequential steps for different reasons. Classification is a routing decision the orchestrator already has to make, so it does not need a round trip of its own. The two lookups are stated to be independent, so their 4.4 seconds of serial time collapses to about 2.2 in parallel. That leaves lookups plus writer at roughly 4.4 seconds, inside the 5-second budget, with the policy corpus still isolated in its own window as the design requires. The general move is to remove handoffs that buy nothing and parallelise the ones that must remain.",
+      "distractors": {
+        "A": "The SLO is stated as being measured on the finished response, so improving time to first token does not satisfy it. Streaming is the right lever when the metric is perceived responsiveness; here the stem deliberately defines it otherwise.",
+        "B": "Halving one 2.2-second stage brings the total to roughly 7.7 seconds, well short of the target, and it lowers the quality of the stage that produces the customer-visible text — the worst stage to degrade.",
+        "C": "Merging everything reaches the budget by destroying the isolation the stem says is load-bearing: the bulky policy corpus would flow back into the main window. It also serialises the two lookups inside one agent's tool loop, so much of the saving is illusory."
+      },
+      "concept": "Latency in a multi-agent system is the sum of handoffs on the critical path. Attack it in order: delete stages that add no isolation or privilege benefit, parallelise stages that are genuinely independent, and only then optimise the stages that remain. Merging agents is a last resort because it gives back whatever the boundary was buying.",
+      "tip": "Do the arithmetic on every option in a latency item. Two of these get closer to the SLO without reaching it, and an option that improves the number but misses the target is still wrong."
+    }
+  },
+  {
+    "id": "SDA-B-018",
+    "domain": "Solution Design & Architecture",
+    "topic": "Distinguishing empty results from subagent failure",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An orchestrator must reliably distinguish \"the subagent searched and found nothing\" from \"the subagent's tool failed and it never searched\". What is the minimal design change that makes this distinction dependable?",
+    "options": [
+      { "key": "A", "text": "Instruct the orchestrator to read each returned message carefully and infer from its wording whether the branch actually completed a search." },
+      { "key": "B", "text": "Define a result schema with an explicit status value the branch must carry, set by the runtime when a tool errors rather than by generated text." },
+      { "key": "C", "text": "Log all tool errors to the observability platform with the branch id, so the difference is visible to anyone reviewing the run afterwards." },
+      { "key": "D", "text": "Have the subagent return an empty result set whenever its tool fails, so the orchestrator can treat any empty return as an unsuccessful branch." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The distinction has to be carried in the data the orchestrator branches on, and it has to be set by whatever actually observed the outcome. A status field in the result schema gives the orchestrator something deterministic to switch on, and populating it from the runtime — which saw the tool error directly — means the value does not depend on the callee choosing to describe its own failure accurately. That is the minimum: one enumerated field, written by the component with ground truth.",
+      "distractors": {
+        "A": "Inferring status from prose makes a control-flow decision depend on generated wording, which varies run to run. It is also the exact path by which a fluent failure report gets read as a successful empty search.",
+        "C": "Logging serves humans reviewing an incident later. It does not put the fact in front of the orchestrator at the moment it decides whether to retry, escalate, or proceed with a gap.",
+        "D": "Collapsing failure into emptiness is the ambiguity you are trying to remove, not a fix for it. The orchestrator's correct response to the two cases differs — retry or escalate versus report no matches — so they must be representable separately."
+      },
+      "concept": "Every inter-agent result needs a status distinct from its payload, and the status should be set by the component that observed the outcome rather than narrated by the model. An empty payload is data; it is never a substitute for an error signal, because the caller's correct behaviour differs between the two.",
+      "tip": "\"Minimal design change\" rules out extra agents, extra passes, and extra infrastructure. Look for the smallest addition to the contract that makes the required distinction machine-readable."
+    }
+  }
+]

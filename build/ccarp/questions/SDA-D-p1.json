@@ -1,0 +1,453 @@
+[
+  {
+    "id": "SDA-D-001",
+    "domain": "Solution Design & Architecture",
+    "topic": "Placing the human gate before an irreversible write",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A contract research organisation uses a Claude agent to draft protocol-deviation reports and file them into the trial master file system through a tool call. The applicable regulation requires a qualified person to sign off before a deviation record exists in the trial master file. The current design has the agent file the record immediately, notify a qualified person, and allow retraction within 24 hours; retraction is implemented as a superseding entry, because the trial master file is append-only. Roughly 3% of drafts are retracted. What is the correct architectural change?",
+    "options": [
+      { "key": "A", "text": "Add a second Claude call that critiques each draft against the deviation-classification SOP and blocks filing when the critique disagrees with the draft." },
+      { "key": "B", "text": "Keep filing immediately but gate it behind a confidence classifier that holds back drafts scoring below 0.9 and routes only those to the qualified person." },
+      { "key": "C", "text": "Have the agent emit a proposed record and let the filing tool write to the trial master file only once the qualified person's approval is recorded." },
+      { "key": "D", "text": "Keep the current flow, shorten the retraction window to one hour, and add an on-call pager rota so a qualified person always responds inside it." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The stem states the store is append-only, which makes the write the irreversible act — a retraction does not remove the deviation record, it adds a second one, and both are visible to an inspector. Any design that writes first and reviews afterwards has already produced the regulated artefact without the required sign-off, 3% of the time visibly wrongly. The human control has to sit upstream of the side effect: the agent's output becomes a proposal, the approval is the event that authorises the tool, and the tool refuses to execute without it. Review-then-act is not slower here; it is the only version that satisfies the rule.",
+      "distractors": {
+        "A": "A model critiquing another model's output is a quality improvement, not a control. It cannot supply a qualified person's sign-off, and it leaves the write happening before any human sees it. Self-verification is worth adding to reduce reviewer load, but it cannot occupy the approval slot.",
+        "B": "This reduces how many drafts a human sees, which is the opposite of what the regulation asks for, and the high-confidence path still writes unreviewed records into an append-only store. Confidence gating is a triage tool for optional review, not a substitute for mandatory sign-off.",
+        "D": "Compressing the window changes how long the unauthorised record sits there, not whether it was created. It also invents a paging obligation that will erode at 3am. When an action cannot be undone, timing controls do not help."
+      },
+      "concept": "Human-in-the-loop placement is determined by where irreversibility begins, not by where the model finishes. Identify the first step whose effects cannot be withdrawn — an external write, a payment, a message to a customer, an append-only log entry — and put the approval immediately before it. Approvals placed downstream of that point are detective controls dressed as preventive ones.",
+      "tip": "Watch for the word append-only, immutable, or notify the customer in a stem. It is the author telling you the undo path is fictional, which converts every after-the-fact review option into a wrong answer."
+    }
+  },
+  {
+    "id": "SDA-D-002",
+    "domain": "Solution Design & Architecture",
+    "topic": "Escalation threshold versus reviewer throughput",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A motor insurer auto-adjudicates 12,000 low-value claims a day with a Claude workflow. Anything the workflow escalates goes to a queue worked by 40 adjusters whose combined throughput is about 1,500 items a day. The escalation rule is a single threshold on the model's self-reported confidence, currently set so that around 2,600 claims a day escalate. The queue has grown for three weeks and the 48-hour decision SLA is now breached on a fifth of escalated claims. A sample audit shows the escalated set is not enriched for large or contentious claims. What should the architect change?",
+    "options": [
+      { "key": "A", "text": "Hire and train a further 30 adjusters so the queue clears 2,600 items a day, since the escalation rule is capturing genuinely uncertain cases." },
+      { "key": "B", "text": "Rank claims by expected cost of error — severity times a calibrated error probability — and escalate the top items up to reviewers' measured throughput." },
+      { "key": "C", "text": "Lower the confidence threshold until daily escalation volume falls to about 1,500, matching adjuster throughput and restoring the 48-hour SLA." },
+      { "key": "D", "text": "Add a second Claude pass with a stricter rubric that re-reviews escalated claims and releases the ones it agrees with, sending only disagreements to adjusters." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Two facts in the stem interlock. Reviewer capacity is fixed at roughly 1,500 a day, so escalation is a budget, not a filter — whatever the rule selects above that number simply becomes queue. And the audit says the escalated set is not enriched for large or contentious claims, which is direct evidence that self-reported confidence is not tracking the thing the insurer cares about. Ranking on expected cost of error and cutting at measured throughput fixes both: the queue drains within SLA by construction, and the reviewers spend their scarce attention on the claims where being wrong is expensive rather than on the claims where the model felt unsure.",
+      "distractors": {
+        "A": "This buys capacity for a selection rule the audit has already shown to be uninformative, so the extra adjusters would review a set that is not enriched for risk. Adding reviewers is the right move when the escalated population is well chosen and simply large; here the population is the problem.",
+        "C": "Moving a threshold on an uncalibrated signal changes the volume without improving the selection, and it silently drops whichever high-severity claims happened to score above the new cut. It restores the SLA metric while making the error profile worse — the outcome nobody notices for a quarter.",
+        "D": "A model clearing its own escalations removes the human control that the escalation path exists to provide, and it is correlated with the first pass, so it will agree most readily on exactly the cases where the first pass was confidently wrong."
+      },
+      "concept": "Escalation rate is a capacity allocation problem before it is a modelling problem. Size the escalated population from the reviewers' measured throughput, then spend that budget by ranking on expected cost of error rather than on model self-confidence, which is uncalibrated and correlates with fluency rather than with risk.",
+      "tip": "When a stem gives you both an escalation volume and a reviewer headcount, do the division. If the two numbers do not reconcile, the item is about turning a threshold into a budget, and every option that only moves the threshold is wrong."
+    }
+  },
+  {
+    "id": "SDA-D-003",
+    "domain": "Solution Design & Architecture",
+    "topic": "Output guardrail placement under a streaming contract",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A streaming-media company renders Claude responses token by token in a support chat widget. The product requirement is a p95 time-to-first-token of 600ms. A policy classifier that must see complete sentences to be accurate was added last quarter; the implementation buffers the entire response, classifies it, and only then begins rendering, which has pushed p95 time-to-first-token to 2.4 seconds and driven a measurable drop in chat completion. The classifier itself adds about 120ms. Which design restores the latency contract without giving up the control?",
+    "options": [
+      { "key": "A", "text": "Buffer to sentence boundaries, classify each completed segment, and release the ones that pass, regenerating from the first segment that trips." },
+      { "key": "B", "text": "Render tokens as they arrive, classify the completed response, and remove or replace the message in the widget when the classification fails." },
+      { "key": "C", "text": "Move the policy check to the input side only, screening the user's message before generation, since a compliant request cannot yield a violating answer." },
+      { "key": "D", "text": "Move generation to a lower-latency model tier and increase the streaming chunk size so the full response completes sooner and the buffer clears faster." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The classifier costs 120ms but the buffering strategy costs whole-response latency, so the fix is to shrink the unit of checking rather than the model. Segment-level checking makes first-token latency a function of the first sentence plus one classifier pass instead of the entire generation, which comfortably fits the 600ms target, and it keeps the control preventive: nothing reaches the user's screen that has not been classified. The cost is a bounded rollback surface — a later segment can force the visible text to stop or be replaced — which is an acceptable trade for a support widget and must be designed into the client rather than discovered.",
+      "distractors": {
+        "B": "Once the text has rendered, the user has read it; retracting the message converts a preventive control into a detective one and, on a widget users screenshot, does not even reliably reduce exposure. This is the right shape for after-the-fact quality analytics, not for a policy gate.",
+        "C": "Input and output failure modes are different populations. A benign question can produce a non-compliant answer, and retrieved or tool-supplied content enters after the input check. Dropping the output stage removes the only control that sees what the user will actually see.",
+        "D": "A faster tier shortens the generation but leaves the serialisation intact: the client still waits for the last token before the first one is shown. Attacking generation speed when the structure is the bottleneck buys a fraction of the gap and costs response quality."
+      },
+      "concept": "When a check must run in the request path but the transport is incremental, reduce the checking unit rather than removing the check or the increments. Segment-wise validation preserves prevention while making the latency cost proportional to the first unit, at the price of a rollback surface that the client contract has to acknowledge.",
+      "tip": "Stems that give you both a time-to-first-token target and a full-response classifier are testing whether you spot that buffering, not classification, is what broke the budget. Check the stated cost of the guardrail before you blame it."
+    }
+  },
+  {
+    "id": "SDA-D-004",
+    "domain": "Solution Design & Architecture",
+    "topic": "Half-open state in a circuit breaker",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In a circuit breaker protecting calls to a model endpoint, what does the half-open state do?",
+    "options": [
+      { "key": "A", "text": "Holds incoming requests in a buffer until the cool-down timer expires, then releases the accumulated batch to the dependency at once." },
+      { "key": "B", "text": "Splits traffic fifty-fifty between the primary endpoint and the fallback path until their observed error rates converge." },
+      { "key": "C", "text": "Admits a limited number of trial requests to test whether the dependency has recovered, closing on success and re-opening on failure." },
+      { "key": "D", "text": "Continues to reject all caller traffic while a background health-check ping to the endpoint decides when the breaker closes." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Half-open is the controlled probe. After the open period elapses, the breaker allows a small, bounded number of real requests through; if they succeed it closes and normal traffic resumes, and if they fail it re-opens and the cool-down restarts. The point of using a few real requests rather than all of them is that recovery is tested at a load the dependency can survive, which is what stops a recovering service from being knocked over again the instant it comes back.",
+      "distractors": {
+        "A": "Queueing everything and releasing it at once is precisely the thundering-herd behaviour a breaker exists to prevent, and holding requests consumes caller resources rather than freeing them. Breakers fail fast; they do not buffer.",
+        "B": "Even traffic splitting is a canary or shadow arrangement, and it is not gated on recovery state. A breaker in half-open is deliberately asymmetric — a trickle to the recovering dependency, everything else still shed.",
+        "D": "A synthetic health check can be part of the picture, but it is not the half-open state, and a health endpoint often reports fine while real inference traffic still fails. Half-open is defined by admitting real requests."
+      },
+      "concept": "A circuit breaker has three states with three distinct jobs: closed passes traffic and counts failures, open sheds traffic to protect both caller and dependency, half-open admits a bounded probe so recovery is discovered without a stampede. Any design that resumes full traffic straight from open will re-trip under load.",
+      "tip": "Distinguish the breaker's states from adjacent mechanisms — jitter spreads retries, hedging duplicates requests, canaries split traffic. Exam options often swap one of these in as a definition of half-open."
+    }
+  },
+  {
+    "id": "SDA-D-005",
+    "domain": "Solution Design & Architecture",
+    "topic": "Deadline and fallback for a non-essential enrichment",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An online grocer shows Claude-generated substitution suggestions when an item in a basket is out of stock. Product has set a 400ms budget for the suggestion; the checkout page renders without it if it is not ready. On Saturday mornings the model call's p99 rises sharply and checkout page load has started to correlate with it, because the current implementation waits for the call with a 3-second client timeout and retries once. Which change fits the reliability profile of this feature?",
+    "options": [
+      { "key": "A", "text": "Raise the client timeout to 5 seconds during the Saturday peak window so that fewer suggestions are lost while p99 is elevated." },
+      { "key": "B", "text": "Keep the 3-second timeout but make the retry immediate rather than backed off, so a failed first attempt still has time to land." },
+      { "key": "C", "text": "On timeout, fall back to a second Claude call on a lower tier with no deadline attached, so a suggestion always appears once the retry returns." },
+      { "key": "D", "text": "Enforce a 400ms caller deadline with no retry, fall back to a precomputed substitution table, and shed the model call while a breaker is open." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The stem tells you the feature is optional — the page renders without it — and gives an explicit 400ms budget, so the only correct failure behaviour is a fast, cheap one. Enforcing the deadline caller-side means a slow dependency can never hold checkout, the precomputed table gives a usable answer at essentially zero latency, and the breaker stops thousands of doomed calls being launched into an already-degraded dependency during the Saturday peak. The current 3-second timeout with a retry means the worst case is roughly fifteen times the budget the feature was given.",
+      "distractors": {
+        "A": "This makes the problem worse in the direction it is already failing: the correlation with page load exists because the caller waits, and waiting longer extends the coupling. Raising a timeout is right when the work is essential and the deadline was set too tight; here the deadline is a product decision.",
+        "B": "Removing the backoff turns a retry into an amplifier at exactly the moment the dependency is saturated, and the second attempt is still outside a 400ms budget, so a success at 3.2 seconds is worthless to the page that has already rendered.",
+        "C": "A deadline-free fallback is not a fallback; it is the same unbounded wait behind a different model. A cheaper tier is still a network call to a dependency that is currently slow, so the failure is correlated with the one it is meant to cover."
+      },
+      "concept": "Match the fallback to the feature's necessity. For an optional enrichment, the correct degraded state is a deterministic local answer or nothing at all, delivered inside the original budget — never a slower attempt at the same thing. Deadlines belong to the caller, and a fallback that shares a failure mode with the primary is decoration.",
+      "tip": "Read the sentence that says what happens when the feature is missing. If the product already tolerates its absence, any option that works harder to produce it is wrong regardless of how sophisticated it sounds."
+    }
+  },
+  {
+    "id": "SDA-D-006",
+    "domain": "Solution Design & Architecture",
+    "topic": "Idempotency key derivation for a side-effecting tool",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A freight broker runs a Claude agent inside a queue consumer with at-least-once delivery. One of the agent's tools posts a capacity booking to a partner carrier's REST API, which supports an idempotency header. About once a week a worker is evicted between the successful partner call and the write of the agent's own state, the message is redelivered, and a duplicate booking is created that costs a cancellation fee. The team currently generates a fresh UUID for the idempotency header on each tool invocation. What is the correct fix?",
+    "options": [
+      { "key": "A", "text": "Derive the idempotency key from the booking's business identity — shipment id, leg and the invariant fields — so a redelivery reuses the same key." },
+      { "key": "B", "text": "Wrap the partner REST call and the agent's state write in a single database transaction so that neither can commit without the other." },
+      { "key": "C", "text": "Switch the queue to its exactly-once delivery mode so that a message is never redelivered after a worker eviction and no duplicate booking is created." },
+      { "key": "D", "text": "Have the agent query the partner's booking search endpoint for that shipment and leg first, and post only when no matching booking is found." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "A per-invocation UUID makes the header useless for the failure the team actually has: the retry is a different process invocation, so it mints a different key and the partner sees a brand-new booking. The key has to be a function of the logical operation, not of the attempt, so that any worker replaying the same message computes the identical value and the partner's own deduplication recognises it. That also survives the specific crash window in the stem, because the key does not depend on any state the evicted worker failed to write.",
+      "distractors": {
+        "B": "A remote HTTP call cannot participate in a local database transaction. This is the dual-write fallacy: the commit can succeed while the partner call has already happened, or the reverse. Transactions solve consistency within one store, not between a store and a third party.",
+        "C": "Exactly-once delivery to a consumer is not something a broker can give you once an external side effect is involved — a worker can always die after acting and before acknowledging. What is achievable is effectively-once processing, and that is built at the sink with idempotency, which is what the partner's header is for.",
+        "D": "Check-then-act is a race: two redeliveries can both read no matching booking before either posts. It also puts a non-deterministic model-mediated matching decision on the correctness path, and it doubles the partner call volume."
+      },
+      "concept": "An idempotency key must be derived from the identity of the business operation and be reproducible by any process that replays it. Keys generated per attempt, per process, or after the crash-prone step protect nothing. Combined with at-least-once delivery, deterministic keys at the side-effecting boundary are what gives you effectively-once behaviour.",
+      "tip": "When a stem says a fresh UUID is generated per call, that is usually the defect itself rather than background detail. Ask what the key is a function of; if the answer is the attempt, the key cannot link retries."
+    }
+  },
+  {
+    "id": "SDA-D-007",
+    "domain": "Solution Design & Architecture",
+    "topic": "Partial failure in a parallel sectioning job",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A litigation-support firm splits a 900-page document production into 30 parallel Claude section summaries and then runs a reduce step that composes a review memo. During provider overload, one to three of the 30 section calls typically exhaust their retries and fail. The orchestrator currently marks the entire job failed and the operator reruns it from the beginning, re-paying for the 27 to 29 sections that already succeeded. Which TWO changes give this job correct partial-failure behaviour? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Remove the retry ceiling on section calls so the orchestrator keeps retrying each failed section until all 30 return." },
+      { "key": "B", "text": "Persist each completed section result keyed by section id, so a resumed job re-runs only the sections that are missing." },
+      { "key": "C", "text": "Re-partition the production into 10 sections of about 90 pages each so there are fewer parallel calls available to fail." },
+      { "key": "D", "text": "Run the reduce step on whatever sections returned before the job deadline and leave the failure out of the job record so reviewers see no gaps." },
+      { "key": "E", "text": "Give the reduce step a per-section status input so the memo names the sections it could not cover instead of composing silently over the gap." }
+    ],
+    "correct": ["B", "E"],
+    "explanation": {
+      "correct": "Partial failure is handled correctly when no completed work is thrown away and no missing work is hidden. Persisting section results under a stable section id turns the rerun from a full 30-call job into a two-call job and makes the operation safe to repeat, which matters because the failures cluster during overload and the rerun lands in the same conditions. Giving the reduce step explicit per-section status means the memo tells a lawyer which parts of the production were not read — the difference between a degraded artefact and a quietly wrong one, and in a litigation setting the difference between a usable deliverable and a liability.",
+      "distractors": {
+        "A": "Unbounded retries against a dependency that is shedding load is the amplification pattern that turns a partial outage into a total one, and it never terminates for a genuinely non-transient failure such as a section that exceeds a limit. Retry ceilings exist so the system can decide what to do when retrying has stopped working.",
+        "C": "Coarser partitioning reduces the count of possible failures while making each one more expensive, since a failed call now loses three times the work. It also does nothing about the actual defect, which is that the orchestrator has no representation for a partially complete job.",
+        "D": "Composing over the gap is the outcome the design must prevent, and suppressing the failure record removes the evidence that would let anyone detect it. A degraded result is acceptable only when it is labelled as degraded."
+      },
+      "concept": "A fan-out step needs two things before it is production-ready: durable per-unit results so a resume is cheap and idempotent, and a first-class representation of partial completion that flows into the aggregation and into the output. Systems that model only success and total failure force operators to choose between wasted work and silent gaps.",
+      "tip": "In multi-select items about partial failure, the two survivors are almost always one persistence change and one honesty change. Options that merely tune retry counts or partition sizes are adjusting a dial, not fixing the missing state model."
+    }
+  },
+  {
+    "id": "SDA-D-008",
+    "domain": "Solution Design & Architecture",
+    "topic": "Checkpointing a long-running agent across deploys",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A benefits agency runs a Claude agent that works a single appeal case end to end: it retrieves the case file, calls four internal systems (two of which write a note back to the case), and drafts a determination for a caseworker. Runs take 6 to 20 minutes. The platform deploys daily and evicts in-flight workers, and evicted runs restart from scratch, which duplicates the notes written by the two writing systems. Which design addresses this?",
+    "options": [
+      { "key": "A", "text": "Serialise the full message history to object storage every few hundred tokens and resume an evicted run by replaying that history into a fresh model call." },
+      { "key": "B", "text": "Checkpoint each completed step by persisting its durable output and case decision state, and make steps idempotent so a resume replays those results." },
+      { "key": "C", "text": "Drain workers before each daily deploy and cap any run at five minutes, failing runs that exceed it so nothing is ever evicted mid-flight." },
+      { "key": "D", "text": "Collapse the work into a single long call holding the whole case file in context, removing the multi-step structure that makes resumption hard." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Two properties are needed and only one option has both. Step-level checkpoints of durable outputs mean a resumed run starts from the last completed boundary rather than the beginning, and idempotent steps mean that replaying the boundary itself cannot write the note twice — which is the actual damage in the stem. Persisting the decision state rather than the transcript also keeps the checkpoint small and lets the run resume even if the prompt or tool definitions changed in the deploy that caused the eviction, which is the common case here since deploys are daily.",
+      "distractors": {
+        "A": "Replaying a transcript restores what the model said, not what the world did, so the two writing systems get called again. It is also fragile across the very deploys that trigger the restart, because the resumed history was produced under the previous prompt and tool schema.",
+        "C": "The stem says runs take 6 to 20 minutes, so a five-minute cap fails most of them by design. Draining is a sensible deploy practice, but it addresses planned evictions only and leaves crashes, node loss and timeouts untreated.",
+        "D": "Context size is not the failure. The writes to the internal systems still happen inside the single call, so an eviction still duplicates them, and a longer single call widens rather than narrows the window in which an eviction destroys work."
+      },
+      "concept": "Durable execution for agents rests on two invariants: state is checkpointed at step boundaries as data rather than as conversation, and every step is safe to re-execute. With both, recovery is replay from the last boundary; with only checkpoints, replay duplicates side effects; with only idempotency, recovery is correct but pays for the whole run again.",
+      "tip": "When a stem mentions steps that write to external systems, resumption questions are really idempotency questions. An option offering checkpoints without saying anything about re-execution safety is incomplete."
+    }
+  },
+  {
+    "id": "SDA-D-009",
+    "domain": "Solution Design & Architecture",
+    "topic": "Deadline propagation across a multi-step chain",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A telco's voice self-service system must return an answer within 3 seconds at p95 or the caller hears silence. The chain is intent classification on Haiku, a retrieval call, answer generation on Sonnet, and a policy check. Each of the four steps is independently configured with a 3-second client timeout and two backed-off retries. Operations report occasional 14-second responses and rising abandoned calls, while each step's own dashboard shows healthy p95. What should the architect change?",
+    "options": [
+      { "key": "A", "text": "Set each of the four steps to a 750ms client timeout, since four steps at 750ms sum exactly to the 3-second budget." },
+      { "key": "B", "text": "Remove the two backed-off retries from all four steps, since retries are what turn a 3-second chain into a 14-second one." },
+      { "key": "C", "text": "Propagate one deadline from the edge into every step, and let a step attempt or retry only if the remaining budget covers it." },
+      { "key": "D", "text": "Move the policy check off the critical path and run it asynchronously after the answer has been spoken to the caller." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Per-step timeouts cannot bound a chain, because each step measures only itself — which is exactly why every individual dashboard looks healthy while the caller waits 14 seconds. A single deadline created at the edge and decremented as the request moves converts every downstream timeout into a derived value, so a step that inherits 200ms of remaining budget does not start a call that needs a second, and a retry is attempted only when the leftover time can actually accommodate it. That also makes the failure fast and legible instead of silent, which is what lets the voice channel play a fallback prompt rather than dead air.",
+      "distractors": {
+        "A": "The arithmetic is right and the design is still wrong. It ignores retries entirely, so worst case is unchanged in shape, and it allocates the same slice to a Haiku classification and a Sonnet generation, starving the step that legitimately needs the most time while over-provisioning the cheapest.",
+        "B": "Removing retries bounds the tail by raising the base error rate, trading one caller-visible failure for another. The problem is not that retries exist but that nothing knows how much time is left when one is issued; budget-aware retry keeps the recovery and drops the tail.",
+        "D": "This is worth doing for other reasons but it does not bound the chain, and it changes the check from preventive to detective on a channel where the words have already been spoken to the caller. Removing one step from a chain with no shared budget still leaves the chain unbounded."
+      },
+      "concept": "A latency budget is a property of the request, not of any step. Create the deadline at the entry point, carry it through every hop and every retry decision, and derive each local timeout from what remains. Independently configured per-step timeouts multiply, and adding retries multiplies again, which is why per-step dashboards can all be green during an end-to-end breach.",
+      "tip": "The tell is every component looks healthy but the caller does not. That sentence almost always means the missing artefact is a propagated deadline or a correlation id — something that only exists at request scope."
+    }
+  },
+  {
+    "id": "SDA-D-010",
+    "domain": "Solution Design & Architecture",
+    "topic": "Minimum per-request telemetry for post-hoc diagnosis",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A platform team is defining the minimum telemetry a Claude-backed step must emit before it may be promoted to production. The stated purpose is that an on-call engineer can reconstruct and diagnose one specific failed request days after it happened, in a system where the same input does not reliably reproduce the same output. Which THREE requirements serve that purpose most directly? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "A correlation id created at the edge and attached to every model call, tool call, retry and downstream span within the request." },
+      { "key": "B", "text": "A daily rollup of p95 latency and error rate for each service endpoint, retained for thirteen months in the central metrics warehouse." },
+      { "key": "C", "text": "The identity of the prompt inputs — template version plus variable values or a hash of the rendered prompt — for each model call." },
+      { "key": "D", "text": "The end user's raw session cookie stored on the trace span so engineers can replay the session as that user during triage." },
+      { "key": "E", "text": "The stop reason — end_turn, max_tokens or tool_use — and the input and output token counts returned on each model response." }
+    ],
+    "correct": ["A", "C", "E"],
+    "explanation": {
+      "correct": "Reconstructing one non-reproducible request needs three things the system will not otherwise retain. The correlation id is what stitches a chain of calls, tool invocations and retries back into a single story, and without it the retries in particular are indistinguishable from separate requests. Prompt identity is what makes the trace interpretable at all, because the same code path renders a different prompt for every user and the template itself changes between deploys. Stop reason and token counts resolve a large share of real incidents immediately — a truncated response caused by hitting the output limit looks like a model quality problem in every other signal.",
+      "distractors": {
+        "B": "Aggregates are the right instrument for noticing that something is wrong and for capacity work, but they cannot reconstruct an individual request, which is what the stem asked for. A thirteen-month rollup will not tell an engineer what happened to one appeal at 02:40 on Tuesday.",
+        "D": "Storing a live session credential in a trace store creates a durable secret in a system with broad read access, and it is not needed for diagnosis: a pseudonymous user or tenant identifier links the request without carrying the ability to impersonate."
+      },
+      "concept": "Observability for probabilistic steps has to capture the inputs, not just the outcomes, because the output is not a function of the code alone. The design-time minimum is request-scoped correlation, prompt and version identity, and the model's own metadata about how generation ended. Aggregates complement this; they do not substitute for it.",
+      "tip": "Non-reproducible failure in a stem is a signal that the answer set is about capturing per-request inputs. Options offering dashboards, rollups or sampling rates are answering a monitoring question, not a forensics one."
+    }
+  },
+  {
+    "id": "SDA-D-011",
+    "domain": "Solution Design & Architecture",
+    "topic": "Containing a shared-prompt regression across tenants",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An HR-technology vendor serves 800 customer tenants from one Claude-backed résumé-screening service that uses a single shared prompt template, deployed to all tenants at once. Last month a template edit caused malformed JSON for the subset of tenants whose job descriptions contained a particular delimiter. Every request for those tenants failed for six hours before anyone noticed, because the service-wide error rate rose by under two percentage points. Which change most reduces the blast radius of the next regression of this kind?",
+    "options": [
+      { "key": "A", "text": "Validate the model's output against a JSON schema and, on a parse failure, issue a repair call that asks the model to reformat its previous answer." },
+      { "key": "B", "text": "Give each of the 800 tenants its own copy of the prompt template, maintained directly in the admin console by that tenant's own customer success manager." },
+      { "key": "C", "text": "Raise the sensitivity of the alert on overall service error rate so that a rise of under two percentage points pages the on-call engineer." },
+      { "key": "D", "text": "Version the template as a deployable artefact, roll it out cohort by cohort, and auto-roll-back a cohort whose validation failures cross a threshold." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Two properties of the incident have to change: every tenant received the bad template simultaneously, and the failure was invisible because it was measured only in aggregate over 800 tenants. Progressive rollout by cohort caps how much of the estate any single change can break, and evaluating the failure rate within the cohort makes a defect that is total for a few tenants loud instead of statistically negligible. Automatic rollback closes the six-hour detection-to-mitigation gap without depending on someone reading a dashboard. Treating the prompt as a versioned deployable is what makes all three possible.",
+      "distractors": {
+        "A": "This is a good idea for other reasons but it treats the symptom of one failure mode, and a repair call is an extra inference on every affected request precisely when a whole cohort is affected — the cost and latency spike arrive together. It also would not contain a regression that produced well-formed but wrong output.",
+        "B": "Eight hundred independently maintained templates removes the shared regression by removing testability: nothing can be evaluated once, no change can be rolled out with confidence, and the people editing them are not the people who own the evaluation suite. This trades a contained blast radius for permanent unmanaged variance.",
+        "C": "Tuning aggregate alert sensitivity to catch a two-point rise will page on ordinary traffic mix changes, and it still cannot see the shape of the failure — total for a handful of tenants. Detection granularity has to match the unit of isolation, which is the tenant, not the fleet."
+      },
+      "concept": "Blast-radius containment is the pairing of a rollout unit with a detection unit. Deploying to a subset only helps if the health signal is evaluated within that subset; monitoring per tenant only helps if a change can be stopped at tenant granularity. Prompts are code and need the same staged rollout and automated rollback as code.",
+      "tip": "When a stem tells you the error rate barely moved, it is pointing at the measurement granularity rather than the alert threshold. Ask what fraction of one customer's traffic failed, not what fraction of all traffic."
+    }
+  },
+  {
+    "id": "SDA-D-012",
+    "domain": "Solution Design & Architecture",
+    "topic": "What a breaker adds over backoff with jitter",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A model endpoint begins returning overload errors for a large share of requests. The clients already retry with exponential backoff and jitter. What does adding a circuit breaker achieve that the retry policy alone does not?",
+    "options": [
+      { "key": "A", "text": "It guarantees each request eventually completes by parking it in a wait queue until the dependency reports capacity again." },
+      { "key": "B", "text": "It stops calling the dependency once a failure threshold is crossed, so callers fail fast and the dependency gets room to recover." },
+      { "key": "C", "text": "It lowers cost per request by routing overflow traffic to a cheaper model tier while the primary dependency is degraded." },
+      { "key": "D", "text": "It desynchronises retry attempts across clients so that a fleet of callers does not retry in the same instant after an outage." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Backoff with jitter changes the timing and spacing of retries but every client still keeps probing a dependency that is telling everyone it is saturated, and each of those probes consumes capacity at the far end and a thread or connection at the near end. A breaker changes the decision rather than the schedule: past a failure threshold it stops calling altogether, returns immediately, and re-probes only through a bounded half-open trickle. That is what converts a slow, expensive, cascading degradation into a fast local failure the caller can handle.",
+      "distractors": {
+        "A": "Nothing guarantees eventual completion, and holding requests is the behaviour of a queue, which under sustained overload grows until the caller runs out of memory or connections. Breakers exist to shed, not to buffer.",
+        "C": "Routing to another tier is a fallback policy. It is frequently placed behind a breaker, but it is a separate mechanism and the breaker is not what selects it — conflating the two leads to designs that fall back without ever shedding load.",
+        "D": "Desynchronising attempts is exactly what the jitter in the existing policy already does, so this names a property the system has rather than one the breaker adds."
+      },
+      "concept": "Retry policy governs how a single caller spaces its attempts; a circuit breaker governs whether attempts should be made at all. They address different failure regimes — transient blips versus sustained dependency failure — and a system with retries but no breaker will amplify precisely the outage it most needs to survive.",
+      "tip": "For any resilience mechanism, ask what it protects. Backoff protects against collision, hedging against tail latency, breakers against amplification, bulkheads against contagion. Options that describe the wrong protection are the standard distractors."
+    }
+  },
+  {
+    "id": "SDA-D-013",
+    "domain": "Solution Design & Architecture",
+    "topic": "First action during a dependency overload incident",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "At 03:10 an airline's disruption-rebooking assistant is failing for most passengers during a weather event. The model provider is returning overload errors at a high rate. The service retries five times with backoff on every request, worker queue depth has grown steadily for twenty minutes, and passenger-facing latency is now over a minute. A deterministic rules-based rebooking path exists and is fully tested, but is disabled behind a feature flag. What should the on-call engineer do next?",
+    "options": [
+      { "key": "A", "text": "Flip the feature flag to enable the rules-based path and open the breaker on the model call so requests stop queueing." },
+      { "key": "B", "text": "Scale worker concurrency up threefold so the queue accumulated over the last twenty minutes is worked off faster." },
+      { "key": "C", "text": "Raise the retry ceiling from five to eight, since the errors are transient and more attempts will convert more requests." },
+      { "key": "D", "text": "Open a severity-one ticket with the model provider and hold the current configuration until they confirm the cause and give an ETA." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Restoring service comes before understanding it, and the stem has handed over a tested deterministic path that is one flag away. Turning it on gives passengers rebookings during the weather event, and opening the breaker is the other half of the same action: it stops the five-deep retry storm that is both feeding the queue and adding load to the dependency everyone else is also hammering. Diagnosis and the provider conversation happen after the customer-visible symptom is gone, and the queue drains on its own once requests stop waiting on a dependency that cannot serve them.",
+      "distractors": {
+        "B": "More concurrency against a saturated dependency increases the request rate into the thing that is failing and enlarges the in-flight population that will time out. Queue depth here is a symptom of requests not completing, not of insufficient workers.",
+        "C": "Additional retries multiply the load during exactly the window when the dependency is shedding it, and with five attempts already backing off, each request is already occupying a worker far longer than the passenger will wait. This is the classic amplification move.",
+        "D": "The provider ticket is correct and should be raised, but making it the next action leaves passengers unserved during a weather event while a tested fallback sits behind a flag. Mitigation you control never waits on an external party."
+      },
+      "concept": "Incident sequence for a degraded model dependency is mitigate, isolate, then diagnose. Mitigation means moving traffic to a path you control; isolation means stopping the failing calls so they cannot amplify. Any action that increases request volume into a saturated dependency is the wrong first move, however it is framed.",
+      "tip": "Next-step items plant the answer in the stem. A tested fallback described as disabled behind a flag is the author telling you the mitigation exists; the remaining options are all ways of working harder against the failure."
+    }
+  },
+  {
+    "id": "SDA-D-014",
+    "domain": "Solution Design & Architecture",
+    "topic": "Designing a human review that is not a rubber stamp",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A medical-device manufacturer uses Claude to classify whether an incoming customer complaint is a reportable adverse event. Every classification goes to a trained reviewer who sees the model's proposed classification with an Approve button. Over the last quarter the approval rate is 99.4% and the median review time is four seconds. Post-market surveillance has since found several misclassified complaints that reviewers approved. Which change best restores the value of the human control?",
+    "options": [
+      { "key": "A", "text": "Grey out the Approve button for the first 30 seconds of each review so reviewers cannot click through without reading the evidence." },
+      { "key": "B", "text": "Ask the reviewer to classify the complaint from the evidence first, reveal the model's classification afterwards, and monitor the disagreement rate." },
+      { "key": "C", "text": "Require two independent reviewers, each shown the model's proposed classification, to approve before the determination is recorded." },
+      { "key": "D", "text": "Raise the model's confidence threshold so that only lower-confidence classifications are routed to a reviewer and the rest are recorded automatically." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "A 99.4% approval rate at a four-second median is not evidence that the model is right; it is evidence that the interface has anchored the reviewer on a pre-filled answer and reduced the task to confirmation. The fix is to change what the human is asked to produce: an independent judgement made from the evidence before the model's answer is visible. That restores genuine information to the control, and the disagreement rate it generates becomes the first real measurement of model quality the organisation has had — a monitored signal instead of a rubber stamp that reports 99.4% forever.",
+      "distractors": {
+        "A": "Enforcing dwell time measures presence rather than judgement, and reviewers under queue pressure will spend the 30 seconds elsewhere. It also leaves the anchoring intact, which is the actual mechanism producing the approvals.",
+        "C": "Two reviewers looking at the same pre-filled classification are anchored by the same cue, so their errors are correlated and the second signature adds cost without adding independence. Dual review works when the two judgements are genuinely independent, which this interface prevents.",
+        "D": "Routing fewer items to review reduces the volume of a control that is already not functioning, and reportability decisions are the regulated determination this process exists to make. Using uncalibrated model confidence to decide which of those a human sees moves risk rather than reducing it."
+      },
+      "concept": "A human-in-the-loop control only supplies assurance when the human's output is informative — that is, when it could plausibly differ from the model's. Approval rates near 100% with very short handling times mean the control has degenerated. Design against anchoring by asking for the judgement before revealing the model's, and instrument disagreement rate as the health metric for the control itself.",
+      "tip": "Treat approval rate and handling time as a paired diagnostic. When a stem offers both and they are extreme, the item is about the design of the review interface, not about the model's accuracy or the routing threshold."
+    }
+  },
+  {
+    "id": "SDA-D-015",
+    "domain": "Solution Design & Architecture",
+    "topic": "Behaviour when a guardrail service is unavailable",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A utility's field-engineer assistant places two services in the request path: an input redaction service that strips customer identifiers before the model call, and an output policy classifier after it. Last week the classifier service itself became unavailable and, because the client treats a classifier error as a request error, the assistant was down for 90 minutes. The product owner has asked for that never to happen again. How should the architect specify guardrail-unavailability behaviour?",
+    "options": [
+      { "key": "A", "text": "Make both guardrails fail open on error and emit a high-priority alert to the on-call channel, so the assistant remains available whatever happens." },
+      { "key": "B", "text": "Fold both checks into the main model call as system-prompt instructions, removing the two network hops that can fail independently." },
+      { "key": "C", "text": "Cache each guardrail's verdict keyed by a SHA-256 hash of the content, so during an outage the cached verdicts keep serving requests." },
+      { "key": "D", "text": "Choose fail-open or fail-closed per guardrail by the harm of unchecked content, and give the fail-closed one redundancy and a restricted degraded mode." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Availability and safety are being traded here, and the trade is not the same for both components, so a single global policy is wrong either way. The correct specification is per-control and derived from consequence: for the output policy classifier, unchecked content reaching an engineer in the field is the exact harm the control exists to prevent, so it fails closed — and the availability the product owner wants is then bought with redundancy and a degraded mode that serves approved templates and structured data, not by skipping the check. Naming the degraded mode is what makes fail-closed acceptable to the business.",
+      "distractors": {
+        "A": "A control that stops applying whenever it is unhealthy is a best-effort feature, and outages are correlated with the load spikes when unusual content is most likely. An alert tells you afterwards that the system was unguarded; it does not make it guarded.",
+        "B": "In-band instructions ask the model to police itself, so the component being checked and the checker share a failure mode, and there is no independent verdict to log, alert on, or audit. Removing hops is a latency argument, not a reliability one.",
+        "C": "Verdict caching helps only where content repeats, and free-text assistant traffic is near-unique, so the hit rate during an outage would be close to zero. It also freezes policy decisions made under an older classifier version."
+      },
+      "concept": "Fail-open versus fail-closed is decided per control by the cost of the unchecked case, never once for the whole system. When a control must fail closed, the availability requirement is satisfied by redundancy plus an explicitly designed degraded mode — a smaller thing the product can still do safely — rather than by weakening the control.",
+      "tip": "If an option applies one uniform failure policy to two guardrails with different consequences, it is almost always wrong. Look for the option that separates them and then names what the product does while the strict one is unavailable."
+    }
+  },
+  {
+    "id": "SDA-D-016",
+    "domain": "Solution Design & Architecture",
+    "topic": "Effect of moving a content check off the request path",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An architect moves a content check so that it runs asynchronously after the response has already been returned to the user. What has changed about the control?",
+    "options": [
+      { "key": "A", "text": "It becomes a detective control: it can no longer prevent exposure, only shorten it and trigger remediation." },
+      { "key": "B", "text": "It becomes fail-closed, because the response can now be retracted after the check returns its verdict." },
+      { "key": "C", "text": "Its false-positive rate falls, because the classifier now sees the complete response rather than a partially generated one." },
+      { "key": "D", "text": "It removes the need for a separate input-side check, since every generated output is still examined by the same classifier." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Position in the request path determines what class of control something is. In-path, a check can refuse to let content through, which is prevention. Out of path, the content has already reached the user by the time the verdict exists, so the only remaining value is detection — reducing dwell time, triggering retraction or notification, and generating the signal that feeds incident response and evaluation. That can be a perfectly good decision when the latency cost of in-path checking is not affordable, but it must be recorded as accepting exposure risk rather than as an optimisation with no downside.",
+      "distractors": {
+        "B": "Fail-closed means the request is denied when the check cannot produce a verdict, which is only possible while the request is still in flight. Moving the check out of the path makes fail-closed unavailable by construction.",
+        "C": "Whether the check sees a complete response depends on buffering, not on synchrony — an in-path check placed after generation also sees the full text. Asynchrony changes when the verdict arrives relative to delivery, not what it is computed over.",
+        "D": "Input checks catch different things, including requests that should never have been processed at all, and they are the only place to intervene before tokens and money are spent. An output check has never substituted for one, and it substitutes even less well once it is post-hoc."
+      },
+      "concept": "Classify each guardrail by where it sits relative to delivery. Preventive controls sit in the request path and can block; detective controls sit outside it and can only shorten exposure. Moving a control out of the path to recover latency is a legitimate trade, but it changes the risk statement and must be re-approved as such.",
+      "tip": "Recall items about guardrail placement are usually testing preventive versus detective, not accuracy. If an option claims a placement change improved the classifier's quality, it has confused position with performance."
+    }
+  },
+  {
+    "id": "SDA-D-017",
+    "domain": "Solution Design & Architecture",
+    "topic": "Choosing the degraded state during a live disruption",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A transit authority's app uses Claude to turn raw signalling and incident feeds into a plain-language disruption explanation. During a major signal failure, traffic reaches roughly twenty times normal and the model path becomes unavailable; the underlying structured feed of line status and last incident notes is unaffected. What should the app do while the model path is down?",
+    "options": [
+      { "key": "A", "text": "Show a service-unavailable message in the disruption section, with a retry button, until the model path recovers." },
+      { "key": "B", "text": "Queue the requests and push the generated explanations to users as notifications once the model path is healthy again." },
+      { "key": "C", "text": "Render the structured feed — line status and raw incident notes — with a notice that the plain-language summary is unavailable." },
+      { "key": "D", "text": "Serve the most recent successfully generated summary for each line from the CDN cache, since it came from the same model path." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The stem separates two things that teams routinely conflate: the data path and the enhancement path. Only the enhancement is down, and the data users actually need — which line is affected and what the incident notes say — is still available and still correct. Degrading to the raw feed keeps the app useful at its moment of peak value, and the explicit notice sets expectations rather than leaving users to wonder why the wording changed. Twenty times normal traffic also makes this the cheapest possible path, which matters because whatever the app serves now, it serves a great deal of.",
+      "distractors": {
+        "A": "This discards information the system still holds and still trusts. Unavailability messages are the right degraded state only when the underlying data is also unavailable or unsafe to show.",
+        "B": "A disruption explanation has almost no value after the disruption, and queueing twenty times normal traffic during an outage builds a backlog that will itself become the next incident when the model path returns.",
+        "D": "A cached summary generated before the signal failure describes a network state that no longer exists, so this is the only option that actively misinforms. Stale content is more dangerous than absent content when the subject of the content is a live event."
+      },
+      "concept": "Design the degraded state by asking which layer actually failed. When a model enriches data that the system already has, the default fallback is the unenriched data plus an honest label. Caching is a valid fallback only for content whose truth does not decay faster than the outage lasts.",
+      "tip": "Cached-response fallbacks are attractive distractors. Test them against the freshness of the subject matter: for a live event, yesterday's answer is a wrong answer delivered confidently."
+    }
+  },
+  {
+    "id": "SDA-D-018",
+    "domain": "Solution Design & Architecture",
+    "topic": "Why the idempotency key originates at the client",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Why must an idempotency key for a retryable write be generated by the caller before the first attempt rather than by the receiving service when the request arrives?",
+    "options": [
+      { "key": "A", "text": "Only a key fixed before the first attempt arrives identical on every retry, letting the receiver recognise the same logical operation." },
+      { "key": "B", "text": "A key created by the receiver cannot be stored alongside the recorded response, so no deduplication record can be written." },
+      { "key": "C", "text": "Caller-supplied keys let the receiver skip re-authenticating subsequent attempts, which is what makes a retry storm cheap to absorb." },
+      { "key": "D", "text": "A key created on receipt would make the operation idempotent for reads only, since writes are deduplicated by their payload contents instead." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Deduplication works by matching an incoming request against one already processed, and the match needs an identifier that both attempts carry. A receiver minting a value on arrival produces a different identifier for the retry than it produced for the original, so the two can never be linked — the mechanism has nothing to compare. Fixing the key before the first attempt, at the point where the caller decides the operation should happen, is what makes it a property of the operation instead of a property of the network round trip.",
+      "distractors": {
+        "B": "Storage is not the obstacle; a receiver can persist anything it generates. The problem is matching, not recording, and a perfectly persisted per-arrival key still fails to identify the retry.",
+        "C": "Idempotency keys carry no authorisation semantics and must not, since a leaked key would then bypass authentication. Every attempt is authenticated normally; the key only affects whether the effect is applied again.",
+        "D": "Reads are naturally idempotent and need no key at all. The whole point of an idempotency key is to give non-idempotent writes safe retry semantics, so the distinction offered here is inverted."
+      },
+      "concept": "An idempotency key identifies a logical operation, not a transmission. It must be created at the point where the intent originates and reused unchanged by every retry, including retries issued after a process restart — which usually means deriving it from durable business identity rather than from a value held in memory.",
+      "tip": "Test any proposed key by asking whether a different process, on a different machine, replaying the same intent, would compute the same value. If not, it will not deduplicate the failure mode you care about."
+    }
+  }
+]

@@ -1,0 +1,455 @@
+[
+  {
+    "id": "CPE-B-055",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Per-request retrieval of few-shot examples",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A marketplace extracts product attributes across 3,000 categories. A prototype replaces the fixed eight-example block with five examples retrieved per request from a labelled library of 20,000, and quality on long-tail categories improves clearly. The architect must approve it for production, where support regularly asks the team to explain a specific bad extraction from three weeks ago. Which objection must be answered before approval?",
+    "options": [
+      { "key": "A", "text": "Dynamic selection removes the need for the eval suite to maintain example coverage of its own, since selection adapts." },
+      { "key": "B", "text": "Every request carries a different example block, so a past output cannot be rebuilt unless the selection is logged and the library versioned." },
+      { "key": "C", "text": "Retrieved examples cannot be carried in the system prompt, so the assistant's role framing must move into the user turn." },
+      { "key": "D", "text": "Nearest-neighbour selection will always return five examples sharing one label, which biases every output toward that label." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Dynamic selection makes the prompt a function of the retrieval index at a moment in time, and the stem states the operational requirement it collides with: explaining an extraction from three weeks ago. Without the selected identifiers in the request log and an immutable library version, nobody can rebuild the prompt that produced the output, so the team loses both incident explanation and the ability to bisect a quality change between the prompt, the selector and the library.",
+      "distractors": {
+        "A": "The eval suite's coverage becomes more important, not less, because the selector is now a component that can fail. This states the opposite of the obligation dynamic selection creates.",
+        "C": "There is no such restriction. Where the retrieved block sits is a design choice with consequences for prefix reuse, not a constraint that forces the role framing to move.",
+        "D": "Similarity retrieval tends toward similar cases and does not always return one label, and where it skews the remedy is a selection policy that enforces diversity. Stated as an absolute it is simply untrue."
+      },
+      "concept": "Any mechanism that varies the prompt per request — retrieved examples, dynamic tool sets, personalised fragments — must emit enough provenance to reconstruct that prompt later. Log the selection, version the source, and treat the selector as an evaluated component.",
+      "tip": "When a stem mentions explaining an output from weeks ago, it has planted a reproducibility requirement. Check every proposed change for whether the prompt it produced can still be rebuilt."
+    }
+  },
+  {
+    "id": "CPE-B-056",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Nesting depth in a tag-structured output",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A hotel group's rate-audit step asks for a tag-structured response nested five levels deep. Parsing failures cluster at the two deepest levels, usually a closing tag that never arrives, and a failed response yields nothing usable. Which change addresses the cause?",
+    "options": [
+      { "key": "A", "text": "Increase max_tokens from 2,048 to 8,192 so the deep structures have room to close." },
+      { "key": "B", "text": "Instruct the model to check that every tag it opened has been closed before finishing its response." },
+      { "key": "C", "text": "Shorten the tag names to three characters so the structural overhead per level is smaller." },
+      { "key": "D", "text": "Flatten the output to shallow named blocks that carry identifiers for the nested relationships." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Every additional level adds a close the model has to remember to emit in the right order, and the failures cluster exactly where that burden is greatest. A flat structure with explicit identifiers carries the same information with far fewer ways to go wrong, and it degrades gracefully: a partially complete flat response still yields the blocks that did close, where a broken deep nest yields nothing.",
+      "distractors": {
+        "A": "Token headroom is the fix for truncation. A missing close in the middle of a response that ends normally is a structural error, not a length one.",
+        "B": "Self-checking at the end of generation asks the model to audit tokens it has already emitted and cannot revise. It reduces the rate at best and does not remove the failure mode.",
+        "C": "Shorter names trim a handful of tokens per level and leave the number of levels — and therefore the number of closes to track — exactly as it was."
+      },
+      "concept": "Output structure should be as shallow as the consumer allows. Depth multiplies the ways a response can be structurally wrong and turns partial output into unusable output; express hierarchy with identifiers and references rather than nesting where you can.",
+      "tip": "When failures concentrate at the deepest part of a structure, the structure is the defect. Options that add headroom or ask the model to check itself are treating a symptom."
+    }
+  },
+  {
+    "id": "CPE-B-057",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Tool guidance duplicated in the system prompt",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A field-sales assistant has a paragraph in its system prompt describing when to look up an account in the CRM. The CRM tool's own description was updated last month to narrow the same guidance, and the paragraph was not. The tool is also used by two other assistants owned by different teams. Support sees the assistant looking up accounts in situations the updated description excludes.",
+    "options": [
+      { "key": "A", "text": "Keep the when-to-use guidance in the tool definition only and let the system prompt describe the assistant's task." },
+      { "key": "B", "text": "State in the system prompt that its CRM paragraph takes precedence over the tool's own description whenever they differ." },
+      { "key": "C", "text": "Remove the descriptions from the tool definitions and describe all tool behaviour in each assistant's system prompt." },
+      { "key": "D", "text": "Add worked examples of correct and incorrect CRM lookups to the system prompt so that the narrowed boundary is shown." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The same rule is written in two places with two owners and one of them was updated, which is why behaviour matches the stale copy. The tool definition is the natural home because it travels with the tool to all three assistants, so one edit reaches every consumer; the system prompt then owns what this assistant is for. That leaves exactly one statement of when to call the tool and no way for the two to drift apart again.",
+      "distractors": {
+        "B": "Declaring precedence keeps both statements alive and freezes the stale one as authoritative, so a future tool-definition change silently fails to take effect for this assistant.",
+        "C": "Stripping tool descriptions harms selection for every consumer and forces the other two teams to duplicate the same rules in their own prompts — three copies instead of two, with no shared owner.",
+        "D": "Examples of a boundary that the prompt and the tool describe differently teach one of the two definitions, and the prompt still contains a contradiction that the examples now reinforce."
+      },
+      "concept": "Each rule should have exactly one home and one owner. Guidance about when and how a tool is used belongs with the tool, so it propagates to every caller; the system prompt should describe the task and the assistant's scope, not restate the tool contract.",
+      "tip": "When a stem mentions that an artefact is shared by other teams, that usually identifies where the single source of truth must live — the place all consumers already read."
+    }
+  },
+  {
+    "id": "CPE-B-058",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Criteria for admitting an example to a capped set",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "An online retailer's returns classifier carries eight few-shot examples, a cap set by the token budget for a high-volume path, so admitting a candidate means removing an incumbent. A curator reviews candidates weekly. Which TWO criteria should decide admission? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "The candidate discriminates between two categories that no current example separates." },
+      { "key": "B", "text": "The candidate was drawn from the most recent week of production returns traffic." },
+      { "key": "C", "text": "The candidate is longer than the incumbents, giving the model more signal to work from." },
+      { "key": "D", "text": "The candidate belongs to an error class that the evaluation shows the set consistently getting wrong." },
+      { "key": "E", "text": "The candidate's output is the phrasing the team would most like to see reproduced word for word." }
+    ],
+    "correct": ["A", "D"],
+    "explanation": {
+      "correct": "With a hard cap, an example earns its slot only by teaching something the set does not already teach. Separating two categories nothing currently distinguishes closes a coverage gap by construction, and admitting a case the suite shows the set failing closes one by evidence. Between them they cover the two legitimate reasons to spend a slot: a gap you can see in the taxonomy and a gap you can see in the results.",
+      "distractors": {
+        "B": "Recency is a sampling convenience, not a reason. Last week's traffic is mostly the common cases the set already handles, and selecting by date is how an example block quietly becomes a snapshot of high-volume behaviour.",
+        "C": "Length is not signal. A long example consumes more of a capped budget, invites verbatim imitation of its phrasing, and often demonstrates one case less crisply than a short one.",
+        "E": "Optimising for reproduced phrasing is the failure mode curated sets exist to avoid; examples should demonstrate the decision and the shape, not supply sentences for the model to copy."
+      },
+      "concept": "Curate few-shot examples against coverage and measured error, never against recency, length or stylistic appeal. When the set is capped, admission is a trade: state what the candidate teaches that the incumbent it displaces does not.",
+      "tip": "In a capped-set item, discard any criterion that could be satisfied by an example teaching nothing new. Recency, length and aesthetics all pass that test and are all wrong."
+    }
+  },
+  {
+    "id": "CPE-B-059",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Prefill content that commits to a conclusion",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A mortgage servicer runs a quality-assurance step that judges whether a recorded call contained a compliance breach. To remove conversational preamble, an engineer prefills the assistant turn with 'The call is compliant because'. Preamble disappears and the reviewer-agreement metric drops sharply. What is the defect?",
+    "options": [
+      { "key": "A", "text": "The prefilled tokens add to the input length and so to the latency of every call." },
+      { "key": "B", "text": "A prefill must be a complete sentence, or the continuation from it reads as ungrammatical." },
+      { "key": "C", "text": "The prefill states the verdict, leaving the model to justify a conclusion it has not reached." },
+      { "key": "D", "text": "Prefilled text is discarded before generation begins, so the prefill has no effect on the response." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Generation continues from the prefill, so any judgement embedded in it has already been made before the model has considered anything. Here the prefill asserts compliance and leaves only the rationale to be produced, which is exactly the pattern the falling agreement metric reveals. Prefill should carry structure — an opening delimiter, a field name, a brace — and never a value the model is supposed to determine.",
+      "distractors": {
+        "A": "The prefill is a handful of tokens and latency is not what changed; the stem reports a quality metric moving, which a few tokens of input would not explain.",
+        "B": "There is no completeness requirement, and continuing from a partial phrase is the normal way prefill is used. Grammar is not the issue when the verdict is being handed to the model.",
+        "D": "Prefilled assistant text conditions the continuation — that is the entire mechanism. If it were discarded, the preamble would not have disappeared."
+      },
+      "concept": "Prefill constrains form, and anything you put in it is asserted rather than inferred. Restrict prefill to structural tokens that commit to no answer; the moment it contains a label, a verdict or a value, it has become an instruction to rationalise.",
+      "tip": "When a formatting fix coincides with a quality drop, read the fix for hidden content. A prefill that includes the answer looks like formatting and behaves like a thumb on the scale."
+    }
+  },
+  {
+    "id": "CPE-B-060",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Why a vague prohibition underperforms a concrete target",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "In a customer-facing prompt, 'do not be too technical' is generally weaker than 'define any term a first-year apprentice would not know' mainly because the second:",
+    "options": [
+      { "key": "A", "text": "Is the shorter of the two and therefore consumes fewer tokens per request." },
+      { "key": "B", "text": "States a target the model and a reviewer can both apply to a specific sentence." },
+      { "key": "C", "text": "Is phrased more courteously, which tends to improve the model's compliance." },
+      { "key": "D", "text": "Avoids negation, which the Messages API does not reliably support in system prompts." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "'Too technical' names a direction without a threshold, so neither the model at generation time nor a reviewer grading the output can say whether a given sentence complies. The second version supplies a test that can be applied term by term, which makes it actionable during generation and checkable afterwards — and checkable is what lets it become an eval assertion rather than an opinion.",
+      "distractors": {
+        "A": "The concrete version is the longer of the two. Token cost is not the axis on which these instructions differ in effect.",
+        "C": "Politeness is not the mechanism. An equally courteous but equally vague instruction would perform no better than the original.",
+        "D": "No such limitation exists; negative instructions are ordinary prompt content. They are weaker when they leave the target unspecified, not because they are unsupported."
+      },
+      "concept": "Prefer instructions with an operational test. If you cannot say how a reviewer would decide whether an output complies, the model has no better basis than you do — and the instruction cannot become an eval assertion.",
+      "tip": "Judge an instruction by asking how you would grade it. Anything you could not mark consistently yourself is too vague to shape behaviour reliably."
+    }
+  },
+  {
+    "id": "CPE-B-061",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Review controls for a safety-critical prompt section",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A mental-health support service maintains one system prompt containing, among other things, a crisis-escalation section written with a clinical safety lead. Engineers make roughly twenty prompt changes a month, nearly all of them wording and formatting. The service needs the escalation behaviour protected without making every routine change wait on clinical review. Which TWO controls achieve that? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Require the clinical safety lead to review every one of the twenty monthly prompt changes so nothing is missed." },
+      { "key": "B", "text": "Register the escalation section as owned by the clinical safety lead, so only diffs touching those lines need that review." },
+      { "key": "C", "text": "Permit engineers to edit wording in the escalation section provided they attest the meaning is preserved." },
+      { "key": "D", "text": "Auto-approve any change that passes the existing eval suite, on the basis that the suite already encodes the service's requirements." },
+      { "key": "E", "text": "Maintain a regression case set for escalation behaviour that must pass before any prompt version becomes releasable." }
+    ],
+    "correct": ["B", "E"],
+    "explanation": {
+      "correct": "Path-scoped ownership puts human review exactly where the risk is and nowhere else, which is what keeps twenty routine changes a month moving while the escalation lines cannot be altered without the accountable clinician. The regression set then covers the other route to breaking escalation — a change somewhere else in the prompt that shifts the behaviour without touching those lines — and it applies to every version, including changes the safety lead never sees.",
+      "distractors": {
+        "A": "Universal review creates a queue for twenty mostly trivial changes and produces reviewer fatigue, which is how the one change that mattered gets waved through. Blanket gates degrade the attention they are meant to buy.",
+        "C": "Meaning-preservation in crisis wording is precisely the judgement the clinical lead exists to make, and no engineer can certify their own edit against it.",
+        "D": "Auto-approval assumes the suite is complete, which is the assumption that fails whenever a new failure mode appears. It also removes the accountable human from a decision the service is accountable for."
+      },
+      "concept": "Scope review to the sections that carry the risk and back it with tests that hold regardless of which lines changed. Ownership catches deliberate edits to sensitive text; regression cases catch behaviour drift caused from elsewhere in the prompt.",
+      "tip": "Two failure routes usually mean two keys: someone edits the sensitive text, or something else changes the behaviour. Look for one control per route."
+    }
+  },
+  {
+    "id": "CPE-B-062",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Turning a rule and its accreted exceptions into a procedure",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A car-hire company's assistant applies a cleaning fee when a vehicle is returned soiled. Three exceptions were added over two years, each as a standalone sentence in a different part of the prompt: top-tier loyalty members, severe-weather events, and pre-existing soiling noted at pickup. Outputs are consistent when one exception applies and inconsistent when two apply at once — the case that generates most complaints.",
+    "options": [
+      { "key": "A", "text": "Move the three exception sentences so they sit immediately after the cleaning-fee rule they modify." },
+      { "key": "B", "text": "Instruct the model to apply whichever exception is most favourable to the customer when more than one is relevant." },
+      { "key": "C", "text": "Rewrite the rule and exceptions as one ordered decision procedure with a defined outcome when conditions overlap." },
+      { "key": "D", "text": "Add one worked example for each of the three exceptions, each showing the cleaning fee waived." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Three independently written sentences say what to do in three situations and say nothing about the situation the complaints come from, so the model is composing an answer the prompt never specifies. A procedure with ordered conditions and a stated result for overlaps replaces improvisation with a defined outcome, and writing it forces the business to decide what it actually wants when a loyalty member returns a car soiled during a storm — a decision the prompt has been quietly delegating.",
+      "distractors": {
+        "A": "Co-location makes the exceptions easier to read and easier to maintain, and three adjacent sentences still describe only single-exception cases. The gap is silence about combinations, not distance.",
+        "B": "'Most favourable' is undefined when two exceptions produce different waivers or partial charges, and it commits the company to a pricing policy through a prompt edit rather than a business decision.",
+        "D": "Three examples of three single-exception cases demonstrate exactly the scenarios that already work. Nothing in them shows how two conditions interact."
+      },
+      "concept": "When rules accumulate exceptions, convert prose into an explicit decision procedure: ordered conditions, defined outcomes, and a stated result when conditions overlap. Rules written independently over time will always be silent about their intersections, and silence is where behaviour becomes inconsistent.",
+      "tip": "Notice which cases the stem says are consistent. If single cases work and combinations do not, the prompt is missing composition rules, and no amount of clarifying the individual rules supplies them."
+    }
+  },
+  {
+    "id": "CPE-B-063",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Justifying example count on a high-volume path",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A classification prompt on a path handling roughly two million requests a day carries a few-shot block. The strongest reason to keep that block small is that:",
+    "options": [
+      { "key": "A", "text": "Every example is paid for on every request, so each must discriminate a case the set does not cover." },
+      { "key": "B", "text": "The model can attend to only a small fixed number of examples within any one request." },
+      { "key": "C", "text": "Prompts above a certain token length stop being eligible for prompt caching at all." },
+      { "key": "D", "text": "Longer prompts cause the model to produce proportionally longer output for the same task." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "At two million requests a day the example block is a fixed per-request cost multiplied by an enormous number, so its size is a budget decision as much as a quality one. That reframes curation usefully: the question for any candidate example is not whether it is a good example but whether it discriminates something the set does not already handle, because everything else is paid for daily and returns nothing.",
+      "distractors": {
+        "B": "This asserts a hard attention limit on examples that does not exist as stated. Large example blocks have real problems — cost, narrowing, ordering effects — but a fixed cut-off is not one of them.",
+        "C": "There is no length threshold above which caching stops applying. Reuse depends on prefix stability, not on the prompt being short.",
+        "D": "Output length follows the task and the output contract. A longer prompt does not proportionally lengthen the response, and for a classifier the output is a label either way."
+      },
+      "concept": "On high-volume paths, prompt content is a recurring cost. Size the example block by what it discriminates rather than by what looks thorough, and re-justify it whenever the taxonomy or the traffic mix changes.",
+      "tip": "Volume figures in a stem are there to make a per-request cost material. When you see millions of daily calls, the fixed part of the prompt is the thing being questioned."
+    }
+  },
+  {
+    "id": "CPE-B-064",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Migrating an output contract across many consumers",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A payroll provider must replace a decimal `gross_pay` field in its model output with an integer minor-units field, after a rounding discrepancy in one currency. Six internal consumers read the output; they release on different trains, and two are quarterly. The prompt owner controls only the prompt and its output contract. Regulatory reporting depends on two of the consumers being correct throughout.",
+    "options": [
+      { "key": "A", "text": "Swap the field in one release and coordinate a single cutover date on which all six consumers deploy together." },
+      { "key": "B", "text": "Keep the decimal field as the contract and have the two consumers that care about rounding convert it themselves." },
+      { "key": "C", "text": "Publish both field names as acceptable and let each consumer's parser accept whichever of them it finds." },
+      { "key": "D", "text": "Emit both fields for a deprecation window, let consumers migrate on their own trains, and drop the decimal one in a later version." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "With quarterly consumers and a regulatory dependency, no date exists on which all six can move safely, so the migration must not require one. Emitting both fields makes the new representation available immediately while the old one keeps working, each consumer migrates when its own release allows, and read telemetry rather than an assumption decides when removal is safe. The expand-then-contract sequence is what turns a breaking change into two non-breaking ones.",
+      "distractors": {
+        "A": "A synchronised cutover across six teams with quarterly trains is the highest-risk option available, and if any consumer slips, a regulatory report is produced from a field that no longer exists.",
+        "B": "This leaves the rounding defect in place and distributes the fix to six teams who will implement it six ways — precisely the inconsistency that a shared contract exists to prevent.",
+        "C": "Emitting one name or the other unpredictably means every consumer must handle both forever, with no telemetry showing which is in use and no end state in which the old field goes away."
+      },
+      "concept": "Migrate an output contract by expanding then contracting: add the new field, run both through a deprecation window, migrate consumers independently, and remove the old field only when usage data shows it is unread. Big-bang cutovers require a synchronisation that multi-team estates cannot supply.",
+      "tip": "Release cadence details in a stem are constraints, not colour. Quarterly consumers make any answer requiring simultaneous deployment unavailable."
+    }
+  },
+  {
+    "id": "CPE-B-065",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Console behaviour that does not reproduce in the service",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A music-streaming support team has a prompt engineer who iterates in a web console and hands finished prompts to engineering. The latest version scores well in the console and behaves noticeably worse in the service. The prompt text in the repository matches what the engineer pasted. The engineer proposes another iteration in the console to close the gap. What should happen first?",
+    "options": [
+      { "key": "A", "text": "Keep iterating in the console until the service's behaviour matches it, treating the service as the target." },
+      { "key": "B", "text": "Raise the service's temperature until it matches the variability observed in the console runs." },
+      { "key": "C", "text": "Capture the request the service sends and diff it against the console request, whitespace and settings included." },
+      { "key": "D", "text": "Add more few-shot examples to the prompt until the service's outputs stabilise on their own." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Two environments producing different behaviour from what everyone believes is the same prompt means they are not sending the same request, and the repository text matching only rules out one of several candidates. The rendered artefact — substituted values, surrounding whitespace, how content is split across roles, and the sampling settings each environment applies — is what has to be compared before anyone changes wording. Tuning against an unexplained difference bakes the difference in.",
+      "distractors": {
+        "A": "This optimises the prompt to compensate for an unknown discrepancy, so the prompt ends up carrying a correction for something nobody has identified and the console stops being a useful place to work.",
+        "B": "Matching a sampling setting by guesswork treats one possible cause as though it were established. If settings differ, the diff will show it; if they do not, this makes the service worse.",
+        "D": "Adding examples is a quality lever aimed at a problem that has not been diagnosed, and it adds cost to every request in a service that may simply be sending a differently rendered prompt."
+      },
+      "concept": "The prompt is the fully assembled request, not the text in the repository. When environments disagree, capture and diff the actual payloads — rendered values, whitespace, role structure and sampling settings — before touching the wording.",
+      "tip": "'The text matches' is a partial alibi the stem offers on purpose. Ask what else differs between a console request and a service request before accepting that the prompt is the same."
+    }
+  },
+  {
+    "id": "CPE-B-066",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Truncating a variable rather than the assembled prompt",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An airline's disruption assistant interpolates a passenger's rebooking history, which for a few frequent flyers runs to hundreds of entries. The renderer enforces a size budget by truncating the assembled prompt from the end. Investigation of a run of odd outputs finds that for those passengers the output contract, which sits last, had been cut off entirely.",
+    "options": [
+      { "key": "A", "text": "Truncate the assembled prompt from the beginning instead, so the sections that sit at the end are preserved." },
+      { "key": "B", "text": "Apply the budget to the history variable alone, dropping whole entries oldest-first and saying so in the prompt." },
+      { "key": "C", "text": "Raise the renderer's size budget so that even the longest rebooking histories fit inside it comfortably." },
+      { "key": "D", "text": "Summarise the rebooking history with a preliminary model call and interpolate that summary instead of the entries." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Truncation must never be applied to an artefact whose fixed sections are load-bearing; the budget belongs on the one part that varies without bound. Dropping whole entries keeps every remaining record intact rather than ending mid-entry, oldest-first matches what a disruption case needs, and marking the truncation stops the model treating a partial history as complete — which is how confident wrong answers about a passenger's bookings get produced.",
+      "distractors": {
+        "A": "Cutting from the front destroys the role framing and policy that open the prompt. It relocates the damage from one essential section to another rather than protecting both.",
+        "C": "A higher budget postpones the failure until a longer history appears, and it does nothing about the design flaw that an unbounded variable can evict fixed sections.",
+        "D": "Summarising is a defensible strategy for genuinely oversized histories, and it adds a call, latency and a lossy step to every affected request while leaving blind whole-prompt truncation in place for any other variable that grows."
+      },
+      "concept": "Budget unbounded variables individually, never by truncating the rendered prompt. Drop at record boundaries, drop in an order the task defines, and tell the model that content was omitted so it does not reason as though it saw everything.",
+      "tip": "Whenever a stem mentions a size budget, ask what gets deleted when it binds. If the answer is 'whatever happens to be at the end', the truncation strategy is the bug."
+    }
+  },
+  {
+    "id": "CPE-B-067",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Making a newly added instruction take effect",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A utility's billing assistant received a new rule about disputed meter readings, appended to the end of a 4,000-token system prompt. It is followed inconsistently. Review finds an older, looser sentence about disputed readings sitting in the middle of the prompt's account-handling section, written before the new policy. Which TWO changes should be made? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Set the new rule in bold capitals so that it stands out clearly from the surrounding text." },
+      { "key": "B", "text": "Repeat the new rule in three separate sections of the prompt so the model encounters it more than once." },
+      { "key": "C", "text": "Remove the older, looser sentence about disputed readings, which contradicts the new rule." },
+      { "key": "D", "text": "Place the rule inside the account-handling section that governs this behaviour rather than at the end." },
+      { "key": "E", "text": "Add the rule to every rendered user turn as well as keeping it in the system prompt." }
+    ],
+    "correct": ["C", "D"],
+    "explanation": {
+      "correct": "Inconsistent compliance with two statements about one subject is the prompt disagreeing with itself, so the older sentence has to go — that is the whole defect, not a tidying task. Putting the surviving rule where the behaviour is governed means the model reads it with the related context rather than as an orphan after everything else, and it means the next person editing account handling will see it. One statement, in the right place.",
+      "distractors": {
+        "A": "Typographic emphasis is what teams reach for when a rule is not taking, and it does not resolve a contradiction. Whichever statement the model follows, it is still choosing between two.",
+        "B": "Three copies of a rule that already conflicts with a fourth statement multiplies the drift surface: the next amendment updates one copy and leaves two stale.",
+        "E": "Repeating durable policy in every rendered turn adds tokens to every request and works against a stable prefix, while still leaving the contradictory sentence in the system prompt."
+      },
+      "concept": "When an instruction is followed inconsistently, look for a second statement on the same subject before rewriting the first. Resolve to one statement and place it in the section that owns the behaviour; emphasis and repetition are not substitutes for removing the conflict.",
+      "tip": "Appended-at-the-end plus a pre-existing sentence on the same topic is a recognisable pattern. The keys are almost always 'delete the old one' and 'put the new one where it belongs'."
+    }
+  },
+  {
+    "id": "CPE-B-068",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "When forcing a structured output damages the deliverable",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A heritage funding body drafts grant-decision feedback letters that a programme officer edits and sends. An audit requires that each letter's decision code and the criteria cited be recorded. An engineer proposes decomposing the whole letter into a nine-field schema returned through a tool, arguing that structured output is more auditable. Officers currently rewrite about a fifth of drafts; the letters are read by unsuccessful applicants.",
+    "options": [
+      { "key": "A", "text": "Adopt the nine-field schema, since structured output is the more auditable choice wherever an audit requirement exists." },
+      { "key": "B", "text": "Adopt the nine-field schema and add a second call that renders those fields back into a letter for the officer." },
+      { "key": "C", "text": "Keep the letter as free prose and extract the decision code and the criteria afterwards with a separate model call." },
+      { "key": "D", "text": "Structure only what the audit needs — the decision code and criteria cited — and keep the letter body as prose." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The audit requires two specific facts, not a decomposed letter, and the deliverable is a piece of connected writing whose value is in how the reasoning reads to someone who has just been refused funding. Structuring the metadata gives the audit exactly what it asked for and leaves the prose intact, so officers are not reassembling nine fragments into an argument. Scope the schema to what a machine consumes; leave what a human reads as prose.",
+      "distractors": {
+        "A": "This applies structured output as a policy rather than a fit. Nine fields would fragment the reasoning an applicant needs to follow and would very likely raise the one-in-five rewrite rate that already costs officers time.",
+        "B": "Two calls to decompose and then recompose the same content adds cost and latency and introduces a step where the rendered letter can diverge from the fields the audit recorded.",
+        "C": "Re-deriving the decision code from the finished letter can disagree with the reasoning that produced it, so the audit record is an inference about the output rather than a statement from the step that made the decision."
+      },
+      "concept": "Match the enforcement to the consumer. Fields that a system reads should be typed and validated; content a human reads should stay prose. Forcing a narrative into a schema for auditability records the wrong thing and degrades the artefact people actually use.",
+      "tip": "Ask who reads each part of the output. When a stem names a human editor and an audit, the answer usually serves both by structuring only the machine-read fields."
+    }
+  },
+  {
+    "id": "CPE-B-069",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Safe path for an urgent prompt correction",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A ferry operator's assistant told a passenger, in a publicly shared screenshot an hour ago, that a cancelled sailing was not refundable when the published policy says it is. The behaviour is not new — the current prompt has always been wrong on this case — and the previous version was wrong in the same way. Prompts are held in a registry with runtime version resolution and a regression suite that runs in about eight minutes. What should the team do next?",
+    "options": [
+      { "key": "A", "text": "Reproduce the case, add it to the regression suite, and ship a narrow prompt change once the suite passes." },
+      { "key": "B", "text": "Edit the live prompt directly in the production environment and confirm the fix by re-asking the same question." },
+      { "key": "C", "text": "Pin the assistant back to the previous prompt version in the registry while a proper fix is developed." },
+      { "key": "D", "text": "Take the assistant offline until a full review of every refund-related behaviour is complete." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "This is a long-standing defect that has just become visible, not a regression, so the normal release path is both available and appropriate — and an eight-minute suite means it is also the fastest safe route. Reproducing first gives a test that fails, adding it to the suite means the fix is verified and protected from future prompt edits, and a scoped change limits what else can move under time pressure.",
+      "distractors": {
+        "B": "A direct production edit bypasses review and the suite, produces an artefact that does not exist in the registry, and verifies the fix with a single sample — leaving nobody able to say later what was running when.",
+        "C": "The stem states the previous version was wrong in the same way, so rolling back changes nothing about the passenger-facing behaviour while consuming the incident's first minutes.",
+        "D": "Withdrawing the whole assistant for one known, narrowly scoped error is disproportionate when a tested fix can be released in minutes, and it removes service from every passenger with an unrelated question."
+      },
+      "concept": "Urgency is a reason to use the release path, not to bypass it. A registry with runtime version resolution and a fast suite exists precisely so that a correction can be reproduced, tested and shipped under pressure with a record of what changed.",
+      "tip": "Check whether the incident is a regression before choosing rollback. When the stem says the previous version had the same defect, the rollback option is disqualified outright."
+    }
+  },
+  {
+    "id": "CPE-B-070",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "When a prohibition is the correct instruction",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A pharmaceutical company's medical-information assistant must not state an off-label indication for any product. The team's prompt style guide, written after a maintenance review, says to prefer positive instructions over prohibitions. An engineer proposes deleting the off-label prohibition and replacing it with 'discuss approved indications only', citing the style guide. The medical-affairs lead is uneasy but cannot articulate why.",
+    "options": [
+      { "key": "A", "text": "Apply the style guide as written, since the positive form covers the same ground and the guide exists to be applied consistently." },
+      { "key": "B", "text": "Keep both the prohibition and the positive instruction as written, so the boundary is stated twice from two directions." },
+      { "key": "C", "text": "Delete the prohibition and rely on a trained output classifier to catch off-label statements before they reach the user." },
+      { "key": "D", "text": "Keep the prohibition for this categorical regulated boundary, pair it with what to say when asked, and add a regression case." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The preference for positive instructions is a heuristic about maintainability, and it is outranked here by a bright-line regulatory boundary whose breach is reportable. 'Discuss approved indications only' describes a scope and does not name the prohibited act, which is what makes the prohibition worth keeping. Pairing it with the required response removes the gap that makes bare prohibitions produce evasion, and the regression case is what stops a future style clean-up deleting it again.",
+      "distractors": {
+        "A": "Style guides encode defaults, not exceptions, and applying this one mechanically trades a specific regulated protection for consistency of phrasing. The medical-affairs lead's unease is the signal that a default is being applied outside its range.",
+        "B": "Two overlapping statements of a boundary written from opposite directions invites the drift that produces conflicting instructions later, and it does not supply the missing piece — what the assistant should say when asked.",
+        "C": "A classifier is valuable defence in depth and a poor sole control: removing the instruction means the model is no longer trying to avoid the behaviour, so the classifier now faces a higher rate of the very output it must catch perfectly."
+      },
+      "concept": "Prefer positive specification as a default, and keep explicit prohibitions for categorical boundaries with severe consequences — naming the forbidden act is what makes it auditable. Always pair a prohibition with the required alternative, and protect it with a test so a later refactor cannot quietly remove it.",
+      "tip": "When a stem cites a team's own guideline, expect the item to be about the limits of that guideline. A named regulatory boundary is the classic case where the default does not apply."
+    }
+  },
+  {
+    "id": "CPE-B-071",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Evaluating a reformatting-only prompt change",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A prompt pull request is described as 'the same prompt, just reformatted for readability' — line breaks changed, sections reordered, a bulleted list turned into prose. Before release, the team should:",
+    "options": [
+      { "key": "A", "text": "Release without running the suite, since the semantics of the prompt are unchanged." },
+      { "key": "B", "text": "Run the full evaluation suite, because layout, ordering and whitespace can all change behaviour." },
+      { "key": "C", "text": "Bump only the patch version and skip review, reserving evaluation for changes to instruction text itself." },
+      { "key": "D", "text": "Evaluate only if the reformatting changed the rendered prompt's token count materially." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Everything in the prompt is input to the model, so reordering sections and converting a list to prose can move behaviour even when a human reads the two versions as equivalent. Section order in particular changes what is read last and can change which of two related statements dominates. A reformatting change is a behavioural change of unknown size until the suite has been run, and it is also cheap to verify.",
+      "distractors": {
+        "A": "'Semantics unchanged' is a claim about how a human reads the diff. It is exactly the class of change teams ship unevaluated and then spend an afternoon bisecting.",
+        "C": "Version numbering describes intent; it does not make a change safe. Skipping review on the basis of a self-assigned label removes the control at the point where the diff is largest and least examined.",
+        "D": "Token count is a poor proxy — reordering can leave the count almost identical while materially changing what the model reads last, and a small count change can be entirely inert."
+      },
+      "concept": "There is no such thing as a cosmetic prompt change. Whitespace, ordering, list-versus-prose and section boundaries are all input, so every prompt diff is evaluated before release regardless of how it is described.",
+      "tip": "Treat 'just a reformat' in a stem the way you would treat it in a code review of a config file: as an assertion to be tested, not a category to be trusted."
+    }
+  },
+  {
+    "id": "CPE-B-072",
+    "domain": "Claude Models, Prompting & Context Engineering",
+    "topic": "Recognising when prompt work is the wrong lever",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A housing association's repair-triage assistant has been through six prompt iterations in eight weeks and sits at 88% agreement with the trades supervisor. Error analysis on the remaining 12% finds that nine in ten of those cases have a tenant description of three words or fewer — 'boiler broken', 'leak' — and that the photograph tenants attach at intake is stored but never passed to the model. Product asks the prompt owner for a seventh iteration.",
+    "options": [
+      { "key": "A", "text": "Report that prompt work cannot move the residual error, and propose passing the photograph and improving capture." },
+      { "key": "B", "text": "Add few-shot examples showing how to triage three-word descriptions like 'leak' and 'boiler broken' correctly." },
+      { "key": "C", "text": "Add an instruction to reason step by step about the most likely fault before assigning a trade." },
+      { "key": "D", "text": "Ask the model to state a confidence level per case and route low-confidence ones to the trades supervisor for review." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The error analysis says the residual failures are cases where the necessary information never reached the model, and no arrangement of words in the prompt can recover a fault description the tenant did not give or a photograph the system did not send. The prompt owner's job at this point is to name the limit and point at the two upstream changes that would move it. Continuing to iterate would burn weeks and leave the number where it is.",
+      "distractors": {
+        "B": "Examples can teach how to handle a short description, and there is no reliable answer to teach: 'leak' is consistent with several trades, so the demonstrations would encode a guess.",
+        "C": "Reasoning derives from available information. With three words and no image there is nothing to derive, and the likely result is a more confident and more fluent wrong assignment.",
+        "D": "Routing uncertain cases to the supervisor is a sensible safety net and worth doing, but it hands the work back to a human rather than improving triage — and the stem asks what to do about the residual error itself."
+      },
+      "concept": "Prompt engineering can only exploit information the model receives. When error analysis attributes residual failures to missing or unusable input, the remaining levers are upstream — capture, retrieval, modality — and saying so is part of owning the prompt.",
+      "tip": "Error analysis in a stem is the answer key. If the failures are dominated by inputs the model never saw, every option that edits the prompt is a distractor, however reasonable each sounds."
+    }
+  }
+]

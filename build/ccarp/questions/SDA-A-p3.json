@@ -1,0 +1,455 @@
+[
+  {
+    "id": "SDA-A-037",
+    "domain": "Solution Design & Architecture",
+    "topic": "Preserving a human review point inside a chain",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An insurer's subrogation team recovers costs from third parties. An engineer proposes replacing the current two-call design — extract a structured liability summary from the claim file, then draft the demand letter — with a single call that reads the file and writes the letter, saving about 40% of tokens and 1.8 seconds per case. Today the liability summary is reviewed and edited by a recovery specialist before the letter is generated, and about 15% of summaries are corrected. Should the team merge the calls?",
+    "options": [
+      { "key": "A", "text": "Yes: the token and latency savings are real, and the specialist can review the finished letter instead, which is the artefact that actually leaves the building." },
+      { "key": "B", "text": "No: the summary is the review point 15% of cases depend on, and merging removes the only place to correct the facts before drafting." },
+      { "key": "C", "text": "No: a single call cannot reliably produce a structured liability summary and persuasive prose in one response, so the merged design fails on format." },
+      { "key": "D", "text": "Yes, provided the merged call runs on a higher capability tier, which would reduce the correction rate enough to make the review point unnecessary." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The boundary between the two calls is not there for token efficiency; it is there because a human works at it. One case in seven has its liability facts corrected before anything is drafted, and those corrections propagate into a legally consequential letter. Merging saves 1.8 seconds on a process whose next step is a person reading, and removes the intervention point in exchange. A chain boundary that hosts a review, a gate or an audit record is load-bearing, and its cost comparison has to include the value of what happens there.",
+      "distractors": {
+        "A": "Reviewing the letter is a different and weaker control: the specialist would have to reverse-engineer the liability reasoning from finished prose, and a persuasive letter built on a wrong premise is harder to spot than a wrong field in a summary. Correcting at the artefact stage also means regenerating.",
+        "C": "Mixed structured and prose output in one response is routinely achievable and is not the obstacle. Rejecting the merge on a format argument concedes that the merge would be right if the format worked, which gives away the real objection.",
+        "D": "A stronger tier reduces error rates; it does not make a human checkpoint unnecessary in a process that produces legal demands. It also asserts a quantitative effect on the correction rate that nothing in the scenario supports."
+      },
+      "concept": "Before collapsing a chain, ask what each boundary hosts. Boundaries that carry a deterministic check, a human review, or a persisted audit artefact are part of the control design, not overhead. Only boundaries that exist purely because the task was split are candidates for merging, and their cost case is straightforward.",
+      "tip": "Efficiency arguments in a stem are often bait. Look for a sentence describing what a human currently does between two steps — that sentence usually settles the item regardless of the savings quoted."
+    }
+  },
+  {
+    "id": "SDA-A-038",
+    "domain": "Solution Design & Architecture",
+    "topic": "Hiding retrieval latency behind the routing call",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A car manufacturer's in-car assistant must answer within 900ms p95 from end of speech. The pipeline is a Haiku router (about 180ms) that classifies the utterance into one of six intents, then a handler call (about 600ms). Adding owner's-manual retrieval, which takes about 270ms and runs after routing, pushed p95 to about 1,050ms. Navigation and climate intents are answerable from vehicle state alone; the other four need the manual. Retrieval must not be dropped. What is the strongest change?",
+    "options": [
+      { "key": "A", "text": "Merge routing into the handler so one call both classifies and answers, requesting the manual through a tool call when it needs it." },
+      { "key": "B", "text": "Match navigation and climate utterances against a keyword list so those two intents skip the router and its 180ms." },
+      { "key": "C", "text": "Move the handler to a faster tier on the four manual-backed intents, recovering roughly the 270ms that retrieval added." },
+      { "key": "D", "text": "Issue the manual retrieval speculatively alongside the router, discarding the result for intents that do not need it." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Retrieval is on the serial path only because it waits for a classification it does not actually depend on — the query can be built from the raw utterance. Firing it concurrently with the router makes the pre-handler stage cost the longer of the two rather than their sum: about 270ms instead of 450ms, bringing p95 to roughly 870ms and back inside the target. The waste is one index lookup on the third of traffic that turns out not to need it, which is far cheaper than a model call and does not touch the critical path at all.",
+      "distractors": {
+        "A": "This makes retrieval a second round trip rather than removing it from the path: the handler answers, requests the manual, and must be called again with the results, so four of the six intents pay roughly 600 plus 270 plus 600 milliseconds. It is the slowest option on the list.",
+        "B": "Navigation and climate are already the fast intents and are inside budget; shaving 180ms from them changes nothing about a p95 that is set by the four retrieval-backed intents, which still run at about 1,050ms.",
+        "C": "The stem attributes the overshoot to the 270ms retrieval, not to the handler, and a faster tier on the four hardest intents trades manual-answering quality for time that speculative retrieval recovers for free."
+      },
+      "concept": "Before optimising a step, check whether it truly depends on what precedes it. Work whose inputs are available earlier than its position in the pipeline suggests can be started speculatively and discarded when unused — trading a small amount of wasted cheap work for a large amount of critical-path latency.",
+      "tip": "When a stem gives you every stage's duration, compute the serial sum and then ask which stages could have started at time zero. The answer is usually the one that turns an addition into a maximum."
+    }
+  },
+  {
+    "id": "SDA-A-039",
+    "domain": "Solution Design & Architecture",
+    "topic": "What sets end-to-end latency in parallel sectioning",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "In parallel sectioning, what determines the pattern's end-to-end latency?",
+    "options": [
+      { "key": "A", "text": "The duration of the slowest section plus the aggregation step, so one slow section sets the floor for the stage." },
+      { "key": "B", "text": "The mean duration of the sections plus the aggregation step, since running them concurrently averages their durations." },
+      { "key": "C", "text": "The sum of the sections' durations, reduced by whatever concurrency the client library manages to achieve in practice." },
+      { "key": "D", "text": "The aggregation step alone, because the sections complete while the aggregator is still assembling its own prompt." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Concurrency turns a sum into a maximum, so the section that takes longest defines when aggregation can begin. Two consequences matter in design. Adding another section costs almost nothing in wall-clock time as long as it is not the slowest, which is why sectioning scales gracefully in breadth. And optimising any section other than the slowest buys nothing at all — a fact that repeatedly surprises teams who shave time off four fast sections while the fifth continues to gate the response.",
+      "distractors": {
+        "B": "Averaging would only apply if the caller returned on the mean completion, which no aggregation step can do — it needs every section's result. The mean is a useful cost figure and a misleading latency figure.",
+        "C": "This describes sequential execution with partial overlap, which is what you get when concurrency is not actually implemented. If the durations still sum, the pattern is not sectioning yet.",
+        "D": "Aggregation cannot begin until its inputs exist, so it is additive after the slowest section rather than a substitute for it. Aggregation prompts are assembled from results, not in advance of them."
+      },
+      "concept": "In any concurrent stage, latency is the maximum of its branches plus whatever joins them. Optimise the tail branch, not the average one, and treat additional branches as cheap in time but linear in cost. When a section's duration is highly variable, its p95 rather than its median is what sets the stage's p95.",
+      "tip": "If an item asks you to speed up a fan-out, find the slowest branch before reading further. Options that improve any other branch are there to catch people who optimise the average."
+    }
+  },
+  {
+    "id": "SDA-A-040",
+    "domain": "Solution Design & Architecture",
+    "topic": "Evidence that supports an agentic triage design",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "An enterprise software vendor's support team triages customer log bundles. An engineer opens a bundle, searches for candidate errors, follows whichever thread looks promising, pulls the customer's configuration, sometimes re-runs a query against the customer's schema, and stops once a cause can be named. Bundles range from 3MB to 4GB. The team proposes an agent. Which facts in this situation genuinely support the agentic design? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "The bundles are far larger than any context window, so whatever is built must be organised around retrieval rather than around reading the whole artefact." },
+      { "key": "B", "text": "Which artefact to open next depends on what the previous one contained, and the number of hops varies substantially from one bundle to the next." },
+      { "key": "C", "text": "A support engineer's hour costs considerably more than the tokens an agent would consume working through one log bundle." },
+      { "key": "D", "text": "The team already maintains a documented triage runbook covering the eight most common failure classes and their fixes." },
+      { "key": "E", "text": "Tools return checkable outcomes — no matches, a missing configuration key, a query that errors — so the model can tell if a step advanced." }
+    ],
+    "correct": ["B", "E"],
+    "explanation": {
+      "correct": "Two conditions justify autonomy and both are present. The investigation's shape is data-dependent: which artefact matters next is discovered rather than planned, and the hop count varies per bundle, so no fixed sequence covers the space. And the environment adjudicates — an empty search result or a missing configuration key tells the model its last move was a dead end, which is what lets iteration converge instead of wander. Together they describe the case where a loop outperforms a chain rather than merely costing more than one.",
+      "distractors": {
+        "A": "Size forces a retrieval-and-tools architecture, which the augmented baseline already provides. A workflow over the same tools handles arbitrarily large artefacts too; nothing about scale requires the model to choose its own sequence.",
+        "C": "Labour arbitrage argues for automating the task, not for a particular pattern. The workflow automates it more cheaply still, so this comparison cannot distinguish between the two candidates on the table.",
+        "D": "A runbook covering the common cases is evidence that much of this work has a specifiable procedure — an argument for encoding those eight paths as a workflow and reserving autonomy for the residual."
+      },
+      "concept": "Agentic designs are justified by two properties together: a sequence that cannot be specified in advance, and an environment that returns signals the model can correct against. Task difficulty, data volume and labour cost motivate automation in general; they say nothing about whether the model or the developer should choose the steps.",
+      "tip": "In multi-selects like this, at least one option will be a true and important fact about the problem that argues for automation rather than for autonomy. Test each option against 'would this also be true if we built the workflow?'"
+    }
+  },
+  {
+    "id": "SDA-A-041",
+    "domain": "Solution Design & Architecture",
+    "topic": "Non-convergence in an evaluator-optimiser loop",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A national statistics office generates plain-English descriptions of dataset variables. An evaluator–optimiser loop critiques each description against a published style standard and regenerates until the critique passes. In the first month, 0.3% of variables never passed: the loop ran the team's configured maximum of ten rounds, and for eleven variables the pipeline emitted nothing at all, because the code only wrote output on a passing critique. Each non-passing variable consumed twenty model calls. What should the design do instead?",
+    "options": [
+      { "key": "A", "text": "Raise the round limit from ten to twenty-five so that slow-converging variables eventually reach a passing critique." },
+      { "key": "B", "text": "Pre-classify the variables likely to be difficult and route those straight to a human writer, keeping the loop for the rest." },
+      { "key": "C", "text": "Lower the round cap and, on exhaustion, emit the best candidate so far flagged for review rather than nothing." },
+      { "key": "D", "text": "Have the evaluator relax its threshold after the fifth round, so that every variable terminates with a pass." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Two defects are visible. The loop has no defined behaviour on exhaustion, so a hard case produces silence — the worst possible output, because nothing downstream can tell an empty result from an absent one. And ten rounds is far past the point where refinement helps; a description that has failed three critiques will usually fail ten. Returning the best candidate with a flag preserves the work, routes the hard case to a person, and turns the non-convergence rate into a diagnostic about whether the rubric is satisfiable at all.",
+      "distractors": {
+        "A": "This is the direction the evidence argues against. Twenty calls have already been spent per failing variable, and repeated failure against a fixed rubric indicates the rubric cannot be met by this generator rather than that convergence is slow.",
+        "B": "Predicting which variables will fail a critique is a harder problem than writing their descriptions, and the failures are only 0.3% of volume. Building a classifier to pre-empt a rare failure adds a component whose own errors are undetectable.",
+        "D": "Loosening the standard until everything passes makes the evaluator ceremonial. The pass then records that the loop terminated, not that the description meets the published standard, which is precisely the assurance the office publishes against."
+      },
+      "concept": "Every refinement loop needs a bounded round count and a defined exhaustion behaviour that returns the best available artefact plus a signal, never nothing. Non-convergence is information: a persistent failure rate against a fixed rubric usually means the rubric is unsatisfiable, ambiguous, or aimed at something the generator cannot produce.",
+      "tip": "When a stem mentions that a pipeline returned nothing, that is the defect to fix first. Quality tuning is secondary to a pipeline having a defined output on every path."
+    }
+  },
+  {
+    "id": "SDA-A-042",
+    "domain": "Solution Design & Architecture",
+    "topic": "Single augmented call versus a four-step chain",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A plumbing franchise's dispatcher tool answers questions such as 'who can reach the Kettering job before 3pm?'. The proposed design is a four-step chain: parse the question, fetch engineer locations, fetch the job schedule, compose an answer. Another engineer objects that this should be one call with two tools. Traffic is about 400 questions a day, both data sources are simple lookups, and the answer is displayed to a human dispatcher who can rephrase and ask again. Who is right?",
+    "options": [
+      { "key": "A", "text": "The objector: with two simple lookups and a human reading the result, none of the chain's boundaries carries a check." },
+      { "key": "B", "text": "The original design: parsing in a dedicated step makes the downstream steps materially more reliable across 400 questions a day." },
+      { "key": "C", "text": "The original design: separating the two data fetches lets them run concurrently, which a single call with tools cannot do." },
+      { "key": "D", "text": "Neither: this needs an agent, because which data source to consult depends on how the dispatcher phrased the question." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "This is the augmented baseline almost exactly: one model call with retrieval or tool access, answering a question for a human who can immediately correct it. None of the four proposed boundaries hosts a validation, a human review, a tier change or a separately measurable capability, so each one is a round trip and a prompt to maintain in exchange for nothing. Low volume and a forgiving consumer make the case stronger still — there is no scale pressure and no unrecoverable failure to design against.",
+      "distractors": {
+        "B": "A separate parsing step helps when the parse result must be validated, stored or routed on. Here it is consumed immediately by the same system that could have parsed it in passing, and 400 questions a day is not a volume that makes marginal reliability differences visible.",
+        "C": "A single call can request several tools in one turn, and the client is free to execute them concurrently. Believing that concurrency requires separate model calls is a common reason teams over-decompose.",
+        "D": "Choosing among two known tools based on the question is exactly what the augmented baseline does. An agent is a loop in which the model decides the sequence and when to stop, which nothing here requires."
+      },
+      "concept": "A chain boundary should exist for a reason you can name: a check, a review, a persisted artefact, a different tier or tool set, or a genuinely separable capability you want to measure alone. Boundaries created merely to make each step 'simpler' add latency, cost and maintenance without adding control.",
+      "tip": "For every proposed step boundary, ask what happens there besides passing text along. If the answer is nothing, the step is decoration."
+    }
+  },
+  {
+    "id": "SDA-A-043",
+    "domain": "Solution Design & Architecture",
+    "topic": "Handling low-confidence router classifications",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A health insurer routes member messages into five handler pipelines. About 6% of messages yield a low-confidence classification — mixed-topic messages, or topics outside the taxonomy entirely. The team must decide what happens to them. Which are sound designs for the low-confidence path? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Send them to a general handler with broad retrieval and no narrow persona, and log them as candidate taxonomy gaps." },
+      { "key": "B", "text": "Send them to whichever pipeline has the highest prior probability across recent traffic, so members still receive a specialised answer." },
+      { "key": "C", "text": "Re-run the classification twice more at temperature and take the majority, since low confidence usually reflects sampling noise." },
+      { "key": "D", "text": "Split the low-confidence path by stakes: coverage and claims topics go to a human queue, everything else to the general handler." },
+      { "key": "E", "text": "Expand the taxonomy with new categories, adding subtypes, until every message classifies with high confidence." }
+    ],
+    "correct": ["A", "D"],
+    "explanation": {
+      "correct": "A router needs a defined destination for inputs it cannot classify, and both keys give it one. A general handler is deliberately unspecialised — broad retrieval, no narrow persona — so it degrades gracefully on anything, and logging its traffic turns the 6% into the input for taxonomy work rather than a permanent leak. Splitting that path by stakes adds the second necessary idea: an unclassified message about coverage or claims carries more downside than one about, say, finding a clinic, so the expensive fallback is spent where a wrong answer costs most.",
+      "distractors": {
+        "B": "This is guessing with extra steps. A specialised handler applied to a message it does not fit produces a confident, well-formatted wrong answer, which is worse for a member than a general one, and the prior tells you nothing about this particular message.",
+        "C": "Low confidence here reflects genuine ambiguity and out-of-taxonomy content, not sampling variance. Re-sampling the same classifier on the same input reproduces the same uncertainty at three times the cost, as any correlated ensemble does.",
+        "E": "Adding categories divides probability mass across more options, which lowers confidence rather than raising it, and no taxonomy eliminates out-of-scope messages. Taxonomy growth also multiplies the handlers the team must maintain and evaluate."
+      },
+      "concept": "Every router needs an explicit low-confidence path, and its design is a policy decision, not a default. The two reliable moves are a graceful general handler that cannot be wrong in a category-specific way, and a stakes-based split that reserves human handling for the topics where a confident wrong answer is expensive.",
+      "tip": "Options that make the router guess harder are always wrong on this topic. The correct designs accept the uncertainty and decide what to do with it."
+    }
+  },
+  {
+    "id": "SDA-A-044",
+    "domain": "Solution Design & Architecture",
+    "topic": "Fixed output structure with dynamic evidence gathering",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "An ESG ratings agency publishes company assessments with a fixed nine-section structure mandated by its published methodology. The evidence each section needs varies enormously: one company's emissions section is settled by three disclosures, another's requires a supply-chain investigation across a dozen sources. The current build is a nine-call chain, one call per section, each issuing a fixed retrieval query. Analysts complain that some sections are thin while others cite the same source repeatedly. Which architecture fits?",
+    "options": [
+      { "key": "A", "text": "Convert the whole assessment to an agent that decides which sections to write and what evidence to gather for each." },
+      { "key": "B", "text": "Keep the nine-call chain but give each call a larger fixed retrieval budget, so the thin sections pull in more sources." },
+      { "key": "C", "text": "Run the nine section calls concurrently rather than sequentially, with a deduplicating merge across all cited sources." },
+      { "key": "D", "text": "Keep the nine sections as fixed workflow steps and make gathering dynamic: a planner issues retrievals into a shared evidence set." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Two different things are being conflated in the current build. The output structure is fixed by the methodology and must stay fixed — that is a workflow. The evidence needed to fill it is not knowable before the company is examined, which is the defining condition for dynamic decomposition. Separating them lets each be right: nine deterministic section steps that a regulator or client can check against the methodology, fed by a gathering stage that decides its own retrievals and pools them, which is also what stops three sections independently re-fetching the same annual report.",
+      "distractors": {
+        "A": "This gives away the one thing the methodology fixes. Letting the model decide which sections to write means a published assessment could omit a mandated section, which is a compliance failure rather than a quality variation.",
+        "B": "A larger fixed budget retrieves more of the same wrong thing on companies whose evidence lies outside the canned query, and makes the duplication worse by pulling more overlapping sources into nine independent calls.",
+        "C": "Concurrency and citation deduplication are genuine improvements to latency and presentation, but neither changes what gets retrieved. A thin section stays thin when its fixed query returns little, regardless of when it runs."
+      },
+      "concept": "Fixed deliverable structure and fixed decomposition are independent decisions. Where an external methodology, contract or regulation specifies the output's shape, encode that as a workflow; where the work needed to produce it varies with the input, let a planner decide it at runtime. Most reporting systems need both, wired together through a shared evidence set.",
+      "tip": "Split the stem into 'what must be produced' and 'what must be done to produce it'. When only the second varies, the answer keeps the first as a workflow and makes the second dynamic."
+    }
+  },
+  {
+    "id": "SDA-A-045",
+    "domain": "Solution Design & Architecture",
+    "topic": "When a fixed fan-out should become an orchestrator",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "A semiconductor fab runs a yield-analysis assistant. Today it fans out five fixed workers — process step logs, metrology, equipment maintenance, materials lots, prior excursions — and merges their findings. Which observations would indicate the fixed fan-out should be replaced by an orchestrator that selects workers at runtime? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "The merge step's prompt has grown past 60,000 tokens, and the merge is now the slowest stage of the request." },
+      { "key": "B", "text": "The five workers frequently return contradictory readings, which the merge step resolves the wrong way about a third of the time." },
+      { "key": "C", "text": "Engineers report that the useful next step depends on the first finding, and the fixed five workers never follow those trails." },
+      { "key": "D", "text": "The number of sources genuinely needed ranges from one to more than twenty, and which ones matter cannot be listed in advance." },
+      { "key": "E", "text": "Fab engineers want answers in under 30 seconds, and the current five-worker fan-out takes about 45 seconds." }
+    ],
+    "correct": ["C", "D"],
+    "explanation": {
+      "correct": "Both keys describe the same structural fact from different angles: the decomposition is not knowable at design time. Trails that open only after a first finding cannot be encoded in a fixed worker list, and a source count ranging from one to more than twenty means any fixed number is simultaneously wasteful and inadequate. That is precisely the condition orchestrator–workers exists for — a model reads what has returned and decides what to task next — and it is the only condition that justifies paying for the planning call and the variable cost profile.",
+      "distractors": {
+        "A": "A bloated merge prompt is a return-contract problem: workers are handing back too much prose. Constrain what workers emit. An orchestrator would make this worse, since it reads worker output in order to plan as well as to synthesise.",
+        "B": "Contradictory readings point at the aggregation design — the merge needs comparable structured verdicts and an explicit precedence rule. Changing who selects the workers does not help a merger that cannot reconcile what it receives.",
+        "E": "An orchestrator adds a planning call and serialises discovery into rounds, so it is typically slower than a fixed fan-out, not faster. A latency complaint argues for trimming workers or shrinking their returns."
+      },
+      "concept": "Replace a fixed fan-out with an orchestrator only when the set of subtasks depends on what earlier subtasks return. Latency, merge quality and cost complaints about a fan-out are real but have cheaper remedies in the worker return contract or the aggregation rule, and an orchestrator worsens most of them.",
+      "tip": "Every distractor here is a genuine production problem. The discriminator is whether the problem would still exist if a model, rather than a developer, chose the workers."
+    }
+  },
+  {
+    "id": "SDA-A-046",
+    "domain": "Solution Design & Architecture",
+    "topic": "Tasks for which prompt chaining is the wrong pattern",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "For which kind of task is prompt chaining the wrong pattern?",
+    "options": [
+      { "key": "A", "text": "A task whose subtasks each require a different tool, such as a search index for one step and a calculator for another." },
+      { "key": "B", "text": "A task whose parts cannot be cleanly separated, because each needs information the others are still producing." },
+      { "key": "C", "text": "A task with a strict output schema, since each extra step leaves another place for the format to drift." },
+      { "key": "D", "text": "A task in which one subtask is far harder than the rest, since a chain applies the same effort to every step." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Chaining assumes the task decomposes into steps where each step's output is a sufficient input for the next. When the parts are mutually dependent — a summary that needs the conclusion and a conclusion that needs the summary — no ordering works, and the usual symptom is an intermediate format that grows until it reproduces the original input. At that point the split has bought latency and repeated context while preserving none of the intended simplification, and a single call with structured reasoning is the better shape.",
+      "distractors": {
+        "A": "Different tools per step is a good reason to chain, not a reason to avoid it. Splitting lets each call carry only the tool definitions it needs and be evaluated against the failures specific to that tool.",
+        "C": "A strict schema is easier to enforce in a chain, because the final step can be given one narrow formatting job and validated in code, with a retry that does not repeat the expensive reasoning steps.",
+        "D": "Uneven difficulty is an argument for chaining: separate steps let the hard one take a stronger tier, more examples or a larger reasoning budget, while the easy ones stay cheap. Nothing forces equal effort across steps."
+      },
+      "concept": "Prompt chaining requires separability — a clean cut where the upstream artefact fully determines what the downstream step needs. Test a proposed decomposition by writing down the intermediate format; if it has to carry nearly everything the original input carried, the cut is in the wrong place or the task does not decompose.",
+      "tip": "Three of these options describe situations where chaining shines. The odd one out always concerns whether the pieces are actually independent of each other."
+    }
+  },
+  {
+    "id": "SDA-A-047",
+    "domain": "Solution Design & Architecture",
+    "topic": "Latency tail versus accuracy in agent selection",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A contact centre deploys real-time agent assist: while the customer is speaking, the system surfaces a suggested next action on the human agent's screen. A suggestion is useful only if it arrives before the agent must reply — the measured window is 2.5 seconds, and later suggestions are ignored or actively distracting. A proposed agentic design is correct on 79% of calls, with a median latency of 1.9 seconds, a p90 of 6 seconds, and 62% of runs completing inside the window. The existing two-step workflow is correct on 68% of calls with a p99 of 1.4 seconds. Which analysis should drive the decision?",
+    "options": [
+      { "key": "A", "text": "Multiply each design's accuracy by the share of runs inside the 2.5-second window: roughly 49% for the agent against 68%." },
+      { "key": "B", "text": "Compare accuracy directly — 79% against 68% — and treat the latency tail as an engineering problem to be optimised after launch." },
+      { "key": "C", "text": "Compare median latencies, since the median reflects the typical experience and 1.9 seconds sits comfortably inside the window." },
+      { "key": "D", "text": "Deploy the agent and fall back to the workflow's suggestion whenever the agent has not returned inside the 2.5-second window." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Value in this system is conditional on arriving in time, so accuracy alone is not the quantity being compared. Combining the two gives roughly 0.79 times 0.62, about 49% of calls receiving a usable suggestion, against the workflow's 68% delivered essentially always inside the window. The agent is more accurate and less useful, and it is worse on the second axis by more than it is better on the first. Deadline-bounded systems require the deadline to enter the metric, not sit beside it as a separate concern.",
+      "distractors": {
+        "B": "This compares the two designs on a metric that does not describe the product. Deferring the tail also assumes it is compressible, and an agent's tail comes from trajectory length variation, which is intrinsic rather than an implementation inefficiency.",
+        "C": "The median is the one statistic that cannot see this problem. Half the runs by definition sit above it, and the stem has already told you what share clears the window — 62%, not the 100% the median implicitly suggests.",
+        "D": "Racing the two is not an analysis, and as a design it means running both on every call while the workflow's answer arrives first and is then replaced mid-conversation — the specific behaviour the stem describes as distracting."
+      },
+      "concept": "When output is only valuable inside a deadline, fold the deadline into the quality metric: effective quality is accuracy times the probability of arriving in time. Agents raise accuracy and widen the latency distribution simultaneously, so in deadline-bounded interactive systems they frequently lose on the combined measure while winning on the headline one.",
+      "tip": "A stem giving both a median and a high percentile is telling you the distribution matters. Find the figure that says what fraction meets the deadline, and multiply."
+    }
+  },
+  {
+    "id": "SDA-A-048",
+    "domain": "Solution Design & Architecture",
+    "topic": "Sectioning a long input to fix positional recall loss",
+    "difficulty": "medium",
+    "type": "next-step",
+    "stem": "A broadcaster checks machine-generated subtitles against its accessibility standard. The current design is one call per programme that reads the subtitle file alongside the transcript and returns a list of issues. Precision is good, but recall degrades with position: issues in the final third of a two-hour file are missed far more often than issues in the first third. The team has substantial latency headroom and a labelled set of 400 programmes. What should the team do next?",
+    "options": [
+      { "key": "A", "text": "Move to the highest capability tier and re-measure recall on the 400 labelled programmes before changing the design." },
+      { "key": "B", "text": "Add a second pass that re-reads the final third of each subtitle file and merges its issues into the first pass's list." },
+      { "key": "C", "text": "Section each programme into overlapping segments checked concurrently with the same prompt, then re-measure recall by position." },
+      { "key": "D", "text": "Chain the analysis: summarise the transcript first, then check the subtitle file against that summary instead of the raw text." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The failure is positional, which means it is a property of how much material one call is asked to attend to rather than of the detection logic — precision is already good. Sectioning gives every part of the programme the same treatment the opening currently gets, the segments are genuinely independent so concurrency is free, and the overlap prevents issues that straddle a boundary from falling between segments. The labelled set makes the follow-up decisive: recall measured by position either flattens out or it does not, and the team learns which without guessing.",
+      "distractors": {
+        "A": "A stronger tier may reduce the effect but does not remove a degradation that scales with input length, and it applies cost to the whole corpus to address a problem confined to the later parts of long files. It is also a change with no diagnostic value.",
+        "B": "This treats the symptom at the observed location. It assumes degradation begins at exactly two thirds, leaves the middle unexamined, and produces a pipeline whose shape encodes a measurement artefact rather than the underlying cause.",
+        "D": "Summarising discards precisely the detail an accessibility check needs — timing, wording, reading rate — so the second call is comparing subtitles against a lossy reference. Chaining is the wrong decomposition when the downstream step needs the full fidelity of the input."
+      },
+      "concept": "When quality varies with position in a long input, the remedy is decomposition of the input rather than escalation of the model. Section into overlapping windows, keep the detection prompt identical across them, and merge with deduplication — then verify by measuring the metric against position, which is the only evidence that the cause was what you thought.",
+      "tip": "Recall that falls off with position is a length symptom, not a capability symptom. The tell in a next-step item is a labelled set plus latency headroom: you are being asked to make a change you can immediately verify."
+    }
+  },
+  {
+    "id": "SDA-A-049",
+    "domain": "Solution Design & Architecture",
+    "topic": "The defining property of an agent",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "What defines an agent, as distinct from a workflow, in the standard pattern vocabulary?",
+    "options": [
+      { "key": "A", "text": "It calls tools such as search or code execution, whereas a workflow only chains plain model calls." },
+      { "key": "B", "text": "It maintains conversation state and memory across turns, whereas a workflow is stateless between requests." },
+      { "key": "C", "text": "It runs on a higher capability tier, such as Opus, because planning its own steps demands stronger reasoning." },
+      { "key": "D", "text": "The model directs its own process, choosing the next step and when to stop from environment feedback." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The distinction is about who holds control flow. In a workflow, a developer wrote the sequence and the model fills in steps; in an agent, the model decides what to do next based on what came back, and decides when the task is done. Everything people associate with agents — variable cost, unpredictable latency, the need for termination bounds, trajectory-based debugging — follows from that single property. It is also why an agent needs an environment that answers back: without feedback, self-direction has nothing to steer on.",
+      "distractors": {
+        "A": "Tool use belongs to the augmented baseline that both patterns build on. A workflow step can call as many tools as it needs; what it cannot do is decide, at runtime, that a different step should come next.",
+        "B": "State management is orthogonal. Plenty of workflows carry rich state across a multi-turn conversation, and an agent can complete a self-directed loop entirely within one request with no state kept afterwards.",
+        "C": "Tier is a cost and capability decision available to either pattern. Agents are often built on mid-tier models, and workflows regularly use the strongest tier for their hardest step."
+      },
+      "concept": "Workflows are systems where LLM calls are orchestrated through predefined code paths; agents are systems where the model directs its own process and tool use, maintaining control over how the task is accomplished. Every downstream difference in cost, latency, observability and risk traces back to that one property.",
+      "tip": "If an option describes a capability — tools, memory, a model tier — it is describing the baseline, not the agent. Only control of the sequence separates the two."
+    }
+  },
+  {
+    "id": "SDA-A-050",
+    "domain": "Solution Design & Architecture",
+    "topic": "Decomposing along a data-boundary constraint",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A telehealth provider summarises consultation notes for onward referral. The notes contain patient identifiers alongside free-text clinical detail. The organisation's data policy permits clinical text to be processed by the model but requires that patient identifiers never appear in a model prompt. The current design sends the whole note in a single call and instructs the model to omit identifiers from its summary. An architect is redesigning. Which decomposition satisfies the policy without degrading summary quality?",
+    "options": [
+      { "key": "A", "text": "Chain two calls: the first extracts and strips the patient identifiers, the second summarises the clinical text that remains." },
+      { "key": "B", "text": "Replace identifiers with placeholders in code before the call, summarise, then substitute the real values back afterwards." },
+      { "key": "C", "text": "Keep the single call and add an output guardrail that blocks any summary still containing a recognisable identifier." },
+      { "key": "D", "text": "Keep the single call but route notes containing identifiers to a self-hosted model, sending the remainder to Claude." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The policy constrains what enters a prompt, so the boundary has to sit before any model call — which makes it a code step, not a model step. Deterministic placeholder substitution satisfies the constraint exactly, and because the clinical text is untouched, the summary loses nothing: the model still reads the full narrative, just with tokens standing in for names and numbers. Re-substitution afterwards restores a usable referral. Drawing the decomposition boundary where the constraint boundary already is, rather than one step later, is the whole move.",
+      "distractors": {
+        "A": "The first call receives the identifiers, which is the thing the policy forbids. Using a model to enforce a constraint on its own input is circular, and the chain adds a round trip while leaving the violation exactly where it was.",
+        "C": "Output screening addresses leakage in the response, not exposure in the request. The policy has already been breached by the time the guardrail runs, and a guardrail that fires after the fact gives the organisation a detection record rather than a control.",
+        "D": "Practically every consultation note contains identifiers, so this routes essentially all traffic away and abandons the capability rather than enabling it. It also solves a residency question the stem did not ask, at the cost of running and evaluating a second model."
+      },
+      "concept": "Where an external constraint defines what may cross a boundary, put the decomposition exactly there and implement the crossing in deterministic code. Model calls sit inside the permitted region; the transformation that makes data permissible is never itself a model call, because a model cannot be relied on to enforce a rule about its own input.",
+      "tip": "Read carefully whether a constraint applies to inputs or outputs. Options that place a check after the call are answering an output constraint; a stem that says data must not appear in a prompt has ruled all of them out."
+    }
+  },
+  {
+    "id": "SDA-A-051",
+    "domain": "Solution Design & Architecture",
+    "topic": "Symptom of an unsound decomposition boundary",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A decomposition is sound only if each subtask's output is a sufficient input for what follows. What is the practical symptom that a proposed boundary violates this?",
+    "options": [
+      { "key": "A", "text": "The downstream step's prompt ends up considerably longer than the upstream step's, once instructions are counted." },
+      { "key": "B", "text": "The downstream step keeps needing detail the upstream step discarded, so the intermediate format grows toward the original input." },
+      { "key": "C", "text": "The two steps take noticeably different amounts of time to complete, one running twice as long as the other." },
+      { "key": "D", "text": "The upstream step's output is prose and cannot be validated against a JSON schema before it is passed on." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "An intermediate format that keeps growing is the clearest evidence that the cut is in the wrong place. Each widening is a concession that the downstream step could not work from what the upstream step produced, and the endpoint is an intermediate artefact carrying almost everything the original input carried — at which point the decomposition costs two round trips and a serialisation format while delivering none of the simplification it promised. Watch that format's growth over successive sprints; it is the most reliable signal a chain is fighting its own boundary.",
+      "distractors": {
+        "A": "Relative prompt length says nothing about separability. Downstream steps are often larger because they carry both the upstream artefact and the instructions for the harder task, and that is a perfectly healthy chain.",
+        "C": "Uneven step durations are normal and frequently desirable, since different steps do different amounts of work and may use different tiers. Duration tells you where to optimise, not whether the cut is sound.",
+        "D": "An unvalidatable output is a reason to reshape what the step emits, and it makes the boundary less useful, but it is a separate defect. A boundary can pass schema validation perfectly and still fail to give the next step what it needs."
+      },
+      "concept": "Test a decomposition by specifying the intermediate artefact before writing either prompt. If you cannot state a compact, complete contract between the steps, the task does not split there. Watching that contract expand in production is the retrospective version of the same test.",
+      "tip": "Recall items about decomposition usually hinge on sufficiency of the intermediate artefact. Distractors will offer measurable but irrelevant differences between the two steps."
+    }
+  },
+  {
+    "id": "SDA-A-052",
+    "domain": "Solution Design & Architecture",
+    "topic": "Decomposition driven by time to first content",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A property portal generates a neighbourhood report for each listing, covering schools, transport, planning applications, flood risk and price history. Today one call assembles all five sections; the five source lookups run sequentially and take about nine seconds in total, and the generation call takes about five, so users watch a spinner for roughly fourteen seconds and 38% abandon before it completes. The five topics are independent and each comes from a different source. What redesign best addresses the abandonment?",
+    "options": [
+      { "key": "A", "text": "Stream the single call's tokens to the page so the user watches the report appear line by line as it is written." },
+      { "key": "B", "text": "Run the five source lookups concurrently while keeping one generation call, cutting total time to about seven seconds." },
+      { "key": "C", "text": "Section into five independent pipelines that retrieve and generate concurrently, rendering each section as it completes." },
+      { "key": "D", "text": "Cache generated reports by listing id so that repeat views of the same listing render instantly from the cache." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Abandonment is driven by time to first content, not by total time, and the current design guarantees a blank screen for the nine seconds of sequential retrieval before a single token can exist. Full sectioning collapses retrieval to the slowest source and lets each section render the moment its own pipeline finishes, so something appears in roughly three seconds and the page fills progressively. The five topics being independent, each with its own source, is what makes this legal — the decomposition follows a real seam rather than being imposed on one.",
+      "distractors": {
+        "A": "Streaming helps only once generation begins, and generation cannot begin until nine seconds of sequential retrieval has completed. The user still stares at an empty panel through the part of the wait that causes the abandonment.",
+        "B": "This is a genuine improvement and halves total time, but it keeps a single generation call that can only render when all five sections are written. The user still waits about seven seconds seeing nothing, which is far past where the drop-off starts.",
+        "D": "Caching by listing helps repeat views, and the abandonment is happening on first views. It also fits the data poorly: neighbourhood facts are shared across listings in an area, so listing-level keys would miss nearly all the reuse available."
+      },
+      "concept": "Decomposition is sometimes justified by the delivery experience rather than by accuracy or cost. When independent parts of an output can be produced and rendered separately, sectioning converts one long wait into progressive disclosure — and time to first content, not total latency, is the metric that abandonment tracks.",
+      "tip": "When a stem quotes an abandonment rate, the target metric is time to first useful output. Options that reduce total latency without changing when the user first sees something are missing the point."
+    }
+  },
+  {
+    "id": "SDA-A-053",
+    "domain": "Solution Design & Architecture",
+    "topic": "Risks introduced by converting a workflow to an agent",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A team converts a fixed workflow into an agentic loop over the same tools. Which risks does the conversion introduce that the workflow did not carry? (Choose THREE.)",
+    "options": [
+      { "key": "A", "text": "Cost and latency per request become a distribution with a long tail rather than a near-constant per-request figure." },
+      { "key": "B", "text": "The model gains the ability to call search and database tools, which the workflow's fixed steps could not do." },
+      { "key": "C", "text": "An early wrong decision can steer the rest of the trajectory, so errors compound along a path nobody specified." },
+      { "key": "D", "text": "Output can no longer be constrained to a JSON schema, because the model, not the code, ends the run." },
+      { "key": "E", "text": "Reproducing a failure means reconstructing a path that may differ next run, so debugging depends on captured trajectories." }
+    ],
+    "correct": ["A", "C", "E"],
+    "explanation": {
+      "correct": "All three follow from the model taking control of the sequence. Cost and latency stop being properties of the pipeline and become properties of each trajectory, so capacity planning has to work from a distribution and its tail rather than an average. Errors compound differently: in a chain a bad step corrupts its successor, but in a loop it changes which steps happen at all, so a single early misjudgement can produce a wholly different investigation. And the failure you are asked to reproduce may not recur, which makes trajectory capture a prerequisite rather than a nice-to-have.",
+      "distractors": {
+        "B": "Tool access is a property of the augmented baseline and is equally available to workflow steps. The conversion changes who decides which tool to call and when, not whether tools can be called.",
+        "D": "Structured output remains enforceable — the final response can be constrained by a schema or produced through a tool call, and validated in code exactly as in a workflow. Format is not what autonomy puts at risk."
+      },
+      "concept": "Converting to an agent trades predictability for adaptability. What you give up is specifically: a fixed cost and latency per request, a bounded error propagation path, and the ability to reproduce a run by replaying a known sequence. Budget, guardrail and observability designs all have to be rebuilt around distributions and trajectories rather than around steps.",
+      "tip": "Two options here describe capabilities rather than risks, and both remain true of workflows. Filter for consequences of the model owning control flow, which is the only thing the conversion actually changed."
+    }
+  },
+  {
+    "id": "SDA-A-054",
+    "domain": "Solution Design & Architecture",
+    "topic": "Collapsing a chain whose boundary buys no check",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An automotive parts distributor is designing a fitment checker: given a vehicle and a part, decide whether the part fits and explain why. The proposal is a two-call chain — the first retrieves and normalises the vehicle specification and the part's fitment rules, the second applies the rules and writes the explanation. Both calls need the full specification and rule text, averaging about 12,000 tokens, and the normalisation step emits prose, so no check can be applied between them. Volume is two million checks a month. What should the architect say?",
+    "options": [
+      { "key": "A", "text": "Keep the chain but cache the shared 12,000-token prefix, so the second call's input is far cheaper at this volume." },
+      { "key": "B", "text": "Keep the chain but run normalisation on Haiku, since reformatting specification text is a mechanical transformation." },
+      { "key": "C", "text": "Keep the chain and add an evaluator call that critiques the final explanation for consistency with the published fitment rules." },
+      { "key": "D", "text": "Collapse it to a single call, or have normalisation emit a structured fitment record a deterministic evaluator can decide." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "The boundary as proposed hosts nothing: no validation, no human, no tier change, no separately measurable capability — just prose handed from one call to another, with 12,000 tokens of shared context re-sent two million times a month. Collapsing removes a round trip and roughly halves the input volume with no loss of control. The constructive half of the answer matters as much: if the team wants a boundary, it should make one worth having by emitting structure that a deterministic evaluator can decide, which turns fitment from a judgement into a computation.",
+      "distractors": {
+        "A": "Caching reduces the cost of the redundancy without removing it, and it leaves the extra round trip and the unchecked boundary in place. Optimising the economics of a step that should not exist is a common way for a questionable decomposition to become permanent.",
+        "B": "A cheaper tier lowers the cost of one half of a split that is not earning its place, and normalisation feeding an unvalidated prose artefact into the decisive call is exactly where quality loss would be invisible.",
+        "C": "This adds a third call to critique an explanation whose correctness is decidable against the rules themselves. Where a deterministic evaluation exists, a model critique is slower, more expensive and less trustworthy than the computation it approximates."
+      },
+      "concept": "A chain boundary must pay for itself in control, not merely exist because the task had two describable phases. When the split adds a round trip and duplicated context but no check, collapse it — or redesign the intermediate artefact into something structured enough that a deterministic gate can sit on it.",
+      "tip": "Watch for a stem that tells you the intermediate output is prose and that no check can be applied. That is an explicit statement that the boundary is inert, and it eliminates every option that preserves it."
+    }
+  }
+]

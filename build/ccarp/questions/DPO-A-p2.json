@@ -1,0 +1,456 @@
+[
+  {
+    "id": "DPO-A-019",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Constraining the tool surface of a review subagent",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A biotech company wants a subagent that inspects pull request diffs and reports risks, and it must not be able to modify anything in the working tree. The first version was written with a name, a description, and a system prompt that opens with \"You are a read-only reviewer; never edit files.\" During a trial it edited two files while attempting to demonstrate a fix. What is the correct fix?",
+    "options": [
+      { "key": "A", "text": "Strengthen the subagent's system prompt with an explicit prohibition repeated at the start and the end, since instruction placement at both ends of a prompt improves adherence." },
+      { "key": "B", "text": "Assign the subagent a lower-capability model, which is less inclined to take initiative beyond the task it was given and will therefore stop proposing edits." },
+      { "key": "C", "text": "Declare an explicit tool list in the subagent's definition covering only reading and searching, because a definition that omits the tool list inherits the full tool set." },
+      { "key": "D", "text": "Add deny rules for the file-editing tools to the repository's shared settings, so no session in this repository can write to the working tree." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "A subagent definition that says nothing about tools inherits everything available to the session, so the reviewer had write access the whole time and the prohibition was advisory. Naming the tools it may use converts the constraint from something the model is asked to respect into something it structurally cannot do. This is the standard way to give a delegated agent least privilege, and it is checked into the repository alongside the definition so the restriction is reviewable.",
+      "distractors": {
+        "A": "Prompt reinforcement raises compliance and never guarantees it. The trial already demonstrated the failure mode with a clear instruction in place, and repeating it does not change the fact that the capability is present and reachable.",
+        "B": "Model tier changes capability, not authorisation. A weaker model with write tools available can still write, and it will do so with worse judgement. Choosing a tier is a cost and quality decision, not a permission mechanism.",
+        "D": "This works but takes away far too much: the engineers' own sessions in the same repository need to edit files, and a repository-wide deny would block them. The restriction belongs on the subagent that must be constrained, not on the whole repository."
+      },
+      "concept": "A subagent's tool list is its privilege boundary. Omitting it grants everything the parent session has, so any delegated agent that should be constrained must enumerate its tools explicitly rather than rely on its prompt.",
+      "tip": "When a stem shows an agent doing something its prompt forbade, the answer is almost never better prompting. Look for the option that removes the capability rather than discouraging its use."
+    }
+  },
+  {
+    "id": "DPO-A-020",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Where subagent definitions live and which wins",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "A subagent of the same name exists both in a repository's agents directory and in the engineer's personal agents directory. Which is used in a session opened in that repository?",
+    "options": [
+      { "key": "A", "text": "Neither, until the collision is resolved; the session reports an ambiguous definition and declines to offer the subagent at all." },
+      { "key": "B", "text": "The repository's definition, because project-scoped subagents take precedence over personal ones." },
+      { "key": "C", "text": "The personal definition, because configuration closest to the individual running the session always resolves last and therefore wins." },
+      { "key": "D", "text": "Both, presented as two separately named entries so the engineer can pick which one to delegate to for a given task." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Project-scoped subagent definitions take priority over personal ones with the same name. That ordering is deliberate: it lets a repository guarantee that a contributor who runs the team's review or migration agent gets the team's version, rather than having it silently shadowed by something in the contributor's home directory. Personal definitions remain fully useful for names the repository does not claim.",
+      "distractors": {
+        "A": "Refusing to resolve a collision would make a repository unusable for anyone whose personal agent happened to share a common name such as reviewer or tester. The precedence rule exists precisely so this situation resolves silently and predictably.",
+        "C": "For subagents the ordering runs the other way. The general principle that personal configuration is more specific holds for settings keys, but a repository needs the ability to pin which agent definition its contributors actually get.",
+        "D": "There is no disambiguated dual listing. One definition resolves for a given name, which keeps invocation by name unambiguous for both the engineer and the model."
+      },
+      "concept": "Subagents resolve project-over-personal on a name collision, so a repository can standardise the agents its contributors use. Definitions live in an agents directory at either scope, as files carrying the agent's name, description, and optional tool and model constraints.",
+      "tip": "Precedence direction is not uniform across every Claude Code concept. Settings resolve toward the individual; project-supplied definitions such as subagents resolve toward the repository."
+    }
+  },
+  {
+    "id": "DPO-A-021",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Packaging a repeated parameterised prompt for a team",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "Engineers at a travel booking company type a near-identical eight-line prompt several times a day: given a failing test path, read the test, read the code under test, and explain the failure using the team's specific debugging conventions. Everyone has their own slightly different version pasted from a chat thread, and the versions have drifted. The tech lead wants one canonical form, invocable in a couple of keystrokes with the test path supplied at call time.",
+    "options": [
+      { "key": "A", "text": "Add the eight lines to the repository's memory file so the conventions are always in context and engineers can simply say \"debug this test\" with the path." },
+      { "key": "B", "text": "Publish the canonical text in the team's internal documentation and add a lint rule to the chat bot that flags outdated versions when someone pastes one." },
+      { "key": "C", "text": "Create a shell alias that pipes the canonical prompt and the path into a print-mode invocation, and distribute the alias through the team's dotfiles repository." },
+      { "key": "D", "text": "Commit a custom slash command in the repository's commands directory containing the canonical text, with the test path substituted from the argument the engineer supplies." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "A committed slash command is the intended container for a short, frequently used, parameterised prompt. It lives in the repository so there is exactly one version, it changes through the normal review process, it arrives automatically for anyone who clones, and the argument substitution supplies the test path at call time. Invocation is a couple of keystrokes, which is what actually displaces the pasting habit the drift came from.",
+      "distractors": {
+        "A": "Memory files are always-loaded background context, not invocable procedures. Putting an eight-line debugging recipe there taxes every unrelated session, and it still leaves engineers phrasing the request differently each time, which is the source of the drift.",
+        "B": "Documentation plus a nag does not remove the copy-paste step, so drift continues at a slower rate. It also puts the canonical text somewhere the session cannot reach, meaning correctness depends entirely on the human transcribing it faithfully.",
+        "C": "An alias forces every use into a fresh non-interactive run, losing the session context the engineer is usually already in. It also distributes through a personal dotfiles path rather than the repository, so it is invisible to new joiners working in that codebase."
+      },
+      "concept": "Slash commands are versioned, parameterised prompt templates that ship with the repository. Reach for one when the content is short, the invocation is manual and frequent, and the value is in everyone using the identical wording.",
+      "tip": "Match the container to the access pattern. Always needed means memory; large and occasionally needed means a skill; short, repeated, and typed by a human means a command."
+    }
+  },
+  {
+    "id": "DPO-A-022",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Credential strategy for Claude Code in a hosted CI workflow",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A retail bank is enabling Claude Code inside its hosted CI workflows. Its cloud security standard forbids long-lived static credentials anywhere in the delivery toolchain, and every workload must obtain short-lived credentials scoped to the job. The bank already consumes Claude through a managed cloud provider under an existing account. How should the workflow authenticate?",
+    "options": [
+      { "key": "A", "text": "Use the workflow's OIDC identity to federate into the cloud account and assume a short-lived, narrowly scoped role, so no static key is stored in the repository at all." },
+      { "key": "B", "text": "Store a long-lived key as an encrypted repository secret, which is masked in logs and only decryptable by the CI system, and rotate it quarterly." },
+      { "key": "C", "text": "Store the key as an organisation-level variable rather than a repository secret, so a single rotation covers every repository at once and the exposure surface is reduced." },
+      { "key": "D", "text": "Commit an encrypted credential file to the repository and decrypt it at job start with a passphrase supplied from the CI system's secret store." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The standard is a prohibition on long-lived credentials, so any answer that stores one and manages it well still fails the requirement. Workload identity federation satisfies it directly: the CI job presents its own identity, the cloud account exchanges that for a short-lived role, and nothing durable exists to leak or rotate. Because the bank already consumes Claude through that cloud account, this is also the path with the least new machinery.",
+      "distractors": {
+        "B": "Encryption at rest and log masking reduce the chance of accidental disclosure but do not change the credential's lifetime. A quarterly rotation window is a quarter of exposure after any compromise, which is exactly what the standard exists to eliminate.",
+        "C": "Broadening the scope of one credential from a repository to an organisation makes a compromise worse rather than better, and it is still a static key. Convenience of rotation is not the property the standard is asking for.",
+        "D": "This turns one secret into two and puts ciphertext in version control permanently, where it remains available to anyone who later obtains the passphrase. It also fails the same prohibition, since the underlying credential is still long-lived."
+      },
+      "concept": "Automation credentials should be short-lived and workload-scoped. When a CI platform can assert an identity, federate it into the provider account rather than storing a key, and reserve stored secrets for the cases where no federation path exists.",
+      "tip": "When a stem states a policy as a prohibition rather than a preference, options that manage the prohibited thing carefully are all wrong. Find the option that removes the thing."
+    }
+  },
+  {
+    "id": "DPO-A-023",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Controlling which repository-supplied MCP servers may run",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A gaming studio's engineers routinely clone third-party and contractor repositories to investigate integration issues. Several of these repositories now ship their own MCP server configuration at project scope. Security has raised that a cloned repository can propose a server that launches a local process or reaches an external endpoint, and that relying on each engineer to evaluate a one-off approval prompt at a moment when they are focused on something else is a weak control. What should the studio do?",
+    "options": [
+      { "key": "A", "text": "Instruct engineers to open unfamiliar repositories in a session started from a different directory, so the repository's project-scoped configuration is outside the working tree and is never considered." },
+      { "key": "B", "text": "Decide centrally which repository-supplied servers may run, expressing that decision in settings the engineer does not control, and leave the per-engineer approval prompt in place as a secondary check." },
+      { "key": "C", "text": "Enable the setting that approves all servers found in a repository's project configuration, then rely on the deny rules already in place to restrict what any server's tools can actually do." },
+      { "key": "D", "text": "Require engineers to review the repository's project configuration file manually before their first session and to record the review outcome in the studio's ticket system." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "The stem identifies the weakness precisely: a decision made under interruption by whoever happens to open the repository is not a control. Moving the decision to configuration the engineer does not own converts it into a reviewed, centrally owned allowlist, and it scales to everyone who clones the same repository rather than being repeated as a judgement call per person. Keeping the prompt as a second layer is right — defence in depth — but it stops being the thing the security property depends on.",
+      "distractors": {
+        "A": "Working around discovery by launching from elsewhere sacrifices the working tree the engineer actually needs, and it relies on a habit rather than a mechanism. The first time someone opens the repository normally, the behaviour is back.",
+        "C": "This inverts the intended default. Auto-approving everything a repository proposes is the setting for a trusted first-party monorepo, not for contractor code, and deny rules govern tool calls rather than whether an untrusted process is launched in the first place.",
+        "D": "A manual review step depends on the same distracted engineer the stem already identified as the weak point, and it adds ticketing overhead without adding any enforcement. It produces an audit trail of decisions that nothing verifies."
+      },
+      "concept": "A repository-supplied MCP server is untrusted input. Per-user approval prompts are a reasonable interactive backstop, but an organisational guarantee requires the allowed set to be decided in configuration the user cannot edit.",
+      "tip": "When a stem explicitly argues that a prompt is a weak control, do not pick the option that leans on the prompt, and do not pick the one that removes it. Pick the one that moves the decision upstream."
+    }
+  },
+  {
+    "id": "DPO-A-024",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Hook event that can veto a tool call",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "Which hook event can prevent a tool call from executing at all, rather than reacting to it afterwards?",
+    "options": [
+      { "key": "A", "text": "The post-tool-use event, which receives the tool's result and can suppress it before it is returned to the model." },
+      { "key": "B", "text": "The notification event, which fires whenever the session needs attention and can withhold the pending action." },
+      { "key": "C", "text": "The pre-tool-use event, which fires before the call runs and can return a decision that denies it." },
+      { "key": "D", "text": "The session-start event, which can register a list of calls to refuse for the remainder of the session." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Only an event that fires before execution can prevent execution, and pre-tool-use is that event. It receives the tool name and the concrete input, and it can return a decision that denies the call along with a reason that is surfaced back to the model, which lets the session adapt rather than simply fail. This is the extension point for any programmable rule that static permission patterns cannot express.",
+      "distractors": {
+        "A": "Post-tool-use runs once the tool has already executed. It can shape or comment on what happened and feed information back, but the side effect — a file written, a command run, a file read into context — has already occurred.",
+        "B": "The notification event exists to surface that the session wants attention, for example to drive a desktop alert or a chat message. It is an output channel, not a decision point in the tool path.",
+        "D": "Session start fires once at the beginning and is used for preparing context and environment. Refusing specific calls is the job of permission rules and the pre-execution event, both of which evaluate each call individually."
+      },
+      "concept": "Hook events split into those that can gate an action and those that can only observe or react to it. Anything that must not happen has to be intercepted before execution; anything that must follow an action attaches after it.",
+      "tip": "Read the event name literally. Pre means before the thing, and only before the thing can stop it. If an option claims a post event prevents something, it is describing a cleanup, not a veto."
+    }
+  },
+  {
+    "id": "DPO-A-025",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "How permission rules are expressed",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "Which TWO statements about how Claude Code permission rules are expressed are correct? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Rules are matched against the model's stated intent for the step, so a rule can permit a class of goals rather than a class of concrete calls." },
+      { "key": "B", "text": "A rule may name a tool as a whole, or narrow it with a parenthesised specifier that constrains which uses of that tool it covers." },
+      { "key": "C", "text": "A rule set can only be defined once per machine, so per-repository permission differences must be handled by launching from different working directories." },
+      { "key": "D", "text": "Web fetching can be constrained by domain, so a rule can permit retrieval from named hosts while leaving others to be denied or prompted." },
+      { "key": "E", "text": "Adding an allow rule for a command removes any overlapping deny rule, since the two cannot coexist for the same command in one merged rule set." }
+    ],
+    "correct": ["B", "D"],
+    "explanation": {
+      "correct": "Permission rules are written against tools and, optionally, a specifier that narrows which uses of the tool the rule covers — a command shape for shell execution, a path for file access, a host for web retrieval. That two-level structure is what makes the model useful in practice: a team can permit its own build commands without permitting shell access generally, and permit retrieval from its documentation host without opening the whole web. Both statements describe that structure accurately.",
+      "distractors": {
+        "A": "Matching happens against the concrete tool call and its input, not against a description of what the model is trying to achieve. Intent-based matching would be unusable as a security boundary, because the same intent can be expressed by wildly different calls.",
+        "C": "Rules can be defined at several scopes, including per repository, and the merged set is what applies. Per-project rule sets are one of the main reasons the configuration hierarchy exists.",
+        "E": "Allow and deny coexist in the merged set, and the evaluation order settles the conflict with deny considered first. If an allow rule silently erased an overlapping deny, no carve-out would ever be reliable."
+      },
+      "concept": "A permission rule is a tool plus an optional specifier, evaluated against the concrete call. Coarse rules are stable but broad; specifier-narrowed rules give a team useful convenience without granting the underlying tool wholesale.",
+      "tip": "In multi-select items on a mechanism, false options often propose a more convenient semantics than the real one — intent matching, automatic conflict resolution. Real permission systems are boringly literal."
+    }
+  },
+  {
+    "id": "DPO-A-026",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Granting access to a second repository in one session",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A payments team maintains a service and a shared client library in two separate repositories checked out side by side. A migration requires changing both together, and engineers keep hitting a wall where the session can see the service but not the library. The team wants the pairing to work for everyone doing this migration, and wants file access to remain limited to those two trees.",
+    "options": [
+      { "key": "A", "text": "Create a symbolic link from the service repository into the library checkout, so the library appears inside the working tree the session already has access to." },
+      { "key": "B", "text": "Run two sessions, one per repository, and have the engineer carry the relevant context between them by copying summaries across." },
+      { "key": "C", "text": "Switch the session to the permission mode that skips prompting, since the obstruction is a permission check and the engineer trusts both repositories." },
+      { "key": "D", "text": "Add the library checkout as an additional working directory, either per invocation from the command line or as a committed setting so the whole team gets it." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "File access is scoped to the session's working directories, and the supported way to widen that scope is to name the extra directory explicitly. Doing it as a committed setting rather than an ad hoc flag means every engineer on the migration gets the same pairing without discovering the flag independently, and the boundary stays exactly as tight as the task requires — two trees, nothing else on the machine.",
+      "distractors": {
+        "A": "A symlink smuggles a path across the boundary rather than declaring it. It also pollutes the service repository's working tree, risks being committed by accident, and depends on both checkouts sitting at the exact relative location the link assumes.",
+        "B": "Splitting into two sessions is the workaround the team is already effectively doing, and it puts the burden of maintaining coherence on the engineer. Cross-repository migrations are precisely the case where the session needs both trees in view at once.",
+        "C": "Prompt-skipping removes the confirmation step for everything, which is a drastic response to a scoping problem and does not actually address it: the second tree is outside the session's declared directories, which is a question of scope rather than of approval."
+      },
+      "concept": "Working directories are the file-access boundary for a session. Widening it should be an explicit, reviewable declaration of which additional trees are in play, not a filesystem trick or a wholesale relaxation of permissions.",
+      "tip": "Distinguish scope problems from permission problems. If the session cannot see a path at all, the answer widens the declared scope; if it can see it but asks first, the answer is a permission rule."
+    }
+  },
+  {
+    "id": "DPO-A-027",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Platform support for operating-system-level sandboxing",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "A team standardising on sandboxed command execution asks which developer platforms are covered natively. What is accurate?",
+    "options": [
+      { "key": "A", "text": "Sandboxing is built on operating system primitives, so macOS and Linux are covered natively while a native Windows session needs a Linux subsystem, a dev container, or a virtual machine." },
+      { "key": "B", "text": "Sandboxing is implemented inside the CLI itself and behaves identically on macOS, Linux, and Windows, since the CLI inspects and rewrites each command before it is handed to the operating system." },
+      { "key": "C", "text": "Sandboxing is available only on Linux because it depends on a container runtime being installed, so macOS and Windows users must fall back on permission rules and manual review." },
+      { "key": "D", "text": "Sandboxing is a cloud-side feature applied to the model's proposed commands before they are returned to the client, so the local platform makes no difference to the guarantees." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "Operating-system-level isolation has to be implemented with the isolation primitives the operating system actually provides, which differ by platform. macOS and Linux each have a native mechanism the tool can drive; a native Windows session does not, so the practical route for Windows developers is a Linux subsystem, a dev container, or a virtual machine. A team standardising on sandboxed execution needs to plan for that asymmetry rather than assume uniform coverage.",
+      "distractors": {
+        "B": "An in-process check that inspects commands before running them is a policy layer, not a sandbox. Anything enforced only by the program launching the command can be circumvented by what that command subsequently does, which is why real isolation is delegated to the kernel.",
+        "C": "macOS has its own native sandboxing facility and is covered. Assuming Linux-only support would push a mixed-platform team toward containerising work that does not need it while leaving the genuinely uncovered platform unaddressed.",
+        "D": "Nothing about isolating a local process can be enforced remotely. The model proposes a command; whether that command can reach a credential file or the network is decided entirely by the environment it executes in."
+      },
+      "concept": "Sandboxing and permissions are complementary layers. Permissions decide which calls are allowed; the sandbox decides what an allowed call can reach once it is running. The second is platform-dependent, and coverage gaps must be closed with a container or virtual machine.",
+      "tip": "For platform-support questions, reason from where enforcement must live. Isolation that the isolated process could itself bypass is not isolation, so it has to come from the operating system."
+    }
+  },
+  {
+    "id": "DPO-A-028",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Distributing a standard configuration bundle across many repositories",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A media conglomerate's platform group has built a Claude Code toolkit: four subagents, six slash commands, two skills, a formatting hook, and an MCP server pointing at the internal service catalogue. Twelve product teams across 60 repositories want it. Copying the files into each repository was tried for a month and produced eleven divergent copies. The group needs one version, updated centrally, adopted per repository rather than forced everywhere.",
+    "options": [
+      { "key": "A", "text": "Publish the toolkit as a package and have each repository add a build step that copies the files into place at install time, so updates arrive whenever the dependency is bumped." },
+      { "key": "B", "text": "Push the whole toolkit through enterprise-managed policy settings so every machine in the company receives it automatically and no repository has to opt in." },
+      { "key": "C", "text": "Package the toolkit as a plugin published in a team marketplace, and have each adopting repository declare the marketplace and enable the plugin in its committed settings." },
+      { "key": "D", "text": "Move the toolkit into each engineer's personal configuration directory via a shared dotfiles repository, so it is available in every repository they open without per-repository work." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "The plugin format is the packaging unit for exactly this bundle of artefacts — agents, commands, skills, hooks, and MCP server definitions travelling together with a version. Publishing it in a marketplace the organisation controls gives one upstream source, and declaring the marketplace and enabling the plugin in a repository's committed settings makes adoption an explicit, reviewed, per-repository decision. That satisfies all three constraints in the stem: single version, central updates, opt-in per repository.",
+      "distractors": {
+        "A": "A copy-at-install step reproduces the divergence problem with extra machinery. The moment anyone edits a copied file the repository is off-version again, and the copied artefacts are indistinguishable in review from files the team wrote itself.",
+        "B": "Managed policy is the right vehicle for controls that must not be declined, and the wrong one here. The stem asks for per-repository adoption; pushing developer tooling to every machine in the company forces it on teams whose workflows it does not fit.",
+        "D": "Personal configuration makes the toolkit follow the engineer rather than the codebase, so behaviour differs depending on who opened the repository. It also gives no adoption signal, no per-repository versioning, and nothing for a new contributor to inherit from the clone."
+      },
+      "concept": "Plugins are the distribution unit when a team needs to ship several kinds of Claude Code artefact together with a version and an update path. Managed policy is for mandates; plugins are for opt-in shared capability.",
+      "tip": "Three requirements are stated: one version, central updates, per-repository opt-in. Score each option against all three. The mandate option fails only the third, which is easy to miss if you stop reading after the first two."
+    }
+  },
+  {
+    "id": "DPO-A-029",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Why repository-shipped hooks are not an organisational control",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A defence contractor's security team proposes meeting an audit requirement — \"the assistant must be prevented from reading files under the classified fixtures path in any repository\" — by adding a blocking hook to the committed settings of all 30 repositories, with a CODEOWNERS rule protecting the file. An architect objects. What is the strongest basis for the objection?",
+    "options": [
+      { "key": "A", "text": "Hooks add latency to every matching tool call, and across 30 repositories the cumulative slowdown will push engineers toward disabling them, so the control degrades over time." },
+      { "key": "B", "text": "The hook fires only after the read has completed, so the fixture's contents are already in the session before the hook can return a blocking decision." },
+      { "key": "C", "text": "Hooks committed to a repository cannot be written to reference an absolute path, so a single rule cannot cover a fixtures directory that sits outside each repository's tree." },
+      { "key": "D", "text": "The control lives in a file inside each engineer's working copy and takes effect only in a workspace the engineer has chosen to trust, so it can be edited or declined." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "An audit requirement phrased as prevention needs a control the person being controlled cannot remove. Repository-committed configuration fails that test twice over: the file exists in a working copy the engineer can edit freely, and hooks supplied by a repository take effect only once the workspace has been trusted, which is a decision the same engineer makes. CODEOWNERS governs what merges upstream, not what executes locally. The requirement belongs in organisation-managed policy, where the value cannot be overridden from below.",
+      "distractors": {
+        "A": "Per-call overhead is a real design consideration for hooks and a reason to scope matchers tightly, but it is a performance argument. It would not change an auditor's assessment, and a slow control that cannot be removed still satisfies the requirement.",
+        "B": "This confuses the events. A hook can be configured to run before a tool executes and to deny it, which is what a blocking read control would use. The proposal's flaw is where it lives, not which event it uses.",
+        "C": "Hook commands are ordinary executables and are not restricted to paths inside the repository. Path handling is a detail the team can solve; ownership of the configuration file is not."
+      },
+      "concept": "Ask who can edit the artefact that carries a control. Repository-committed hooks and settings are excellent for team convention and defence in depth, but they are advisory with respect to the engineer running the session. Mandatory controls live in managed policy.",
+      "tip": "Two of the wrong answers here are true statements about hooks in general. The item is asking which objection defeats the proposal, so discard true-but-survivable criticisms and find the one that breaks the security claim."
+    }
+  },
+  {
+    "id": "DPO-A-030",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Repairing a blocking hook that silently stopped blocking",
+    "difficulty": "hard",
+    "type": "next-step",
+    "stem": "A clinical software team has a pre-execution hook that calls an internal policy service to decide whether a proposed command touches a validated system. A postmortem finds it stopped blocking anything for nine days: the policy service had moved endpoints, every call failed, and the hook script treated its own failure as a successful non-objection and returned a passing status. Nobody noticed because the outcome looked identical to a permitted command. The endpoint has now been corrected. What should the team do next?",
+    "options": [
+      { "key": "A", "text": "Change the hook so that any internal error or unreachable dependency produces a blocking result rather than a passing one, and cache the policy locally so a transient outage does not halt all work." },
+      { "key": "B", "text": "Add structured logging and an alert that fires when the hook's error rate exceeds a threshold, so a recurrence is detected within minutes rather than after nine days." },
+      { "key": "C", "text": "Move the check from the pre-execution event to the post-execution event, where a failure to reach the policy service can be recorded against a command that has definitely run." },
+      { "key": "D", "text": "Pin the policy service endpoint in the hook's configuration and add a deployment check that fails the policy service's release if the endpoint changes." }
+    ],
+    "correct": ["A"],
+    "explanation": {
+      "correct": "The defect is the failure semantics, not the outage. A control whose error path is indistinguishable from approval provides no guarantee at all, because every future dependency problem silently disables it. Inverting that so an unresolvable check blocks is the fix, and the local cache is what makes failing closed operationally tolerable — otherwise the team trades a silent hole for an outage that stops everyone working, and someone removes the hook. Correctness of the failure mode first, availability of the check second.",
+      "distractors": {
+        "B": "Alerting shortens the nine days and is worth adding, but during the window the control is still absent. Detection is the right complement to a fail-closed design and a poor substitute for one, since it converts a security property into a response-time promise.",
+        "C": "Moving to the post-execution event guarantees the command has already run. That is acceptable for audit trails and unacceptable for a control whose purpose is to prevent a change to a validated system.",
+        "D": "This prevents one specific cause of one specific outage. Any other failure — a network partition, an expired certificate, a bug in the script — reproduces the identical silent hole, because the hook still reports success when it cannot reach a verdict."
+      },
+      "concept": "A gate must fail closed. If the mechanism cannot reach a verdict, the safe answer is to deny, and the availability of the check becomes a design problem to solve with caching or degraded local rules — never by treating uncertainty as approval.",
+      "tip": "When a postmortem says the failure looked exactly like the success case, the answer is about failure semantics. Options that improve visibility or fix the individual trigger are treating the incident rather than the class."
+    }
+  },
+  {
+    "id": "DPO-A-031",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Referencing canonical documents from a memory file",
+    "difficulty": "medium",
+    "type": "single",
+    "stem": "An automotive supplier's repository has a well-maintained testing policy document under `docs/`, reviewed quarterly. When the team adopted Claude Code they summarised that policy into their root memory file. Six months later the two disagree in three places, and a code review used the memory file's stale version to justify a change. The team wants one source of truth without losing the guidance in the session.",
+    "options": [
+      { "key": "A", "text": "Delete the testing section from the memory file and rely on the assistant reading the policy document when it needs it, since the document is discoverable in the repository." },
+      { "key": "B", "text": "Replace the summary in the memory file with a reference that imports the policy document, so the file the reviewers maintain is the file the session reads." },
+      { "key": "C", "text": "Keep both and add a quarterly checklist item to the policy review requiring the reviewer to update the memory file's summary in the same change." },
+      { "key": "D", "text": "Move the full policy text into the memory file and delete the document, so the guidance exists in exactly one place and is always in context." }
+    ],
+    "correct": ["B"],
+    "explanation": {
+      "correct": "Memory files can pull in other files by reference, which is the mechanism for this exact problem: the reviewed document stays where its owners maintain it, and the session loads that content rather than a copy of it. Drift becomes structurally impossible instead of being managed by discipline, and the quarterly review continues to work unchanged because reviewers keep editing the file they already edit.",
+      "distractors": {
+        "A": "Removing the guidance makes it conditional on the assistant deciding to go and read a document it has not been pointed at. The policy stops being reliably in effect, which is a worse outcome than a stale summary in most sessions.",
+        "C": "Process discipline is what already failed over six months, and it fails again the first time someone is in a hurry. A checklist item makes divergence less likely without making it impossible, and the cost of divergence here was a wrong review decision.",
+        "D": "Collapsing into the memory file loads the entire policy on every session regardless of relevance and moves an organisational document out of the place its non-engineering reviewers expect to find it. It solves drift by damaging both context economy and document ownership."
+      },
+      "concept": "Prefer reference over duplication in memory files. Anything that already has a maintained home in the repository should be imported rather than summarised, so the guidance the session sees and the guidance humans maintain cannot diverge.",
+      "tip": "Whenever a stem describes two copies of the same truth drifting apart, the correct answer eliminates the second copy. Options that promise to keep the copies synchronised through process are the standard trap."
+    }
+  },
+  {
+    "id": "DPO-A-032",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Forcing all client traffic through an internal gateway",
+    "difficulty": "hard",
+    "type": "single",
+    "stem": "A pharmaceutical group of 200 engineers must route all Claude Code traffic through its internal gateway, which applies prompt logging, data-loss inspection, and per-team budgets. Engineers work from home about half the week on split-tunnel VPN. Finance has also found several personal subscriptions being used for work. The group needs every session to go through the gateway and personal authentication to be unavailable, on and off the corporate network.",
+    "options": [
+      { "key": "A", "text": "Add the gateway endpoint to the shell profile distributed by the configuration management agent, so the environment variable is set on every managed machine at login." },
+      { "key": "B", "text": "Block direct egress to the public endpoint at the corporate firewall and require engineers to connect to the full-tunnel VPN before starting any session." },
+      { "key": "C", "text": "Set the gateway endpoint and restrict the permitted login method through enterprise-managed policy settings, so both values are fixed at a layer engineers cannot edit." },
+      { "key": "D", "text": "Publish the gateway configuration in the onboarding guide and reconcile monthly by comparing gateway usage against the engineering headcount to find engineers who are bypassing it." }
+    ],
+    "correct": ["C"],
+    "explanation": {
+      "correct": "Two separate requirements are in play — traffic must reach the gateway, and personal credentials must not work — and both must hold off the corporate network. Managed policy is the only layer that carries a value engineers cannot override, and it can express both: where the client sends requests and which authentication path is permitted. Because it is attached to the machine rather than to the network, it behaves identically at home and in the office, which is what defeats the split-tunnel gap.",
+      "distractors": {
+        "A": "A shell profile is a file the engineer owns, and an environment variable can be unset for a single command without leaving a trace. It also addresses only the destination, doing nothing about the personal subscriptions finance found.",
+        "B": "Network controls stop applying the moment the traffic does not traverse the corporate network, which the stem tells you happens about half the time. Making full-tunnel VPN mandatory is also a policy that depends on compliance rather than a control that enforces it.",
+        "D": "Documentation plus after-the-fact reconciliation is detection, and weak detection at that: usage below headcount has many innocent explanations. Nothing in this option prevents a single session from going straight to the public endpoint with a personal credential."
+      },
+      "concept": "When a control must hold regardless of network location and regardless of user intent, it has to be attached to the client at a layer the user cannot write to. Network enforcement is a useful second layer, never the primary one for a mobile workforce.",
+      "tip": "Note when a stem mentions remote work or split tunnelling. That detail exists specifically to eliminate network-perimeter answers, and it usually appears once, without emphasis."
+    }
+  },
+  {
+    "id": "DPO-A-033",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Where a project-scoped MCP server definition is stored",
+    "difficulty": "easy",
+    "type": "single",
+    "stem": "An MCP server is added at project scope. Where does the definition live, and who receives it?",
+    "options": [
+      { "key": "A", "text": "In the user's home configuration, keyed by the project path, so it applies to that project on that machine only and is invisible to teammates." },
+      { "key": "B", "text": "In the running session's state only, so it is available until the session ends and must be re-added the next time the project is opened." },
+      { "key": "C", "text": "In the organisation's managed policy store, so it is distributed to everyone in the organisation whether or not they work on that project." },
+      { "key": "D", "text": "In a configuration file at the repository root, which is committed, so anyone who clones the repository receives the same server definition." }
+    ],
+    "correct": ["D"],
+    "explanation": {
+      "correct": "Project scope writes the server definition to a file at the repository root that is intended to be committed. That is what distinguishes it from the other scopes: the definition travels with the code, arrives automatically for anyone who clones, and changes to it are reviewed like any other change to the repository. Secrets are kept out of the committed file by referencing environment variables rather than embedding values.",
+      "distractors": {
+        "A": "That describes the scope intended for private, machine-specific servers tied to one project. It is the right choice for an experiment or a personal tool, and the wrong one when the whole team needs the same server.",
+        "B": "There is no session-only scope for MCP servers. Configuration persists at whichever scope it was written to, which is what allows a server to be a stable part of a project's tooling rather than something re-established each morning.",
+        "C": "Managed policy is an organisational distribution channel and is not what project scope means. Using it for a single project's server would push an irrelevant connection to every engineer in the company."
+      },
+      "concept": "MCP client scopes map to audiences: private to one project, shared with the repository, or private across all of one user's projects. Choose by asking who should receive the server, and keep credentials in the environment rather than the shared file.",
+      "tip": "The word project in a scope name refers to the repository as a shared artefact, not to a personal setting that happens to be project-specific. That distinction is the one recall items about scopes usually probe."
+    }
+  },
+  {
+    "id": "DPO-A-034",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Trust and privilege characteristics of hooks",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "Which TWO statements about hooks are correct? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "A hook supplied by a repository runs on a teammate's machine only once that workspace has been trusted, so a fresh clone does not silently execute it." },
+      { "key": "B", "text": "Hooks run in a restricted execution context with no filesystem or network access beyond the tool call that triggered them." },
+      { "key": "C", "text": "Hooks execute as commands with the privileges of the user running the session, which makes an untrusted repository's hook configuration a supply-chain concern." },
+      { "key": "D", "text": "A hook defined in organisation-managed policy can be removed by an equivalent entry in a user-level settings file, since the more specific scope resolves last." },
+      { "key": "E", "text": "Hooks are limited to observing session activity and cannot influence whether an action proceeds." }
+    ],
+    "correct": ["A", "C"],
+    "explanation": {
+      "correct": "Both true statements describe the same underlying reality from opposite sides. Hooks are ordinary commands running with the session user's privileges, which is what makes them powerful enough to enforce real controls and also what makes a hostile repository's hook configuration a genuine supply-chain risk. The workspace trust step exists because of that: configuration arriving with a clone is not executed until the person opening it has accepted the workspace, so the risk is gated by an explicit human decision rather than by cloning.",
+      "distractors": {
+        "B": "There is no sandbox around hook execution. A hook can read any file the user can read and reach any network the user can reach, which is precisely why the trust gate and careful review of hook configuration matter.",
+        "D": "Managed policy is not overridable from below, and hooks are no exception. If a user settings file could delete a policy-defined hook, hooks would be unusable as an organisational control, which is one of their main enterprise uses.",
+        "E": "Some events are purely observational, but the pre-execution event can deny a call outright and others can influence whether a turn ends. Treating hooks as read-only misses the reason they are the enforcement mechanism of choice."
+      },
+      "concept": "Hooks are deterministic and privileged: they run real commands as the user, which makes them the right tool for guarantees an instruction cannot provide, and simultaneously a code-execution surface that has to be reviewed like a dependency.",
+      "tip": "Hook items usually hinge on one of two axes: which events can gate an action, and who is trusted to define them. Read each option to see which axis it is claiming something about."
+    }
+  },
+  {
+    "id": "DPO-A-035",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Distinguishing skills, subagents, and slash commands",
+    "difficulty": "medium",
+    "type": "multi",
+    "stem": "Which TWO statements correctly distinguish skills, subagents, and slash commands in Claude Code? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "A skill must enumerate every tool it needs, and a skill that omits a tool declaration is unable to make any tool call at all." },
+      { "key": "B", "text": "A skill's descriptive metadata is what is carried until it is used, with the body loaded only when the skill is actually invoked." },
+      { "key": "C", "text": "Where a project and a personal definition share a name, both are presented separately so the session can choose between them at call time." },
+      { "key": "D", "text": "Slash commands can only be defined in a user's personal configuration, so a repository cannot ship one to its contributors." },
+      { "key": "E", "text": "A subagent works in its own context window and returns a result to the calling session rather than sharing that session's conversation." }
+    ],
+    "correct": ["B", "E"],
+    "explanation": {
+      "correct": "The two mechanisms differ in what they do to context, and that is the distinction worth holding. A skill is progressive: the session carries enough metadata to know when the skill applies, and the substantive body arrives only on invocation, which is why a skill can be long without being expensive. A subagent is isolated: it works in a separate context window and hands back a result, which is why it suits bounded investigative work and not step-by-step procedures the main session must follow.",
+      "distractors": {
+        "A": "Tool declarations in a skill are an optional narrowing, not a prerequisite. Omitting them leaves the skill operating with the tools otherwise available, which is why an explicit declaration is how you constrain a skill rather than how you enable it.",
+        "C": "Name collisions resolve to a single definition rather than being surfaced as alternatives. A deterministic resolution is what allows a repository to standardise which definition its contributors actually get.",
+        "D": "Slash commands can be defined at project level and committed, which is the normal way a team standardises a frequently typed prompt. Restricting them to personal configuration would remove their main collaborative use."
+      },
+      "concept": "Choose the container by context economics: memory is always loaded, a skill loads its body on demand, a subagent spends context in a separate window and returns only a result, and a slash command is a parameterised prompt the human triggers.",
+      "tip": "When several containers could technically hold the same content, decide on cost and invocation. Ask what the session pays when the capability is not being used, and who triggers it."
+    }
+  },
+  {
+    "id": "DPO-A-036",
+    "domain": "Developer Productivity & Operational Enablement",
+    "topic": "Permission design for an automated pull request reviewer",
+    "difficulty": "hard",
+    "type": "multi",
+    "stem": "A robotics company is deploying a Claude Code job that reviews every pull request and posts comments. It runs on a shared runner with a token that can comment on and, technically, push to any repository in the organisation. Which TWO decisions correctly shape its permissions? (Choose TWO.)",
+    "options": [
+      { "key": "A", "text": "Enable prompt-skipping for the job, since a bot cannot answer a permission prompt and human reviewers will see anything wrong in the posted comments before it matters." },
+      { "key": "B", "text": "Grant the job the same permission set the engineers use, so its capabilities match what a human reviewer could do and behaviour is easy to reason about." },
+      { "key": "C", "text": "Allow only the reading and searching tools plus the specific command that posts a review, and grant nothing that writes to the working tree." },
+      { "key": "D", "text": "Grant broad allowances but cap the number of turns, so that anything harmful is bounded by how long the run is permitted to continue." },
+      { "key": "E", "text": "Add deny rules covering branch pushes and history rewriting, so that a later convenience allowance cannot quietly re-enable them." }
+    ],
+    "correct": ["C", "E"],
+    "explanation": {
+      "correct": "The job's actual task is read, reason, comment, so its allowances should stop there — an enumerated allowlist covering reads, searches, and the single publishing command leaves no path to modify code even if the model decides that would be helpful. The deny rules are the durable half: because deny is evaluated ahead of allow, they survive whatever broader allowances someone adds to the pipeline in six months, which matters a great deal given the runner's token can push to every repository in the organisation.",
+      "distractors": {
+        "A": "This treats prompts as the only permission mechanism and concludes they must be removed. Pre-authorising a narrow set is the correct way to make an unattended job work, and relying on reviewers to notice damage after it is committed is not a control.",
+        "B": "Engineers need to write code; a reviewer does not. Copying a human's permission set to an automated job grants a large unnecessary surface and, on a runner with organisation-wide push credentials, converts any prompt-injection payload sitting in a pull request into a write path.",
+        "D": "A turn cap bounds cost and runaway loops, which is worth configuring, but a single turn is enough to force-push over a branch. Limiting how many harmful actions are possible is not the same as making them impossible."
+      },
+      "concept": "Automation gets a permission set derived from its task, not inherited from a human role, and the destructive operations it must never perform are denied explicitly so future convenience changes cannot reopen them.",
+      "tip": "Note what credentials the runner holds — that detail sets the blast radius and is usually the reason a generous-looking option is wrong. Turn caps and after-the-fact review are recurring near-miss distractors in automation items."
+    }
+  }
+]
